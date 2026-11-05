@@ -23,7 +23,7 @@ Open `index.html` directly in a browser, or serve the folder:
 python -I serve.py 8000 .
 ```
 
-`serve.py` is `http.server` plus byte ranges, which videos need to start mid-file (the Reddit clip starts at 0:05.6). Plain `python -m http.server` also works, but that clip then plays from 0:00.
+`serve.py` is `http.server` plus byte ranges, which videos need to start mid-file (the trimmed tries depend on it). Plain `python -m http.server` also works, but seeking in a video may not.
 
 Then go to http://localhost:8000.
 
@@ -35,7 +35,7 @@ https://chalk-prototype-omega.vercel.app (project `chalk-prototype`, static, no 
 vercel deploy --prod
 ```
 
-`.vercelignore` keeps `serve.py` out. Vercel serves byte ranges, so the trimmed Reddit clip starts at 0:05.6 there too.
+`.vercelignore` keeps `serve.py` out. Vercel serves byte ranges, so seeking in the videos works there too.
 
 The phone frame is an iPhone 16 Pro in natural titanium: a 402 × 874 pt screen, a 7 pt black bezel, a 3 pt titanium band with the Action button, volume buttons, side button and Camera Control, a 126 × 37 Dynamic Island and a 54 pt status bar.
 
@@ -67,6 +67,8 @@ After changing a CSS or JS file, bump the `?v=` string on its link in `index.htm
 | Over time | Profile (a tab, and your photo at the top of every other tab): progress heatmap, sends per grade, monthly recap, export, watch, sharing | `#/profile` |
 | Over time | Videos, the first tab and where the app opens (v6): each day with its gym and tries, one card per route with every try on it inside; filter by route (v3) | `#/videos` |
 | Over time | One video: play, highest move, time on the move you stall, one tip, compare; your tries on this route side by side, with Film the next try; route and gym under the video, Change to fix; public or hidden, delete; share a send as a poster | `#/clip/<id>` |
+| Over time | A video is analysed as soon as it arrives, on any page, and Videos shows Analysing or Check this on its card: `pose.js` goes through the whole video once, in the browser, with real progress. The three sample videos ship with that scan already done (`video/*.track.json`), so a demo doesn't wait; Fix it scans for real. On the first video of a route you confirm the climber and route we found (Looks right, or Fix it and tap your head, hands and feet, which scans again from your taps); later tries on that route skip this. The result is shown on the video and under it, at the moment the video is at: skeleton and elbow angles on the picture, moves so far, arms and hips beside it, and a timeline of each hand and foot and every rest that you can tap to go to that moment. Summary opens with one conclusion from those numbers, shown with frames taken from the video itself and a strip of the whole climb, then what to do next and where to see it, then lists what we measured, each with its moment. A move on the route (Move 4/6) is not a hand and foot move (27 in a video): the first is how far you got, the second is what we track. Moves, rests, angles and hips come from this video. The fall reason, path and drill are marked Example: they need the hold map. Videos play start to end at 0.25×, 0.5× or 1× | `#/clip/<id>` |
+| Learn from the fall | Why you came off, on a video of a fall: likely reason with its evidence, hands and feet over time, your path against climbers your height, a reach check, falls across routes and one drill. Sample data: the hold map and contact log are not built yet | `#/clip/<id>` |
 | Over time | A video with no route: pick the gym if it has no location, then tap the route's photo or pick tape colour and grade, right on the video's page (v3) | `#/clip/<id>` |
 | Over time | Videos, manage: new climbing videos found in Photos, Select to hide / change route / delete several, free up space by deleting originals, highlight reel of every send | `#/videos` |
 | Over time | Feed with comments, group climbs, partner calendar | `#/friends` |
@@ -133,7 +135,7 @@ v5 (in `versions/v5/`). Routes are reset every week, so a home screen built arou
 - v5 first had the three steps as grade tiles ("Warm up · 2 climbs at V1"). That said how many but not how, how long to rest or when to stop, so it read like a counter, not a session.
 - The route picker ("Your 3 routes · tap a photo to switch") is gone from Today. The route you just filmed shows up during a session.
 
-The site itself is v6: no Today page. The app opens on Videos, like KEKE opens on its records. Dock: Videos, Gyms, Add, Friends, Profile (Gyms was Walls). The dock shows on those four tabs only; every page opened from a tab (route, clip, compare, gyms, set-up) has a back button instead.
+The site itself is v7: v6 plus the video analysis (each video is analysed on its own, with tracked points on the video, a timeline, one conclusion with frames from the video and a strip of the whole climb). v6 is commit 1fd4ba8. What came with v6: no Today page. The app opens on Videos, like KEKE opens on its records. Dock: Videos, Gyms, Add, Friends, Profile (Gyms was Walls). The dock shows on those four tabs only; every page opened from a tab (route, clip, compare, gyms, set-up) has a back button instead.
 
 - Every version of Today asked the climber to follow something: a route card, then grade tiles, then a coach's 50-minute session with reps to tick. Bouldering doesn't run that way. Beginners pick a route they see, try it, watch others, rest when they like and go home when their fingers are done. Nobody taps a checklist with chalky hands.
 - Everything Today offered already lives somewhere else. Adding a climb (film, upload, scan, log) is "+". What you climbed and how high you got is Videos. Sends by grade and the monthly recap are Profile. Friends at the gym are Friends.
@@ -162,7 +164,8 @@ The tip under it changes with what it sees. When the video ends, it sums up the 
 
 Videos:
 
-- `video/r-lpj1bzih3ytb1.mp4`: a phone-on-the-floor clip posted on Reddit, the kind of video beginners film of themselves. Only 0:05.6–0:11.3 is the climb, so `VIDS` in `app.js` sets `t: [5.6, 11.3]` and the clip page plays just that part. It is not freely licensed: fine for a class prototype, but ask the poster or swap it before publishing.
-- `video/6687076-sd_506_960_25fps.mp4` from Pexels (free licence).
+- `video/rockspot-v3.mp4`: [Indoor Bouldering V3 Rock Spot](https://commons.wikimedia.org/wiki/File:Indoor_Bouldering_V3_Rock_Spot.webm) by Cryptic C62, [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/). We used the file's earlier 480×272 version, turned it upright and trimmed it to 0:01.5–0:42.5. This changed clip is under the same licence. The climber tops the route, so no fall is shown.
+- `video/pexels-7591864-crop.mp4` and `video/pexels-7591810-crop.mp4`: [Pavel Danilyuk on Pexels](https://www.pexels.com/@pavel-danilyuk/) (free licence), cropped to portrait around one climber; the second is also trimmed to 0:04.8–0:18.8.
+- Not used any more: `video/r-lpj1bzih3ytb1.mp4` (posted on Reddit), `video/6687076-sd_506_960_25fps.mp4` (Pexels), `img/vr1.jpg` and `img/v6687076.jpg`.
 
-The thumbnails `img/vr1.jpg` and `img/v6687076.jpg` are frames taken from those videos.
+The thumbnails `img/vrock.jpg`, `img/v864.jpg` and `img/v810.jpg` are frames taken from these videos. `img/vrock0.jpg`, `img/v8640.jpg` and `img/v8100.jpg` are their first frames, used as posters so the tracked points land on the right picture.
