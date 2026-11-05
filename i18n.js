@@ -36,6 +36,7 @@ const ZH = {
   "Foot moved first": "脚先动", "Do this more": "多这样做", "Hand moved alone": "只动了手", "Try a foot first": "试试先动脚", "Hands and feet": "手和脚", "{} hand, {} foot": "手 {0} 次，脚 {1} 次", "Hands": "手", "Feet": "脚",
   "Your longest pause": "停得最久的一次", "{} s": "{} 秒", "Moving and pausing": "移动和停顿", "Longest pause {} s": "最长停顿 {} 秒", "Pause": "停顿", "Your best rest": "最好的一次休息",
   "{} with a hand, {} with a foot. Only the ones we’re sure of": "用手 {0} 次，用脚 {1} 次。只算我们有把握的",
+  "We saw you here": "我们在这里看到了你", "In {}% of this video": "视频里 {}% 的时间能看到你", "Worth a look": "值得看看", "Still centred": "依然居中", "Add route": "添加线路", "Add it to see this try next to your others": "添加后可以和你的其他尝试放在一起看", "Tag {} V{}": "标记 {} V{}",
   "Sample video": "示例视频", "Tracking": "跟踪", "You and this route, confirmed": "你和这条路线已确认", "{} · move {}": "{0} · 第 {1} 步", "{} · move {} ›": "{0} · 第 {1} 步 ›",
   "While it plays": "播放时", "Tap play": "点击播放", "Following you": "正在跟踪你", "We follow your hands, feet, elbows and hips on every frame, on your phone.": "我们在手机上逐帧跟踪你的手、脚、手肘和髋部。",
   "Arms straight in {}% of your rests · longest rest {} s": "休息时 {0}% 手臂伸直 · 最长休息 {1} 秒",
