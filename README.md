@@ -172,12 +172,14 @@ The thumbnails `img/vrock.jpg`, `img/v864.jpg` and `img/v810.jpg` are frames tak
 
 ## How well the moves are found
 
-A move is a hand or foot stopping somewhere new (`placements` in `pose.js`), at 5 samples a second with MediaPipe's full model. Checked against the coach's labels in The Way Up (Maschek & Schedl, CC BY 4.0, https://doi.org/10.5281/zenodo.15196866): 22 videos, 885 placements, a match is the right limb within 1 second. Tuned on 12 videos, scored on the other 10 (scores are from all 22 where marked).
+A move is a hand or foot landing on a hold. A small network (`model/moves.json`, 3 models averaged, under half a second on a laptop, not timed on a phone) reads the tracked body at 5 samples a second and marks those moments. If the file can't be read, `placements` in `pose.js` is the fallback: a limb stopping somewhere new.
 
-| Held out, 10 videos | Found | Chance | Reported moves that are right | Chance |
+It was trained on the coach's labels in The Way Up (Maschek & Schedl, CC BY 4.0, https://doi.org/10.5281/zenodo.15196866): 22 videos, 885 placements, 11 climbers, 2 routes. A match is the right limb within 1 second. Scored on climbers and a route it hadn't seen:
+
+| | Found | Chance | Reported moves that are right | Chance |
 |---|---|---|---|---|
-| Hands | 54% | 32% | 39% | 23% |
-| Feet | 61% | 31% | 57% | 29% |
-| All | 58% | 32% | 48% | 26% |
+| Hands | 48% | 17% | 75% | 26% |
+| Feet | 57% | 20% | 77% | 27% |
+| All | 53% | 19% | 76% | 27% |
 
-The old speed rule found 27% of hands on the same 10 videos. All 22: 1088 moves against 885 labels, so counts run about 20% high. MediaPipe's heavy model at 10 samples a second cost three times the scan and didn't help hands. The scan is sensitive to the GPU: one clip saw the climber in 52% of frames on an Intel GPU and 72% on an NVIDIA one. Arm angles and the hip rule are not checked by this.
+So counts run low: 614 moves against 885 labels. Four test splits ranged from 61% to 91% right. The model shipped here is trained on all 22 videos, so these scores come from the splits, not from it. It hasn't been checked on phone videos of bouldering, where nothing is labelled. For comparison, the rule found 57% of hands and 62% of feet, with 42% and 57% right. Scans change with the GPU: one clip saw the climber in 52% of frames on an Intel GPU and 72% on an NVIDIA one. Arm angles and the hip rule are not checked by this.

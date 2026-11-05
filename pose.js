@@ -149,6 +149,73 @@
     return moves.sort((a, b) => a.t - b.t);
   }
 
+  // A small network reads the tracked body over time and marks when each hand or foot lands on a hold. Trained on a coach's
+  // labels (The Way Up, CC BY 4.0, 22 videos). The rule above is the fallback if model/moves.json can't be read.
+  let net = null;
+  const floats = b => { const s = atob(b), u = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) u[i] = s.charCodeAt(i); return new Float32Array(u.buffer); };
+  async function loadNet() {
+    if (net !== null) return net;
+    try { const r = await fetch('model/moves.json'); if (!r.ok) throw 0; const j = await r.json();
+      j.nets = j.nets.map(m => ({ a: m.a.map(floats), o: m.o.map(floats), b: m.b.map(l => l.map(floats)) })); net = j;
+    } catch { net = false; }
+    return net;
+  }
+  function features(S, W, H) {
+    const n = S.length, xy = new Float32Array(n * 26), vis = new Float32Array(n * 13), seen = new Float32Array(n);
+    S.forEach((s, i) => {
+      if (s.p) { seen[i] = 1; s.p.forEach((q, j) => { xy[i * 26 + j * 2] = q[0] * W; xy[i * 26 + j * 2 + 1] = q[1] * H; vis[i * 13 + j] = q[2]; }); }
+      else if (i) for (let j = 0; j < 26; j++) xy[i * 26 + j] = xy[(i - 1) * 26 + j];
+    });
+    const gaps = []; for (let i = 0; i < n; i++) if (seen[i]) gaps.push(Math.abs((xy[i * 26 + 3] + xy[i * 26 + 5]) / 2 - (xy[i * 26 + 15] + xy[i * 26 + 17]) / 2));
+    const torso = midOf(gaps) || 1, LIMB = [5, 6, 11, 12], C = 56, x = new Float32Array(C * n), sp = new Float32Array(n * 4);
+    const put = (c, i, v) => { x[c * n + i] = Math.max(-5, Math.min(5, v)); };
+    for (let i = 0; i < n; i++) {
+      const cx = (xy[i * 26 + 14] + xy[i * 26 + 16]) / 2, cy = (xy[i * 26 + 15] + xy[i * 26 + 17]) / 2;
+      for (let j = 0; j < 13; j++) { put(j * 2, i, (xy[i * 26 + j * 2] - cx) / torso); put(j * 2 + 1, i, (xy[i * 26 + j * 2 + 1] - cy) / torso); put(26 + j, i, vis[i * 13 + j]); }
+      const dv = a => LIMB.map(l => i ? xy[i * 26 + l * 2 + a] - xy[(i - 1) * 26 + l * 2 + a] : 0), dx = dv(0), dy = dv(1), mx = midOf(dx), my = midOf(dy);
+      LIMB.forEach((_, j) => { const vx = (dx[j] - mx) / torso, vy = (dy[j] - my) / torso; put(39 + j * 2, i, vx); put(40 + j * 2, i, vy); sp[i * 4 + j] = Math.hypot(vx, vy); });
+      put(55, i, seen[i]);
+    }
+    for (let j = 0; j < 4; j++) for (let i = 0; i < n; i++) {
+      let back = 0, ahead = 0;
+      for (let d = 0; d < 5; d++) { if (i - d >= 0) back += sp[(i - d) * 4 + j]; if (i + d < n) ahead += sp[(i + d) * 4 + j]; }
+      put(47 + j, i, back); put(51 + j, i, ahead);
+    }
+    return x;
+  }
+  function conv(x, inC, outC, T, W, B, k, d) {
+    const y = new Float32Array(outC * T), mid = (k - 1) / 2;
+    for (let o = 0; o < outC; o++) { const oo = o * T;
+      for (let c = 0; c < inC; c++) { const cc = c * T;
+        for (let j = 0; j < k; j++) { const w = W[(o * inC + c) * k + j], sh = (j - mid) * d, a = Math.max(0, -sh), b = Math.min(T, T - sh);
+          for (let t = a; t < b; t++) y[oo + t] += w * x[cc + t + sh]; } }
+      for (let t = 0; t < T; t++) y[oo + t] += B[o]; }
+    return y;
+  }
+  function forward(m, N, x, T) {
+    let h = conv(x, N.c, N.w, T, m.a[0], m.a[1], 1, 1);
+    m.b.forEach(([W, B, sc, sh, mean, vr], l) => {
+      const y = conv(h, N.w, N.w, T, W, B, N.k, N.dil[l]), r = new Float32Array(N.w * T);
+      for (let c = 0; c < N.w; c++) { const g = sc[c] / Math.sqrt(vr[c] + 1e-5); for (let t = 0; t < T; t++) { const i = c * T + t; r[i] = h[i] + Math.max(0, (y[i] - mean[c]) * g + sh[c]); } }
+      h = r;
+    });
+    return conv(h, N.w, 4, T, m.o[0], m.o[1], 1, 1);
+  }
+  function netChance(N, S, W, H) {
+    const T = S.length, x = features(S, W, H), q = new Float32Array(4 * T);
+    N.nets.forEach(m => { const y = forward(m, N, x, T); for (let i = 0; i < y.length; i++) q[i] += (1 / (1 + Math.exp(-y[i]))) / N.nets.length; });
+    return q;
+  }
+  function netMoves(N, S, W, H) {
+    const T = S.length, q = netChance(N, S, W, H), hz = HZ, g = Math.round(.6 * hz), moves = [];
+    LIMBS.forEach(([k, name], j) => { let prev = -9;
+      for (let i = 1; i < T - 1; i++) { const v = q[j * T + i]; if (v < N.thr) continue;
+        let top = 0; for (let a = Math.max(0, i - g); a <= Math.min(T - 1, i + g); a++) top = Math.max(top, q[j * T + a]);
+        if (v === top) { const t = i / hz; moves.push({ k, name, t0: Math.max(0, prev, t - 1), t }); prev = t; } } });
+    return moves.sort((a, b) => a.t - b.t);
+  }
+  const findMoves = async (S, W, H) => { const N = await loadNet(); return N ? netMoves(N, S, W, H) : placements(S, W, H); };
+
   function results(S, moves, D, W, H) {
     const seen = S.filter(s => s.p), a = moves[0]?.t0 ?? 0, b = moves[moves.length - 1]?.t ?? D, on = seen.filter(s => s.t >= a && s.t <= b), rests = [];
     let from = null;
@@ -184,17 +251,17 @@
         const cv = onP?.((i + 1) / n);
         if (cv && i % 3 === 0) { if (cv.width !== W) { cv.width = W; cv.height = H; } const ctx = cv.getContext('2d'); ctx.clearRect(0, 0, W, H); ctx.drawImage(v, 0, 0, W, H); draw(ctx, g && g.seen ? g : null, W, H); ctx.globalCompositeOperation = 'source-over'; }
       }
-      return results(S, placements(S, W, H), D, W, H);
+      return results(S, await findMoves(S, W, H), D, W, H);
     } finally { v.remove(); }
   }
   // one video at a time, and a video once: going back to it doesn't scan it again
-  const KEEP = 'chalk.track.v2.', seenBefore = {};
+  const KEEP = 'chalk.track.v3.', seenBefore = {};
   const kept = async src => { if (seenBefore[src]) return seenBefore[src];
     try { const k = JSON.parse(localStorage.getItem(KEEP + src)); if (k) return k; } catch {}
     // the sample videos ship with their scan (the same scan, run once ahead), so nobody waits a minute in a demo
     try { const r = await fetch(src.replace('.mp4', '.track.json')); if (r.ok) return seenBefore[src] = await r.json(); } catch {}
     return null; };
-  window.__scan = src => scan(src); window.__results = T => results(T.S, T.moves, T.D, T.W, T.H); window.__moves = T => placements(T.S, T.W, T.H);   // to bake the sample videos again
+  window.__scan = src => scan(src); window.__results = T => results(T.S, T.moves, T.D, T.W, T.H); window.__moves = T => findMoves(T.S, T.W, T.H); window.__chance = async T => Array.from(netChance(await loadNet(), T.S, T.W, T.H));   // to bake the sample videos again
   let queue = Promise.resolve();
   window.poseScan = async (src, seed, onP) => {
     if (!seed) { const k = await kept(src); if (k) return k; }
