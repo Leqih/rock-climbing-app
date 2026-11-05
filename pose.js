@@ -114,6 +114,41 @@
   // one straight arm is enough to hang from, and a hidden elbow can read as 0°, so the straighter arm is the one that counts
   const arm = s => Math.max(s.el, s.er);
   // the moves and rests of the whole video, and the numbers we show from them
+  // A hand or foot on a hold stays put, so a move is a limb stopping somewhere new. Checked against a coach's labels
+  // (The Way Up, 22 videos, tuned on 12 and scored on the other 10). A hand that stops below the hips isn't on a hold.
+  const STOP = { hand: { hold: .3, rad: .3, reach: .35, up: .3 }, foot: { hold: .2, rad: .15, reach: .5 } };
+  const midOf = l => { const a = [...l].sort((x, y) => x - y), n = a.length; return n % 2 ? a[(n - 1) / 2] : (a[n / 2 - 1] + a[n / 2]) / 2; };
+  function placements(S, W, H) {
+    const seen = S.filter(s => s.p); if (!seen.length) return [];
+    const at = (s, i) => { const j = IDX.indexOf(i); return { x: s.p[j][0] * W, y: s.p[j][1] * H }; };
+    const hipY = s => (at(s, P.lh).y + at(s, P.rh).y) / 2;
+    const torso = midOf(seen.map(s => Math.abs((at(s, P.ls).y + at(s, P.rs).y) / 2 - hipY(s)))) || 1;
+    // most limbs are on holds at any moment, so the middle change between samples is the phone moving
+    const path = Object.fromEntries(LIMBS.map(([k]) => [k, []]));
+    let ox = 0, oy = 0, prev = null;
+    seen.forEach(s => {
+      const cur = LIMBS.map(([k]) => at(s, P[k]));
+      if (prev) { ox += midOf(cur.map((c, i) => c.x - prev[i].x)); oy += midOf(cur.map((c, i) => c.y - prev[i].y)); }
+      prev = cur;
+      LIMBS.forEach(([k], i) => path[k].push({ t: s.t, x: (cur[i].x - ox) / torso, y: (cur[i].y - oy) / torso, hip: (hipY(s) - oy) / torso }));
+    });
+    const moves = [];
+    LIMBS.forEach(([k, name]) => {
+      const c = k[1] === 'w' ? STOP.hand : STOP.foot, q = path[k]; let i = 0, last = null, left = null;
+      while (i < q.length) {
+        let j = i; while (j + 1 < q.length && Math.hypot(q[j + 1].x - q[i].x, q[j + 1].y - q[i].y) <= c.rad) j++;
+        if (q[j].t - q[i].t < c.hold) { i++; continue; }
+        const part = q.slice(i, j + 1), x = midOf(part.map(a => a.x)), y = midOf(part.map(a => a.y));
+        if (!(c.up !== undefined && y > midOf(part.map(a => a.hip)) - c.up)) {
+          if (last && Math.hypot(x - last.x, y - last.y) >= c.reach) moves.push({ k, name, t0: Math.max(left, q[i].t - 1.5), t: q[i].t });
+          last = { x, y }; left = q[j].t;
+        }
+        i = j + 1;
+      }
+    });
+    return moves.sort((a, b) => a.t - b.t);
+  }
+
   function results(S, moves, D, W, H) {
     const seen = S.filter(s => s.p), a = moves[0]?.t0 ?? 0, b = moves[moves.length - 1]?.t ?? D, on = seen.filter(s => s.t >= a && s.t <= b), rests = [];
     let from = null;
@@ -149,17 +184,17 @@
         const cv = onP?.((i + 1) / n);
         if (cv && i % 3 === 0) { if (cv.width !== W) { cv.width = W; cv.height = H; } const ctx = cv.getContext('2d'); ctx.clearRect(0, 0, W, H); ctx.drawImage(v, 0, 0, W, H); draw(ctx, g && g.seen ? g : null, W, H); ctx.globalCompositeOperation = 'source-over'; }
       }
-      return results(S, st.moves, D, W, H);
+      return results(S, placements(S, W, H), D, W, H);
     } finally { v.remove(); }
   }
   // one video at a time, and a video once: going back to it doesn't scan it again
-  const KEEP = 'chalk.track.v1.', seenBefore = {};
+  const KEEP = 'chalk.track.v2.', seenBefore = {};
   const kept = async src => { if (seenBefore[src]) return seenBefore[src];
     try { const k = JSON.parse(localStorage.getItem(KEEP + src)); if (k) return k; } catch {}
     // the sample videos ship with their scan (the same scan, run once ahead), so nobody waits a minute in a demo
     try { const r = await fetch(src.replace('.mp4', '.track.json')); if (r.ok) return seenBefore[src] = await r.json(); } catch {}
     return null; };
-  window.__scan = src => scan(src); window.__results = T => results(T.S, T.moves, T.D, T.W, T.H);   // to bake the sample videos again
+  window.__scan = src => scan(src); window.__results = T => results(T.S, T.moves, T.D, T.W, T.H); window.__moves = T => placements(T.S, T.W, T.H);   // to bake the sample videos again
   let queue = Promise.resolve();
   window.poseScan = async (src, seed, onP) => {
     if (!seed) { const k = await kept(src); if (k) return k; }
