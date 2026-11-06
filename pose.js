@@ -92,7 +92,7 @@
     ctx.lineWidth = 3 * u; ctx.strokeStyle = 'rgba(255,255,255,.9)';
     BONES.forEach(([a, b]) => { if (p[a].v < .3 || p[b].v < .3) return; ctx.beginPath(); ctx.moveTo(p[a].x, p[a].y); ctx.lineTo(p[b].x, p[b].y); ctx.stroke(); });
     // elbows: lime when straight, white ring when bent
-    [[P.le, f.el], [P.re, f.er]].forEach(([i, a]) => { ctx.beginPath(); ctx.arc(p[i].x, p[i].y, 5 * u, 0, 7); ctx.fillStyle = a > 145 ? '#DDF26A' : '#FF8A65'; ctx.fill();
+    [[P.le, f.el], [P.re, f.er]].forEach(([i, a]) => { if (a == null) return; ctx.beginPath(); ctx.arc(p[i].x, p[i].y, 5 * u, 0, 7); ctx.fillStyle = a > 145 ? '#DDF26A' : '#FF8A65'; ctx.fill();
       // the angle, right where it's measured
       const x = p[i].x + 9 * u, y = p[i].y - 7 * u, s = `${Math.round(a)}°`; ctx.font = `600 ${15 * u}px sans-serif`; const w = ctx.measureText(s).width;
       ctx.fillStyle = 'rgba(17,17,17,.75)'; ctx.fillRect(x - 3 * u, y - 14 * u, w + 6 * u, 18 * u); ctx.fillStyle = '#FFFFFF'; ctx.fillText(s, x, y); });
@@ -115,7 +115,13 @@
   const unpack = (s, W, H) => { const a = []; IDX.forEach((i, j) => { a[i] = { x: s.p[j][0] * W, y: s.p[j][1] * H, v: s.p[j][2] }; }); return a; };
 
   // one straight arm is enough to hang from, and a hidden elbow can read as 0°, so the straighter arm is the one that counts
-  const arm = s => Math.max(s.el, s.er);
+  const arm = s => { const r = [s.el, s.er].filter(a => a != null); return r.length ? Math.max(...r) : null; };
+  // an angle only means something if shoulder, elbow and wrist are really seen and both parts of the arm are long enough on screen.
+  // On a far-off climber the wrist is a guess and the arm a few pixels, which reads as 9°. Those samples have no angle at all
+  const ARM_V = .3, ARM_LEN = .3;
+  const readArms = (s, W, H) => { const q = s.p.map(([x, y, v]) => ({ x: x * W, y: y * H, v })), body = (dist(q[1], q[7]) + dist(q[2], q[8])) / 2 || 1;
+    const ok = (a, b, c) => Math.min(q[a].v, q[b].v, q[c].v) >= ARM_V && dist(q[a], q[b]) / body >= ARM_LEN && dist(q[b], q[c]) / body >= ARM_LEN;
+    if (!ok(1, 3, 5)) s.el = null; if (!ok(2, 4, 6)) s.er = null; };
   // the moves and rests of the whole video, and the numbers we show from them
   const midOf = l => { const a = [...l].sort((x, y) => x - y), n = a.length; return n % 2 ? a[(n - 1) / 2] : (a[n / 2 - 1] + a[n / 2]) / 2; };
 
@@ -249,18 +255,21 @@
   const findMoves = async (S, W, H) => { const N = await loadNet(); return N ? netMoves(N, S, W, H) : asMoves(stops(S, W, H)); };
 
   function results(S, moves, D, W, H) {
+    S.forEach(s => { if (s.p) readArms(s, W, H); });
     const seen = S.filter(s => s.p), a = moves[0]?.t0 ?? 0, b = moves[moves.length - 1]?.t ?? D, on = seen.filter(s => s.t >= a && s.t <= b), rests = [];
     let from = null;
     const close = t => { if (from !== null && t - from >= 1.2) { const m = on.filter(s => s.t >= from && s.t < t);
-      if (m.length) rests.push({ t0: from, t1: t, bent: Math.round(m.reduce((n, s) => n + arm(s), 0) / m.length), straight: m.filter(s => arm(s) > 145).length / m.length }); } from = null; };
+      const k = m.filter(s => arm(s) != null); if (m.length) rests.push({ t0: from, t1: t, bent: k.length ? Math.round(k.reduce((n, s) => n + arm(s), 0) / k.length) : null, straight: k.length ? k.filter(s => arm(s) > 145).length / k.length : null, read: k.length / m.length }); } from = null; };
     on.forEach(s => { const moving = s.now || moves.some(m => s.t >= m.t0 && s.t <= m.t); if (moving) close(s.t); else if (from === null) from = s.t; });
     close(b);
     const inRest = on.filter(s => rests.some(r => s.t >= r.t0 && s.t < r.t1)), sum = rests.reduce((n, r) => n + r.t1 - r.t0, 0) || 1;
-    const longest = [...rests].sort((x, y) => y.t1 - y.t0 - x.t1 + x.t0)[0], low = [...(inRest.length ? inRest : on)].sort((x, y) => arm(x) - arm(y))[0], far = [...on].sort((x, y) => Math.abs(y.off) - Math.abs(x.off))[0];
+    const armed = on.filter(s => arm(s) != null), known = rests.reduce((n, r) => n + (r.straight == null ? 0 : r.t1 - r.t0), 0);
+    const longest = [...rests].sort((x, y) => y.t1 - y.t0 - x.t1 + x.t0)[0], low = (inRest.length ? inRest : on).filter(s => arm(s) != null).sort((x, y) => arm(x) - arm(y))[0], far = [...on].sort((x, y) => Math.abs(y.off) - Math.abs(x.off))[0];
     const stats = { moves: moves.length, hands: moves.filter(m => m.k === 'lw' || m.k === 'rw').length, feet: moves.filter(m => m.k === 'la' || m.k === 'ra').length, first: a,
       longest: longest ? { t: longest.t0, s: longest.t1 - longest.t0 } : null, low: low ? { t: low.t, a: arm(low) } : null, far: far ? { t: far.t, left: far.off < 0 } : null,
-      restStraight: Math.round(rests.reduce((n, r) => n + (r.t1 - r.t0) * r.straight, 0) / sum * 100),
-      armsStraight: Math.round(on.filter(s => arm(s) > 145).length / (on.length || 1) * 100), hipsOver: Math.round(on.filter(s => Math.abs(s.off) < .35).length / (on.length || 1) * 100),
+      restStraight: known ? Math.round(rests.reduce((n, r) => n + (r.t1 - r.t0) * (r.straight ?? 0), 0) / known * 100) : null,
+      restRead: Math.round(rests.reduce((n, r) => n + (r.t1 - r.t0) * r.read, 0) / sum * 100), armRead: Math.round(armed.length / (on.length || 1) * 100),
+      armsStraight: armed.length ? Math.round(armed.filter(s => arm(s) > 145).length / armed.length * 100) : null, hipsOver: Math.round(on.filter(s => Math.abs(s.off) < .35).length / (on.length || 1) * 100),
       moving: Math.round((1 - rests.reduce((n, r) => n + r.t1 - r.t0, 0) / ((b - a) || 1)) * 100), seen: Math.round(seen.length / (S.length || 1) * 100) };
     const s0 = seen[0], at = i => s0 && { x: s0.p[IDX.indexOf(i)][0], y: s0.p[IDX.indexOf(i)][1] };
     return { hz: HZ, D, W, H, S, moves, rests, stats, first: s0 ? { head: at(0), lh: at(P.lw), rh: at(P.rw), lf: at(P.la), rf: at(P.ra), t: s0.t } : null };
@@ -291,7 +300,7 @@
     } finally { v.remove(); }
   }
   // one video at a time, and a video once: going back to it doesn't scan it again
-  const KEEP = 'chalk.track.v4.', seenBefore = {};
+  const KEEP = 'chalk.track.v5.', seenBefore = {};
   const kept = async src => { if (seenBefore[src]) return seenBefore[src];
     try { const k = JSON.parse(localStorage.getItem(KEEP + src)); if (k) return k; } catch {}
     // the sample videos ship with their scan (the same scan, run once ahead), so nobody waits a minute in a demo
@@ -331,7 +340,7 @@
     const dot = (o, r, c) => { ctx.beginPath(); ctx.arc(o.x, o.y, px(r), 0, 7); ctx.fillStyle = c; ctx.fill(); ctx.lineWidth = px(2.5); ctx.strokeStyle = '#111111'; ctx.stroke(); };
     if (mark === 'hip') { const hm = mid(q[P.lh], q[P.rh]), am = mid(q[P.la], q[P.ra]);
       ctx.strokeStyle = col; ctx.lineWidth = px(5); ctx.beginPath(); ctx.moveTo(hm.x, hm.y); ctx.lineTo(hm.x, am.y); ctx.lineTo(am.x, am.y); ctx.stroke(); dot(hm, 11, col); dot(am, 8, '#FFFFFF'); }
-    else if (mark === 'arm') { const o = s.el >= s.er ? q[P.le] : q[P.re], a = `${Math.max(s.el, s.er)}°`; dot(o, 11, col);
+    else if (mark === 'arm') { const o = s.er == null || s.el >= s.er ? q[P.le] : q[P.re], a = `${arm(s)}°`; dot(o, 11, col);
       ctx.font = `600 ${px(26)}px sans-serif`; const tw = ctx.measureText(a).width, lx = clamp(o.x + px(16), x0 + px(6), x0 + w - tw - px(16)), ly = clamp(o.y - px(10), y0 + px(34), y0 + h - px(10));
       ctx.fillStyle = 'rgba(17,17,17,.8)'; ctx.fillRect(lx - px(6), ly - px(26), tw + px(12), px(34)); ctx.fillStyle = '#FFFFFF'; ctx.fillText(a, lx, ly); }
     else if (P[mark]) dot(q[P[mark]], 13, col);
@@ -468,15 +477,15 @@
         f = { pts, now: a.now || T.moves.find(m => t >= m.t0 && t <= m.t)?.name || null, el: a.el, er: a.er, off: a.off, trail }; }
       draw(ctx, f, T.W, T.H, mark);
       if (mark) return;
-      const rest = T.rests.find(r => t >= r.t0 && t < r.t1), bent = f ? arm(f) : 0, straight = bent > 145;
+      const rest = T.rests.find(r => t >= r.t0 && t < r.t1), bent = f ? arm(f) : null, straight = bent > 145;
       set('tl-time', `${clock(t)} / ${clock(T.D)}`);
       set('tl-now', !f ? 'Can’t see you here' : f.now ? `${f.now} moving` : rest ? `Resting · ${(t - rest.t0).toFixed(1)} s` : 'Between moves');
       set('tl-moves', `${T.moves.filter(m => m.t <= t).length} of ${T.moves.length}`);
-      set('tl-arms', !f ? '—' : straight ? `Straight · ${bent}°` : `Bent · ${bent}°`);
+      set('tl-arms', bent == null ? '—' : straight ? `Straight · ${bent}°` : `Bent · ${bent}°`);
       set('tl-hips', !f ? '—' : Math.abs(f.off) < .35 ? 'Over your feet' : f.off < 0 ? 'Out to the left' : 'Out to the right');
       set('tl-tip', !f ? 'Film from further back, phone on the floor, so your whole body stays in frame.' : f.now ? (f.now.includes('foot') ? 'Feet first: good. Stand up on it before the next reach.' : 'Reaching. Push with your legs as the hand goes.')
-        : !straight ? 'Resting on bent arms tires you fast. Let your arms go straight and hang.'
-        : Math.abs(f.off) >= .35 ? 'Hips away from your feet here. Planned, or stuck?' : 'Good rest: arms straight, hips over your feet.');
+        : bent != null && !straight ? 'Resting on bent arms tires you fast. Let your arms go straight and hang.'
+        : Math.abs(f.off) >= .35 ? 'Hips away from your feet here. Planned, or stuck?' : bent == null ? 'Too far from the camera to read your arms here.' : 'Good rest: arms straight, hips over your feet.');
       const ph = document.getElementById('tlp'); if (ph) ph.style.left = `${Math.min(100, t / T.D * 100)}%`;
     };
     const tick = () => { if (!v.isConnected) return; if (v.currentTime !== last) { last = v.currentTime; paint(last); } requestAnimationFrame(tick); };

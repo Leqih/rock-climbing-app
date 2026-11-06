@@ -165,6 +165,7 @@ Videos:
 
 - `video/rockspot-v3.mp4`: [Indoor Bouldering V3 Rock Spot](https://commons.wikimedia.org/wiki/File:Indoor_Bouldering_V3_Rock_Spot.webm) by Cryptic C62, [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/). We used the file's earlier 480×272 version, turned it upright and trimmed it to 0:01.5–0:42.5. This changed clip is under the same licence. The climber tops the route, so no fall is shown.
 - `video/pro-wa4-rakovec.mp4`, `video/pro-wa4-garnbret.mp4`, `video/pro-wb1-raboutou.mp4` and `video/pro-wb1-pilz.mp4`: cut from four films of the IFSC World Cup Munich 2019 by Boulder Rundfunk on [Wikimedia Commons](https://commons.wikimedia.org/wiki/Category:Boulder_Worldcup_2019_Munich), [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/). Trimmed to one climb each and cropped to portrait to follow the climber.
+- The other `video/wayup-*.mp4` files: participants 1, 2, 3, 5 and 10 on the green and orange routes of the same dataset, same licence.
 - `video/wayup-p8-green.mp4` and `video/wayup-p2-green.mp4`: participants 8 and 2 on the green route of [The Way Up](https://doi.org/10.5281/zenodo.15196866) by Maschek & Schedl, [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). We scaled them to 540×960, removed the sound and trimmed them to the climb.
 - Not used any more: `video/pexels-7591864-crop.mp4` and `video/pexels-7591810-crop.mp4` (Pavel Danilyuk on Pexels), `video/r-lpj1bzih3ytb1.mp4` (posted on Reddit), `video/6687076-sd_506_960_25fps.mp4` (Pexels), `img/vr1.jpg` and `img/v6687076.jpg`.
 
@@ -176,7 +177,9 @@ If someone in the community filmed the same route, Path shows your video and the
 
 Blue V3 is the first case. Both videos are real and on the same route: `video/wayup-p8-green.mp4` (173 cm, climbing 1–2 years) as "you" and `video/wayup-p2-green.mp4` (171 cm, over 10 years) as "Sam", a made-up name for an anonymous participant. They start as the left hand takes the same hold, 0:40 and 0:39, and the times in the card come from the coach's labels. Matching is written by hand for this pair: the app can't yet tell that two videos show the same route. The pair differs from the Blue V3 route in the prototype, whose move count and height are still made up.
 
-"Same boulder, no ropes" (`#/pros`, `viewPros` in `app.js`) shows two rope-free pairs from the Munich World Cup: Rakovec and Garnbret on WA4, Raboutou and Pilz on WB1. Both pairs are on the same boulder according to the film's own labels. The cards were written by watching the films, and nothing in them is measured by the app. The pose lines come from the same scan as every other video.
+Three more pairs from The Way Up are imported the same way, each with one climber as "you": participant 1 and participant 10 ("Noor") on the green route, participant 1 and participant 2 ("Sam") on orange, participant 5 and participant 3 ("Leo") on orange. The names are made up. For each pair the numbers come from the coach's labels: the first time both took one hold, then the next hold both used.
+
+Four rope-free videos from the Munich 2019 World Cup are imported like any other video and analysed the same way: Rakovec and Garnbret on WA4, Raboutou and Pilz on WB1. Path shows the other climber on the same boulder. Both pairs are on the same boulder according to the film's own labels. The note on Path was written by watching the films; it isn't measured by the app.
 
 Yellow V3 is the second case. Its holds are an example, because the app can't map a wall yet.
 
@@ -212,3 +215,7 @@ The earlier model found 53% with 76% right, so this one misses fewer moves and a
 Three test videos have a moving phone (the two in the app, and a shorter clip of the Pexels climber). On them, against labels we made ourselves at 1 frame a second (27 moves, within 1.5 s), a real browser scan found 12 of 14 hands and 9 of 13 feet, and reported 31 moves, where the labels have 27. Picking the same number of random times finds about 6 hands and 5 feet. This is a small set, two videos show the same climber, nobody independent labelled it, and we looked at these videos while building the method, so read it as a sanity check.
 
 A scan took 16–46 s on a laptop GPU for clips of 14–41 s. Wall tracking took 2 s of the 32 s measured on one 14 s clip, and 23 s of 62 s with the CPU slowed 6 times. That is an estimate of a slower device, not a phone measurement; no phone has been timed. Scans also change with the GPU: one clip saw the climber in 52% of frames on an Intel GPU and 72% on an NVIDIA one. Arm angles and the hip rule are not checked by this.
+
+## Arm angles
+
+An arm only gets an angle when shoulder, elbow and wrist all have confidence of at least 0.3 and both parts of the arm are at least 0.3 of the torso length on screen (`readArms` in `pose.js`). Otherwise the app shows no angle. On a far-off climber the wrist is a guess, which used to read as 9°. Conclusions about arms need at least half of the rest time readable; the whole-climb figure needs 30% of the climb. The thresholds were set by checking which readings looked impossible, not against measured angles.
