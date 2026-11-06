@@ -55,7 +55,6 @@ After changing a CSS or JS file, bump the `?v=` string on its link in `index.htm
 | At the gym | Gyms near you (tap the gym's name in Walls, or Profile): 1, 5, 10 or 25 mi; a list (photo, distance, street, crowd now; tap one to make it your gym, Directions opens Maps) or a full-screen real map (OpenStreetMap) with you in the middle, a ring at that distance and a pin per gym; tap a pin for its card (v6) | `#/gyms` |
 | At the gym | Pick a project; beta from climbers your height | `#/route/<n>` |
 | At the gym | "+" → add a climb: Film, Upload, Scan a wall, Log by hand, four equal tiles (v4). Always Add, in a session too | sheet on any screen |
-| At the gym | "+" sheet, top: climbing videos found in Photos, one tap to add them all | sheet |
 | At the gym | Film your tries: "Film try N" on the route card opens the camera at once; the session starts with the first recording. One recording for many tries; each try is cut out automatically. After Stop the tries stay on the camera with the highest move of each: "I topped it" or "What to change", and the shutter for the next try (v4) | `#/cam` |
 | At the gym | Upload: pick one or many (videos already added are hidden), and you're back in Videos at once while they're read in the background (v3) | sheet → `#/videos` |
 | At the gym | Log by hand: gym from your location (or search and pick); snap the route's tag, or pick tape colour and grade | sheet |
@@ -67,10 +66,10 @@ After changing a CSS or JS file, bump the `?v=` string on its link in `index.htm
 | Over time | Profile (a tab, and your photo at the top of every other tab): progress heatmap, sends per grade, monthly recap, export, watch, sharing | `#/profile` |
 | Over time | Videos, the first tab and where the app opens (v6): each day with its gym and tries, one card per route with every try on it inside; filter by route (v3) | `#/videos` |
 | Over time | One video: play, highest move, time on the move you stall, one tip, compare; your tries on this route side by side, with Film the next try; route and gym under the video, Change to fix; public or hidden, delete; share a send as a poster | `#/clip/<id>` |
-| Over time | A video is analysed as soon as it arrives, on any page, and Videos shows Analysing or Check this on its card: `pose.js` goes through the whole video once, in the browser, with real progress. The three sample videos ship with that scan already done (`video/*.track.json`), so a demo doesn't wait; Fix it scans for real. On the first video of a route you confirm the climber and route we found (Looks right, or Fix it and tap your head, hands and feet, which scans again from your taps); later tries on that route skip this. The result is shown on the video and under it, at the moment the video is at: skeleton and elbow angles on the picture, moves so far, arms and hips beside it, and a timeline of each hand and foot and every rest that you can tap to go to that moment. Summary opens with one conclusion from those numbers, shown with frames taken from the video itself (two to compare when there's something to compare, one when there's too little to judge) and a strip of the whole climb. A video with no route yet is analysed too; tagging the route adds the route side, then what to do next. Its button plays just that stretch at half speed right there in the card, with its start, end and current time, and stops at its end. The frames and the rows under What we measured play the same way, where you tapped them, then lists what we measured, each with its moment. A move on the route (Move 4/6) is not a hand and foot move (25 in a video): the first is how far you got, the second is what we track. Moves, rests, angles and hips come from this video. The fall reason, path and drill are marked Example: they need the hold map. Videos play start to end at 0.25×, 0.5× or 1× | `#/clip/<id>` |
+| Over time | A video is analysed as soon as it arrives, on any page, and Videos shows Analysing or Check this on its card: `pose.js` goes through the whole video once, in the browser, with real progress. The three sample videos ship with that scan already done (`video/*.track.json`), so a demo doesn't wait; Fix it scans for real. On the first video of a route you confirm the climber and route we found (Looks right, or Fix it and tap your head, hands and feet, which scans again from your taps); later tries on that route skip this. The result is shown on the video and under it, at the moment the video is at: skeleton and elbow angles on the picture, moves so far, arms and hips beside it, and a timeline of each hand and foot and every rest that you can tap to go to that moment. Summary opens with one conclusion from those numbers, shown with frames taken from the video itself (two to compare when there's something to compare, one when there's too little to judge) and a strip of the whole climb. A video with no route yet is analysed too; tagging the route adds the route side, then what to do next. The hips conclusion only says what happened, without telling you what to do: on The Way Up, climbers with more experience were centred less, so the rule isn't good enough to be advice. Its button plays just that stretch at half speed right there in the card, with its start, end and current time, and stops at its end. The frames and the rows under What we measured play the same way, where you tapped them, then lists what we measured, each with its moment. A move on the route (Move 4/6) is not a hand and foot move (25 in a video): the first is how far you got, the second is what we track. Moves, rests, angles and hips come from this video. The fall reason, path and drill are marked Example: they need the hold map. Videos play start to end at 0.25×, 0.5× or 1× | `#/clip/<id>` |
 | Learn from the fall | Why you came off, on a video of a fall: likely reason with its evidence, hands and feet over time, your path against climbers your height, a reach check, falls across routes and one drill. Sample data: the hold map and contact log are not built yet | `#/clip/<id>` |
 | Over time | A video with no route: pick the gym if it has no location, then tap the route's photo or pick tape colour and grade, right on the video's page (v3) | `#/clip/<id>` |
-| Over time | Videos, manage: new climbing videos found in Photos, Select to hide / change route / delete several, free up space by deleting originals, highlight reel of every send | `#/videos` |
+| Over time | Videos opens on every imported video, newest first, with Import videos at the top. The two sample videos are already imported for every climber, new or regular. Import is a demo: it opens the prototype camera roll, and no real file is read. Below the videos: analysed count, filmed by friends, highlight reel, Select to hide / change route / delete several, free up space, older routes | `#/videos` |
 | Over time | Feed with comments, group climbs, partner calendar | `#/friends` |
 
 ## Two climbers
@@ -153,7 +152,7 @@ Gyms, people, routes and numbers are placeholders.
 
 ## Live analysis on videos (v6)
 
-Open a clip that has a real video (the newest Yellow V3 try, Jo's Blue V3 try, and every try you film in a session) and press play. `pose.js` runs MediaPipe Pose Landmarker (the full model, from jsDelivr and Google's model storage) on every frame in the browser, nothing uploaded. It draws the climber's body points on the video and updates the readout live:
+Open a video (the Yellow V3 try, Jo's Blue V3 try, and every try you film in a session) and press play. `pose.js` runs MediaPipe Pose Landmarker (the full model, from jsDelivr and Google's model storage) on every frame in the browser, nothing uploaded. It draws the climber's body points on the video and updates the readout live:
 - the hand or foot moving now;
 - arms straight or bent, with the elbow angle;
 - hips over the feet or out to one side (the dashed plumb line);
@@ -165,21 +164,51 @@ The tip under it changes with what it sees. When the video ends, it sums up the 
 Videos:
 
 - `video/rockspot-v3.mp4`: [Indoor Bouldering V3 Rock Spot](https://commons.wikimedia.org/wiki/File:Indoor_Bouldering_V3_Rock_Spot.webm) by Cryptic C62, [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/). We used the file's earlier 480×272 version, turned it upright and trimmed it to 0:01.5–0:42.5. This changed clip is under the same licence. The climber tops the route, so no fall is shown.
-- `video/pexels-7591864-crop.mp4` and `video/pexels-7591810-crop.mp4`: [Pavel Danilyuk on Pexels](https://www.pexels.com/@pavel-danilyuk/) (free licence), cropped to portrait around one climber; the second is also trimmed to 0:04.8–0:18.8.
-- Not used any more: `video/r-lpj1bzih3ytb1.mp4` (posted on Reddit), `video/6687076-sd_506_960_25fps.mp4` (Pexels), `img/vr1.jpg` and `img/v6687076.jpg`.
+- `video/pro-wa4-rakovec.mp4`, `video/pro-wa4-garnbret.mp4`, `video/pro-wb1-raboutou.mp4` and `video/pro-wb1-pilz.mp4`: cut from four films of the IFSC World Cup Munich 2019 by Boulder Rundfunk on [Wikimedia Commons](https://commons.wikimedia.org/wiki/Category:Boulder_Worldcup_2019_Munich), [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/). Trimmed to one climb each and cropped to portrait to follow the climber.
+- `video/wayup-p8-green.mp4` and `video/wayup-p2-green.mp4`: participants 8 and 2 on the green route of [The Way Up](https://doi.org/10.5281/zenodo.15196866) by Maschek & Schedl, [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). We scaled them to 540×960, removed the sound and trimmed them to the climb.
+- Not used any more: `video/pexels-7591864-crop.mp4` and `video/pexels-7591810-crop.mp4` (Pavel Danilyuk on Pexels), `video/r-lpj1bzih3ytb1.mp4` (posted on Reddit), `video/6687076-sd_506_960_25fps.mp4` (Pexels), `img/vr1.jpg` and `img/v6687076.jpg`.
 
 The thumbnails `img/vrock.jpg`, `img/v864.jpg` and `img/v810.jpg` are frames taken from these videos. `img/vrock0.jpg`, `img/v8640.jpg` and `img/v8100.jpg` are their first frames, used as posters so the tracked points land on the right picture.
 
+## Path tab
+
+If someone in the community filmed the same route, Path shows your video and theirs side by side. If no one has, it shows a simulated climb at your height (`poseClimb` in `pose.js`).
+
+Blue V3 is the first case. Both videos are real and on the same route: `video/wayup-p8-green.mp4` (173 cm, climbing 1–2 years) as "you" and `video/wayup-p2-green.mp4` (171 cm, over 10 years) as "Sam", a made-up name for an anonymous participant. They start as the left hand takes the same hold, 0:40 and 0:39, and the times in the card come from the coach's labels. Matching is written by hand for this pair: the app can't yet tell that two videos show the same route. The pair differs from the Blue V3 route in the prototype, whose move count and height are still made up.
+
+"Same boulder, no ropes" (`#/pros`, `viewPros` in `app.js`) shows two rope-free pairs from the Munich World Cup: Rakovec and Garnbret on WA4, Raboutou and Pilz on WB1. Both pairs are on the same boulder according to the film's own labels. The cards were written by watching the films, and nothing in them is measured by the app. The pose lines come from the same scan as every other video.
+
+Yellow V3 is the second case. Its holds are an example, because the app can't map a wall yet.
+
+## How it could look
+
+The main conclusion can show a simulated pose: the frame stays still, the climber stays on it in white, and a lime body moves to a better position. `posePlan` in `pose.js` builds it from that climber's own track. Limbs keep their length, and hands and feet stay put unless the plan moves them.
+
+- Hips: if a foot later reached a spot that puts the hips over the feet, the foot goes there first (the wall tracking carries that spot back into this frame). If not, the hips shift over the feet.
+- Rest: the body sinks under the higher hand until that arm is straighter, at most 0.6 of a torso.
+- Feet: the lower foot goes up, to where it landed next if we saw that, and the hand reaches for where it landed. If we didn't see a landing, the caption says the foot position is a guess.
+
+If the body can't reach the pose, or the change would be too small or too big, the card shows no picture. Nobody has checked these poses: no coach has reviewed them, and the app can't see holds, so they are a guide to the idea, not the right beta.
+
 ## How well the moves are found
 
-A move is a hand or foot landing on a hold. A small network (`model/moves.json`, 3 models averaged, under half a second on a laptop, not timed on a phone) reads the tracked body at 5 samples a second and marks those moments. If the file can't be read, `placements` in `pose.js` is the fallback: a limb stopping somewhere new.
+A move is a hand or foot landing on a hold. `pose.js` finds one in two steps:
 
-It was trained on the coach's labels in The Way Up (Maschek & Schedl, CC BY 4.0, https://doi.org/10.5281/zenodo.15196866): 22 videos, 885 placements, 11 climbers, 2 routes. A match is the right limb within 1 second. Scored on climbers and a route it hadn't seen:
+1. **Stops.** During the scan it follows patches of wall (never the climber), so a limb is read in wall positions even when the phone moves. A fingertip or toe that stops somewhere new is a candidate. This runs in plain JS at 200 px wide, one step per sample.
+2. **Network.** A small network (`model/moves.json`, 3 models averaged, about 0.25 s on a laptop) reads the fingertips, toes and body at 5 samples a second. It keeps a stop only if it gives that limb at least 0.3 within 0.6 s, and adds a landing of its own at 0.6 or more where no stop is near.
 
-| | Found | Chance | Reported moves that are right | Chance |
-|---|---|---|---|---|
-| Hands | 48% | 17% | 75% | 26% |
-| Feet | 57% | 20% | 77% | 27% |
-| All | 53% | 19% | 76% | 27% |
+If the file can't be read, the stops stand alone. Its answers match the Python model to 0.000005 on all 27 tracks.
 
-So counts run low: 614 moves against 885 labels. Four test splits ranged from 61% to 91% right. The model shipped here is trained on all 22 videos, so these scores come from the splits, not from it. It hasn't been checked on phone videos of bouldering, where nothing is labelled. For comparison, the rule found 57% of hands and 62% of feet, with 42% and 57% right. Scans change with the GPU: one clip saw the climber in 52% of frames on an Intel GPU and 72% on an NVIDIA one. Arm angles and the hip rule are not checked by this.
+It was trained on the coach's labels in The Way Up (Maschek & Schedl, CC BY 4.0, https://doi.org/10.5281/zenodo.15196866): 22 videos, 885 placements, 11 climbers, 2 routes. The two limits were chosen on half the climbers and scored on the other half. A match is the right limb within 1 second, on climbers and a route the network hadn't seen:
+
+| The Way Up, held out | Found | Reported moves that are right |
+|---|---|---|
+| Hands | 71% | 54% |
+| Feet | 73% | 68% |
+| All | 72% | 60% |
+
+The earlier model found 53% with 76% right, so this one misses fewer moves and adds more false ones. The Way Up has a fixed camera, so these scores don't test the wall tracking.
+
+Three test videos have a moving phone (the two in the app, and a shorter clip of the Pexels climber). On them, against labels we made ourselves at 1 frame a second (27 moves, within 1.5 s), a real browser scan found 12 of 14 hands and 9 of 13 feet, and reported 31 moves, where the labels have 27. Picking the same number of random times finds about 6 hands and 5 feet. This is a small set, two videos show the same climber, nobody independent labelled it, and we looked at these videos while building the method, so read it as a sanity check.
+
+A scan took 16–46 s on a laptop GPU for clips of 14–41 s. Wall tracking took 2 s of the 32 s measured on one 14 s clip, and 23 s of 62 s with the CPU slowed 6 times. That is an estimate of a slower device, not a phone measurement; no phone has been timed. Scans also change with the GPU: one clip saw the climber in 52% of frames on an Intel GPU and 72% on an NVIDIA one. Arm angles and the hip rule are not checked by this.
