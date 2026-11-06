@@ -219,3 +219,7 @@ A scan took 16–46 s on a laptop GPU for clips of 14–41 s. Wall tracking took
 ## Arm angles
 
 An arm only gets an angle when shoulder, elbow and wrist all have confidence of at least 0.3 and both parts of the arm are at least 0.3 of the torso length on screen (`readArms` in `pose.js`). Otherwise the app shows no angle. On a far-off climber the wrist is a guess, which used to read as 9°. Conclusions about arms need at least half of the rest time readable; the whole-climb figure needs 30% of the climb. The thresholds were set by checking which readings looked impossible, not against measured angles.
+
+## Importing a video
+
+Importing is a demo: the camera roll lists videos that ship with the app. A picked video opens in the editor (`viewEdit` in `app.js`), where you trim it, set its speed, and set the try, gym, tape colour, grade and result. Post to community adds it to the Friends feed. Analyse opens the body check, then the analysis page. Nothing is analysed before that. A trimmed video is analysed only on what's left of it. Speed and trim aren't applied to the file: playback in the editor shows them, and the app keeps them with the video.
