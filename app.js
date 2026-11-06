@@ -799,39 +799,55 @@ function timeline(T) {
   const limb = k => T.moves.filter(m => m.k === k).map(m => at(m.t0, m.t, k === 'lw' || k === 'rw' ? 'h' : 'f')).join('');
   return `<section class="glass tl">
     <div class="tl-h"><b id="tl-now">Tap play</b><span class="num" id="tl-time">0:00 / ${mmss(T.D)}</span></div>
-    <div class="sg" id="sg" hidden><span id="sgt"></span><span class="sg-a" id="sga"></span></div>
     <div class="tl-g">${lane('Left hand', limb('lw'))}${lane('Right hand', limb('rw'))}${lane('Left foot', limb('la'))}${lane('Right foot', limb('ra'))}
       ${lane('Rests', T.rests.map(r => at(r.t0, r.t1, r.straight > .5 ? 'rs' : 'rb')).join(''))}
-      <div class="tl-o" id="tlo" role="slider" aria-label="Go to a moment in the video"><b id="tls" hidden></b><i id="tlp"></i></div></div>
+      <div class="tl-o" id="tlo" role="slider" aria-label="Go to a moment in the video"><i id="tlp"></i></div></div>
     <p class="an-k tl-k"><span><i class="rs"></i>Rest, arms straight</span><span><i class="rb"></i>Rest, arms bent</span></p>
     <p class="tl-tip" id="tl-tip"></p></section>`;
 }
 function tlWire() {
   const o = $('tlo'), v = $('lvv'); if (!o || !v) return;
-  const go = e => { const b = o.getBoundingClientRect(), t = Math.max(0, Math.min(1, (e.clientX - b.left) / b.width)) * (v.duration || 0); if (seg && (t < seg.a || t > seg.b)) segEnd(); v.currentTime = t; };
+  const go = e => { const b = o.getBoundingClientRect(); v.currentTime = Math.max(0, Math.min(1, (e.clientX - b.left) / b.width)) * (v.duration || 0); };
   o.addEventListener('pointerdown', e => { o.setPointerCapture(e.pointerId); go(e); });
   o.addEventListener('pointermove', e => { if (e.buttons) go(e); });
 }
-// one stretch of the video: marked on the timeline, played slowly, stopped at its end
-let seg = null;
-const spdTo = s => { speed = s; const v = $('lvv'); if (v) v.playbackRate = s; document.querySelectorAll('.sp-b button').forEach(x => x.setAttribute('aria-pressed', +x.dataset.v === s)); };
-function segBar(done) {
-  const b = $('sg'); if (!b || !seg) return;
-  $('sgt').textContent = done ? 'End of this stretch' : `Watching ${mmss(seg.a)}–${mmss(seg.b)}`;
-  $('sga').innerHTML = done ? '<button class="pj" type="button" data-act="segagain">Watch again</button><button class="pj" type="button" data-act="segon">Keep playing</button>' : '<button class="pj" type="button" data-act="segstop">Stop</button>';
-  b.hidden = false;
+// one stretch of the video, played right where it was asked for: slowed down, with its start, end and current time, stopped at its end
+let seg = null, segT = null;
+const clipAt = (a, b, mark = 'none') => `data-act="segplay" data-a="${a}" data-b="${b}" data-mark="${mark}"`;
+const clipNear = (t, D, mark) => clipAt(Math.max(0, t - 1), Math.min(D, t + 2), mark);
+function segClose() {
+  $('cp')?.remove(); seg = null;
+  document.querySelectorAll('.an-see[hidden]').forEach(x => { x.hidden = false; });
 }
-function segEnd() {
-  if (!seg) return;
-  spdTo(seg.was); seg = null; window.poseMark = null;
-  const b = $('sg'), m = $('tls'), v = $('lvv'); if (b) b.hidden = true; if (m) m.hidden = true;
-  if (v?.paused) v.currentTime += .001;
-}
-function segGo() { const v = $('lvv'); if (!v || !seg) return; v.currentTime = seg.a; segBar(false); document.querySelector('.screen').scrollTo({ top: 0, behavior: 'smooth' }); v.play().catch(() => {}); }
-function segWatch(v) {
-  const stop = () => { if (seg && !seg.over && v.currentTime >= seg.b - .05) { seg.over = true; v.pause(); segBar(true); } };
-  v.addEventListener('timeupdate', stop); v.addEventListener('ended', stop);
-  v.addEventListener('play', () => { if (seg?.over) segEnd(); });
+function segAgain() { const v = $('cpv'); if (!v || !seg) return; seg.over = false; $('cpg').hidden = true; v.currentTime = seg.a; v.play().catch(() => {}); }
+function segOpen(btn) {
+  const main = $('lvv'), T = segT; if (!main || !T) return;
+  const a = +btn.dataset.a, b = +btn.dataset.b, ar = T.W / T.H;
+  segClose(); main.pause();
+  seg = { a, b, over: false, rate: .5 };
+  const box = document.createElement('div'); box.id = 'cp'; box.className = 'cp';
+  box.innerHTML = `<div class="clip vp lv cp-v" style="aspect-ratio:${ar.toFixed(4)};width:min(100%, ${Math.round(380 * ar)}px)"><video id="cpv" src="${main.currentSrc || main.src}" muted playsinline preload="auto"></video><canvas id="cpc"></canvas><button class="play-b" type="button" data-act="segtoggle" aria-label="Play this stretch">${ic.play}</button></div>
+    <div class="cp-bar" id="cpb" role="slider" aria-label="Go to a moment in this stretch"><i id="cpi"></i></div>
+    <div class="cp-t num"><span>${mmss(a)}</span><b id="cpn">${mmss(a)}</b><span>${mmss(b)}</span></div>
+    <div class="cp-a"><button class="pj" type="button" id="cps" data-act="segspeed">0.5×</button><button class="pj" type="button" id="cpg" data-act="segagain" hidden>Watch again</button><button class="pj" type="button" data-act="segclose">Close</button></div>`;
+  const see = btn.closest('.lt')?.querySelector('.an-see');
+  if (see) { see.hidden = true; see.after(box); } else btn.after(box);
+  box.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  const v = $('cpv'), wrap = v.parentElement, now = seg, bar = $('cpb');
+  const end = () => { if (seg === now && !now.over) { now.over = true; v.pause(); $('cpg').hidden = false; } };
+  const tick = () => { if (!v.isConnected) return; const t = Math.min(b, Math.max(a, v.currentTime));
+    $('cpi').style.width = `${(t - a) / (b - a) * 100}%`; const l = mmss(t); if ($('cpn').textContent !== l) $('cpn').textContent = l;
+    if (v.currentTime >= b - .03) end(); requestAnimationFrame(tick); };
+  const go = e => { const r = bar.getBoundingClientRect(), t = a + Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)) * (b - a); now.over = false; $('cpg').hidden = true; v.currentTime = Math.min(t, b - .1); };
+  bar.addEventListener('pointerdown', e => { bar.setPointerCapture(e.pointerId); go(e); });
+  bar.addEventListener('pointermove', e => { if (e.buttons) go(e); });
+  v.addEventListener('loadedmetadata', () => { v.playbackRate = now.rate; v.currentTime = a; v.play().catch(() => {}); }, { once: true });
+  v.addEventListener('ended', end);
+  v.addEventListener('click', () => acts.segtoggle());
+  v.addEventListener('play', () => wrap.classList.add('playing'));
+  v.addEventListener('pause', () => wrap.classList.remove('playing'));
+  window.posePlay(v, $('cpc'), T, btn.dataset.mark);
+  tick();
 }
 // the picture for a conclusion: moments from the video, and the whole climb as a strip
 const climbed = T => { const a = T.moves[0]?.t0 ?? 0, b = T.moves[T.moves.length - 1]?.t ?? T.D; return T.S.filter(s => s.p && s.t >= a && s.t <= b); };
@@ -874,7 +890,7 @@ function takeaway(T) {
   return say('Good control', `Arms straight in ${s.restStraight}% of your rests, and hips over your feet for ${s.hipsOver}% of the climb.`, 'Keep this up on the next route.', s.longest.t, 'See your best rest', { frames: [{ s: best, tone: 'good', mark: 'arm', title: 'Your best rest', sub: `${s.longest.s.toFixed(1)} s` }, { s: far, tone: isOff(far) ? 'bad' : 'good', mark: 'hip', title: side(far), sub: isOff(far) ? 'Worth a look' : 'Still centred' }],
     head: 'Whole climb', share: `${s.hipsOver}% centred`, bar: band(T, hips), keys: swatch('g', 'Centred') + swatch('b', 'Off to one side') }, { a: s.longest.t, b: s.longest.t + s.longest.s, mark: 'none', tone: 'good' });
 }
-const seeBlock = v => `${v.frames.length ? `<div class="kf-g n${v.frames.length}">${v.frames.map((f, i) => `<button class="kf" type="button" data-act="seekt" data-t="${f.s.t}"><span class="kf-i"><img alt="" data-kf="${i}"></span><b><span class="num">${mmss(f.s.t)}</span> <span>${f.title}</span></b><em>${f.sub}</em></button>`).join('')}</div>` : ''}
+const seeBlock = v => `${v.frames.length ? `<div class="kf-g n${v.frames.length}">${v.frames.map((f, i) => `<button class="kf" type="button" ${clipNear(f.s.t, v.T, f.mark)}><span class="kf-i"><img alt="" data-kf="${i}"></span><b><span class="num">${mmss(f.s.t)}</span> <span>${f.title}</span></b><em>${f.sub}</em></button>`).join('')}</div>` : ''}
     ${v.bar ? `<div class="vz"><div class="vz-h"><b>${v.head}</b><span>${v.share}</span></div>${v.bar}<div class="vz-a num"><span>0:00</span><span>${mmss(v.T)}</span></div>${v.keys ? `<div class="vz-l">${v.keys}</div>` : ''}</div>` : ''}`;
 // the frames come out of the video itself, one at a time, once the card is on the page
 function kfWire(T, src) {
@@ -883,18 +899,18 @@ function kfWire(T, src) {
 }
 // what we measured, each one with the moment it comes from
 function measured(T) {
-  const s = T.stats, row = (big, small, t) => `<button class="row" type="button" data-act="seekt" data-t="${t}"><span class="row-t"><strong>${big}</strong><span>${small}</span></span><span class="tl-go num">${mmss(t)} ›</span></button>`;
+  const s = T.stats, row = (big, small, t, clip = clipNear(t, T.D)) => `<button class="row" type="button" ${clip}><span class="row-t"><strong>${big}</strong><span>${small}</span></span><span class="tl-go num">${mmss(t)} ›</span></button>`;
   const m = takeaway(T);
   if (m.vis) m.vis.T = T.D;
+  const sp = m.span || { a: Math.max(0, m.t - 1), b: m.t + 2, mark: 'none' }, spa = sp.a, spb = Math.min(T.D, Math.max(sp.b, spa + 2));
   return `<div class="hl2 dk2"><h2>The main thing</h2></div>
     <div class="stack"><div class="lt"><span class="lt-h">${m.title}</span>${m.why ? `<p class="tip-d">${m.why}</p>` : ''}${m.vis ? seeBlock(m.vis) : ''}<p class="an-nx"><b>Next try</b>${m.next}</p>
-      ${m.span ? `<button class="b-ghost an-see" type="button" data-act="segplay" data-a="${m.span.a}" data-b="${m.span.b}" data-mark="${m.span.mark}" data-tone="${m.span.tone}">${m.see} · ${mmss(m.span.a)}–${mmss(m.span.b)}</button>`
-        : `<button class="b-ghost an-see" type="button" data-act="seekt" data-t="${m.t}">${m.see} · ${mmss(m.t)}</button>`}</div></div>
+      <button class="b-ghost an-see" type="button" ${clipAt(spa, spb, sp.mark)}>${m.see} · ${mmss(spa)}–${mmss(spb)}</button></div></div>
     <div class="hl2 dk2"><h2>What we measured</h2></div>
     <div class="rows">${row(n(s.moves, 'hand or foot move', 'hand and foot moves'), `${s.hands} with a hand, ${s.feet} with a foot. Only the ones we’re sure of`, s.first)}
-      ${s.longest ? row(`${s.longest.s.toFixed(1)} s`, 'Your longest rest', s.longest.t) : ''}
+      ${s.longest ? row(`${s.longest.s.toFixed(1)} s`, 'Your longest rest', s.longest.t, clipAt(s.longest.t, Math.min(T.D, s.longest.t + Math.max(s.longest.s, 2)))) : ''}
       ${s.longest && s.low ? row(`${s.low.a < 90 ? 'Very bent' : s.low.a < 145 ? 'Bent' : 'Straight'} · ${s.low.a}°`, 'Your arms at their most bent, resting. 180° is straight', s.low.t) : ''}
-      ${s.far ? row(s.far.left ? 'Out to the left' : 'Out to the right', 'Your hips, furthest from your feet', s.far.t) : ''}</div>
+      ${s.far ? row(s.far.left ? 'Out to the left' : 'Out to the right', 'Your hips, furthest from your feet', s.far.t, clipNear(s.far.t, T.D, 'hip')) : ''}</div>
     <p class="trs-l">We could see you in ${s.seen}% of this video. Tap a row to watch that moment.</p>`;
 }
 const bodyStats = T => `<div class="hl2 dk2"><h2>Your whole climb</h2></div><div class="stack"><div class="lt"><div class="an-g"><div><span>Arms straight</span><b>${T.stats.armsStraight}%</b></div><div><span>Hips over feet</span><b>${T.stats.hipsOver}%</b></div><div><span>Moving</span><b>${T.stats.moving}%</b></div></div>
@@ -1006,7 +1022,7 @@ function viewClip(id) {
       tagWire(c);
       if (!lv) return;
       const v = $('lvv'), box = v.parentElement;
-      segEnd(); segWatch(v);
+      segClose(); segT = c.track; v.addEventListener('play', () => $('cpv')?.pause());
       v.playbackRate = speed;
       if (two) { window.posePlay(v, $('lvc'), c.track); tlWire(); kfWire(c.track, v.currentSrc || v.src); }
       if (state === 'ask' && c.auto) v.currentTime = c.auto.t;
@@ -1585,19 +1601,13 @@ const actions = {
   tagdone: b => { const c = byId(b.dataset.i); confirmed(c, { ...tagS.pts, t: c.auto?.t ?? 0 }, true); },
   retag: b => { const c = byId(b.dataset.i); c.tags = null; c.an = 'ask'; tagS = { id: null, i: 0, pts: {} }; render(); document.querySelector('.screen').scrollTo(0, 0); },
   ctab: b => { cTab = b.dataset.v; document.querySelectorAll('.ctabs button').forEach(x => x.setAttribute('aria-pressed', x === b)); document.querySelectorAll('.pn').forEach(p => { p.hidden = p.dataset.pn !== cTab; }); },
-  spd: b => { speed = +b.dataset.v; if (seg) seg.was = speed; const v = $('lvv'); if (v) v.playbackRate = speed; document.querySelectorAll('.sp-b button').forEach(x => x.setAttribute('aria-pressed', x === b)); },
+  spd: b => { speed = +b.dataset.v; const v = $('lvv'); if (v) v.playbackRate = speed; document.querySelectorAll('.sp-b button').forEach(x => x.setAttribute('aria-pressed', x === b)); },
   vplay: b => toast(`Playing · ${b.dataset.len}`),
-  segplay: b => {
-    const v = $('lvv'); if (!v) return;
-    const was = seg ? seg.was : speed; segEnd();
-    seg = { a: +b.dataset.a, b: +b.dataset.b, was }; window.poseMark = b.dataset.mark; spdTo(.5);
-    const m = $('tls'); if (m) { const d = v.duration || 1; m.style.left = `${seg.a / d * 100}%`; m.style.width = `${(seg.b - seg.a) / d * 100}%`; m.className = b.dataset.tone; m.hidden = false; }
-    segGo();
-  },
-  segagain: () => { if (seg) { seg.over = false; segGo(); } },
-  segon: () => { const v = $('lvv'); segEnd(); v?.play().catch(() => {}); },
-  segstop: () => { const v = $('lvv'); segEnd(); v?.pause(); },
-  seekt: b => { segEnd(); const v = $('lvv'); if (v) { v.currentTime = +b.dataset.t; document.querySelector('.screen').scrollTo({ top: 0, behavior: 'smooth' }); v.play().catch(() => {}); } },
+  segplay: b => segOpen(b),
+  segtoggle: () => { const v = $('cpv'); if (!v || !seg) return; if (seg.over) segAgain(); else if (v.paused) v.play().catch(() => {}); else v.pause(); },
+  segagain: segAgain,
+  segspeed: () => { const v = $('cpv'); if (!v || !seg) return; seg.rate = seg.rate === .5 ? 1 : .5; v.playbackRate = seg.rate; $('cps').textContent = `${seg.rate}×`; },
+  segclose: segClose,
   lvplay: () => { const v = $('lvv'); if (v) v.paused ? v.play().catch(() => {}) : v.pause(); },
   vcmp: b => { lastRoute = byId(b.dataset.i).r; go('compare'); },
   vhide: b => { const c = byId(b.dataset.i); c.hidden = !c.hidden; render(); },

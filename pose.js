@@ -82,7 +82,7 @@
     return { pts, T, seen, now, straight, bent, el, er, off };
   }
 
-  function draw(ctx, f, W, H) {
+  function draw(ctx, f, W, H, mark) {
     ctx.clearRect(0, 0, W, H);
     if (!f) return;
     const u = W / 420, p = f.pts;
@@ -105,7 +105,7 @@
     const hm = mid(p[P.lh], p[P.rh]), am = mid(p[P.la], p[P.ra]);
     ctx.setLineDash([4 * u, 5 * u]); ctx.lineWidth = 1.5 * u; ctx.strokeStyle = Math.abs(f.off) < .35 ? 'rgba(221,242,106,.9)' : 'rgba(255,138,101,.9)';
     ctx.beginPath(); ctx.moveTo(hm.x, hm.y); ctx.lineTo(hm.x, am.y); ctx.stroke(); ctx.setLineDash([]);
-    if (window.poseMark === 'hip') {   // watching a stretch about the hips: how far they are from the middle of the feet
+    if (mark === 'hip') {   // watching a stretch about the hips: how far they are from the middle of the feet
       const c = Math.abs(f.off) < .35 ? '#DDF26A' : '#FF8A65', dot = (o, r, fill) => { ctx.beginPath(); ctx.arc(o.x, o.y, r * u, 0, 7); ctx.fillStyle = fill; ctx.fill(); ctx.lineWidth = 2 * u; ctx.strokeStyle = '#111111'; ctx.stroke(); };
       ctx.lineWidth = 4 * u; ctx.strokeStyle = c; ctx.beginPath(); ctx.moveTo(hm.x, hm.y); ctx.lineTo(hm.x, am.y); ctx.lineTo(am.x, am.y); ctx.stroke(); dot(hm, 9, c); dot(am, 7, '#FFFFFF'); }
   }
@@ -306,7 +306,7 @@
     if (stills[key]) return Promise.resolve(stills[key]);
     return line = line.then(() => grab(src, T, s, mark, tone)).then(u => stills[key] = u).catch(() => null);
   };
-  window.posePlay = (v, cv, T) => {
+  window.posePlay = (v, cv, T, mark) => {   // with a mark: only the picture, for a stretch played on its own
     const ctx = cv.getContext('2d'); cv.width = T.W; cv.height = T.H;
     let last = -1;
     const paint = t => {
@@ -317,7 +317,8 @@
         const trail = { lw: [], rw: [] };
         for (let k = Math.max(0, i - 4); k <= i; k++) if (T.S[k].p) { const o = unpack(T.S[k], T.W, T.H); trail.lw.push(o[P.lw]); trail.rw.push(o[P.rw]); }
         f = { pts, now: a.now || T.moves.find(m => t >= m.t0 && t <= m.t)?.name || null, el: a.el, er: a.er, off: a.off, trail }; }
-      draw(ctx, f, T.W, T.H);
+      draw(ctx, f, T.W, T.H, mark);
+      if (mark) return;
       const rest = T.rests.find(r => t >= r.t0 && t < r.t1), bent = f ? arm(f) : 0, straight = bent > 145;
       set('tl-time', `${clock(t)} / ${clock(T.D)}`);
       set('tl-now', !f ? 'Can’t see you here' : f.now ? `${f.now} moving` : rest ? `Resting · ${(t - rest.t0).toFixed(1)} s` : 'Between moves');
