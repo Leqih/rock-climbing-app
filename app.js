@@ -799,17 +799,39 @@ function timeline(T) {
   const limb = k => T.moves.filter(m => m.k === k).map(m => at(m.t0, m.t, k === 'lw' || k === 'rw' ? 'h' : 'f')).join('');
   return `<section class="glass tl">
     <div class="tl-h"><b id="tl-now">Tap play</b><span class="num" id="tl-time">0:00 / ${mmss(T.D)}</span></div>
+    <div class="sg" id="sg" hidden><span id="sgt"></span><span class="sg-a" id="sga"></span></div>
     <div class="tl-g">${lane('Left hand', limb('lw'))}${lane('Right hand', limb('rw'))}${lane('Left foot', limb('la'))}${lane('Right foot', limb('ra'))}
       ${lane('Rests', T.rests.map(r => at(r.t0, r.t1, r.straight > .5 ? 'rs' : 'rb')).join(''))}
-      <div class="tl-o" id="tlo" role="slider" aria-label="Go to a moment in the video"><i id="tlp"></i></div></div>
+      <div class="tl-o" id="tlo" role="slider" aria-label="Go to a moment in the video"><b id="tls" hidden></b><i id="tlp"></i></div></div>
     <p class="an-k tl-k"><span><i class="rs"></i>Rest, arms straight</span><span><i class="rb"></i>Rest, arms bent</span></p>
     <p class="tl-tip" id="tl-tip"></p></section>`;
 }
 function tlWire() {
   const o = $('tlo'), v = $('lvv'); if (!o || !v) return;
-  const go = e => { const b = o.getBoundingClientRect(); v.currentTime = Math.max(0, Math.min(1, (e.clientX - b.left) / b.width)) * (v.duration || 0); };
+  const go = e => { const b = o.getBoundingClientRect(), t = Math.max(0, Math.min(1, (e.clientX - b.left) / b.width)) * (v.duration || 0); if (seg && (t < seg.a || t > seg.b)) segEnd(); v.currentTime = t; };
   o.addEventListener('pointerdown', e => { o.setPointerCapture(e.pointerId); go(e); });
   o.addEventListener('pointermove', e => { if (e.buttons) go(e); });
+}
+// one stretch of the video: marked on the timeline, played slowly, stopped at its end
+let seg = null;
+const spdTo = s => { speed = s; const v = $('lvv'); if (v) v.playbackRate = s; document.querySelectorAll('.sp-b button').forEach(x => x.setAttribute('aria-pressed', +x.dataset.v === s)); };
+function segBar(done) {
+  const b = $('sg'); if (!b || !seg) return;
+  $('sgt').textContent = done ? 'End of this stretch' : `Watching ${mmss(seg.a)}–${mmss(seg.b)}`;
+  $('sga').innerHTML = done ? '<button class="pj" type="button" data-act="segagain">Watch again</button><button class="pj" type="button" data-act="segon">Keep playing</button>' : '<button class="pj" type="button" data-act="segstop">Stop</button>';
+  b.hidden = false;
+}
+function segEnd() {
+  if (!seg) return;
+  spdTo(seg.was); seg = null; window.poseMark = null;
+  const b = $('sg'), m = $('tls'), v = $('lvv'); if (b) b.hidden = true; if (m) m.hidden = true;
+  if (v?.paused) v.currentTime += .001;
+}
+function segGo() { const v = $('lvv'); if (!v || !seg) return; v.currentTime = seg.a; segBar(false); document.querySelector('.screen').scrollTo({ top: 0, behavior: 'smooth' }); v.play().catch(() => {}); }
+function segWatch(v) {
+  const stop = () => { if (seg && !seg.over && v.currentTime >= seg.b - .05) { seg.over = true; v.pause(); segBar(true); } };
+  v.addEventListener('timeupdate', stop); v.addEventListener('ended', stop);
+  v.addEventListener('play', () => { if (seg?.over) segEnd(); });
 }
 // the picture for a conclusion: moments from the video, and the whole climb as a strip
 const climbed = T => { const a = T.moves[0]?.t0 ?? 0, b = T.moves[T.moves.length - 1]?.t ?? T.D; return T.S.filter(s => s.p && s.t >= a && s.t <= b); };
@@ -829,28 +851,28 @@ const ticks = (T, label, keys) => `<div class="vz-r"><span>${label}</span><div>$
 const swatch = (c, l) => `<span><u class="${c}"></u>${l}</span>`;
 // one plain conclusion from what we measured: what stood out, a picture of it, what to do next, and where to see it
 function takeaway(T) {
-  const s = T.stats, on = climbed(T), say = (title, why, next, t, see, vis) => ({ title, why, next, t, see, vis });
+  const s = T.stats, on = climbed(T), say = (title, why, next, t, see, vis, span) => ({ title, why, next, t, see, vis, span });
   const isOff = x => Math.abs(x.off) >= .35, hips = x => isOff(x) ? 'b' : 'g', side = x => x.off < 0 ? 'Out to the left' : 'Out to the right';
   const rested = x => T.rests.some(r => x.t >= r.t0 && x.t < r.t1), moving = x => x.now || T.moves.some(m => x.t >= m.t0 && x.t <= m.t);
   if (s.moves < 3) { const clear = on.length ? mostBy(on, x => x.p.reduce((v, q) => v + q[2], 0)) : null;
     return say('Too little to judge', `We only saw ${n(s.moves, 'hand or foot move', 'hand and foot moves')} in this video.`, 'Film a whole try, from the first hold to where you stop.', s.first ?? clear?.t ?? 0, 'See it in the video', clear && { frames: [{ s: clear, tone: 'good', mark: 'none', title: 'We saw you here', sub: `In ${s.seen}% of this video` }] }); }
   if (s.longest && s.restStraight < 60) { const r = on.filter(rested), lo = -bigArm(mostBy(r, x => -bigArm(x))), bad = mostBy(r, x => -bigArm(x)), good = mostBy(r, bigArm);
     return say('Rest on straighter arms', '', 'At each rest, let one arm go straight and hang from it.', bad.t, 'See this rest', { frames: [{ s: good, tone: 'good', mark: 'arm', title: 'Your straightest rest', sub: 'You’ve done this' }, { s: bad, tone: 'bad', mark: 'arm', title: 'Your most bent rest', sub: `Arms at ${-lo}°` }],
-      head: 'Your rests', share: `${s.restStraight}% on straight arms`, bar: band(T, x => !rested(x) ? 'm' : bigArm(x) > 145 ? 'g' : 'b'), keys: swatch('g', 'Straight') + swatch('b', 'Bent') + swatch('m', 'Moving') }); }
+      head: 'Your rests', share: `${s.restStraight}% on straight arms`, bar: band(T, x => !rested(x) ? 'm' : bigArm(x) > 145 ? 'g' : 'b'), keys: swatch('g', 'Straight') + swatch('b', 'Bent') + swatch('m', 'Moving') }, (rr => rr ? { a: rr.t0, b: rr.t1, mark: 'none', tone: 'bad' } : null)(T.rests.find(q => bad.t >= q.t0 && bad.t < q.t1))); }
   if (s.hipsOver < 60) { const run = stretch(on, isOff) || [s.far.t, s.far.t], bad = mostBy(on.filter(x => x.t >= run[0] && x.t <= run[1]), x => Math.abs(x.off)), sure = on.filter(footsSeen), good = mostBy(sure.length ? sure : on, x => -Math.abs(x.off));
     return say('Keep your hips centred over your feet', '', 'Before you reach, shift your hips back over the middle of your feet.', run[0], 'See this stretch', { frames: [{ s: good, tone: 'good', mark: 'hip', title: 'Hips centred', sub: 'You’ve done this' }, { s: bad, tone: 'bad', mark: 'hip', title: side(bad), sub: 'Clearest here' }],
-      head: 'Whole climb', share: `${s.hipsOver}% centred`, bar: band(T, hips), keys: swatch('g', 'Centred') + swatch('b', 'Off to one side') + `<span>Longest off ${mmss(run[0])}–${mmss(run[1])}</span>` }); }
+      head: 'Whole climb', share: `${s.hipsOver}% centred`, bar: band(T, hips), keys: swatch('g', 'Centred') + swatch('b', 'Off to one side') + `<span>Longest off ${mmss(run[0])}–${mmss(run[1])}</span>` }, { a: run[0], b: Math.max(run[1], run[0] + 2), mark: 'hip', tone: 'bad' }); }
   if (s.feet < s.hands * .6) { const hands = T.moves.filter(m => m.k[1] === 'w'), feet = T.moves.filter(m => m.k[1] === 'a'), led = h => feet.some(f => f.t0 <= h.t0 && h.t0 - f.t0 < 1.2), at = t => mostBy(on, x => -Math.abs(x.t - t));
     const yes = hands.find(led), no = hands.find(h => !led(h)), fr = [];
     if (yes) fr.push({ s: at(yes.t0), tone: 'good', mark: yes.k, title: 'Foot moved first', sub: 'Do this more' });
     if (no) fr.push({ s: at(no.t0), tone: 'bad', mark: no.k, title: 'Hand moved alone', sub: 'Try a foot first' });
-    return say('Use your feet more', '', 'Move a foot up before each reach.', no?.t0 ?? s.first, 'See this move', { frames: fr, head: 'Hands and feet', share: `${s.hands} hand, ${s.feet} foot`, bar: ticks(T, 'Hands', ['lw', 'rw']) + ticks(T, 'Feet', ['la', 'ra']) }); }
+    return say('Use your feet more', '', 'Move a foot up before each reach.', no?.t0 ?? s.first, 'See this move', { frames: fr, head: 'Hands and feet', share: `${s.hands} hand, ${s.feet} foot`, bar: ticks(T, 'Hands', ['lw', 'rw']) + ticks(T, 'Feet', ['la', 'ra']) }, no ? { a: Math.max(0, no.t0 - 1), b: no.t + 1, mark: 'none', tone: 'bad' } : null); }
   if (!s.longest) { const run = stretch(on, x => !moving(x)) || [s.first, s.first], still = mostBy(on, x => -Math.abs(x.t - (run[0] + run[1]) / 2)), secs = (run[1] - run[0]).toFixed(1);
     return say('Take a rest on the way', '', 'Pick one good hold and shake out each arm.', run[0], 'See this pause', { frames: [{ s: still, tone: 'good', mark: 'none', title: 'Your longest pause', sub: `${secs} s` }],
-      head: 'Moving and pausing', share: `Longest pause ${secs} s`, bar: band(T, x => moving(x) ? 'm' : 'g'), keys: swatch('g', 'Pause') + swatch('m', 'Moving') }); }
+      head: 'Moving and pausing', share: `Longest pause ${secs} s`, bar: band(T, x => moving(x) ? 'm' : 'g'), keys: swatch('g', 'Pause') + swatch('m', 'Moving') }, { a: run[0], b: Math.max(run[1], run[0] + 2), mark: 'none', tone: 'good' }); }
   const rest = on.filter(x => x.t >= s.longest.t && x.t < s.longest.t + s.longest.s), calm = rest.filter(x => !isOff(x)), best = (calm.length || rest.length) ? mostBy(calm.length ? calm : rest, bigArm) : on[0], far = mostBy(on, x => Math.abs(x.off));
   return say('Good control', `Arms straight in ${s.restStraight}% of your rests, and hips over your feet for ${s.hipsOver}% of the climb.`, 'Keep this up on the next route.', s.longest.t, 'See your best rest', { frames: [{ s: best, tone: 'good', mark: 'arm', title: 'Your best rest', sub: `${s.longest.s.toFixed(1)} s` }, { s: far, tone: isOff(far) ? 'bad' : 'good', mark: 'hip', title: side(far), sub: isOff(far) ? 'Worth a look' : 'Still centred' }],
-    head: 'Whole climb', share: `${s.hipsOver}% centred`, bar: band(T, hips), keys: swatch('g', 'Centred') + swatch('b', 'Off to one side') });
+    head: 'Whole climb', share: `${s.hipsOver}% centred`, bar: band(T, hips), keys: swatch('g', 'Centred') + swatch('b', 'Off to one side') }, { a: s.longest.t, b: s.longest.t + s.longest.s, mark: 'none', tone: 'good' });
 }
 const seeBlock = v => `${v.frames.length ? `<div class="kf-g n${v.frames.length}">${v.frames.map((f, i) => `<button class="kf" type="button" data-act="seekt" data-t="${f.s.t}"><span class="kf-i"><img alt="" data-kf="${i}"></span><b><span class="num">${mmss(f.s.t)}</span> <span>${f.title}</span></b><em>${f.sub}</em></button>`).join('')}</div>` : ''}
     ${v.bar ? `<div class="vz"><div class="vz-h"><b>${v.head}</b><span>${v.share}</span></div>${v.bar}<div class="vz-a num"><span>0:00</span><span>${mmss(v.T)}</span></div>${v.keys ? `<div class="vz-l">${v.keys}</div>` : ''}</div>` : ''}`;
@@ -866,7 +888,8 @@ function measured(T) {
   if (m.vis) m.vis.T = T.D;
   return `<div class="hl2 dk2"><h2>The main thing</h2></div>
     <div class="stack"><div class="lt"><span class="lt-h">${m.title}</span>${m.why ? `<p class="tip-d">${m.why}</p>` : ''}${m.vis ? seeBlock(m.vis) : ''}<p class="an-nx"><b>Next try</b>${m.next}</p>
-      <button class="b-ghost an-see" type="button" data-act="seekt" data-t="${m.t}">${m.see} · ${mmss(m.t)}</button></div></div>
+      ${m.span ? `<button class="b-ghost an-see" type="button" data-act="segplay" data-a="${m.span.a}" data-b="${m.span.b}" data-mark="${m.span.mark}" data-tone="${m.span.tone}">${m.see} · ${mmss(m.span.a)}–${mmss(m.span.b)}</button>`
+        : `<button class="b-ghost an-see" type="button" data-act="seekt" data-t="${m.t}">${m.see} · ${mmss(m.t)}</button>`}</div></div>
     <div class="hl2 dk2"><h2>What we measured</h2></div>
     <div class="rows">${row(n(s.moves, 'hand or foot move', 'hand and foot moves'), `${s.hands} with a hand, ${s.feet} with a foot. Only the ones we’re sure of`, s.first)}
       ${s.longest ? row(`${s.longest.s.toFixed(1)} s`, 'Your longest rest', s.longest.t) : ''}
@@ -983,6 +1006,7 @@ function viewClip(id) {
       tagWire(c);
       if (!lv) return;
       const v = $('lvv'), box = v.parentElement;
+      segEnd(); segWatch(v);
       v.playbackRate = speed;
       if (two) { window.posePlay(v, $('lvc'), c.track); tlWire(); kfWire(c.track, v.currentSrc || v.src); }
       if (state === 'ask' && c.auto) v.currentTime = c.auto.t;
@@ -1561,9 +1585,19 @@ const actions = {
   tagdone: b => { const c = byId(b.dataset.i); confirmed(c, { ...tagS.pts, t: c.auto?.t ?? 0 }, true); },
   retag: b => { const c = byId(b.dataset.i); c.tags = null; c.an = 'ask'; tagS = { id: null, i: 0, pts: {} }; render(); document.querySelector('.screen').scrollTo(0, 0); },
   ctab: b => { cTab = b.dataset.v; document.querySelectorAll('.ctabs button').forEach(x => x.setAttribute('aria-pressed', x === b)); document.querySelectorAll('.pn').forEach(p => { p.hidden = p.dataset.pn !== cTab; }); },
-  spd: b => { speed = +b.dataset.v; const v = $('lvv'); if (v) v.playbackRate = speed; document.querySelectorAll('.sp-b button').forEach(x => x.setAttribute('aria-pressed', x === b)); },
+  spd: b => { speed = +b.dataset.v; if (seg) seg.was = speed; const v = $('lvv'); if (v) v.playbackRate = speed; document.querySelectorAll('.sp-b button').forEach(x => x.setAttribute('aria-pressed', x === b)); },
   vplay: b => toast(`Playing · ${b.dataset.len}`),
-  seekt: b => { const v = $('lvv'); if (v) { v.currentTime = +b.dataset.t; document.querySelector('.screen').scrollTo({ top: 0, behavior: 'smooth' }); v.play().catch(() => {}); } },
+  segplay: b => {
+    const v = $('lvv'); if (!v) return;
+    const was = seg ? seg.was : speed; segEnd();
+    seg = { a: +b.dataset.a, b: +b.dataset.b, was }; window.poseMark = b.dataset.mark; spdTo(.5);
+    const m = $('tls'); if (m) { const d = v.duration || 1; m.style.left = `${seg.a / d * 100}%`; m.style.width = `${(seg.b - seg.a) / d * 100}%`; m.className = b.dataset.tone; m.hidden = false; }
+    segGo();
+  },
+  segagain: () => { if (seg) { seg.over = false; segGo(); } },
+  segon: () => { const v = $('lvv'); segEnd(); v?.play().catch(() => {}); },
+  segstop: () => { const v = $('lvv'); segEnd(); v?.pause(); },
+  seekt: b => { segEnd(); const v = $('lvv'); if (v) { v.currentTime = +b.dataset.t; document.querySelector('.screen').scrollTo({ top: 0, behavior: 'smooth' }); v.play().catch(() => {}); } },
   lvplay: () => { const v = $('lvv'); if (v) v.paused ? v.play().catch(() => {}) : v.pause(); },
   vcmp: b => { lastRoute = byId(b.dataset.i).r; go('compare'); },
   vhide: b => { const c = byId(b.dataset.i); c.hidden = !c.hidden; render(); },

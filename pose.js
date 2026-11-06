@@ -105,6 +105,9 @@
     const hm = mid(p[P.lh], p[P.rh]), am = mid(p[P.la], p[P.ra]);
     ctx.setLineDash([4 * u, 5 * u]); ctx.lineWidth = 1.5 * u; ctx.strokeStyle = Math.abs(f.off) < .35 ? 'rgba(221,242,106,.9)' : 'rgba(255,138,101,.9)';
     ctx.beginPath(); ctx.moveTo(hm.x, hm.y); ctx.lineTo(hm.x, am.y); ctx.stroke(); ctx.setLineDash([]);
+    if (window.poseMark === 'hip') {   // watching a stretch about the hips: how far they are from the middle of the feet
+      const c = Math.abs(f.off) < .35 ? '#DDF26A' : '#FF8A65', dot = (o, r, fill) => { ctx.beginPath(); ctx.arc(o.x, o.y, r * u, 0, 7); ctx.fillStyle = fill; ctx.fill(); ctx.lineWidth = 2 * u; ctx.strokeStyle = '#111111'; ctx.stroke(); };
+      ctx.lineWidth = 4 * u; ctx.strokeStyle = c; ctx.beginPath(); ctx.moveTo(hm.x, hm.y); ctx.lineTo(hm.x, am.y); ctx.lineTo(am.x, am.y); ctx.stroke(); dot(hm, 9, c); dot(am, 7, '#FFFFFF'); }
   }
 
   // what we keep from one frame, as fractions of the picture
