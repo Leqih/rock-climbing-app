@@ -46,6 +46,7 @@ h1, h2, p { margin: 0; }
 /* clip, not hidden: a hidden box can still be scrolled by focus or scrollIntoView, which pushed the clock off and lifted the sheets */
 .screen { position: relative; height: 100%; overflow-y: auto; scrollbar-width: none; padding: 54px 0 120px; }
 .screen::-webkit-scrollbar { display: none; }
+.screen.fit { overflow: hidden; padding-bottom: 0; }
 
 /* blurred photo behind the top half; render() sets its height to end where "Your gym today" starts */
 .backdrop { position: absolute; left: 0; right: 0; top: 0; height: 900px; overflow: hidden; pointer-events: none; }
