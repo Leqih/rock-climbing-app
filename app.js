@@ -1,7 +1,7 @@
 // chalk. prototype v2: one screen per step of the user flow (FigJam "Flow chart v2"), one hash route per screen.
 // Set up (#/setup/…) → Videos (#/videos), the first tab, as in KEKE → "+" adds a climb: film a try (#/cam), upload a video, scan, log by hand
 // → "Sent it?" → compare (#/compare) or log the send → "Keep climbing?" → Walls (#/walls) or end-session summary (#/summary)
-// → Profile with your progress (#/profile, a tab) → Friends (#/friends). v6 has no Today page: Videos is where you land.
+// → Profile with your progress (#/profile, a tab) → Community (#/friends). v6 has no Today page: Videos is where you land.
 // Videos (#/videos) keeps every clip you film, upload or get tagged in; each one opens as its analysis (#/clip/<id>).
 // A watch (#/watch) logs tries from the wrist while the phone films.
 // v2 drops v1's assumption that every gym publishes its routes: walls reset every few weeks, so every way of adding works
@@ -575,7 +575,7 @@ function viewProfile() {
     <section class="ask-c">
       <h3>Plan the next session</h3>
       <p>${reg ? 'Alex and Jo are both free Thursday evening.' : `Beginner night is Wednesday at 7 PM at ${gyms[gi].name}.`}</p>
-      <div class="two one"><button class="b-lime" type="button" data-act="to" data-to="friends">${reg ? 'Plan with friends' : 'See group climbs'}</button></div>
+      <div class="two one"><button class="b-lime" type="button" data-act="to" data-to="friends/plan">${reg ? 'Plan with friends' : 'See group climbs'}</button></div>
     </section>` };
 }
 
@@ -588,7 +588,7 @@ let cid = 0, vf = 'all';
 let picking = false;
 const picked = new Set();
 // real climbing videos, filmed from the floor like a climber's own phone (one from Wikimedia Commons, one from The Way Up), with a frame from each as the thumbnail. ar = width / height
-const mmssOf = s => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+const mmssOf = x => { const s = Math.round(x); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`; };
 const VIDS = [   // eye level, whole body in frame. Every video plays start to end; at is the moment the analysis points to
   { vid: 'rockspot-v3', img: 'vrock', ar: 272 / 480, len: '0:41', t: [0, 40.9], credit: 'Cryptic C62 · CC BY-SA 3.0' },
   { vid: 'wayup-p8-green', img: 'wayup-p8-green', ar: 9 / 16, len: '1:17', t: [0, 77.8], credit: 'The Way Up · Maschek & Schedl · CC BY 4.0' }];
@@ -596,9 +596,27 @@ const VIDS = [   // eye level, whole body in frame. Every video plays start to e
 const PRO = [['pro-wa4-rakovec', 40, 'Lucka Rakovec'], ['pro-wa4-garnbret', 41, 'Janja Garnbret'], ['pro-wb1-raboutou', 23, 'Brooke Raboutou'], ['pro-wb1-pilz', 38, 'Jessica Pilz']]
   .map(([vid, s, who]) => ({ vid, img: vid, ar: 9 / 16, len: mmssOf(s), t: [0, s], who, credit: `${who} · World Cup Munich 2019 · Boulder Rundfunk · CC BY 3.0` }));
 // more tries from The Way Up, each with someone else on the same route to compare with. who: nothing on the page may be sample data
-const WAY = [['wayup-p1-green', 188], ['wayup-p1-orange', 89], ['wayup-p5-orange', 60]]
+const WAY = [['wayup-p1-green', 188], ['wayup-p1-orange', 89], ['wayup-p5-orange', 60], ['wayup-p5-green', 93.4], ['wayup-p8-orange', 39.9]]
   .map(([vid, s]) => ({ vid, img: vid, ar: 9 / 16, len: mmssOf(s), t: [0, s], who: 'You', credit: 'The Way Up · Maschek & Schedl · CC BY 4.0' }));
-const vidOf = c => [...VIDS, ...PRO, ...WAY, ...roll].find(v => v.vid === c.vid);
+const CROWD = [['wayup-p3-green', 51.7], ['wayup-p4-green', 93.2], ['wayup-p6-green', 93.9], ['wayup-p7-green', 80.8], ['wayup-p9-green', 59.7],
+  ['wayup-p4-orange', 50.5], ['wayup-p6-orange', 74.6], ['wayup-p7-orange', 57.8], ['wayup-p9-orange', 53.7], ['wayup-p10-orange', 60.1], ['wayup-p2a-orange', 47.4]]
+  .map(([vid, s]) => ({ vid, img: vid, ar: 9 / 16, len: mmssOf(s), t: [0, s], credit: 'The Way Up · Maschek & Schedl · CC BY 4.0' }))
+  .concat([86, 72, 29, 65, 60, 52].map((s, i) => ({ vid: `pratteln-${i + 1}`, img: `pratteln-${i + 1}`, ar: 9 / 16, len: mmssOf(s), t: [0, s], credit: 'Amada44 · Wikimedia Commons · CC BY 4.0' })))
+  .concat([['7591545', 24.4, 'Pavel Danilyuk'],
+  ['7591479', 48.5, 'Pavel Danilyuk'],
+  ['7591538', 25.8, 'Pavel Danilyuk'],
+  ['7591475', 38, 'Pavel Danilyuk'],
+  ['7591808', 39.8, 'Pavel Danilyuk'],
+  ['7591477', 15.4, 'Pavel Danilyuk'],
+  ['7591603', 33.5, 'Pavel Danilyuk'],
+  ['7591535', 25.9, 'Pavel Danilyuk'],
+  ['5382887', 18.4, 'Allan Mas'],
+  ['6690707', 15, 'cottonbro studio']]
+    .map(([id, s, who]) => ({ vid: `px-${id}`, img: `px-${id}`, ar: 9 / 16, len: mmssOf(s), t: [0, s], credit: `${who} · Pexels` })))
+  .concat([[2, 19.1, 'tiffneedsavacay', 704], [3, 21.2, 'reelclimbs'], [4, 10.1, 'boulderaddicts'], [5, 45.6, 'sophia_halley'], [6, 5.4, 'boulderaddicts'], [7, 10.5, 'bigmanclimbs'], [8, 9.3, 'henry_lovegrove']]
+    .map(([n, s, who, h = 766]) => ({ vid: `tt-${n}`, img: `tt-${n}`, ar: 576 / h, len: mmssOf(s), t: [0, s], credit: `TikTok @${who}` })))   // watermark-free part only: the start is skipped and the bottom strip cropped off
+  .concat({ vid: '6687076-sd_506_960_25fps', img: 'v6687076', ar: 506 / 960, len: '0:42', t: [0, 42.7], credit: 'Pexels' });
+const vidOf = c => [...VIDS, ...PRO, ...WAY, ...CROWD, ...roll].find(v => v.vid === c.vid);
 function addClip(r, o) { const c = { id: cid++, gym: gi, r, try: 1, high: 0, sent: false, by: '', hidden: false, raw: '', orig: false, ...o }; clips.unshift(c); return c; }
 const dayOf = k => k === TODAY ? 'Today' : dateOf(k).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
 const shortDay = k => dateOf(k).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
@@ -618,6 +636,8 @@ const ctag = { id: null, color: null, grade: null };
   addClip(G, { try: 1, high: 21, k: 71, ...WAY[0] });
   addClip(O, { try: 2, high: 30, k: 69, ...WAY[1] });
   addClip(O, { try: 1, high: 30, k: 66, ...WAY[2] });
+  addClip(G, { try: 2, high: 21, k: 73, ...WAY[3] });
+  addClip(O, { try: 3, high: 30, k: 74, ...WAY[4] });
   // imported like any other video. Each climber gets a route of her own so her tile stays separate; the tries are the film's own count
   const MUNICH = Math.round((new Date(2019, 4, 18) - dateOf(0)) / 864e5);   // the day of the qualification
   [['WA4', '#F2C230', 5, 4, 2], ['WA4', '#F2C230', 5, 4, 2], ['WB1', '#E5484D', 5, 3, 3], ['WB1', '#E5484D', 5, 3, 1]].forEach(([color, hex, moves, high, t], i) =>
@@ -976,9 +996,11 @@ function tagWire(c) {
   drawTag(c);
 }
 function confirmed(c, tags, again) { c.check = false; c.tags = tags; c.auto = tags; c.r.ok = true; c.an = 'done'; clips.filter(x => x.r === c.r && x.an === 'ask' && x.auto && !x.check).forEach(x => { x.tags = x.auto; x.an = 'done'; }); tagS = { id: null, i: 0, pts: {} }; cTab = 'why'; if (again) analyse(c, tags); render(); document.querySelector('.screen').scrollTo(0, 0); }
+// a link to a video that isn't here any more: imports don't survive a reload. The address has to change too, or the page keeps its own rules, like no dock
+function lostClip() { page = 'videos'; arg = ''; history.replaceState(null, '', '#/videos'); return viewVideos(); }
 function viewClip(id) {
   const c = byId(id);
-  if (!c) return viewVideos();
+  if (!c) return lostClip();
   if (c.hold) return viewEdit(id);
   const r = c.r, mv = r ? r.moves : 0, hi = c.sent ? mv : c.high;
   const you = (r && r.you) || 5.4, them = (r && r.senders) || 2.1;
@@ -1053,16 +1075,16 @@ function viewClip(id) {
   const tabs = [['why', 'Summary'], ...(c.track ? [['body', 'Body']] : []), ...(fv ? [['path', 'Path']] : []), ...(r && !c.who ? [['tries', 'Tries']] : []), ['info', r ? 'Info' : 'Add route']];
   const tab = tabs.some(([k]) => k === cTab) ? cTab : 'why';
   const panels = { why: c.track ? `${measured(c.track)}${r ? '' : `<div class="rows"><button class="row" type="button" data-act="ctab" data-v="info"><span class="row-t"><strong>Which route is this?</strong><span>Add it to see this try next to your others</span></span>${ic.arr('#111111')}</button></div>`}${fv && !c.who ? fv.why + fv.drill : ''}` : `${fv ? fv.why : ''}${seen}${fv ? fv.drill : ''}`, body: c.track ? bodyStats(c.track) : '', path: fv ? fv.path : '', tries: `${triesStrip}${fv ? fv.across : ''}`, info: `${details}${thisVideo}` };
-  return { photo: c.img, after: () => {
+  return { photo: c.img, fit: state === 'ask' && !!lv, after: () => {
       tagWire(c);
       if (!lv) return;
       const v = $('lvv'), box = v.parentElement;
       segClose(); segT = c.track; v.addEventListener('play', () => $('cpv')?.pause());
-      v.playbackRate = speed;
+      v.playbackRate = c.rate || speed;
       if (two) { window.posePlay(v, $('lvc'), c.track); tlWire(); kfWire(c.track, v.currentSrc || v.src); pathWire(); }
       if (state === 'ask' && c.auto) v.currentTime = c.auto.t;
       if (lv.t) { // only the climb
-        const [t0, t1] = lv.t, home = () => { if (v.currentTime < t0 - .1 || v.currentTime >= t1) v.currentTime = t0; };
+        const [t0, t1] = c.trim || lv.t, home = () => { if (v.currentTime < t0 - .1 || v.currentTime >= t1) v.currentTime = t0; };
         if (v.readyState >= 1) home(); else v.addEventListener('loadedmetadata', home, { once: true });
         v.addEventListener('play', home);
         v.addEventListener('timeupdate', () => { if (v.currentTime >= t1 && !v.paused) { v.pause(); v.dispatchEvent(new Event('clipend')); } });
@@ -1106,32 +1128,86 @@ function openReel() {
     ${shareBtns}`);
 }
 
-/* ---------- Over time: Friends (feed, comments, group climbs, partner calendar) ---------- */
+/* ---------- Over time: Community (the video feed, likes, comments, group climbs, partner calendar) ---------- */
+// other people's posts. Names, notes, likes and comments are sample data; the videos are real, and their credits come from the video list
+const wp = (who, what, vid, when, likes, note = '', comments = []) => ({ who, what, g: 0, where: 'Wall E', when, vid, img: vid, likes, note, comments });
+const othersPosts = [
+  wp('Mia', 'topped Green', 'wayup-p4-green', '2 h ago', 41, 'Finally! Fourth session on this one.', [['Kai', 'Huge!'], ['Noor', 'That top move 👏']]),
+  wp('Noor', 'climbed Green', 'wayup-p10-green', '3 h ago', 23, 'Took my time on the low section.'),
+  wp('Kai', 'topped Orange', 'wayup-p6-orange', '4 h ago', 57, 'Warm-up lap.', [['Lena', 'Warm-up?!']]),
+  wp('Sam', 'topped Orange', 'wayup-p2b-orange', '5 h ago', 8, 'Second go felt much smoother.', [['Noor', 'Clean!']]),
+  wp('Omar', 'climbed Green', 'wayup-p9-green', '5 h ago', 12, 'Any tips for the middle section?', [['Mia', 'Trust your feet, there are good holds low.']]),
+  wp('Lena', 'topped Orange', 'wayup-p7-orange', 'Yesterday', 33, 'Slow and steady.'),
+  wp('Leo', 'climbed Orange', 'wayup-p3-orange', 'Yesterday', 5, 'Still working the top.'),
+  { who: 'Yuki', what: 'climbed Green', g: 4, where: 'Wall D', when: 'Yesterday', vid: '6687076-sd_506_960_25fps', img: 'v6687076', likes: 64, note: 'First time on the lead wall.', comments: [['Lena', 'Looking strong']] },
+  wp('Mia', 'climbed Orange', 'wayup-p4-orange', '2 days ago', 19),
+  wp('Kai', 'topped Green', 'wayup-p6-green', '2 days ago', 48, 'Filmed the whole thing for Omar.', [['Omar', 'Thanks, watching it now']]),
+  wp('Noor', 'topped Orange', 'wayup-p10-orange', '3 days ago', 29),
+  wp('Omar', 'climbed Orange', 'wayup-p9-orange', '3 days ago', 7, 'Fell at the last hold again.'),
+  wp('Lena', 'topped Green', 'wayup-p7-green', '4 days ago', 26),
+  wp('Leo', 'climbed Green', 'wayup-p3-green', '4 days ago', 4),
+  wp('Sam', 'climbed Orange', 'wayup-p2a-orange', '4 days ago', 11, 'Different beta this time.')];
+// gym clips from Pexels, posted by sample people (stock footage: the people in it are models, not these names)
+const px = (who, what, id, g, where, when, likes, note = '', comments = []) => ({ who, what, g, where, when, vid: `px-${id}`, img: `px-${id}`, likes, note, comments });
+const pxPosts = [
+  px('Chloe', 'climbed V5', 6690707, 5, 'Wall B', '1 h ago', 73, 'Steep one today.', [['Kai', 'Strong!']]),
+  px('Ben', 'topped V4', 7591808, 2, 'Wall A', '5 h ago', 61, 'Big move at the top 💪', [['Ines', 'Clean']]),
+  px('Ravi', 'topped V3', 5382887, 1, 'Wall C', '2 h ago', 44, 'Second session this week.'),
+  px('Ines', 'climbed V2', 7591545, 2, 'Wall A', '6 h ago', 37, 'Trying to keep my hips close to the wall.'),
+  px('Tom', 'topped V3', 7591479, 2, 'Wall B', 'Yesterday', 52, 'The whole thing, start to top.', [['Ines', 'Smooth!']]),
+  px('Felix', 'climbed V5', 7591477, 2, 'Wall D', 'Yesterday', 22, 'Overhang day.'),
+  px('Ines', 'topped V3', 7591538, 2, 'Wall B', '2 days ago', 29),
+  px('Tom', 'climbed V4', 7591475, 2, 'Wall C', '3 days ago', 18, 'Fell twice before this one.'),
+  px('Felix', 'topped V3', 7591603, 2, 'Wall A', '3 days ago', 30),
+  px('Felix', 'climbed V4', 7591535, 2, 'Wall C', '4 days ago', 14, 'Slab practice: feet, feet, feet.')];
+const shareTT = (n, who, when, likes, note = '', comments = []) => ({ who: 'Mei', what: 'shared Bouldering', gym: 'Shared from TikTok', where: `@${who}`, when, vid: `tt-${n}`, img: `tt-${n}`, likes, note, comments });
+const ttPosts = [
+  shareTT(5, 'sophia_halley', '30 min ago', 96, 'Look how she keeps her hips in on the overhang.', [['Chloe', 'Goals'], ['Ines', 'Saving this']]),
+  shareTT(3, 'reelclimbs', '3 h ago', 58, 'Heel hooks on the big volumes.'),
+  shareTT(8, 'henry_lovegrove', '5 h ago', 41, 'Big reach at the end.', [['Ben', 'That last move!']]),
+  shareTT(4, 'boulderaddicts', 'Yesterday', 33, 'Steep and fun.'),
+  shareTT(7, 'bigmanclimbs', 'Yesterday', 77, 'Proof that anyone can boulder 🙌', [['Ravi', 'Love this']]),
+  shareTT(2, 'tiffneedsavacay', '2 days ago', 25, 'A few climbs from one session.'),
+  shareTT(6, 'boulderaddicts', '3 days ago', 19, 'Short one.')];
+const cup = (n, likes, note, comments = []) => ({ who: 'Rosa', what: 'filmed Red', gym: 'Boulder Cup Pratteln', where: 'Boulder 2', when: '5 days ago', vid: `pratteln-${n}`, img: `pratteln-${n}`, likes, note, comments });
+const cupPosts = [
+  cup(1, 88, 'Women’s comp, boulder 2. Watch how she uses the big red volume for her feet.', [['Lena', 'So much body tension']]),
+  cup(2, 52, 'Same boulder, different climber: she goes straight up the arête.'),
+  cup(4, 71, 'Low start on the red volume, then a big step up.', [['Omar', 'Saving this for the footwork']]),
+  cup(3, 34, 'Short and calm.'),
+  cup(5, 45, 'First go on boulder 2.'),
+  cup(6, 60, 'Same climber, second go. Smoother on the top holds.', [['Mia', 'Way better second try']])];
+// spread the competition clips through the feed, every third post
+const mixIn = (xs, ys) => xs.flatMap((x, i) => i % 3 === 2 && ys[(i - 2) / 3] ? [x, ys[(i - 2) / 3]] : [x]).concat(ys.slice(Math.ceil((xs.length - 2) / 3)));
+
 const feeds = {
   regular: [
-    { who: 'Jo', img: 'woman1', what: 'topped Blue V3', where: 'Wall C', when: '2 h ago', photo: 'wall2', note: 'Third try. Heel hook on move 3 did it.', comments: [['Alex', 'That heel hook!']] },
-    { who: 'Alex', img: 'man1', what: 'topped Red V4', where: 'Wall A', when: 'Yesterday', photo: 'wall1', note: '', comments: [] }
+    ...ttPosts,   // the TikTok clips you saved come first
+    { who: 'Jo', img: 'woman1', pic: true, what: 'topped Blue V3', g: 0, where: 'Wall C', when: '2 h ago', vid: 'pexels-7591864-crop', still: 'v864', likes: 14, note: 'Third try. Heel hook on move 3 did it.', comments: [['Alex', 'That heel hook!']] },
+    ...mixIn(mixIn(othersPosts, pxPosts), cupPosts),
+    { who: 'Alex', img: 'man1', pic: true, what: 'topped Red V4', g: 3, where: 'Wall A', when: 'Yesterday', vid: 'pexels-7591810-crop', still: 'v810', likes: 19, note: '', comments: [] }
   ],
   new: [
-    { who: 'Priya', img: 'woman3', what: 'topped Orange V2', where: 'Wall A', when: '1 h ago', photo: 'wall1', note: 'Big holds all the way. Good first one if you’re new.', comments: [['Dan', 'Agreed, start here.']] }
+    ...ttPosts,   // the TikTok clips you saved come first
+    { who: 'Priya', img: 'woman3', pic: true, what: 'topped Orange V2', g: 0, where: 'Wall A', when: '1 h ago', vid: 'pexels-7591864-crop', still: 'v864', likes: 12, note: 'Big holds all the way. Good first one if you’re new.', comments: [['Dan', 'Agreed, start here.']] },
+    ...mixIn(mixIn(othersPosts, pxPosts), cupPosts),
+    { who: 'Dan', what: 'climbed Yellow V1', g: 1, where: 'Wall B', when: 'Yesterday', vid: 'pexels-7591810-crop', still: 'v810', likes: 6, note: 'Any tips for the last move?', comments: [['Priya', 'Keep your hips close.']] }
   ]
 };
 // Alex and Jo: free days this week, 0 = today (Tue)
 const free = { Alex: [2, 4], Jo: [2, 5] };
 // what you've put in the feed: sends from a posted session, and videos posted from the editor
-const myPosts = () => [...clips.filter(c => c.posted && !c.hidden).map(c => ({ who: 'You', img: 'woman2', what: `${c.sent ? 'topped' : 'posted'} ${rname(c.r)}`, where: gymOf(c)?.name || 'Unknown gym', when: 'Just now', photo: c.img, note: '', comments: c.cm || (c.cm = []) })),
-  ...(posted ? [...today.entries()].filter(([, e]) => e.sent && !e.hidden).map(([r]) => ({ who: 'You', img: 'woman2', what: `topped ${r.color} ${r.grade}`, where: r.wall, when: 'Just now', photo: r.img, note: '', comments: r.cm || (r.cm = []) })) : [])];
-function viewFriends() {
-  const reg = user === 'regular', feed = feeds[user];
-  const all = [...myPosts(), ...feed];
+const myPosts = () => [...clips.filter(c => c.posted && !c.hidden).map(c => ({ who: 'You', img: 'woman2', what: `${c.sent ? 'topped' : 'posted'} ${rname(c.r)}`, gym: gymOf(c)?.name || 'Unknown gym', where: c.r?.wall || '', when: 'Just now', pic: true, vid: c.vid, still: c.img, from: c.trim, rate: c.rate, len: c.len, photo: c.img, likes: 0, note: '', comments: c.cm || (c.cm = []) })),
+  ...(posted ? [...today.entries()].filter(([, e]) => e.sent && !e.hidden).map(([r]) => ({ who: 'You', img: 'woman2', what: `topped ${r.color} ${r.grade}`, gym: gyms[gi].name, where: r.wall, when: 'Just now', pic: true, photo: r.img, likes: 0, note: '', comments: r.cm || (r.cm = []) })) : [])];
+function viewFriends(tab) {
+  const reg = user === 'regular', all = [...myPosts(), ...feeds[user]], plan = tab === 'plan';
   const days = ['Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun', 'Mon'];
   const head = reg && tagPending
     ? `<section class="glass tagc"><span class="avs2"><img src="img/man1.jpg" alt="Alex"></span><span class="t2">Alex filmed 2 of your tries</span>
         <span class="sub">Yellow V3 · Wall B · Saturday. Accept and the clips land in your log.</span>
         <div class="two"><button class="b-glass" type="button" data-act="ftag" data-v="0">Decline</button><button class="b-lime" type="button" data-act="ftag" data-v="1">Accept</button></div></section>`
-    : reg ? `<p class="sub-w">Alex and Jo · climbs you post show up here for them</p>`
-      : `<section class="glass tagc"><span class="t2">Invite the people you climb with</span><span class="sub">You’ll see each other’s climbs and when you’re free.</span>
-        <div class="two one"><button class="b-lime" type="button" data-act="invite">Copy invite link</button></div></section>`;
+    : '';
+  const invite = reg ? '' : `<div class="rows"><div class="row"><span class="row-t"><strong>Invite the people you climb with</strong><span>You’ll see each other’s climbs and when you’re free.</span></span><button class="pj" type="button" data-act="invite">Copy link</button></div></div>`;
   const group = reg
     ? { t: 'Thursday · 6 PM', s: `${gyms[gi].name} · Alex and Jo are going`, k: joined ? 3 : 2, av: ['man1', 'woman1'] }
     : { t: 'Beginner night · Wed 7 PM', s: `${gyms[gi].name} · open to everyone, a coach shows the basics`, k: joined ? 10 : 9, av: ['woman3', 'man1'] };
@@ -1142,8 +1218,13 @@ function viewFriends() {
   const week = reg ? [['Jo', 'woman1', 3, 'V3'], ['Alex', 'man1', 2, 'V4']].map(([w, img, k, g]) => `<div class="lt short"><span class="lt-h">${w}</span>
       <span class="avs"><img src="img/${img}.jpg" alt=""></span>
       <span class="mv"><b>${n(k, 'send', 'sends')}</b><span class="mv-l">this week · hardest ${g}</span></span></div>`).join('') : '';
-  return { photo: 'man1', html: `
-    ${tabHead('Friends')}
+  // two tabs along the top, For you and Friends. The first is the feed, the second is everything to do with the people you climb with
+  const top = `<div class="tok-top"><button class="tok-add" type="button" data-act="upload" aria-label="Post a video">${ic.plus}</button>
+    <nav class="tok-tabs"><button type="button" data-act="to" data-to="friends"${plan ? '' : ' aria-current="page"'}>For you</button><button type="button" data-act="to" data-to="friends/plan"${plan ? ' aria-current="page"' : ''}>Friends${reg && tagPending ? '<i></i>' : ''}</button></nav>
+    <button class="av sm" type="button" data-act="me" aria-label="Your profile"><img src="img/woman2.jpg" alt=""></button></div>`;
+  if (!plan) return { dark: true, tok: true, after: feedWire, html: `${top}<div class="tok" id="tok" tabindex="0"><div class="tok-in" id="tokin">${all.map(feedPost).join('')}</div></div>` };
+  return { photo: 'wall1', html: `
+    ${top}
     ${head}
     <div class="fold"></div>
     <div class="hl2 dk2"><h2>Plan the next session</h2></div>
@@ -1155,15 +1236,142 @@ function viewFriends() {
         <button class="b-lime sm" type="button" data-act="join">${joined ? 'You’re going · undo' : 'Join'}</button></div>
       ${cal}${week}
     </div>
-    <div class="hl2 dk2"><h2>${reg ? 'Feed' : `At ${gyms[gi].name}`}</h2>${reg ? '' : '<span class="hint2">public climbs</span>'}</div>
-    <div class="stack">${all.map((p, i) => `<article class="post">
-        <div class="ph"><img src="img/${p.photo}.jpg" alt=""><span class="shade"></span>
-          <div class="post-h"><span class="pav"><img src="img/${p.img}.jpg" alt=""></span><span class="row-t"><strong>${p.who} ${p.what}</strong><span>${p.where} · ${p.when}</span></span></div></div>
-        <div class="post-b">
-        ${p.note ? `<p class="post-n">${p.note}</p>` : ''}
-        ${p.comments.map(([w, t]) => `<p class="cm"><b>${w}</b> ${t}</p>`).join('')}
-        <div class="cm-row"><input type="text" placeholder="Add a comment" aria-label="Comment on ${p.who}’s climb" data-cm="${i}"><button type="button" data-act="cm" data-i="${i}">Send</button></div></div>
-      </article>`).join('')}</div>` };
+    ${invite}` };
+}
+/* ---------- Someone else's page, opened from their avatar or name in the feed ---------- */
+// sample people: everything here is made up except the videos. Noor, Sam and Leo match their side-by-side comparisons (PEERS)
+const PEOPLE = {
+  Priya: { img: 'woman3', h: 165, yrs: '1–2 years', sends: 46, top: 'V3', week: 3 },
+  Noor: { h: 172, yrs: '5–10 years', sends: 312, top: 'V6', week: 4 },
+  Sam: { h: 171, yrs: 'over 10 years', sends: 540, top: 'V7', week: 2 },
+  Leo: { h: 180, yrs: '1–2 years', sends: 58, top: 'V3', week: 3 },
+  Dan: { h: 176, yrs: 'under a year', sends: 12, top: 'V1', week: 1 },
+  Mia: { h: 160, yrs: '2–5 years', sends: 98, top: 'V4', week: 2 },
+  Kai: { h: 185, yrs: 'over 10 years', sends: 410, top: 'V7', week: 3 },
+  Lena: { h: 168, yrs: '5–10 years', sends: 205, top: 'V5', week: 4 },
+  Omar: { h: 177, yrs: '1–2 years', sends: 40, top: 'V3', week: 2 },
+  Chloe: { h: 163, yrs: '5–10 years', sends: 290, top: 'V6', week: 4 },
+  Ben: { h: 182, yrs: '2–5 years', sends: 140, top: 'V5', week: 3 },
+  Ravi: { h: 174, yrs: '1–2 years', sends: 52, top: 'V3', week: 2 },
+  Ines: { h: 161, yrs: '1–2 years', sends: 38, top: 'V3', week: 3 },
+  Tom: { h: 179, yrs: '2–5 years', sends: 110, top: 'V4', week: 2 },
+  Felix: { h: 176, yrs: '5–10 years', sends: 230, top: 'V5', week: 4 },
+  Mei: { h: 160, yrs: '2–5 years', sends: 85, top: 'V4', week: 3 },
+  Rosa: { h: 166, yrs: '5–10 years', sends: 260, top: 'V6', week: 2 },
+  Yuki: { h: 158, yrs: '2–5 years', sends: 130, top: 'V5', week: 3 },
+  Jo: { img: 'woman1', h: 168, yrs: '2–5 years', sends: 120, top: 'V4', week: 3 },
+  Alex: { img: 'man1', h: 183, yrs: '2–5 years', sends: 150, top: 'V5', week: 2 } };
+function viewPerson(who) {
+  const me = PEOPLE[who];
+  if (!me) { page = 'friends'; arg = ''; history.replaceState(null, '', '#/friends'); return viewFriends(); }
+  const all = feedAll(), mine = all.map((p, i) => [p, i]).filter(([p]) => p.who === who), on = followed.has(who), home = mine[0] ? gymName(mine[0][0]) : gyms[gi].name;
+  const face = me.img ? `<img src="img/${me.img}.jpg" alt="">` : `<b>${who[0]}</b>`;
+  // your tries on a route they climbed too: open that try on its side-by-side
+  const both = clips.filter(c => PEERS[c.vid]?.who === who && c.r && !c.hold);
+  const tile = ([p, i]) => { const lv = vidOf({ vid: p.vid }); return `<button class="vt" type="button" data-act="pvid" data-i="${i}" aria-label="Watch ${p.who} on ${p.what.split(' ').slice(1).join(' ')}">
+      <img src="img/${p.still || p.img}.jpg" alt=""><span class="shade"></span><span class="vt-t">${p.what.split(' ').slice(1).join(' ')}</span><span class="vt-g"><span>${gymName(p)}</span><span>${p.where}</span></span><span class="vt-l num">${p.len || lv?.len || ''}</span></button>`; };
+  return { photo: mine[0]?.[0].still || mine[0]?.[0].img || 'wall1', html: `
+    ${bar('')}
+    <div class="pp-h"><span class="pp-av">${face}</span><div><h1 class="hl">${who}</h1><p class="sub-w"><span>${home}</span> · <span>${me.h} cm · climbing for ${me.yrs}</span></p></div></div>
+    <div class="pp-a"><button class="${on ? 'b-glass' : 'b-lime'}" type="button" data-act="pfollow" data-w="${who}" aria-pressed="${on}">${on ? 'Following' : 'Follow'}</button></div>
+    <div class="fold"></div>
+    <div class="pp-st"><span><b class="num">${me.sends}</b>sends</span><span><b class="num">${me.top}</b>hardest</span><span><b class="num">${me.week}</b>climbs this week</span></div>
+    ${both.length ? `<div class="hl2 dk2"><h2>Routes you both climbed</h2><span class="hint2">side by side</span></div>
+    <div class="rows">${both.map(c => `<button class="row" type="button" data-act="pcmp" data-i="${c.id}"><span class="row-t"><strong>${sw(c.r)}${rname(c.r)}</strong><span><span>${gymOf(c)?.name || 'Unknown gym'}</span> · <span>${c.r.wall}</span></span></span>${ic.arr('#111111')}</button>`).join('')}</div>` : ''}
+    <div class="hl2 dk2"><h2>Videos</h2><span class="hint2">${n(mine.length, 'video', 'videos')}</span></div>
+    <div class="vg">${mine.map(tile).join('')}</div>
+    <p class="hint">Sample person: name, numbers and posts are made up. The videos are real.</p>` };
+}
+
+// one post fills the screen. Swipe up for the next; the actions run down the right, who and what along the bottom
+const liked = new Set(), saved = new Set(), followed = new Set(['Jo', 'Alex']), likeKey = p => `${p.who}/${p.vid || p.photo}`;
+const gymName = p => p.gym || gyms[p.g ?? gi].name;
+const feedAll = () => [...myPosts(), ...feeds[user]];
+const tokIc = {
+  heart: '<svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor"><path d="M12 20.5S3.5 15.6 3.5 9.4A4.6 4.6 0 0 1 12 7a4.6 4.6 0 0 1 8.5 2.4c0 6.2-8.5 11.1-8.5 11.1Z"/></svg>',
+  talk: '<svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor"><path d="M4 4.5h16a1 1 0 0 1 1 1V17a1 1 0 0 1-1 1H9.5L4.6 21.6a.4.4 0 0 1-.6-.3V18a1 1 0 0 1-1-1V5.5a1 1 0 0 1 1-1Z"/></svg>',
+  save: '<svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor"><path d="M6 3.5h12a1 1 0 0 1 1 1v16.2a.5.5 0 0 1-.8.4L12 16.6l-6.2 4.5a.5.5 0 0 1-.8-.4V4.5a1 1 0 0 1 1-1Z"/></svg>',
+  share: '<svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor"><path d="M13.5 4.2 22 11.4l-8.5 7.2V14c-4.6 0-7.8 1.6-10.5 5.4.7-5.6 3.9-10.6 10.5-11.4Z"/></svg>' };
+function feedPost(p, i) {
+  const lv = p.vid && vidOf({ vid: p.vid }), [a, b] = p.from || lv?.t || [0, 0], on = liked.has(likeKey(p)), me = p.who === 'You';
+  const face = p.pic ? `<img src="img/${p.img}.jpg" alt="">` : `<b>${p.who[0]}</b>`;
+  return `<article class="ts" data-i="${i}">
+    <div class="ts-v${lv ? ' fv' : ''}"${lv ? ` data-act="fvtap"` : ''}>${lv ? `<video src="video/${p.vid}.mp4" poster="img/${p.still || p.img}.jpg" muted playsinline loop preload="none" data-a="${a}" data-b="${b}" data-r="${p.rate || 1}"></video><span class="ed-p fv-p">${ic.play.replace('#111111', '#FFFFFF')}</span>` : `<img src="img/${p.photo}.jpg" alt="">`}<span class="ts-big">${tokIc.heart}</span></div>
+    <span class="ts-sh"></span>
+    <div class="ts-rail"><span class="ts-av"><button class="ts-face" type="button" data-act="to" data-to="${me ? 'profile' : `person/${p.who}`}" aria-label="${me ? 'Your profile' : `${p.who}’s page`}">${face}</button>${me || followed.has(p.who) ? '' : `<button type="button" class="ts-f" data-act="ffollow" data-w="${p.who}" aria-label="Follow ${p.who}"></button>`}</span>
+      <button type="button" data-act="flike" data-i="${i}" aria-pressed="${on}" aria-label="Like">${tokIc.heart}<span class="num">${p.likes + (on ? 1 : 0)}</span></button>
+      <button type="button" data-act="fcm" data-i="${i}" aria-label="Comment">${tokIc.talk}<span class="num">${p.comments.length}</span></button>
+      <button type="button" data-act="fsave" data-i="${i}" aria-pressed="${saved.has(likeKey(p))}" aria-label="Save">${tokIc.save}<span class="num">${Math.round(p.likes / 3) + (saved.has(likeKey(p)) ? 1 : 0)}</span></button>
+      <button type="button" data-act="fshare" aria-label="Share">${tokIc.share}<span>Share</span></button></div>
+    <div class="ts-c"><button class="ts-n" type="button" data-act="to" data-to="${me ? 'profile' : `person/${p.who}`}"><strong>${p.who} ${p.what}</strong></button><span class="ts-w"><span>${gymName(p)}</span> · <span>${p.where ? `${p.where} · ${p.when}` : p.when}</span>${p.len || lv ? ` · <span class="num">${p.len || lv.len}</span>` : ''}</span>
+      ${p.note ? `<p>${p.note}</p>` : ''}${lv ? `<small>${lv.credit}</small>` : ''}</div>
+    ${lv ? '<i class="ts-p"><b></b></i>' : ''}
+  </article>`;
+}
+function feedComments(i) {
+  const p = feedAll()[i];
+  pane(`<h2>${n(p.comments.length, 'comment', 'comments')}</h2>
+    <div class="tcm">${p.comments.length ? p.comments.map(([w, t]) => `<p class="cm"><b>${w}</b> ${t}</p>`).join('') : '<p class="hint">Be the first to comment.</p>'}</div>
+    <div class="cm-row"><input type="text" placeholder="Add a comment" aria-label="Comment on ${p.who}’s climb" data-cm="${i}"><button type="button" data-act="cm" data-i="${i}">Send</button></div>`);
+}
+const feedAt_post = b => feedAll()[+b.dataset.i];
+function feedLike(post, on) { const b = post.querySelector('[data-act=flike]'), p = feedAll()[+b.dataset.i], k = likeKey(p); on ? liked.add(k) : liked.delete(k);
+  b.setAttribute('aria-pressed', on); b.querySelector('span').textContent = p.likes + (on ? 1 : 0); pop(b, on); }
+// a pressed icon springs once, the way it does in short-video apps
+function pop(b, on) { b.classList.remove('pop'); if (!on) return; void b.offsetWidth; b.classList.add('pop'); }
+// the feed is a pager, not a scrolling page. The post stays under your finger or mouse while you drag; let go and it carries on to the next one or falls back.
+// Only the post on screen plays, and it starts again each time you arrive. feedAt: where you were, for when you come back
+let feedAt = 0, tapT = null;
+const TOK_FAR = .16, TOK_FLICK = .35, TOK_EDGE = .3;   // a drag of 16% of the screen, or a flick of .35 px/ms, turns the page; past the first and last post the drag gives 30%
+function feedStop() { document.querySelectorAll('.fv video').forEach(v => v.pause()); }
+function feedWire() {
+  const tok = $('tok'), track = $('tokin'), ts = [...track.children], last = ts.length - 1, calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const H = () => tok.clientHeight, zoom = () => tok.getBoundingClientRect().height / H() || 1;   // the phone can be drawn smaller than its real size
+  ts.forEach(t => { const v = t.querySelector('video'); if (!v) return;
+    const a = +v.dataset.a, b = +v.dataset.b, box = v.parentElement, bar = t.querySelector('.ts-p b');
+    v.defaultPlaybackRate = v.playbackRate = +v.dataset.r;
+    v.dataset.src = v.getAttribute('src');
+    v.addEventListener('loadedmetadata', () => { v.currentTime = a; v.playbackRate = +v.dataset.r; });
+    v.ontimeupdate = () => { if (v.currentTime >= b || v.currentTime < a - .3) v.currentTime = a; bar.style.transform = `scaleX(${(v.currentTime - a) / (b - a)})`; };
+    v.onplay = () => box.classList.add('on'); v.onpause = () => box.classList.remove('on'); });
+  const put = (y, ms) => { track.style.transition = ms ? `transform ${ms}ms cubic-bezier(.2, .85, .25, 1)` : 'none'; track.style.transform = `translate3d(0, ${-y}px, 0)`; };
+  // only this post and its neighbours keep a video loaded. The others are emptied, because every loaded video holds a
+  // connection open and the browser allows only about six to one server: past that, new posts never load and show only their picture
+  const keep = v => { if (!v.getAttribute('src')) { v.src = v.dataset.src; v.preload = 'auto'; v.load(); } };
+  const drop = v => { if (v.getAttribute('src') && (v.readyState || v.networkState === 2)) { v.pause(); v.removeAttribute('src'); v.preload = 'none'; v.load(); } };
+  const show = i => { feedAt = i; ts.forEach((t, k) => { const v = t.querySelector('video'); if (!v) return;
+    if (Math.abs(k - i) > 1) return drop(v);
+    keep(v);
+    if (k === i) { if (!calm) v.play().catch(() => {}); return; }
+    v.pause(); delete v.dataset.stop; if (v.readyState) v.currentTime = +v.dataset.a;
+    if (v.preload !== 'auto') { v.preload = 'auto'; if (!v.readyState) v.load(); } }); };   // the next post is ready before you get there
+  const goTo = (i, ms = 300) => { i = Math.max(0, Math.min(last, i)); put(i * H(), ms); if (i !== feedAt) show(i); };
+  feedAt = Math.min(feedAt, last); put(feedAt * H(), 0); show(feedAt); tok.focus({ preventScroll: true });
+  tok.onscroll = () => { tok.scrollTop = 0; };
+  // drag, by finger or mouse. A click right after a drag is not a tap
+  let d = null, dragged = false;
+  tok.onpointerdown = e => { if (!e.button) d = { id: e.pointerId, x: e.clientX, y: e.clientY, dy: 0, on: false, pts: [] }; };
+  tok.onpointermove = e => { if (e.pointerId !== d?.id) return;
+    const dx = e.clientX - d.x, dy = (e.clientY - d.y) / zoom();
+    if (!d.on) { if (Math.hypot(dx, dy) < 6) return; if (Math.abs(dx) > Math.abs(dy)) { d = null; return; } d.on = true; tok.setPointerCapture(e.pointerId); tok.classList.add('drag'); }
+    d.dy = dy; d.pts.push([e.timeStamp, dy]); while (d.pts.length > 2 && e.timeStamp - d.pts[0][0] > 100) d.pts.shift();
+    const off = feedAt === 0 && dy > 0 || feedAt === last && dy < 0;
+    put(feedAt * H() - (off ? dy * TOK_EDGE : dy), 0); };
+  const end = keep => e => { if (e.pointerId !== d?.id) return; const x = d; d = null; if (!x.on) return;
+    tok.classList.remove('drag'); dragged = true; setTimeout(() => { dragged = false; }, 60);
+    const p = x.pts, dt = p.length > 1 ? p[p.length - 1][0] - p[0][0] : 0, v = dt ? (p[p.length - 1][1] - p[0][1]) / dt : 0;
+    const fast = Math.abs(v) > TOK_FLICK && v * x.dy > 0 && Math.abs(x.dy) > 20;
+    goTo(feedAt + (keep && (fast || Math.abs(x.dy) > H() * TOK_FAR) ? (x.dy < 0 ? 1 : -1) : 0), fast ? 240 : 320); };
+  tok.onpointerup = end(true); tok.onpointercancel = end(false);
+  tok.addEventListener('click', e => { if (dragged) { e.stopPropagation(); e.preventDefault(); } }, true);
+  tok.ondragstart = e => e.preventDefault();
+  // wheel and arrows: one post each. A trackpad keeps sending wheel events after the fingers lift, so the next page waits until they stop
+  let turning = false, quiet = null;
+  const turn = d => { if (!turning) goTo(feedAt + d); };
+  tok.addEventListener('wheel', e => { e.preventDefault(); clearTimeout(quiet);
+    if (!turning && Math.abs(e.deltaY) > 4) { turn(Math.sign(e.deltaY)); turning = true; }
+    quiet = setTimeout(() => { turning = false; }, 140); }, { passive: false });
+  tok.onkeydown = e => { const k = { ArrowDown: 1, ArrowUp: -1 }[e.key]; if (k) { e.preventDefault(); goTo(feedAt + k); } };
 }
 
 /* ---------- Film your tries: the phone camera, full screen; the watch can mark each try ---------- */
@@ -1250,8 +1458,8 @@ function viewWatch() {
 }
 
 /* ---------- shell: routing, render, sheets ---------- */
-const views = { gyms: viewGyms, walls: viewGymsTab, gym: viewGym, scan: viewScan, route: viewRoute, compare: viewCompare, summary: viewSummary, profile: viewProfile, videos: viewVideos, clip: viewClip, friends: viewFriends, cam: viewCam, watch: viewWatch, edit: viewEdit };
-const tabOf = { compare: 'videos', cam: 'videos', watch: 'profile', walls: 'walls', gym: 'walls', gyms: 'walls', scan: 'walls', route: 'walls', videos: 'videos', clip: 'videos', friends: 'friends', profile: 'profile' };
+const views = { gyms: viewGyms, walls: viewGymsTab, gym: viewGym, scan: viewScan, route: viewRoute, compare: viewCompare, summary: viewSummary, profile: viewProfile, videos: viewVideos, clip: viewClip, friends: viewFriends, person: viewPerson, cam: viewCam, watch: viewWatch, edit: viewEdit };
+const tabOf = { compare: 'videos', cam: 'videos', watch: 'profile', walls: 'walls', gym: 'walls', gyms: 'walls', scan: 'walls', route: 'walls', videos: 'videos', clip: 'videos', friends: 'friends', person: 'friends', profile: 'profile' };
 const dock = document.querySelector('.dock');
 function readHash() { const [p = '', a = ''] = location.hash.replace(/^#\/?/, '').split('/'); page = p === 'setup' || views[p] ? p : 'videos'; arg = a; }
 function go(p) { if (location.hash === '#/' + p) render(); else location.hash = '#/' + p; }
@@ -1259,6 +1467,7 @@ function go(p) { if (location.hash === '#/' + p) render(); else location.hash = 
 // the dock belongs to the four tabs only; every page you open from a tab (route, clip, compare, gyms, set-up…) has a back button instead
 const tabs = ['videos', 'walls', 'friends', 'profile'];
 function render() {
+  feedStop();
   const v = page === 'setup' ? (setupViews[arg] || setupViews.gym)() : views[page](arg);
   $('main').innerHTML = v.html;
   const bd = document.querySelector('.backdrop'), fold = $('main').querySelector('.fold');
@@ -1270,6 +1479,8 @@ function render() {
   $('camx').innerHTML = v.overlay || '';
   $('camx').classList.toggle('mapx', !!v.map);
   document.querySelector('.phone').classList.toggle('dark', !!v.dark);
+  document.querySelector('.screen').classList.toggle('tok-on', !!v.tok);
+  document.querySelector('.screen').classList.toggle('fit', !!v.fit);   // a page sized to the screen: nothing below it to scroll to
   dock.hidden = !!v.cta || !!v.bare || !tabs.includes(page);
   dock.querySelectorAll('.dk:not(.plus)').forEach(b => b.toggleAttribute('aria-current', b.dataset.dock === tabOf[page]));
   dock.querySelector('[aria-current]')?.setAttribute('aria-current', 'page');
@@ -1433,7 +1644,7 @@ function drawRoll() {
     <button class="btn-l" type="button" data-act="upnext"${k ? '' : ' disabled'}>${k ? `Add ${n(k, 'video', 'videos')}` : 'Pick a video'}</button>`);
 }
 // the videos you picked, matched to the route where we can. Nothing is analysed until you ask for it in the editor
-let edQ = [];
+let edQ = [], edFrom = '';   // edFrom: the page you started from. Posting from Community takes you back to see your post
 function importPicks(picks) {
   edQ = picks.map((p, i) => {
     const v = roll[p], r = v.nocol || v.noloc ? null : list()[i % list().length];
@@ -1455,7 +1666,7 @@ function edApply(c) {
 }
 function viewEdit(id) {
   const c = byId(id), lv = c && vidOf(c);
-  if (!lv) return viewVideos();
+  if (!lv) return lostClip();
   if (ed?.id !== c.id) ed = { id: c.id, color: c.r?.color ?? null, grade: c.r?.g ?? null, try: c.try, sent: c.sent, rate: c.rate || 1, a: c.trim?.[0] ?? 0, b: c.trim?.[1] ?? lv.t[1] };
   const at = edQ.indexOf(c.id), next = at >= 0 ? edQ[at + 1] : null, g = gymOf(c);
   const opt = (k, v, label, on) => `<button type="button" data-act="edset" data-k="${k}" data-v="${v}" aria-pressed="${on}">${label}</button>`;
@@ -1463,8 +1674,12 @@ function viewEdit(id) {
     ${bar(at >= 0 && edQ.length > 1 ? `Edit video · ${at + 1} of ${edQ.length}` : 'Edit video')}
     <div class="ed-v" data-act="edplay"><video id="edv" src="video/${lv.vid}.mp4" poster="img/${lv.img}.jpg" muted playsinline preload="auto" style="aspect-ratio:${lv.ar}"></video><span class="ed-p" id="edp">${ic.play.replace('#111111', '#FFFFFF')}</span></div>
     <div class="hl2 dk2"><h2>Length</h2><span class="ed-n num" id="edn"></span></div>
-    <div class="ed-tr"><i class="ed-sel" id="edsel"></i><i class="ed-hd" id="edhd"></i>
-      <input id="eda" type="range" min="0" max="${lv.t[1]}" step=".1" aria-label="Start"><input id="edb" type="range" min="0" max="${lv.t[1]}" step=".1" aria-label="End"></div>
+    <div class="ed-ts"><span><b>Start</b><i class="num" id="eds"></i></span><span class="now"><b>Now</b><i class="num" id="edw"></i></span><span class="lst"><b>End</b><i class="num" id="ede"></i></span></div>
+    <div class="ed-tl" id="edtl" data-d="${lv.t[1]}">
+      <div class="ed-fs" id="edfs"><canvas id="edf"></canvas><i class="ed-dim" id="edl"></i><i class="ed-dim" id="edr"></i><i class="ed-box" id="edbox"></i>
+        <i class="ed-ph" id="edhd"></i>
+        <span class="ed-h l" id="edha" role="slider" tabindex="0" aria-label="Start" aria-valuemin="0"></span><span class="ed-h r" id="edhb" role="slider" tabindex="0" aria-label="End" aria-valuemin="0"></span></div>
+      <div class="ed-ru" id="edru">${edRuler(lv.t[1])}</div></div>
     <div class="hl2 dk2"><h2>Speed</h2></div>
     <div class="fchips">${[.5, 1, 1.5, 2].map(r => opt('rate', r, `${r}×`, ed.rate === r)).join('')}</div>
     <div class="hl2 dk2"><h2>Details</h2></div>
@@ -1479,18 +1694,77 @@ function viewEdit(id) {
     <div class="ed-end"></div>`,
     cta: `<button class="b-ghost" type="button" id="edpost" data-act="edpost" data-i="${c.id}">${c.posted ? 'Posted' : 'Post to community'}</button><button class="b-lime" type="button" data-act="edan" data-i="${c.id}">Analyse</button>` };
 }
+// a ruler with about five labels, whatever the length of the video, and five small steps between labels
+function edRuler(D) {
+  const big = [1, 2, 5, 10, 15, 30, 60, 120].find(x => D / x <= 6) || 300, small = big / 5, out = [];
+  for (let i = 0; i * small <= D + .001; i++) { const t = i * small, on = i % 5 === 0; out.push(`<i class="${on ? 'b' : ''}" style="left:${t / D * 100}%"></i>${on ? `<span class="num" style="left:${t / D * 100}%">${clockOf(t)}</span>` : ''}`); }
+  return out.join('');
+}
+// the strip of frames: read once per video from a second, unseen player, and kept so going back to the video doesn't read them again
+const edStrips = {};
+async function edStrip(c, src, D) {
+  const cv = $('edf'), box = cv.getBoundingClientRect(), r = devicePixelRatio || 1, W = Math.round(box.width * r), H = Math.round(box.height * r);
+  cv.width = W; cv.height = H;
+  const x = cv.getContext('2d'), kept = edStrips[src];
+  if (kept) { x.drawImage(kept, 0, 0, W, H); return; }
+  const N = Math.max(4, Math.ceil(box.width / (box.height * c))), w = W / N, keep = document.createElement('canvas'), k = keep.getContext('2d');
+  keep.width = W; keep.height = H;
+  const v = document.createElement('video'); v.muted = true; v.playsInline = true; v.preload = 'auto'; v.src = src;
+  await new Promise((ok, no) => { v.onloadeddata = ok; v.onerror = no; }).catch(() => {});
+  if (!v.videoWidth) return;
+  for (let i = 0; i < N; i++) {
+    if ($('edf') !== cv) return;   // left the page: stop reading, nothing is kept
+    await new Promise(ok => { v.onseeked = ok; v.currentTime = (i + .5) / N * D; });
+    const s = Math.max(w / v.videoWidth, H / v.videoHeight), sw = w / s, sh = H / s;
+    k.drawImage(v, (v.videoWidth - sw) / 2, (v.videoHeight - sh) / 2, sw, sh, i * w, 0, w + 1, H);
+    x.drawImage(keep, 0, 0);
+  }
+  edStrips[src] = keep; v.src = '';
+}
+let edRun = 0;
 function edWire() {
-  const v = $('edv'), A = $('eda'), B = $('edb'), D = +A.max, pc = t => `${t / D * 100}%`;
-  const draw = () => { const s = $('edsel'); if (!s) return; s.style.left = pc(ed.a); s.style.right = `${100 - ed.b / D * 100}%`; $('edn').textContent = `${clockOf(ed.a)} – ${clockOf(ed.b)} · ${Math.round(edSpan())} s`; };
-  A.value = ed.a; B.value = ed.b; v.playbackRate = ed.rate; edDraw = draw; draw();
-  A.oninput = () => { ed.a = Math.min(+A.value, ed.b - 1); A.value = ed.a; v.currentTime = ed.a; draw(); };
-  B.oninput = () => { ed.b = Math.max(+B.value, ed.a + 1); B.value = ed.b; v.currentTime = ed.b; draw(); };
-  v.addEventListener('loadedmetadata', () => { v.currentTime = ed.a; }, { once: true });
-  v.ontimeupdate = () => { if (!v.paused && (v.currentTime >= ed.b || v.currentTime < ed.a - .3)) v.currentTime = ed.a; const h = $('edhd'); if (h) h.style.left = pc(v.currentTime); };
+  const v = $('edv'), T = $('edtl'), F = $('edfs'), HA = $('edha'), HB = $('edhb'), D = +T.dataset.d, pc = t => `${t / D * 100}%`, me = ++edRun, GAP = 1;
+  const lv = vidOf(byId(ed.id));
+  const draw = () => {
+    if (!$('edbox')) return;
+    $('edl').style.width = pc(ed.a); $('edr').style.width = `${100 - ed.b / D * 100}%`;
+    const box = $('edbox').style; box.left = pc(ed.a); box.right = `${100 - ed.b / D * 100}%`;
+    HA.style.left = pc(ed.a); HB.style.left = pc(ed.b);
+    HA.setAttribute('aria-valuemax', D); HA.setAttribute('aria-valuenow', ed.a); HB.setAttribute('aria-valuemax', D); HB.setAttribute('aria-valuenow', ed.b);
+    const span = ed.b - ed.a, kept = Number.isInteger(+span.toFixed(1)) ? span.toFixed(0) : span.toFixed(1);
+    $('edn').textContent = ed.rate === 1 ? `${kept} s selected` : `${kept} s selected · plays in ${Math.round(edSpan())} s`;
+    $('eds').textContent = stampOf(ed.a); $('ede').textContent = stampOf(ed.b);
+    drawNow();
+  };
+  const drawNow = () => { const h = $('edhd'); if (!h) return; h.style.left = pc(ed.at); $('edw').textContent = stampOf(ed.at); };
+  const seek = t => { ed.at = t; v.currentTime = t; drawNow(); };
+  const put = (k, t) => { t = Math.round(t * 10) / 10;
+    if (k === 'a') ed.a = Math.max(0, Math.min(t, ed.b - GAP)); else ed.b = Math.min(D, Math.max(t, ed.a + GAP));
+    seek(ed[k]); draw(); };
+  // a touch near a handle moves that handle; anywhere else, and anywhere on the ruler, moves the playhead. Up and down still scrolls the page
+  let hold = null;
+  const timeAt = e => { const b = F.getBoundingClientRect(); return Math.max(0, Math.min(1, (e.clientX - b.left) / b.width)) * D; };
+  const move = e => { const t = timeAt(e); if (hold === 'at') seek(Math.max(ed.a, Math.min(ed.b, t))); else put(hold, t); };
+  T.onpointerdown = e => { const b = F.getBoundingClientRect(), x = e.clientX - b.left, xa = ed.a / D * b.width, xb = ed.b / D * b.width, near = e.clientY <= b.bottom;
+    const inA = near && x >= xa - 26 && x <= xa + 12, inB = near && x >= xb - 12 && x <= xb + 26;
+    hold = inA && inB ? (x < (xa + xb) / 2 ? 'a' : 'b') : inA ? 'a' : inB ? 'b' : 'at';
+    v.pause(); T.setPointerCapture(e.pointerId); T.classList.add('on'); if (hold !== 'at') $(hold === 'a' ? 'edha' : 'edhb').classList.add('on'); move(e); };
+  T.onpointermove = e => { if (hold) move(e); };
+  T.onpointerup = T.onpointercancel = () => { hold = null; T.classList.remove('on'); HA.classList.remove('on'); HB.classList.remove('on'); };
+  [[HA, 'a'], [HB, 'b']].forEach(([h, k]) => { h.onkeydown = e => { const d = { ArrowLeft: -1, ArrowRight: 1 }[e.key]; if (d) { e.preventDefault(); v.pause(); put(k, ed[k] + d * (e.shiftKey ? 1 : .1)); } }; });
+  // the playhead follows the video every frame, and only the chosen stretch plays, round and round
+  const tick = () => { if (me !== edRun || !$('edv')) return;
+    if (!v.paused && !hold) { if (v.currentTime >= ed.b || v.currentTime < ed.a - .3) v.currentTime = ed.a; ed.at = v.currentTime; drawNow(); }
+    requestAnimationFrame(tick); };
+  v.playbackRate = ed.rate; edDraw = draw; ed.at = Math.max(ed.a, Math.min(ed.b, ed.at ?? ed.a)); draw(); tick();
+  v.addEventListener('loadedmetadata', () => { v.currentTime = ed.at; }, { once: true });
+  v.onended = () => { v.currentTime = ed.a; v.play().catch(() => {}); };
   v.onplay = () => $('edp').classList.add('off'); v.onpause = () => $('edp').classList.remove('off');
+  edStrip(lv.ar, `video/${lv.vid}.mp4`, D);
 }
 let edDraw = () => {};
 const clockOf = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+const stampOf = s => { const t = Math.round(s * 10) / 10; return `${Math.floor(t / 60)}:${(t % 60).toFixed(1).padStart(4, '0')}`; };
 // log the send: how hard it felt, a note, who filmed you
 function openSheet() {
   const r = lastRoute;
@@ -1555,7 +1829,7 @@ const actions = {
   grade: () => toast('V0 is the easiest, V10 the hardest. Most people start at V0–V2.'),
   guide: () => toast('Guide · grades, tape colours, gym etiquette'),
   pick: b => { const i = +b.dataset.i; if (list()[i].topped) return; sel[user] = i; located = false; render(); },
-  friends: () => go('friends'),
+  friends: () => go('friends/plan'),
   crowd: () => toast(`${gyms[gi].name} · usual crowd by hour, from check-ins over 4 weeks`),
   end: () => endSession(),
   videos: () => go(`route/${list().indexOf(current())}`),
@@ -1563,7 +1837,7 @@ const actions = {
   compare: () => { lastRoute = page === 'route' ? list()[+arg] || current() : current(); go('compare'); },
   more: () => go(`gym/${gi}`),
   me: () => go('profile'),
-  bell: () => user === 'regular' && tagPending ? go('friends') : toast('No new notifications'),
+  bell: () => user === 'regular' && tagPending ? go('friends/plan') : toast('No new notifications'),
   gym: () => { gi = (gi + 1) % gyms.length; render(); },
   // walls, scan, route
   route: b => go(`route/${b.dataset.i}`),
@@ -1604,7 +1878,7 @@ const actions = {
     }
     const k = Math.max(1, cut); filming = false; cut = 0; record(k);
   },
-  upload: () => openUpload(),
+  upload: () => { edFrom = page; openUpload(); },
   upick: b => { const i = +b.dataset.i; upSel.has(i) ? upSel.delete(i) : upSel.add(i); drawRoll(); },
   upnext: () => { const s = [...upSel]; if (s.length) importPicks(s); },
   edplay: () => { const v = $('edv'); if (v.paused) { if (v.currentTime >= ed.b - .1) v.currentTime = ed.a; v.play().catch(() => {}); } else v.pause(); },
@@ -1613,7 +1887,8 @@ const actions = {
     if (k === 'rate') { $('edv').playbackRate = ed.rate; edDraw(); } },
   edtry: b => { ed.try = Math.max(1, ed.try + +b.dataset.d); $('edtn').textContent = ed.try; },
   ednext: b => { edApply(byId(ed.id)); go(`edit/${b.dataset.i}`); },
-  edpost: b => { const c = byId(b.dataset.i), m = edMsg(c); if (m) { toast(m); return; } edApply(c); c.posted = true; c.hidden = false; $('edpost').textContent = 'Posted'; toast('Posted to the community'); },
+  edpost: b => { const c = byId(b.dataset.i), m = edMsg(c); if (m) { toast(m); return; } edApply(c); c.posted = true; c.hidden = false; $('edpost').textContent = 'Posted'; toast('Posted to the community');
+    if (edFrom === 'friends' && !edQ[edQ.indexOf(c.id) + 1]) { ed = null; feedAt = 0; go('friends'); } },
   // the analysis page still opens on the body check, once for every video that comes through here
   edan: b => { const c = byId(b.dataset.i), m = edMsg(c); if (m) { toast(m); return; }
     const cut = edApply(c), first = c.hold; c.hold = false;
@@ -1727,10 +2002,26 @@ const actions = {
   invite: () => toast('Invite link copied'),
   join: () => { joined = !joined; render(); toast(joined ? 'You’re going · friends can see it' : 'Removed'); },
   cm: b => {
-    const i = +b.dataset.i, inp = $('main').querySelector(`[data-cm="${i}"]`), t = inp.value.trim();
+    const i = +b.dataset.i, inp = ask.querySelector(`[data-cm="${i}"]`), t = inp.value.trim();
     if (!t) return;
-    [...myPosts(), ...feeds[user]][i].comments.push(['You', t.replace(/</g, '&lt;')]); render();
+    const p = feedAll()[i]; p.comments.push(['You', t.replace(/</g, '&lt;')]);
+    document.querySelector(`.ts[data-i="${i}"] [data-act=fcm] span`).textContent = p.comments.length; feedComments(i);
   },
+  // one tap pauses or plays, two tap likes
+  fvtap: b => { const post = b.closest('.ts'), v = b.querySelector('video');
+    if (tapT) { clearTimeout(tapT); tapT = null; feedLike(post, true); const h = b.querySelector('.ts-big'); h.classList.remove('go'); void h.offsetWidth; h.classList.add('go'); return; }
+    tapT = setTimeout(() => { tapT = null; if (v.paused) { delete v.dataset.stop; v.play().catch(() => {}); } else { v.dataset.stop = 1; v.pause(); } }, 240); },
+  flike: b => feedLike(b.closest('.ts'), b.getAttribute('aria-pressed') !== 'true'),
+  fcm: b => feedComments(+b.dataset.i),
+  fshare: () => toast('Link copied'),
+  // following turns the + into a tick, which then fades: once you follow someone there's nothing left to press, as on Douyin
+  pfollow: b => { const w = b.dataset.w; followed.has(w) ? followed.delete(w) : followed.add(w); render(); toast(followed.has(w) ? `Following ${w}` : `Unfollowed ${w}`); },
+  pvid: b => { feedAt = +b.dataset.i; go('friends'); },
+  pcmp: b => { cTab = 'path'; go(`clip/${b.dataset.i}`); },
+  ffollow: b => { const w = b.dataset.w; followed.add(w); toast(`Following ${w}`);
+    document.querySelectorAll(`[data-act=ffollow][data-w="${w}"]`).forEach(x => { x.classList.add('done'); x.disabled = true; setTimeout(() => x.remove(), 700); }); },
+  fsave: b => { const p = feedAt_post(b), k = likeKey(p), on = !saved.has(k); on ? saved.add(k) : saved.delete(k);
+    b.setAttribute('aria-pressed', on); b.querySelector('span').textContent = Math.round(p.likes / 3) + (on ? 1 : 0); pop(b, on); if (on) toast('Saved to your profile'); },
   island: () => go('videos'),
   back: () => history.length > 1 ? history.back() : go('videos')
 };

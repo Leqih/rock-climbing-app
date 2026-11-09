@@ -70,7 +70,7 @@ After changing a CSS or JS file, bump the `?v=` string on its link in `index.htm
 | Learn from the fall | Why you came off, on a video of a fall: likely reason with its evidence, hands and feet over time, your path against climbers your height, a reach check, falls across routes and one drill. Sample data: the hold map and contact log are not built yet | `#/clip/<id>` |
 | Over time | A video with no route: pick the gym if it has no location, then tap the route's photo or pick tape colour and grade, right on the video's page (v3) | `#/clip/<id>` |
 | Over time | Videos opens on every imported video, newest first, with Import videos at the top. The two sample videos are already imported for every climber, new or regular. Import is a demo: it opens the prototype camera roll, and no real file is read. Below the videos: analysed count, filmed by friends, highlight reel, Select to hide / change route / delete several, free up space, older routes | `#/videos` |
-| Over time | Feed with comments, group climbs, partner calendar | `#/friends` |
+| Over time | Community: a feed of videos people posted, with likes and comments, then group climbs and the partner calendar | `#/friends` |
 
 ## Two climbers
 
@@ -165,9 +165,13 @@ Videos:
 
 - `video/rockspot-v3.mp4`: [Indoor Bouldering V3 Rock Spot](https://commons.wikimedia.org/wiki/File:Indoor_Bouldering_V3_Rock_Spot.webm) by Cryptic C62, [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/). We used the file's earlier 480×272 version, turned it upright and trimmed it to 0:01.5–0:42.5. This changed clip is under the same licence. The climber tops the route, so no fall is shown.
 - `video/pro-wa4-rakovec.mp4`, `video/pro-wa4-garnbret.mp4`, `video/pro-wb1-raboutou.mp4` and `video/pro-wb1-pilz.mp4`: cut from four films of the IFSC World Cup Munich 2019 by Boulder Rundfunk on [Wikimedia Commons](https://commons.wikimedia.org/wiki/Category:Boulder_Worldcup_2019_Munich), [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/). Trimmed to one climb each and cropped to portrait to follow the climber.
-- The other `video/wayup-*.mp4` files: participants 1, 2, 3, 5 and 10 on the green and orange routes of the same dataset, same licence.
-- `video/wayup-p8-green.mp4` and `video/wayup-p2-green.mp4`: participants 8 and 2 on the green route of [The Way Up](https://doi.org/10.5281/zenodo.15196866) by Maschek & Schedl, [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). We scaled them to 540×960, removed the sound and trimmed them to the climb.
-- Not used any more: `video/pexels-7591864-crop.mp4` and `video/pexels-7591810-crop.mp4` (Pavel Danilyuk on Pexels), `video/r-lpj1bzih3ytb1.mp4` (posted on Reddit), `video/6687076-sd_506_960_25fps.mp4` (Pexels), `img/vr1.jpg` and `img/v6687076.jpg`.
+- The other `video/wayup-*.mp4` files: participants 1 to 10 on the green and orange routes of the same dataset, same licence, cut the same way.
+- `video/wayup-p8-green.mp4` and `video/wayup-p2-green.mp4`: participants 8 and 2 on the green route of [The Way Up](https://doi.org/10.5281/zenodo.15196866) by Maschek & Schedl, [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). We kept them at 720×1280 (crf 23), removed the sound and trimmed them to the climb.
+- `video/pexels-7591864-crop.mp4` and `video/pexels-7591810-crop.mp4` (Pavel Danilyuk on Pexels) and `video/6687076-sd_506_960_25fps.mp4` (Pexels, thumbnail `img/v6687076.jpg`): community posts, under the Pexels licence.
+- `video/pratteln-1.mp4` to `pratteln-6.mp4`: from "Boulder Cup in Pratteln B2 in 2017" by Amada44, Wikimedia Commons, CC BY 4.0 (https://commons.wikimedia.org/wiki/File:Boulder_Cup_in_Pratteln_B2_in_2017_-_6594.webm). Six attempts on boulder 2 of the women's competition, filmed handheld from the crowd. Changes: cut into attempts, cropped to 9:16 with a window that follows the climber (from the app's pose scan), scaled to 720×1280, sound removed.
+- `video/px-<id>.mp4` (ten clips): Pexels videos 7591545, 7591479, 7591538, 7591475, 7591808, 7591477, 7591603 and 7591535 by Pavel Danilyuk, 5382887 by Allan Mas and 6690707 by cottonbro studio, under the Pexels licence. Scaled and cropped to 720×1280, sound removed. They are community posts by sample people (Chloe, Ben, Ravi, Ines, Tom, Felix); the people filmed are models, not those names.
+- `video/tt-2.mp4` to `tt-8.mp4`: TikTok videos saved by the project owner, for this private prototype only (not for public release). Creators: @tiffneedsavacay (2), @reelclimbs (3), @boulderaddicts (4, 6), @sophia_halley (5), @bigmanclimbs (7), @henry_lovegrove (8). No blur: each clip starts after the left-middle TikTok watermark has gone (about 4–5 s in) and the bottom strip, where the bottom-right watermark sits for the rest of the video, is cropped off (576×766, 576×704 for clip 2); the outro is cut; each post credits the creator's handle instead. A clip of a child (@juniorclimbs) was left out. Posted by the sample person Mei as "shared from TikTok", and they are the first seven posts in the feed.
+- Not used any more: `video/r-lpj1bzih3ytb1.mp4` (posted on Reddit) and `img/vr1.jpg`.
 
 The thumbnails `img/vrock.jpg`, `img/v864.jpg` and `img/v810.jpg` are frames taken from these videos. `img/vrock0.jpg`, `img/v8640.jpg` and `img/v8100.jpg` are their first frames, used as posters so the tracked points land on the right picture.
 
@@ -223,3 +227,21 @@ An arm only gets an angle when shoulder, elbow and wrist all have confidence of 
 ## Importing a video
 
 Importing is a demo: the camera roll lists videos that ship with the app. A picked video opens in the editor (`viewEdit` in `app.js`), where you trim it, set its speed, and set the try, gym, tape colour, grade and result. Post to community adds it to the Friends feed. Analyse opens the body check, then the analysis page. Nothing is analysed before that. A trimmed video is analysed only on what's left of it. Speed and trim aren't applied to the file: playback in the editor shows them, and the app keeps them with the video.
+
+## The length timeline
+
+The editor's Length section is a strip of frames from the video with a time ruler under it. The strip is read once per video with a second, unseen player and kept for the session (`edStrip` in `app.js`). A drag that starts near a handle moves that handle; anywhere else, and anywhere on the ruler, it moves the playhead. Vertical drags scroll the page. Arrow keys move a focused handle by 0.1 s, or 1 s with Shift. Only the chosen stretch plays, and the analysis page plays the same stretch at the chosen speed. The video file itself is not cut.
+
+## Community
+
+The tab has two parts along the top, For you and Friends. For you is a full-screen feed in the style of short-video apps: the post follows your finger or mouse as you drag, and letting go carries it to the next one or back. A drag of 16% of the screen or a quick flick turns the page. Your own posts come first. The post on screen plays muted and looping, with a thin progress bar. One tap pauses, two taps like, and each post starts again when you arrive at it. The wheel and arrow keys move one post at a time. Follow, like, comment, save and share sit on the right; following hides the + once it is done, and save only shows a confirmation, and comments open in a sheet. The + at the top left posts a video through the camera roll and the editor, then returns to the feed. Reduced-motion settings turn autoplay off. Friends (`#/friends/plan`) holds group climbs, the partner calendar, film requests and the invite.
+
+Other people's names, notes, likes and comments are sample data; the videos are real and credited on each post. Share only shows a confirmation. Likes, follows, comments and posts are lost on reload.
+
+Tapping a climber's avatar or the title of their post opens their page (`#/person/<name>`, `viewPerson` in `app.js`): gym, height and years climbing, a Follow button, sends, hardest grade and climbs this week, then their videos. A video opens the feed at that post. If you have a try on a route they climbed too (Noor, Sam and Leo, from the side-by-side pairs), a row under Routes you both climbed opens your try on its side-by-side. Your own avatar opens your profile. Every post names its gym and wall, in the feed and on the person's page, because the same tape colour means a different route in each gym. A person's gym is the gym of their latest post. Noor, Sam and Leo posted from the gym and wall of your Way Up tries, so their side-by-side comparisons are on the same route. The people and their numbers are sample data.
+
+The community feed has 40 posts in either view, from twelve sample people. Each Way Up participant is one person: participant 2 is Sam, 3 Leo, 4 Mia, 6 Kai, 7 Lena, 9 Omar and 10 Noor, mostly with one climb on each route. Participants 1, 5 and 8 are you: five of your tries in Videos come from them, already analysed. Yuki's lead climb is the Pexels clip.
+
+Rosa, a sample person, posts six attempts filmed at the Pratteln Boulder Cup. The climbers in them are real athletes, so the app does not name them or make up anything about them. Those clips are only community posts: the camera moves, so the app doesn't analyse them.
+
+In the feed only the post on screen and its two neighbours keep their video loaded; the others are emptied as you swipe away. Each loaded video holds a connection open and a browser allows only about six to one server, so before this, after about nine swipes new posts stopped loading and showed only their picture.
