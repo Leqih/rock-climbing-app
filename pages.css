@@ -604,9 +604,7 @@
 .an-k i { width: 10px; height: 10px; border-radius: 2px; }
 .an-k .you { background: var(--lime); }
 .an-k .them { background: var(--lilac); }
-.an-k .st, .an-k .ft { border-radius: 50%; background: none; }
-.an-k .st { border: 1.5px solid #9DB02F; outline: 1.5px solid #9DB02F; outline-offset: 1.5px; width: 8px; height: 8px; margin: 0 2px; }
-.an-k .ft { border: 1.5px solid var(--ink); }
+.an-k .hc { border-radius: 50%; background: conic-gradient(#E5484D, #F2C230, #2E9E62, #3D7BEA, #8E5BD8, #E5484D); }
 .an-k .hd { width: 13px; height: 13px; border-radius: 50%; background: var(--lime); color: var(--ink); font-style: normal; font-size: 9px; font-weight: 700; display: inline-grid; place-items: center; }
 .an-g { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 12px; }
 .an-g span { display: block; font-size: 12px; color: var(--mid); }

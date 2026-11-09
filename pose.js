@@ -478,16 +478,10 @@
     const paint = t => {
       const p = frame(t), move = moves.filter(m => m.t <= t + .01).length, R = torsoL * .2 * sc;
       ctx.clearRect(0, 0, cv.width, cv.height); ctx.drawImage(bg, 0, 0); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-      // your hands' way up, hold to hold, as far as now
-      const done = hands.filter(q => q.t <= t + .01).map(q => q.r.p);
-      [['rgba(17,17,17,.6)', 4 * u], [LIME, 2 * u]].forEach(([c, l]) => { ctx.strokeStyle = c; ctx.lineWidth = l; ctx.setLineDash([5 * u, 4 * u]); ctx.beginPath(); done.forEach((q, i) => i ? ctx.lineTo(X(q), Y(q)) : ctx.moveTo(X(q), Y(q))); ctx.stroke(); }); ctx.setLineDash([]);
-      // a ring round every hold you used, so the hold itself shows: faint until you get there. Start holds have two rings
-      rings.forEach(r => { const on = r.t <= t + .01, x = X(r.p), y = Y(r.p), rr = r.hand ? RR : RR * .75, col = r.hand ? LIME : '#FFFFFF';
-        ctx.globalAlpha = on ? 1 : .45; ctx.lineWidth = 3.6 * u; ctx.strokeStyle = 'rgba(17,17,17,.7)'; ctx.beginPath(); ctx.arc(x, y, rr, 0, 7); ctx.stroke(); ctx.lineWidth = 1.8 * u; ctx.strokeStyle = col; ctx.stroke();
-        if (r.start) { ctx.beginPath(); ctx.arc(x, y, rr + 3.2 * u, 0, 7); ctx.lineWidth = 3.4 * u; ctx.strokeStyle = 'rgba(17,17,17,.7)'; ctx.stroke(); ctx.lineWidth = 1.6 * u; ctx.strokeStyle = col; ctx.stroke(); }
-        if (r.n) { const bx = x + rr * .72, by = y - rr * .72, br = 5.2 * u; ctx.beginPath(); ctx.arc(bx, by, br, 0, 7); ctx.fillStyle = on ? LIME : 'rgba(221,242,106,.7)'; ctx.fill(); ctx.lineWidth = 1 * u; ctx.strokeStyle = '#111111'; ctx.stroke();
-          ctx.fillStyle = '#111111'; ctx.font = `700 ${(r.n > 9 ? 6 : 7) * u}px Urbanist, system-ui, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(r.n, bx, by + .3 * u); }
-        ctx.globalAlpha = 1; });
+      // the holds themselves carry the route (in colour on the grey wall); a small tag beside each hand hold gives the order, S for the start
+      rings.forEach(r => { if (!r.n && !r.start) return; const on = r.t <= t + .01, bx = X(r.p) + RR * 1.25, by = Y(r.p) - RR * 1.25, br = 5.2 * u;
+        ctx.globalAlpha = on ? 1 : .55; ctx.beginPath(); ctx.arc(bx, by, br, 0, 7); ctx.fillStyle = on ? LIME : '#FFFFFF'; ctx.fill(); ctx.lineWidth = 1 * u; ctx.strokeStyle = '#111111'; ctx.stroke();
+        ctx.fillStyle = '#111111'; ctx.font = `700 ${(r.n > 9 ? 6 : 7) * u}px Urbanist, system-ui, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(r.n || 'S', bx, by + .3 * u); ctx.globalAlpha = 1; });
       const hx = X(p.head), hy = Y(p.head), nx = X(p.sm), ny = Y(p.sm), hd = Math.hypot(hx - nx, hy - ny) || 1, neck = { x: hx + (nx - hx) / hd * R, y: hy + (ny - hy) / hd * R };
       [['rgba(17,17,17,.75)', 5.5 * u], [LILAC, 3 * u]].forEach(([c, l]) => { ctx.strokeStyle = c; ctx.lineWidth = l; BON.forEach(([a, b]) => { ctx.beginPath(); ctx.moveTo(X(p[a]), Y(p[a])); ctx.lineTo(X(p[b]), Y(p[b])); ctx.stroke(); });
         if (hd > R) { ctx.beginPath(); ctx.moveTo(nx, ny); ctx.lineTo(neck.x, neck.y); ctx.stroke(); } ctx.beginPath(); ctx.arc(hx, hy, R, 0, 7); ctx.stroke(); });
@@ -509,11 +503,25 @@
       [[11, 12], [23, 24], [11, 23], [12, 24], [11, 24], [12, 23], [11, 13], [13, 15], [15, 19], [12, 14], [14, 16], [16, 20], [23, 25], [25, 27], [27, 31], [24, 26], [26, 28], [28, 32], [0, 11], [0, 12]].forEach(([a, b]) => { mc.beginPath(); mc.moveTo(at(a).x, at(a).y); mc.lineTo(at(b).x, at(b).y); mc.stroke(); });
       mc.beginPath(); mc.arc(at(0).x, at(0).y, torsoL * sc * .42, 0, 7); mc.fill(); const mk = mc.getImageData(0, 0, mask.width, mask.height).data;
       for (let i = 0; i < PIX; i++) if (d[i * 4 + 3] > 200 && !mk[i * 4 + 3] && cnt[i] < NF) { const j = i * NF + cnt[i]++; stack[j] = (d[i * 4] * 77 + d[i * 4 + 1] * 150 + d[i * 4 + 2] * 29) >> 8; rgb[j * 3] = d[i * 4]; rgb[j * 3 + 1] = d[i * 4 + 1]; rgb[j * 3 + 2] = d[i * 4 + 2]; } };
-    // in colour, so you can tell the holds apart: each pixel takes the colour of the frame whose brightness there is the middle one
+    // the wall in grey, and only the holds you used in their own colour, so the colour is your route. Each pixel takes the colour of
+    // the frame whose brightness there is the middle one
     const wall = () => { const b = bg.getContext('2d'), img = b.createImageData(bg.width, bg.height), o = img.data, v = new Uint8Array(NF), ix = new Uint8Array(NF);
-      for (let i = 0; i < PIX; i++) { const c = cnt[i]; if (!c) { o[i * 4] = o[i * 4 + 1] = o[i * 4 + 2] = 27; o[i * 4 + 3] = 255; continue; }
+      const col = new Uint8Array(PIX * 3), lum = new Uint8Array(PIX), hist = [new Uint32Array(256), new Uint32Array(256), new Uint32Array(256)]; let seenPx = 0;
+      for (let i = 0; i < PIX; i++) { const c = cnt[i]; if (!c) continue;
         for (let j = 0; j < c; j++) { const x = stack[i * NF + j]; let k = j; while (k && v[k - 1] > x) { v[k] = v[k - 1]; ix[k] = ix[k - 1]; k--; } v[k] = x; ix[k] = j; }
-        const j = (i * NF + ix[c >> 1]) * 3, l = v[c >> 1]; for (let ch = 0; ch < 3; ch++) o[i * 4 + ch] = Math.round((rgb[j + ch] * .85 + l * .15) * .78); o[i * 4 + 3] = 255; }
+        const j = (i * NF + ix[c >> 1]) * 3; lum[i] = v[c >> 1]; for (let ch = 0; ch < 3; ch++) { col[i * 3 + ch] = rgb[j + ch]; hist[ch][rgb[j + ch]]++; } seenPx++; }
+      // the bare wall's colour (most of the picture is wall), so a hold is whatever stands out from it
+      const base = hist.map(h => { let a = 0, k = 0; while (k < 255 && (a += h[k]) < seenPx / 2) k++; return k; }), bl = (base[0] * 77 + base[1] * 150 + base[2] * 29) >> 8 || 1;
+      const keep = new Float32Array(PIX);
+      rings.forEach(r => { const cx = X(r.p), cy = Y(r.p), R = r.hand ? RR * 1.7 : RR * 1.4;
+        for (let y = Math.max(0, Math.floor(cy - R)); y <= Math.min(bg.height - 1, Math.ceil(cy + R)); y++) for (let x = Math.max(0, Math.floor(cx - R)); x <= Math.min(bg.width - 1, Math.ceil(cx + R)); x++) {
+          const i = y * bg.width + x, dd = Math.hypot(x - cx, y - cy); if (dd > R || !cnt[i]) continue;
+          const l = lum[i], f = l / bl, dc = Math.hypot(col[i * 3] - base[0] * f, col[i * 3 + 1] - base[1] * f, col[i * 3 + 2] - base[2] * f), d = Math.hypot(dc, Math.abs(l - bl) * .6);
+          // whatever stands out from the wall keeps its colour out to the edge; right where a hand held, it always does, so a hold the
+          // colour of the wall still shows. A foot can stand on bare wall, so there only what stands out keeps its colour
+          const m = Math.max(Math.min(1, Math.max(0, (d - 20) / 26)) * Math.min(1, Math.max(0, (R - dd) / (R * .35))), r.hand ? Math.min(1, Math.max(0, (R * .55 - dd) / (R * .2))) : 0); if (m > keep[i]) keep[i] = m; } });
+      for (let i = 0; i < PIX; i++) { if (!cnt[i]) { o[i * 4] = o[i * 4 + 1] = o[i * 4 + 2] = 27; o[i * 4 + 3] = 255; continue; }
+        const g = lum[i] * .62, m = keep[i]; for (let ch = 0; ch < 3; ch++) o[i * 4 + ch] = Math.round(g * (1 - m) + Math.min(255, col[i * 3 + ch] * 1.08) * m); o[i * 4 + 3] = 255; }
       b.putImageData(img, 0, 0); };
     const go = () => {
       if (matchMedia('(prefers-reduced-motion: reduce)').matches) { paint(t1_); return; }

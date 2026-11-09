@@ -790,9 +790,9 @@ function fallView(c, r, hi) {
       <p class="an-n">${peer.me ? 'Picked by hand from the film. It’s edited, so don’t compare the time they take.' : 'Timed from a coach’s labels on these two videos.'}</p></div>`
     : `<div class="lt"><span class="an-c">From this video</span><span class="lt-h">Simulated climb</span>
       ${c.track && vidOf(c) ? `<div class="an-p"><canvas id="climbc" width="600" height="800"></canvas></div>
-      <p class="an-k"><span><i class="st"></i>Start holds</span><span><i class="hd">1</i>Hand holds, in order</span><span><i class="ft"></i>Foot holds</span><span><i class="them"></i>You, from the video</span></p>
+      <p class="an-k"><span><i class="hc"></i>Holds you used, in colour</span><span><i class="hd">S</i>Start</span><span><i class="hd">1</i>Hand order</span><span><i class="them"></i>You, from the video</span></p>
       <p class="an-n" id="climbn">Your start</p>
-      <p class="an-n">No one in the community has filmed this route yet, so here is your own climb, played again from this video. The wall is made from its frames with you taken off it. Each ring is a hold you used: two rings mark where you started, and the numbers are the order your hands took the rest. The body moves the way the video saw you move, faster while you rest. Holds you didn’t touch aren’t marked: we can’t yet tell which holds belong to the route.</p>`
+      <p class="an-n">No one in the community has filmed this route yet, so here is your own climb, played again from this video. The wall is made from its frames with you taken off it, in grey; only the holds you used keep their colour, so the colour is your route. S is where you started and the numbers are the order your hands took the rest. The body moves the way the video saw you move, faster while you rest. Holds you didn’t touch stay grey: we can’t yet tell which holds belong to the route.</p>`
       : `<p class="an-n">Shows once this video is analysed: your moves, drawn on its wall.</p>`}</div>`}
       ${c.who ? '' : `<div class="lt"><span class="lt-h">Can you reach it?</span>
       <p class="tip-d">At ${myH()} cm with a ${span} cm arm span, move ${next} is in reach from the higher foot.</p>
