@@ -406,28 +406,126 @@
     }
     return null;
   };
-  // a whole body climbing the holds, feet first, sized to the climber. Holds are in the 300 × 400 picture
-  window.poseClimb = (cv, src, holds, done, tall, onMove) => {
-    const k = cv.width / 300, H = 150 * tall / 170, UA = .17 * H, FA = .16 * H, TH = .24 * H, SH = .24 * H, TO = .3 * H, ctx = cv.getContext('2d'), im = new Image(), n = holds.length - 1;
-    const add = (a, x, y) => ({ x: a.x + x, y: a.y + y }), at = q => ({ x: q[0], y: q[1] }), toe = (i, s) => add(at(holds[Math.max(0, i)]), s * 18, 6), keys = [];
-    const ik = (r, e, l1, l2, side) => { let dx = e.x - r.x, dy = e.y - r.y, D = Math.hypot(dx, dy) || 1; const max = (l1 + l2) * .995; dx /= D; dy /= D; const end = D > max ? add(r, dx * max, dy * max) : e; D = Math.min(D, max); const a = (l1 * l1 - l2 * l2 + D * D) / (2 * D), h = Math.sqrt(Math.max(0, l1 * l1 - a * a)); return [add(r, dx * a - dy * h * side, dy * a + dx * h * side), end]; };
-    const body = (hd, ft, move) => { const mh = { x: (hd[0].x + hd[1].x) / 2, y: (hd[0].y + hd[1].y) / 2 }, mf = { x: (ft[0].x + ft[1].x) / 2, y: (ft[0].y + ft[1].y) / 2 };
-      const hip = { x: (mh.x + mf.x) / 2, y: Math.min(mh.y + (UA + FA) * .85 + TO, mf.y - (TH + SH) * .55) }, u = Math.hypot(mh.x - hip.x, mh.y - hip.y) || 1, ux = (mh.x - hip.x) / u, uy = (mh.y - hip.y) / u, sh = add(hip, ux * TO, uy * TO), W = .11 * H;
-      const sl = add(sh, -W, 0), sr = add(sh, W, 0), hl = add(hip, -W * .6, 0), hr = add(hip, W * .6, 0), [el, hL] = ik(sl, hd[0], UA, FA, -1), [er, hR] = ik(sr, hd[1], UA, FA, 1), [kl, fL] = ik(hl, ft[0], TH, SH, 1), [kr, fR] = ik(hr, ft[1], TH, SH, -1);
-      return { move, p: { sl, sr, hl, hr, el, er, kl, kr, hL, hR, fL, fR, head: add(sh, ux * .13 * H, uy * .13 * H) } }; };
-    let hd = [at(holds[1]), at(holds[Math.min(2, n)])], ft = [toe(0, -1), toe(0, 1)]; keys.push(body(hd, ft, 2));
-    for (let i = 3; i <= n; i++) { const s = i % 2 ? 0 : 1; let j = i - 3; while (j > 0 && (j % 2 ? 0 : 1) !== s) j--; ft = [...ft]; ft[s] = toe(j, s ? 1 : -1); keys.push(body(hd, ft, i - 1)); hd = [...hd]; hd[s] = at(holds[i]); keys.push(body(hd, ft, i)); }
-    const BON = [['sl', 'sr'], ['hl', 'hr'], ['sl', 'hl'], ['sr', 'hr'], ['sl', 'el'], ['el', 'hL'], ['sr', 'er'], ['er', 'hR'], ['hl', 'kl'], ['kl', 'fL'], ['hr', 'kr'], ['kr', 'fR']], X = a => a.x * k, Y = a => a.y * k, LIME = '#DDF26A', LILAC = '#D9B8F5';
-    const pathOf = (l, col, w, dash) => { ctx.setLineDash(dash); ctx.strokeStyle = col; ctx.lineWidth = w; ctx.beginPath(); l.forEach((q, i) => i ? ctx.lineTo(q[0] * k, q[1] * k) : ctx.moveTo(q[0] * k, q[1] * k)); ctx.stroke(); ctx.setLineDash([]); };
-    const paint = (p, move) => { ctx.filter = 'grayscale(1) brightness(.6)'; const r = Math.max(cv.width / im.width, cv.height / im.height), w = im.width * r, h = im.height * r; ctx.drawImage(im, (cv.width - w) / 2, (cv.height - h) / 2, w, h); ctx.filter = 'none'; ctx.lineCap = 'round';
-      pathOf(holds, LILAC, 3 * k / 2, [7, 8]); pathOf(done, LIME, 4 * k / 2, []);
-      holds.forEach((q, i) => { ctx.beginPath(); ctx.arc(q[0] * k, q[1] * k, 7, 0, 7); ctx.fillStyle = i < done.length ? LIME : LILAC; ctx.fill(); });
-      [['rgba(17,17,17,.75)', 11], [LIME, 7]].forEach(([c, l]) => { ctx.strokeStyle = c; ctx.lineWidth = l; BON.forEach(([a, b]) => { ctx.beginPath(); ctx.moveTo(X(p[a]), Y(p[a])); ctx.lineTo(X(p[b]), Y(p[b])); ctx.stroke(); }); ctx.beginPath(); ctx.arc(X(p.head), Y(p.head), .075 * H * k, 0, 7); ctx.stroke(); });
-      onMove?.(move); };
-    const STEP = .8, HOLD = 1.6, all = (keys.length - 1) * STEP + HOLD;
-    im.onload = () => { if (matchMedia('(prefers-reduced-motion: reduce)').matches) { const q = keys[keys.length - 1]; paint(q.p, q.move); return; }
-      const t0 = performance.now(), tick = now => { if (!cv.isConnected) return; const R = cv.getBoundingClientRect(); if (R.bottom > 0 && R.top < innerHeight) { const t = ((now - t0) / 1000) % all, f = Math.min(keys.length - 1, t / STEP), i = Math.min(keys.length - 2, Math.floor(f)), e = Math.max(0, Math.min(1, (f - i - .2) / .8)), m = e < .5 ? 2 * e * e : 1 - (-2 * e + 2) ** 2 / 2, A = keys[i].p, Z = keys[i + 1].p, g = {}; for (const a in A) g[a] = { x: A[a].x + (Z[a].x - A[a].x) * m, y: A[a].y + (Z[a].y - A[a].y) * m }; paint(g, keys[i + 1].move); } requestAnimationFrame(tick); }; requestAnimationFrame(tick); };
-    im.src = src;
+  // your climb played again on its own wall: the wall from the video with you taken off it, every place a hand or foot stopped (in
+  // wall positions, so a phone that pans doesn't move them), and your body as the video tracked it, at your own pace. A hand or
+  // foot stays on its hold until the video sees it move; elbows and knees bend the way yours did. False when the video has too little
+  window.poseRoute = (cv, src, T, onMove) => {
+    const Q = s => s._q || (s._q = unpack(s, T.W, T.H)), med = (l, f) => midOf(l.map(f)) || 0, ID = [0, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 23, 24, 25, 26, 27, 28, 31, 32];
+    // frames the model misread (a body far shorter or longer than yours) are left out
+    const tr = s => hypot(mid(Q(s)[11], Q(s)[12]), mid(Q(s)[23], Q(s)[24])), all_ = T.S.filter(s => s.p), tm = med(all_, tr) || 1, seen = all_.filter(s => tr(s) > tm * .7 && tr(s) < tm * 1.4).map(s => ({ ...s }));
+    if (seen.length < 3 || !T.moves?.length) return false;
+    // the wall can't jump: when it seems to move a long way between two frames while you barely move in the picture, the match to
+    // the wall slipped, so later frames are put back in line with the earlier ones
+    let ox = 0, oy = 0; seen.forEach((s, j) => { const w = s.w || [1, 0, 0, 0]; s.w = [w[0], w[1], w[2] + ox, w[3] + oy]; if (!j) return;
+      const a = seen[j - 1], hp = q => mid(Q(q)[23], Q(q)[24]), fa = hp(a), fb = hp(s), A = onWall(a, fa), B = onWall(s, fb), fd = hypot(fa, fb), wd = hypot(A, B);
+      if (wd > tm * .6 && fd < wd * .5) { const c = s.w[0], n = s.w[1], dx = fb.x - fa.x, dy = fb.y - fa.y, ex = A.x + c * dx - n * dy - B.x, ey = A.y + n * dx + c * dy - B.y; ox += ex; oy += ey; s.w = [s.w[0], s.w[1], s.w[2] + ex, s.w[3] + ey]; } });
+    // every tracked point on the wall, smoothed a little over its neighbours (more weight where the model was sure)
+    const WP = seen.map(s => { const q = Q(s), o = {}; ID.forEach(i => { o[i] = { ...onWall(s, q[i]), v: q[i].v }; }); return o; });
+    const SM = WP.map((_, j) => { const o = {}; ID.forEach(i => { let x = 0, y = 0, g = 0, v = 0, n = 0; for (let d = -1; d <= 1; d++) { const k = j + d; if (k < 0 || k >= WP.length || Math.abs(seen[k].t - seen[j].t) > .45) continue; const w = (d ? 1 : 2) * Math.max(.05, WP[k][i].v); x += WP[k][i].x * w; y += WP[k][i].y * w; g += w; v += WP[k][i].v; n++; } o[i] = { x: x / g, y: y / g, v: v / n }; }); return o; });
+    const TS = seen.map(s => s.t), cr = (a, b, c, d, u) => .5 * (2 * b + (c - a) * u + (2 * a - 5 * b + 4 * c - d) * u * u + (3 * b - a - 3 * c + d) * u * u * u);
+    const pose = t => { let j = TS.findIndex(x => x > t); if (j < 0) j = TS.length - 1; const i = Math.max(0, j - 1), u = TS[j] > TS[i] ? Math.max(0, Math.min(1, (t - TS[i]) / (TS[j] - TS[i]))) : 0, A = SM[Math.max(0, i - 1)], B = SM[i], C = SM[j], D = SM[Math.min(SM.length - 1, j + 1)], o = {};
+      ID.forEach(k => { o[k] = { x: cr(A[k].x, B[k].x, C[k].x, D[k].x, u), y: cr(A[k].y, B[k].y, C[k].y, D[k].y, u), v: B[k].v + (C[k].v - B[k].v) * u }; }); return o; };
+    const long = (a, b) => { const l = WP.filter(q => q[a].v > .5 && q[b].v > .5).map(q => hypot(q[a], q[b])).sort((x, y) => x - y); return l[Math.floor(l.length * .85)] || 1; };
+    const LEN = { 13: [long(11, 13), long(13, 15)], 14: [long(12, 14), long(14, 16)], 25: [long(23, 25), long(25, 27)], 26: [long(24, 26), long(26, 28)] };
+    const torsoL = med(WP, q => hypot(mid(q[11], q[12]), mid(q[23], q[24]))) || 1;
+    // where a point was just after time t: the middle of the next 0.6 s, on the wall
+    const near = t => { const part = seen.filter(s => s.t >= t - .01 && s.t <= t + .6); return part.length ? part : [seen.reduce((b, s) => Math.abs(s.t - t) < Math.abs(b.t - t) ? s : b)]; };
+    const spot = (part, f) => { const ps = part.map(s => onWall(s, f(Q(s)))); return { x: midOf(ps.map(p => p.x)), y: midOf(ps.map(p => p.y)) }; };
+    const LIM = { lw: 15, rw: 16, la: 27, ra: 28 }, moves = [...T.moves].sort((a, b) => a.t - b.t), n = moves.length;
+    const t0_ = Math.max(seen[0].t, moves[0].t0 - .6), t1_ = Math.min(seen[seen.length - 1].t, moves[n - 1].t + .8), holds = [], plan = {};
+    // the hold is where you grip or stand, not at the wrist or ankle: a little past the knuckles, or just behind the toes
+    const TIP = { lw: [15, 17, 19], rw: [16, 18, 20], la: [27, 31], ra: [28, 32] }, grip = (q, k) => { const [w, a, b] = TIP[k];
+      if (b) { const m = mid(q[a], q[b]); return Math.min(q[a].v, q[b].v) < .3 ? q[w] : { x: q[w].x + (m.x - q[w].x) * 1.2, y: q[w].y + (m.y - q[w].y) * 1.2 }; }
+      return q[a].v < .3 ? q[w] : { x: q[w].x + (q[a].x - q[w].x) * .9, y: q[w].y + (q[a].y - q[w].y) * .9 }; };
+    const stop = (part, k) => { const to = spot(part, q => q[LIM[k]]), g = spot(part, q => grip(q, k)); return { to, g }; };
+    Object.keys(LIM).forEach(k => { const { to, g } = stop(near(t0_), k); plan[k] = [{ t0: -1e9, t1: -1e9, to, g }]; holds.push({ k, p: g, i: 0, t: t0_ }); });
+    moves.forEach((m, i) => { const part = near(m.t), { to, g } = stop(part, m.k); plan[m.k].push({ t0: m.t0, t1: m.t, to, g }); if (med(part, s => Q(s)[LIM[m.k]].v) >= .5) holds.push({ k: m.k, p: g, i: i + 1, t: m.t }); });
+    // one ring per hold: stops close together are the same hold. Hands are numbered in the order they first took a hold; the holds
+    // both hands started on are the start
+    const rings = []; [...holds].sort((a, b) => a.t - b.t).forEach(q => { const hand = q.k[1] === 'w', r = rings.find(o => o.hand === hand && hypot(o.p, q.p) < torsoL * (hand ? .16 : .12));
+      if (r) q.r = r; else rings.push(q.r = { hand, p: q.p, t: q.t, start: !q.i && hand }); });
+    let num = 0; rings.forEach(r => { if (r.hand && !r.start) r.n = ++num; });
+    // how far the hand or foot reaches past the wrist or ankle right now: on a hold, to the hold; on the way, as the video saw it
+    const reachOf = (k, t, now) => { const l = plan[k]; let j = 0; while (j + 1 < l.length && l[j + 1].t0 <= t) j++; const c = l[j], g = grip(now, k), w = now[LIM[k]];
+      return !j || t >= c.t1 ? { x: c.g.x - c.to.x, y: c.g.y - c.to.y } : { x: g.x - w.x, y: g.y - w.y }; };
+    // a hand or foot: on its hold, or on its way to the next one along the path the video saw, bent so it leaves one hold and lands on the next
+    const end = (k, t, now) => { const l = plan[k]; let j = 0; while (j + 1 < l.length && l[j + 1].t0 <= t) j++; const c = l[j]; if (!j || t >= c.t1) return c.to;
+      const prev = l[j - 1].to, A = pose(c.t0)[LIM[k]], Z = pose(c.t1)[LIM[k]], e = (t - c.t0) / (c.t1 - c.t0), s = e * e * (3 - 2 * e), tr = now[LIM[k]];
+      return tr.v < .3 ? { x: prev.x + (c.to.x - prev.x) * s, y: prev.y + (c.to.y - prev.y) * s } : { x: tr.x + (prev.x - A.x) * (1 - s) + (c.to.x - Z.x) * s, y: tr.y + (prev.y - A.y) * (1 - s) + (c.to.y - Z.y) * s }; };
+    // elbow or knee at its measured length, on the side the video saw it bend; straight if the hold is out of reach
+    const joint = (r, seenAt, e, [l1, l2]) => { const D = hypot(r, e) || 1, dx = (e.x - r.x) / D, dy = (e.y - r.y) / D;
+      if (D >= (l1 + l2) * .995) { const f = l1 / (l1 + l2); return { x: r.x + (e.x - r.x) * f, y: r.y + (e.y - r.y) * f }; }
+      const side = (e.x - r.x) * (seenAt.y - r.y) - (e.y - r.y) * (seenAt.x - r.x) >= 0 ? 1 : -1, a = (l1 * l1 - l2 * l2 + D * D) / (2 * D), h = Math.sqrt(Math.max(0, l1 * l1 - a * a));
+      return { x: r.x + dx * a - dy * h * side, y: r.y + dy * a + dx * h * side }; };
+    // a hold this body can't reach from where the video has it means the hold was misread: then the hand or foot is where the video saw it
+    const fit = (k, r, t, q, [l1, l2]) => { const e = end(k, t, q), i = LIM[k], max = (l1 + l2) * 1.05, D = hypot(r, e); if (D <= max) return e;
+      const s = q[i].v >= .3 && hypot(r, q[i]) <= max ? q[i] : e; const d = hypot(r, s) || 1, f = Math.min(1, max / d); return { x: r.x + (s.x - r.x) * f, y: r.y + (s.y - r.y) * f }; };
+    const frame = t => { const q = pose(t), sl = q[11], sr = q[12], hl = q[23], hr = q[24], hL = fit('lw', sl, t, q, LEN[13]), hR = fit('rw', sr, t, q, LEN[14]), fL = fit('la', hl, t, q, LEN[25]), fR = fit('ra', hr, t, q, LEN[26]), sm = mid(sl, sr);
+      const tip = (k, e) => { const o = reachOf(k, t, q); return { x: e.x + o.x, y: e.y + o.y }; };
+      return { sl, sr, hl, hr, hL, hR, fL, fR, tL: tip('lw', hL), tR: tip('rw', hR), gL: tip('la', fL), gR: tip('ra', fR), el: joint(sl, q[13], hL, LEN[13]), er: joint(sr, q[14], hR, LEN[14]), kl: joint(hl, q[25], fL, LEN[25]), kr: joint(hr, q[26], fR, LEN[26]), sm, head: { x: sm.x + (q[0].x - sm.x) * .9, y: sm.y + (q[0].y - sm.y) * .9 } }; };
+    // the picture: the frame where most of the holds are in view, closed in on the climb at 3 : 4
+    const inside = q => q.x >= 0 && q.y >= 0 && q.x <= T.W && q.y <= T.H, mid_ = seen[Math.floor(seen.length / 2)].t;
+    const ref = seen.map(s => [s, holds.filter(h => inside(onFrame(s, h.p))).length]).sort((a, b) => b[1] - a[1] || Math.abs(a[0].t - mid_) - Math.abs(b[0].t - mid_))[0][0];
+    const F = q => onFrame(ref, q), pts = [...holds.map(h => F(h.p)), ...TS.filter(t => t >= t0_ && t <= t1_).flatMap(t => Object.values(frame(t)).map(F))], xs = pts.map(q => q.x), ys = pts.map(q => q.y), RATIO = cv.width / cv.height, pad = torsoL * .5;
+    let h = Math.max(...ys) - Math.min(...ys) + pad * 2, w = h * RATIO;
+    if (w < Math.max(...xs) - Math.min(...xs) + pad * 2) { w = Math.max(...xs) - Math.min(...xs) + pad * 2; h = w / RATIO; }
+    let x0 = (Math.min(...xs) + Math.max(...xs) - w) / 2, y0 = (Math.min(...ys) + Math.max(...ys) - h) / 2;
+    const sc = cv.width / w, X = q => (F(q).x - x0) * sc, Y = q => (F(q).y - y0) * sc, ctx = cv.getContext('2d'), bg = document.createElement('canvas'), LIME = '#DDF26A', LILAC = '#D9B8F5', u = cv.width / 300;
+    bg.width = cv.width; bg.height = cv.height;
+    const hands = holds.filter(q => q.k[1] === 'w').sort((a, b) => a.t - b.t);
+    const BON = [['sl', 'sr'], ['hl', 'hr'], ['sl', 'hl'], ['sr', 'hr'], ['sl', 'el'], ['el', 'hL'], ['sr', 'er'], ['er', 'hR'], ['hl', 'kl'], ['kl', 'fL'], ['hr', 'kr'], ['kr', 'fR']];
+    let said = -1; const RR = Math.max(6 * u, torsoL * .11 * sc);
+    const paint = t => {
+      const p = frame(t), move = moves.filter(m => m.t <= t + .01).length, R = torsoL * .2 * sc;
+      ctx.clearRect(0, 0, cv.width, cv.height); ctx.drawImage(bg, 0, 0); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+      // your hands' way up, hold to hold, as far as now
+      const done = hands.filter(q => q.t <= t + .01).map(q => q.r.p);
+      [['rgba(17,17,17,.6)', 4 * u], [LIME, 2 * u]].forEach(([c, l]) => { ctx.strokeStyle = c; ctx.lineWidth = l; ctx.setLineDash([5 * u, 4 * u]); ctx.beginPath(); done.forEach((q, i) => i ? ctx.lineTo(X(q), Y(q)) : ctx.moveTo(X(q), Y(q))); ctx.stroke(); }); ctx.setLineDash([]);
+      // a ring round every hold you used, so the hold itself shows: faint until you get there. Start holds have two rings
+      rings.forEach(r => { const on = r.t <= t + .01, x = X(r.p), y = Y(r.p), rr = r.hand ? RR : RR * .75, col = r.hand ? LIME : '#FFFFFF';
+        ctx.globalAlpha = on ? 1 : .45; ctx.lineWidth = 3.6 * u; ctx.strokeStyle = 'rgba(17,17,17,.7)'; ctx.beginPath(); ctx.arc(x, y, rr, 0, 7); ctx.stroke(); ctx.lineWidth = 1.8 * u; ctx.strokeStyle = col; ctx.stroke();
+        if (r.start) { ctx.beginPath(); ctx.arc(x, y, rr + 3.2 * u, 0, 7); ctx.lineWidth = 3.4 * u; ctx.strokeStyle = 'rgba(17,17,17,.7)'; ctx.stroke(); ctx.lineWidth = 1.6 * u; ctx.strokeStyle = col; ctx.stroke(); }
+        if (r.n) { const bx = x + rr * .72, by = y - rr * .72, br = 5.2 * u; ctx.beginPath(); ctx.arc(bx, by, br, 0, 7); ctx.fillStyle = on ? LIME : 'rgba(221,242,106,.7)'; ctx.fill(); ctx.lineWidth = 1 * u; ctx.strokeStyle = '#111111'; ctx.stroke();
+          ctx.fillStyle = '#111111'; ctx.font = `700 ${(r.n > 9 ? 6 : 7) * u}px Urbanist, system-ui, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(r.n, bx, by + .3 * u); }
+        ctx.globalAlpha = 1; });
+      const hx = X(p.head), hy = Y(p.head), nx = X(p.sm), ny = Y(p.sm), hd = Math.hypot(hx - nx, hy - ny) || 1, neck = { x: hx + (nx - hx) / hd * R, y: hy + (ny - hy) / hd * R };
+      [['rgba(17,17,17,.75)', 5.5 * u], [LILAC, 3 * u]].forEach(([c, l]) => { ctx.strokeStyle = c; ctx.lineWidth = l; BON.forEach(([a, b]) => { ctx.beginPath(); ctx.moveTo(X(p[a]), Y(p[a])); ctx.lineTo(X(p[b]), Y(p[b])); ctx.stroke(); });
+        if (hd > R) { ctx.beginPath(); ctx.moveTo(nx, ny); ctx.lineTo(neck.x, neck.y); ctx.stroke(); } ctx.beginPath(); ctx.arc(hx, hy, R, 0, 7); ctx.stroke(); });
+      // hands and feet reach on to the hold, so the body visibly holds or stands on it
+      const ends = [['hL', 'tL'], ['hR', 'tR'], ['fL', 'gL'], ['fR', 'gR']];
+      [['rgba(17,17,17,.75)', 5 * u], [LILAC, 2.6 * u]].forEach(([c, l]) => { ctx.strokeStyle = c; ctx.lineWidth = l; ends.forEach(([a, b]) => { ctx.beginPath(); ctx.moveTo(X(p[a]), Y(p[a])); ctx.lineTo(X(p[b]), Y(p[b])); ctx.stroke(); }); });
+      ends.forEach(([, k]) => { ctx.beginPath(); ctx.arc(X(p[k]), Y(p[k]), 2.4 * u, 0, 7); ctx.fillStyle = LILAC; ctx.fill(); ctx.lineWidth = 1.2 * u; ctx.strokeStyle = '#111111'; ctx.stroke(); });
+      if (move !== said) { said = move; onMove?.(move, n); } };
+    // the wall without you on it: twelve frames from across the climb, each laid on the wall where it belongs, and for every pixel
+    // the middle value of the ones that saw it. The climber is in a different place in each, so the wall is what stays
+    const C = q => ({ x: (q.x - x0) * sc, y: (q.y - y0) * sc }), PIX = bg.width * bg.height, NF = 12, stack = new Uint8Array(PIX * NF), rgb = new Uint8Array(PIX * NF * 3), cnt = new Uint8Array(PIX);
+    const tmp = document.createElement('canvas'); tmp.width = bg.width; tmp.height = bg.height; const tc = tmp.getContext('2d', { willReadFrequently: true });
+    const mask = document.createElement('canvas'); mask.width = bg.width; mask.height = bg.height; const mc = mask.getContext('2d', { willReadFrequently: true });
+    const layer = s => { const o = C(across(s, ref, { x: 0, y: 0 })), ex = C(across(s, ref, { x: 1, y: 0 })), ey = C(across(s, ref, { x: 0, y: 1 }));
+      tc.setTransform(1, 0, 0, 1, 0, 0); tc.clearRect(0, 0, tmp.width, tmp.height); tc.setTransform(ex.x - o.x, ex.y - o.y, ey.x - o.x, ey.y - o.y, o.x, o.y); tc.drawImage(still, 0, 0, T.W, T.H);
+      const d = tc.getImageData(0, 0, tmp.width, tmp.height).data;
+      // you, blanked out of this frame (your outline from the tracking, drawn wide), so where you stayed a long time doesn't leave a ghost
+      const q = Q(s), at = i => C(across(s, ref, q[i])), bw = torsoL * sc * .62; mc.clearRect(0, 0, mask.width, mask.height); mc.strokeStyle = mc.fillStyle = '#000'; mc.lineCap = 'round'; mc.lineWidth = bw;
+      [[11, 12], [23, 24], [11, 23], [12, 24], [11, 24], [12, 23], [11, 13], [13, 15], [15, 19], [12, 14], [14, 16], [16, 20], [23, 25], [25, 27], [27, 31], [24, 26], [26, 28], [28, 32], [0, 11], [0, 12]].forEach(([a, b]) => { mc.beginPath(); mc.moveTo(at(a).x, at(a).y); mc.lineTo(at(b).x, at(b).y); mc.stroke(); });
+      mc.beginPath(); mc.arc(at(0).x, at(0).y, torsoL * sc * .42, 0, 7); mc.fill(); const mk = mc.getImageData(0, 0, mask.width, mask.height).data;
+      for (let i = 0; i < PIX; i++) if (d[i * 4 + 3] > 200 && !mk[i * 4 + 3] && cnt[i] < NF) { const j = i * NF + cnt[i]++; stack[j] = (d[i * 4] * 77 + d[i * 4 + 1] * 150 + d[i * 4 + 2] * 29) >> 8; rgb[j * 3] = d[i * 4]; rgb[j * 3 + 1] = d[i * 4 + 1]; rgb[j * 3 + 2] = d[i * 4 + 2]; } };
+    // in colour, so you can tell the holds apart: each pixel takes the colour of the frame whose brightness there is the middle one
+    const wall = () => { const b = bg.getContext('2d'), img = b.createImageData(bg.width, bg.height), o = img.data, v = new Uint8Array(NF), ix = new Uint8Array(NF);
+      for (let i = 0; i < PIX; i++) { const c = cnt[i]; if (!c) { o[i * 4] = o[i * 4 + 1] = o[i * 4 + 2] = 27; o[i * 4 + 3] = 255; continue; }
+        for (let j = 0; j < c; j++) { const x = stack[i * NF + j]; let k = j; while (k && v[k - 1] > x) { v[k] = v[k - 1]; ix[k] = ix[k - 1]; k--; } v[k] = x; ix[k] = j; }
+        const j = (i * NF + ix[c >> 1]) * 3, l = v[c >> 1]; for (let ch = 0; ch < 3; ch++) o[i * 4 + ch] = Math.round((rgb[j + ch] * .85 + l * .15) * .78); o[i * 4 + 3] = 255; }
+      b.putImageData(img, 0, 0); };
+    const go = () => {
+      if (matchMedia('(prefers-reduced-motion: reduce)').matches) { paint(t1_); return; }
+      // your own pace while a hand or foot moves; the waits between moves go by four times faster
+      const act = t => moves.some(m => t >= m.t0 - .3 && t <= m.t + .3), sp = t => act(t) ? 1.25 : 4, grid = [], cum = []; let c = 0;
+      for (let t = t0_; t <= t1_; t += .05) { grid.push(t); cum.push(c); c += .05 / sp(t); }
+      const PLAY = c, all = PLAY + 1.6, real = q => { if (q >= PLAY) return t1_; let lo = 0, hi = cum.length - 1; while (hi - lo > 1) { const m = (lo + hi) >> 1; if (cum[m] <= q) lo = m; else hi = m; } return Math.min(t1_, grid[lo] + (q - cum[lo]) * sp(grid[lo])); };
+      const st = performance.now(), tick = now => { if (!cv.isConnected) return; const R = cv.getBoundingClientRect(); if (R.bottom > 0 && R.top < innerHeight) paint(real(Math.max(0, (now - st) / 1000) % all)); requestAnimationFrame(tick); };
+      paint(t0_); requestAnimationFrame(tick); };
+    const picks = [...new Set(Array.from({ length: NF }, (_, i) => seen[Math.round(i * (seen.length - 1) / (NF - 1))]))];
+    line = line.then(async () => { for (const s of picks) { if (!cv.isConnected) return; await frameAt(src, s.t); layer(s); } wall(); go(); }).catch(() => {});
+    return true;
   };
   // the frame stays still, you stay on it in white, and the simulated body moves over you in lime. Stops by itself when the page changes
   window.poseSim = (cv, src, T, plan, onStep) => {

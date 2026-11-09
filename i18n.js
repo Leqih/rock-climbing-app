@@ -43,7 +43,7 @@ const ZH = {
   "Watch the two big yellow holds. Both climbers hang from them with their feet high on the right one. Garnbret goes on to the top yellow hold. The film leaves this try by Rakovec at the big holds.": "注意那两个黄色大岩点。两人都吊在上面，脚高高踩在右边那个上。Garnbret 继续上到顶部的黄色岩点；Rakovec 这次尝试，影片停在大岩点那里。",
   "Watch the dark block low on the wall. Both climbers stand on it to reach up the edge of the wall.": "注意岩壁下方那块深色岩块。两人都踩在上面，再沿着岩壁边缘向上够。",
   "Picked by hand from the film. It’s edited, so don’t compare the time they take.": "片段和说明由人工从影片中挑选。影片经过剪辑，所以不要比较两人用的时间。",
-  "Simulated climb": "模拟攀岩", "Where you got to": "你爬到的位置", "Move {} of {} · where you came off": "第 {0}/{1} 步 · 你在这里掉下来", "No one in the community has filmed this route yet, so this body is simulated at your height, {} cm. The holds are an example: we can’t map a wall yet.": "社区里还没有人拍过这条线路，所以这里按你的身高 {} 厘米模拟。岩点只是示例：我们还不能识别整面墙。", "Your videos": "你的视频", "Import a video or film a try. Each one gets analysed here.": "导入视频或拍一次尝试，每个视频都会在这里分析。",
+  "Simulated climb": "模拟攀岩", "From this video": "来自这段视频", "Your holds": "你的岩点", "You, from the video": "视频里的你", "Start holds": "起步点", "Hand holds, in order": "手点（按顺序）", "Foot holds": "脚点", "Your start": "你的起步", "Too few moves seen in this video to draw the climb.": "这段视频里看到的动作太少，画不出这次攀爬。", "Shows once this video is analysed: your moves, drawn on its wall.": "视频分析完后显示：你的动作，画在这面墙上。", "No one in the community has filmed this route yet, so here is your own climb, played again from this video. The wall is made from its frames with you taken off it. Each ring is a hold you used: two rings mark where you started, and the numbers are the order your hands took the rest. The body moves the way the video saw you move, faster while you rest. Holds you didn’t touch aren’t marked: we can’t yet tell which holds belong to the route.": "社区里还没有人拍过这条线路，所以这里用这段视频把你自己的攀爬重放一遍。墙由视频画面拼成，并去掉了你。每个圈是你用过的岩点：双圈是起步点，数字是你的手依次抓上其余岩点的顺序。身体按视频里你真实的动作移动，休息时快放。你没碰过的岩点不做标记：我们还分不出哪些岩点属于这条线路。", "Where you got to": "你爬到的位置", "Move {} of {} · where you came off": "第 {0}/{1} 步 · 你在这里掉下来", "No one in the community has filmed this route yet, so this body is simulated at your height, {} cm. The holds are an example: we can’t map a wall yet.": "社区里还没有人拍过这条线路，所以这里按你的身高 {} 厘米模拟。岩点只是示例：我们还不能识别整面墙。", "Your videos": "你的视频", "Import a video or film a try. Each one gets analysed here.": "导入视频或拍一次尝试，每个视频都会在这里分析。",
   "Hips centred": "髋部在两脚中间", "Whole climb": "整段攀爬", "{}% centred": "{}% 在两脚中间", "Centred": "在中间", "Off to one side": "偏开", "Longest off {}–{}": "最长偏开 {0}–{1}",
   "See this stretch · {}": "看这一段 · {}", "See this rest · {}": "看这次休息 · {}", "See this move · {}": "看这个动作 · {}", "See this pause · {}": "看这次停顿 · {}", "See your best rest · {}": "看最好的一次休息 · {}",
   "Your straightest rest": "手臂最直的一次休息", "Your most bent rest": "手臂最弯的一次休息", "Arms at {}°": "手臂 {}°", "Your rests": "你的休息", "{}% on straight arms": "{}% 手臂伸直", "Straight": "伸直", "Bent": "弯曲", "Moving": "移动中",
@@ -392,7 +392,7 @@ const ZH = {
   "{} topped {}": "{} 登顶了 {}", "trimmed from {}": "从 {} 剪出",
   "{}, {}": "{}，{}", "· {}": "· {}",
 
-  "Version 7 · photos from Unsplash, videos from Wikimedia Commons and Pexels · gyms, people and numbers are placeholders": "第 7 版 · 照片来自 Unsplash，视频来自 Wikimedia Commons 和 Pexels · 岩馆、人物和数字均为示例",
+  "Version 8 · photos from Unsplash, videos from Wikimedia Commons and Pexels · gyms, people and numbers are placeholders": "第 8 版 · 照片来自 Unsplash，视频来自 Wikimedia Commons 和 Pexels · 岩馆、人物和数字均为示例",
   "chalk. app prototype": "chalk. 应用原型",
 };
 

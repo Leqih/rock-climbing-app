@@ -29,7 +29,7 @@ Then go to http://localhost:8000.
 
 ## Live on Vercel
 
-https://chalk-prototype-omega.vercel.app (project `chalk-prototype`, static, no build step). Snapshots are at `/versions/v1/` to `/versions/v5/`. To update it, run this from this folder:
+https://chalk-prototype-omega.vercel.app (project `chalk-prototype`, static, no build step). Snapshots are at `/versions/v1/` to `/versions/v7/`. To update it, run this from this folder:
 
 ```bash
 vercel deploy --prod
@@ -79,7 +79,7 @@ After changing a CSS or JS file, bump the `?v=` string on its link in `index.htm
 
 ## Versions
 
-`versions/v1/` to `versions/v5/` are frozen copies of the prototype, all from Nov 3, 2026, kept to show how the design changed. Open `index.html` in any of them.
+`versions/v1/` to `versions/v5/` are frozen copies of the prototype, all from Nov 3, 2026, kept to show how the design changed. Open `index.html` in any of them. `versions/v7/` was frozen on Nov 9, 2026; it has its own code, pictures and model, and plays the videos from the site's `video/` folder (`../../video/`), so don't delete a video v7 still uses. v6 is commit 1fd4ba8.
 It assumes the gym publishes its routes (lists, scan, beta all come from that data) and records tries only through the in-app Record button.
 Questions that led to the next version:
 
@@ -134,7 +134,9 @@ v5 (in `versions/v5/`). Routes are reset every week, so a home screen built arou
 - v5 first had the three steps as grade tiles ("Warm up · 2 climbs at V1"). That said how many but not how, how long to rest or when to stop, so it read like a counter, not a session.
 - The route picker ("Your 3 routes · tap a photo to switch") is gone from Today. The route you just filmed shows up during a session.
 
-The site itself is v7: v6 plus the video analysis (each video is analysed on its own, with tracked points on the video, a timeline, one conclusion with frames from the video and a strip of the whole climb). v6 is commit 1fd4ba8. What came with v6: no Today page. The app opens on Videos, like KEKE opens on its records. Dock: Videos, Gyms, Add, Friends, Profile (Gyms was Walls). The dock shows on those four tabs only; every page opened from a tab (route, clip, compare, gyms, set-up) has a back button instead.
+The site itself is v8: v7 with the Simulated climb drawn from the video itself. When no one else has filmed the route, the Path tab draws your own climb again on that video's wall: twelve frames from across the climb are laid on the wall where they belong, with the climber blanked out of each, and each pixel takes the colour of the middle one, so the wall shows in colour without you on it; a ring marks each hold you used, placed where the fingers or toes were rather than the wrist or ankle (two rings for the start holds, hand holds numbered in the order you took them; a stop the model couldn't really see is left out); and the body is your own movement as the video tracked it, at your pace (rests sped up): each hand and foot stays on its hold until the video sees it move, elbows and knees bend the way yours did, frames the model misread are dropped, and a slip in matching the picture to the wall is put back in line. v7 drew an example body on a stock wall photo with made-up holds.
+
+v7: v6 plus the video analysis (each video is analysed on its own, with tracked points on the video, a timeline, one conclusion with frames from the video and a strip of the whole climb). v6 is commit 1fd4ba8. What came with v6: no Today page. The app opens on Videos, like KEKE opens on its records. Dock: Videos, Gyms, Add, Friends, Profile (Gyms was Walls). The dock shows on those four tabs only; every page opened from a tab (route, clip, compare, gyms, set-up) has a back button instead.
 
 - Every version of Today asked the climber to follow something: a route card, then grade tiles, then a coach's 50-minute session with reps to tick. Bouldering doesn't run that way. Beginners pick a route they see, try it, watch others, rest when they like and go home when their fingers are done. Nobody taps a checklist with chalky hands.
 - Everything Today offered already lives somewhere else. Adding a climb (film, upload, scan, log) is "+". What you climbed and how high you got is Videos. Sends by grade and the monthly recap are Profile. Friends at the gym are Friends.

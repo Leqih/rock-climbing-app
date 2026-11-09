@@ -740,11 +740,15 @@ Object.assign(PEERS, {
 const SAY = { WA4: 'Watch the two big yellow holds. Both climbers hang from them with their feet high on the right one. Garnbret goes on to the top yellow hold. The film leaves this try by Rakovec at the big holds.',
   WB1: 'Watch the dark block low on the wall. Both climbers stand on it to reach up the edge of the wall.' };
 [[0, 1, 'WA4'], [2, 3, 'WB1']].forEach(([i, j, b]) => [[i, j], [j, i]].forEach(([x, y]) => { PEERS[PRO[x].vid] = { vid: PRO[y].vid, ar: 9 / 16, img: PRO[y].img, who: PRO[y].who, a: 0, b: 0, la: PRO[x].t[1], lb: PRO[y].t[1], me: PRO[x].who, say: SAY[b] }; }));
-const PATH = [[150, 362], [118, 302], [172, 246], [128, 190], [182, 136], [138, 86], [166, 36]];
 let pathNow = null, pv = null;
 function pathWire() {
   const P = pathNow; pv = null; if (!P) return;
-  if (P.holds) { if ($('climbc')) window.poseClimb($('climbc'), 'img/wall2.jpg', P.holds, P.done, myH(), i => { const l = $('climbn'); if (!l) return; const s = i === P.hi + 1 ? `Move ${i} of ${P.moves} · where you came off` : `Move ${i} of ${P.moves}`; if (l.dataset.s !== s) { l.dataset.s = s; l.textContent = s; } }); return; }
+  // no one else on this route: your own climb, drawn again on this video's wall from the moves we found in it
+  if (P.climb) { const cv = $('climbc'), say = s => { const l = $('climbn'); if (l && l.dataset.s !== s) { l.dataset.s = s; l.textContent = s; } };
+    if (!cv || !P.c.track) return;
+    const ok = window.poseRoute(cv, `video/${P.c.vid}.mp4`, P.c.track, (i, n) => say(i === 0 ? 'Your start' : i === n && !P.c.sent ? `Move ${i} of ${n} · where you came off` : `Move ${i} of ${n}`));
+    if (!ok) { cv.closest('.an-p')?.remove(); say('Too few moves seen in this video to draw the climb.'); }
+    return; }
   const a = $('pv0'), b = $('pv1'); if (!a || !b || !P.c.track) return;
   fetch(`video/${P.peer.vid}.track.json`).then(x => x.json()).then(T => { if (!a.isConnected) return;
     const a0 = P.peer.a, b0 = P.peer.b, len = P.peer.len;
@@ -765,11 +769,10 @@ function pvPlay() {
   const tick = () => { if (!pv?.on || !a.isConnected) return; if (done(a, a0 + la)) a.pause(); if (done(b, b0 + lb)) b.pause(); if (over()) { pv.on = false; label('Watch again'); return; } requestAnimationFrame(tick); }; tick();
 }
 function fallView(c, r, hi) {
-  const key = fallOf(r), f = FALL[key], next = Math.min(hi + 1, r.moves), split = Math.max(1, hi - 1), span = +setup.span || myH();
+  const key = fallOf(r), f = FALL[key], next = Math.min(hi + 1, r.moves), span = +setup.span || myH();
   const line = pts => pts.map(p => p.join(',')).join(' ');
-  const yours = PATH.slice(0, hi + 1), theirs = PATH.slice(0, r.moves + 1).map((p, i) => i > split ? [p[0] + (i % 2 ? 36 : -30), p[1]] : p);
   const peer = PEERS[c.vid];
-  pathNow = peer ? { c, peer } : { holds: theirs, done: yours, hi, moves: r.moves };
+  pathNow = peer ? { c, peer } : { c, climb: true };
   const total = Object.values(FALLS).reduce((a, b) => a + b, 0), rows = [['reach', 'Long reaches'], ['slip', 'Foot slips'], ['hold', 'Hold choice']];
   return {
     why: `<div class="hl2 dk2"><h2>Why you came off</h2></div>
@@ -785,11 +788,12 @@ function fallView(c, r, hi) {
       <p class="tip-d">${peer.youN ? 'Same hold, then two ways to the next hold you both used.' : peer.say || `Same left-hand hold, then two different choices. ${peer.who} went straight on and reached the next high hold in ${peer.them} s. Your left hand went back to a lower hold first, and you took ${peer.you} s.`}</p>
       ${peer.youN ? `<ul class="an-ev"><li>You: ${peer.you} s · ${peer.youN} hand moves</li><li>${peer.who}: ${peer.them} s · ${peer.themN} hand ${peer.themN > 1 ? 'moves' : 'move'}</li></ul>` : ''}
       <p class="an-n">${peer.me ? 'Picked by hand from the film. It’s edited, so don’t compare the time they take.' : 'Timed from a coach’s labels on these two videos.'}</p></div>`
-    : `<div class="lt"><span class="an-c">Example</span><span class="lt-h">Simulated climb</span>
-      <div class="an-p"><canvas id="climbc" width="600" height="800"></canvas></div>
-      <p class="an-k"><span><i class="you"></i>Where you got to</span><span><i class="them"></i>Simulated</span></p>
-      <p class="an-n" id="climbn">Move 2 of ${r.moves}</p>
-      <p class="an-n">No one in the community has filmed this route yet, so this body is simulated at your height, ${myH()} cm. The holds are an example: we can’t map a wall yet.</p></div>`}
+    : `<div class="lt"><span class="an-c">From this video</span><span class="lt-h">Simulated climb</span>
+      ${c.track && vidOf(c) ? `<div class="an-p"><canvas id="climbc" width="600" height="800"></canvas></div>
+      <p class="an-k"><span><i class="st"></i>Start holds</span><span><i class="hd">1</i>Hand holds, in order</span><span><i class="ft"></i>Foot holds</span><span><i class="them"></i>You, from the video</span></p>
+      <p class="an-n" id="climbn">Your start</p>
+      <p class="an-n">No one in the community has filmed this route yet, so here is your own climb, played again from this video. The wall is made from its frames with you taken off it. Each ring is a hold you used: two rings mark where you started, and the numbers are the order your hands took the rest. The body moves the way the video saw you move, faster while you rest. Holds you didn’t touch aren’t marked: we can’t yet tell which holds belong to the route.</p>`
+      : `<p class="an-n">Shows once this video is analysed: your moves, drawn on its wall.</p>`}</div>`}
       ${c.who ? '' : `<div class="lt"><span class="lt-h">Can you reach it?</span>
       <p class="tip-d">At ${myH()} cm with a ${span} cm arm span, move ${next} is in reach from the higher foot.</p>
       <p class="an-n">A reach check for your size, not a full simulation. It can’t tell how hard the move feels.</p></div>`}</div>`,
