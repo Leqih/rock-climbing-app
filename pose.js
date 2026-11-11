@@ -438,13 +438,24 @@
       if (b) { const m = mid(q[a], q[b]); return Math.min(q[a].v, q[b].v) < .3 ? q[w] : { x: q[w].x + (m.x - q[w].x) * 1.2, y: q[w].y + (m.y - q[w].y) * 1.2 }; }
       return q[a].v < .3 ? q[w] : { x: q[w].x + (q[a].x - q[w].x) * .9, y: q[w].y + (q[a].y - q[w].y) * .9 }; };
     const stop = (part, k) => { const to = spot(part, q => q[LIM[k]]), g = spot(part, q => grip(q, k)); return { to, g }; };
-    Object.keys(LIM).forEach(k => { const { to, g } = stop(near(t0_), k); plan[k] = [{ t0: -1e9, t1: -1e9, to, g }]; holds.push({ k, p: g, i: 0, t: t0_ }); });
-    moves.forEach((m, i) => { const part = near(m.t), { to, g } = stop(part, m.k); plan[m.k].push({ t0: m.t0, t1: m.t, to, g }); if (med(part, s => Q(s)[LIM[m.k]].v) >= .5) holds.push({ k: m.k, p: g, i: i + 1, t: m.t }); });
+    Object.keys(LIM).forEach(k => { const e = { k, t0: -1e9, t1: -1e9, ...stop(near(t0_), k) }; plan[k] = [e]; holds.push({ k, p: e.g, i: 0, t: t0_, e }); });
+    moves.forEach((m, i) => { const part = near(m.t), e = { k: m.k, t0: m.t0, t1: m.t, ...stop(part, m.k) }; plan[m.k].push(e); if (med(part, s => Q(s)[LIM[m.k]].v) >= .5) holds.push({ k: m.k, p: e.g, i: i + 1, t: m.t, e }); });
+    // moves the analysis missed: a hand or foot the video clearly sees settled somewhere else, away from its hold, for 0.8 s has
+    // moved there, so it isn't kept on a hold it already left
+    Object.keys(LIM).forEach(k => { const i = LIM[k], l = plan[k]; let run = null;
+      seen.forEach((s, j) => { if (s.t < t0_ || s.t > t1_) return; let a = 0; while (a + 1 < l.length && l[a + 1].t0 <= s.t) a++; const c = l[a], p = SM[j][i];
+        if ((a && s.t < c.t1 + .4) || p.v < .5 || hypot(p, c.to) < torsoL * .5) { run = null; return; }
+        if (!run || hypot(p, SM[run.j][i]) > torsoL * .25) { run = { t: s.t, j }; return; }
+        if (s.t - run.t < .8) return;
+        const e = { k, t0: Math.max(c.t1, run.t - .5), t1: run.t + .2, ...stop(near(run.t), k) }; l.splice(a + 1, 0, e); holds.push({ k, p: e.g, i: -1, t: e.t1, e }); run = null; }); });
     // one ring per hold: stops close together are the same hold. Hands are numbered in the order they first took a hold; the holds
     // both hands started on are the start
     const rings = []; [...holds].sort((a, b) => a.t - b.t).forEach(q => { const hand = q.k[1] === 'w', r = rings.find(o => o.hand === hand && hypot(o.p, q.p) < torsoL * (hand ? .16 : .12));
       if (r) q.r = r; else rings.push(q.r = { hand, p: q.p, t: q.t, start: !q.i && hand }); });
     let num = 0; rings.forEach(r => { if (r.hand && !r.start) r.n = ++num; });
+    // every stop, even one the model saw less well, belongs to the hold it was nearest to
+    holds.forEach(q => { q.e.r = q.r; });
+    Object.values(plan).flat().forEach(e => { if (e.r) return; const hand = e.k[1] === 'w', l = rings.filter(o => o.hand === hand && hypot(o.p, e.g) < torsoL * (hand ? .2 : .15)).sort((a, b) => hypot(a.p, e.g) - hypot(b.p, e.g)); e.r = l[0]; });
     // how far the hand or foot reaches past the wrist or ankle right now: on a hold, to the hold; on the way, as the video saw it
     const reachOf = (k, t, now) => { const l = plan[k]; let j = 0; while (j + 1 < l.length && l[j + 1].t0 <= t) j++; const c = l[j], g = grip(now, k), w = now[LIM[k]];
       return !j || t >= c.t1 ? { x: c.g.x - c.to.x, y: c.g.y - c.to.y } : { x: g.x - w.x, y: g.y - w.y }; };
@@ -457,10 +468,15 @@
       if (D >= (l1 + l2) * .995) { const f = l1 / (l1 + l2); return { x: r.x + (e.x - r.x) * f, y: r.y + (e.y - r.y) * f }; }
       const side = (e.x - r.x) * (seenAt.y - r.y) - (e.y - r.y) * (seenAt.x - r.x) >= 0 ? 1 : -1, a = (l1 * l1 - l2 * l2 + D * D) / (2 * D), h = Math.sqrt(Math.max(0, l1 * l1 - a * a));
       return { x: r.x + dx * a - dy * h * side, y: r.y + dy * a + dx * h * side }; };
-    // a hold this body can't reach from where the video has it means the hold was misread: then the hand or foot is where the video saw it
-    const fit = (k, r, t, q, [l1, l2]) => { const e = end(k, t, q), i = LIM[k], max = (l1 + l2) * 1.05, D = hypot(r, e); if (D <= max) return e;
-      const s = q[i].v >= .3 && hypot(r, q[i]) <= max ? q[i] : e; const d = hypot(r, s) || 1, f = Math.min(1, max / d); return { x: r.x + (s.x - r.x) * f, y: r.y + (s.y - r.y) * f }; };
-    const frame = t => { const q = pose(t), sl = q[11], sr = q[12], hl = q[23], hr = q[24], hL = fit('lw', sl, t, q, LEN[13]), hR = fit('rw', sr, t, q, LEN[14]), fL = fit('la', hl, t, q, LEN[25]), fR = fit('ra', hr, t, q, LEN[26]), sm = mid(sl, sr);
+    // hands and feet stay on their holds: the body is moved as little as it takes for each to reach at your measured arm and leg
+    // length. Only a hold still far out of reach after that (a stop the model misplaced) is let go, as near to it as the limb goes
+    const ROOT = { lw: 11, rw: 12, la: 23, ra: 24 }, LL = { lw: LEN[13], rw: LEN[14], la: LEN[25], ra: LEN[26] };
+    const fit = (k, r, e) => { const max = (LL[k][0] + LL[k][1]) * 1.25, D = hypot(r, e); if (D <= max) return e; const f = max / D; return { x: r.x + (e.x - r.x) * f, y: r.y + (e.y - r.y) * f }; };
+    const frame = t => { const q0 = pose(t), E = {}; Object.keys(ROOT).forEach(k => { E[k] = end(k, t, q0); }); let dx = 0, dy = 0;
+      for (let it = 0; it < 10; it++) { let sx = 0, sy = 0, c = 0; for (const k in E) { const r = q0[ROOT[k]], rx = r.x + dx, ry = r.y + dy, D = Math.hypot(E[k].x - rx, E[k].y - ry) || 1, reach = (LL[k][0] + LL[k][1]) * .98;
+          if (D > reach) { sx += (E[k].x - rx) / D * (D - reach); sy += (E[k].y - ry) / D * (D - reach); c++; } } if (!c) break; dx += sx / c * .8; dy += sy / c * .8; }
+      const q = {}; for (const i in q0) q[i] = { ...q0[i], x: q0[i].x + dx, y: q0[i].y + dy };
+      const sl = q[11], sr = q[12], hl = q[23], hr = q[24], hL = fit('lw', sl, E.lw), hR = fit('rw', sr, E.rw), fL = fit('la', hl, E.la), fR = fit('ra', hr, E.ra), sm = mid(sl, sr);
       const tip = (k, e) => { const o = reachOf(k, t, q); return { x: e.x + o.x, y: e.y + o.y }; };
       return { sl, sr, hl, hr, hL, hR, fL, fR, tL: tip('lw', hL), tR: tip('rw', hR), gL: tip('la', fL), gR: tip('ra', fR), el: joint(sl, q[13], hL, LEN[13]), er: joint(sr, q[14], hR, LEN[14]), kl: joint(hl, q[25], fL, LEN[25]), kr: joint(hr, q[26], fR, LEN[26]), sm, head: { x: sm.x + (q[0].x - sm.x) * .9, y: sm.y + (q[0].y - sm.y) * .9 } }; };
     // the picture: the frame where most of the holds are in view, closed in on the climb at 3 : 4
@@ -512,7 +528,14 @@
         const j = (i * NF + ix[c >> 1]) * 3; lum[i] = v[c >> 1]; for (let ch = 0; ch < 3; ch++) { col[i * 3 + ch] = rgb[j + ch]; hist[ch][rgb[j + ch]]++; } seenPx++; }
       // the bare wall's colour (most of the picture is wall), so a hold is whatever stands out from it
       const base = hist.map(h => { let a = 0, k = 0; while (k < 255 && (a += h[k]) < seenPx / 2) k++; return k; }), bl = (base[0] * 77 + base[1] * 150 + base[2] * 29) >> 8 || 1;
-      const keep = new Float32Array(PIX);
+      const keep = new Float32Array(PIX), out = i => { const l = lum[i], f = l / bl; return Math.hypot(Math.hypot(col[i * 3] - base[0] * f, col[i * 3 + 1] - base[1] * f, col[i * 3 + 2] - base[2] * f), Math.abs(l - bl) * .6); };
+      // the hold itself: the middle of what stands out from the wall right there. Every hand or foot that used it is put on that
+      // middle, so the body is on the coloured hold and not beside it
+      rings.forEach(r => { const cx = X(r.p), cy = Y(r.p), R = (r.hand ? RR * 1.7 : RR * 1.4) * 1.1; let sw = 0, sx = 0, sy = 0;
+        for (let y = Math.max(0, Math.floor(cy - R)); y <= Math.min(bg.height - 1, Math.ceil(cy + R)); y++) for (let x = Math.max(0, Math.floor(cx - R)); x <= Math.min(bg.width - 1, Math.ceil(cx + R)); x++) {
+          const i = y * bg.width + x, dd = Math.hypot(x - cx, y - cy); if (dd > R || !cnt[i]) continue; const m = Math.min(1, Math.max(0, (out(i) - 20) / 26)), w = m * m * (1 - dd / R * .5); sw += w; sx += x * w; sy += y * w; }
+        if (sw > RR * RR * .25) r.p = onWall(ref, { x: sx / sw / sc + x0, y: sy / sw / sc + y0 }); });
+      Object.values(plan).flat().forEach(e => { if (!e.r) return; const dx = e.r.p.x - e.g.x, dy = e.r.p.y - e.g.y; e.g = { x: e.g.x + dx, y: e.g.y + dy }; e.to = { x: e.to.x + dx, y: e.to.y + dy }; });
       rings.forEach(r => { const cx = X(r.p), cy = Y(r.p), R = r.hand ? RR * 1.7 : RR * 1.4;
         for (let y = Math.max(0, Math.floor(cy - R)); y <= Math.min(bg.height - 1, Math.ceil(cy + R)); y++) for (let x = Math.max(0, Math.floor(cx - R)); x <= Math.min(bg.width - 1, Math.ceil(cx + R)); x++) {
           const i = y * bg.width + x, dd = Math.hypot(x - cx, y - cy); if (dd > R || !cnt[i]) continue;
