@@ -30,7 +30,7 @@
 .cap { margin: -4px 0 12px; font-size: 13px; color: var(--mid); }
 
 /* set-up step ruler */
-.ruler { display: grid; grid-template-columns: repeat(2, 1fr); gap: 4px; margin-top: 12px; font-size: 11px; font-weight: 600; color: rgba(255, 255, 255, .7); }
+.ruler { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; margin-top: 12px; font-size: 11px; font-weight: 600; color: rgba(255, 255, 255, .7); }
 .ruler em { display: block; height: 4px; margin-bottom: 6px; border-radius: 2px; background: rgba(255, 255, 255, .3); }
 .ruler .on { color: var(--white); }
 .ruler .on em { background: var(--lime); }
@@ -67,6 +67,11 @@
 /* clip a buddy filmed */
 .clip { position: relative; height: 300px; margin-top: 18px; border-radius: 8px; overflow: hidden; color: var(--white); }
 .clip img, .fr img, .th img, .pav img, .ph img { filter: grayscale(1) contrast(1.05); object-position: 50% 30%; }
+.ob-ex { display: grid; grid-template-columns: 104px 1fr; gap: 14px; align-items: center; margin: 18px 0 8px; padding: 8px; border-radius: 4px; background: #F3F3F1; color: var(--ink); }
+.ob-ex img { width: 104px; aspect-ratio: 272 / 480; border-radius: 3px; object-fit: cover; background: var(--ink); }
+.ob-t { display: grid; gap: 4px; font-size: 13px; color: var(--mid); line-height: 1.35; }
+.ob-t strong { font-size: 17px; font-weight: 600; color: var(--ink); }
+.ob-k { justify-self: start; padding: 2px 8px; border-radius: 4px; background: var(--lime); color: var(--ink); font-size: 12px; font-weight: 600; }
 .clip .shade { position: absolute; inset: 0; background: linear-gradient(to top, rgba(17, 17, 17, .8), rgba(17, 17, 17, .05) 60%); }
 .clip > img { position: absolute; inset: 0; }
 .play-b { position: absolute; top: 12px; left: 12px; width: 40px; height: 40px; border-radius: 6px; background: rgba(255, 255, 255, .82); display: grid; place-items: center; }

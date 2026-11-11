@@ -107,9 +107,10 @@ function tried(r) {
   r.you ??= 5.4; r.senders ??= 2.1;
 }
 
-/* ---------- Set up: two screens, no account, no long forms ---------- */
-// v2: importing clips left set up (Import videos in Videos, a prototype camera roll), and "your sends are public" sits on the level screen
-const setupSteps = ['Gym', 'Level'];
+/* ---------- Set up: three short screens, no account, no long forms ---------- */
+// where you climb, what you climb, then your videos: what the app does, shown on a real analysed frame, and the way straight
+// in (import, film a try, or look around first). "Your sends are public" sits with the videos
+const setupSteps = ['Gym', 'Level', 'Videos'];
 const ruler = k => `<div class="ruler" aria-label="Step ${k} of ${setupSteps.length}">${setupSteps.map((s, i) => `<span class="${i < k ? 'on' : ''}"><em></em>${s}</span>`).join('')}</div>`;
 const brand = '<div class="bar"><span class="brand">chalk.</span></div>';
 const readSize = () => { if ($('hIn')) { setup.height = $('hIn').value; setup.span = $('sIn').value; } };
@@ -148,7 +149,7 @@ const setupViews = {
     </div>`,
     cta: `<button class="b-lime" type="button" data-act="savegym">Add gym</button>` }),
 
-  // level, size (optional) and the public default on one screen, then straight to Videos
+  // what you climb and your size (optional)
   level: () => ({ photo: 'woman2', html: `
     ${brand}${ruler(2)}
     <h1 class="hl">What do you climb now?</h1>
@@ -163,15 +164,28 @@ const setupViews = {
       <label class="in"><span class="lbl">Height</span><span class="unit"><input id="hIn" type="number" inputmode="numeric" placeholder="165" value="${setup.height}">cm</span></label>
       <label class="in"><span class="lbl">Arm span</span><span class="unit"><input id="sIn" type="number" inputmode="numeric" placeholder="168" value="${setup.span}">cm</span></label>
     </div>
-    <p class="cap">Used to plan your moves on a scanned route and to show you climbers built like you.</p>
-    <div class="hl2 dk2"><h2>Your sends are public</h2></div>
+    <p class="cap">Used to plan your moves on a scanned route and to show you climbers built like you.</p>`,
+    cta: `<button class="b-lime" type="button" data-act="lvlnext">Continue</button>` }),
+
+  // what the app is for, shown on a real analysed frame, then straight into it: import, film, or look around first.
+  // The public default sits here, next to the videos it is about
+  clips: () => ({ photo: 'vrock', html: `
+    ${brand}${ruler(3)}
+    <h1 class="hl">Film a try. We find every move.</h1>
+    <p class="sub-w">Phone on the floor, your whole body in frame. We find your hands and feet, each move, and where you came off.</p>
+    <div class="fold"></div>
+    <div class="ob-ex"><img id="obex" src="img/vrock.jpg" alt="A climber on the wall, with the body the analysis found drawn on">
+      <div class="ob-t"><span class="ob-k">Example</span><strong>22 hand and foot moves</strong><span>found in this video, with where the climber came off and how long each rest was</span></div></div>
     <div class="row post-demo">
       <span class="pav"><img src="img/woman2.jpg" alt=""></span>
       <span class="row-t"><strong>You topped Orange V2</strong><span>Wall A · ${gyms[gi].name} · just now</span></span>
       <button class="vis${demoHidden ? ' off' : ''}" type="button" data-act="demo" aria-pressed="${demoHidden}">${demoHidden ? `${ic.eyeOff}Hidden` : `${ic.eye}Public`}</button>
     </div>
-    <p class="cap">Friends see what you top and can comment. Tap the button: any climb can be hidden, anytime.</p>`,
-    cta: `<button class="b-lime" type="button" data-act="done">Start</button>` })
+    <p class="cap">Your sends are public: friends see what you top and can comment. Any climb can be hidden, anytime.</p>
+    <button class="link dk" type="button" data-act="done">Not now, look around first</button>`,
+    cta: `<button class="b-ghost" type="button" data-act="sfilm">Film a try</button><button class="b-lime" type="button" data-act="simport">Import from Photos</button>`,
+    after: () => fetch('video/rockspot-v3.track.json').then(x => x.json()).then(T => { const s = T.S.find(q => q.p && q.t >= 20); return s && window.poseStill?.('video/rockspot-v3.mp4', T, s, 'none', 'good'); })
+      .then(u => { const im = $('obex'); if (u && im) im.src = u; }).catch(() => {}) })
 };
 
 const heroOf = r => r.tries ? `<b>${Math.max(0, ...r.highs)}<small>/${r.moves}</small></b><span>you got to move ${Math.max(0, ...r.highs)} of ${r.moves}</span>`
@@ -303,11 +317,7 @@ function viewGym(a) {
   const head = `${bar('')}<h1 class="hl">${g.name}</h1><p class="sub-w">${about}</p>`;
   const logTile = `<button class="lt w2 short" type="button" data-act="log" data-g="${at}"><span class="lt-h">Climbed one without a video?</span><span class="sqb">${ic.add}</span>
         <span class="mv"><span class="mv-l">Log it by its tape colour and grade.</span></span></button>`;
-  if (!m.length) return { photo: 'wall2', html: `
-    ${head}
-    <div class="fold"></div>
-    ${wallGuide(g, lv.g, user !== 'regular' && !mine().length, at)}
-    <div class="lb">${logTile}</div>` };
+  // the gym page is about this gym and your climbs here, not a lesson: with nothing here yet, it says how routes get here
   return { photo: 'wall2', html: `
     ${head}
     <section class="glass scan-c">
@@ -316,39 +326,9 @@ function viewGym(a) {
       <button class="pk-go static" type="button" data-act="scan" data-g="${at}">${ic.scan}Scan a wall</button>
     </section>
     <div class="fold"></div>
-    <div class="hl2 dk2"><h2>Your routes here</h2><span class="hint2">${n(m.length, 'route', 'routes')} · your level ${lv.g}</span></div>
-    <p class="cap">Tap one to see how climbers your height did it.</p>
+    <div class="hl2 dk2"><h2>Your routes here</h2><span class="hint2">${m.length ? `${n(m.length, 'route', 'routes')} · ` : ''}your level ${lv.g}</span></div>
+    <p class="cap">${m.length ? 'Tap one to see how climbers your height did it.' : 'None yet. Routes you film, scan or log here show up here.'}</p>
     <div class="lb">${tiles}${logTile}</div>` };
-}
-
-// a first-timer's question at the wall is "where do I even start?". One real wall answers it by drawing on it: which holds are one route,
-// where you start, which grade is yours and where it ends. It goes once you've scanned or climbed a route here.
-function wallGuide(g, lv, first, gx) {
-  const cc = g.grading === 'tag' ? null : (g.grading.find(c => c[2] === lv) || g.grading[0]);
-  const [x0, y0] = sHolds[0], [xt, yt] = sHolds[sHolds.length - 1];
-  const at = (x, y) => `left:${(x / 3).toFixed(1)}%;top:${(y / 4).toFixed(1)}%`;
-  const svg = `<svg viewBox="0 0 300 400" aria-hidden="true">
-      <path d="M${sHolds.map(([x, y]) => `${x} ${y}`).join(' L')}" fill="none" stroke="rgba(221,242,106,.55)" stroke-width="1.5" stroke-dasharray="4 5"/>
-      ${sHolds.slice(1, -1).map(([x, y]) => `<circle cx="${x}" cy="${y}" r="11" fill="none" stroke="#DDF26A" stroke-width="2.5"/>`).join('')}
-      <circle cx="${x0}" cy="${y0}" r="14" fill="#DDF26A"/><rect x="${x0 - 9}" y="${y0 + 15}" width="18" height="5" rx="1" fill="#DDF26A"/>
-      <circle cx="${xt}" cy="${yt}" r="14" fill="#DDF26A"/>
-      ${cc ? g.grading.map(([, hex], k) => `<rect x="${22 + k * 20}" y="${g.grading[k] === cc ? 360 : 364}" width="14" height="${g.grading[k] === cc ? 22 : 14}" rx="2" fill="${hex}" stroke="#FFFFFF" stroke-width="${g.grading[k] === cc ? 2 : 1}"/>`).join('')
-        : `<rect x="22" y="362" width="44" height="24" rx="3" fill="#FFFFFF"/><text x="44" y="379" text-anchor="middle" font-size="13" font-weight="700" fill="#111111">${lv.split('–')[0]}</text>`}
-    </svg>`;
-  return `<section class="wg">
-    <h2 class="wg-h">${first ? 'Your first route' : `New to ${g.name}`}</h2>
-    <p class="cap">Every route at ${g.name} works like this one.</p>
-    <div class="wg-pic">
-      <img src="img/wall2.jpg" alt="A wall in the gym with one route marked: its holds, its start, its grade tag and its top">${svg}
-      <span class="wg-n r" style="${at(xt + 20, yt)}"><b>Top</b>Touch it with both hands. Then climb down, or drop onto the mat with bent knees.</span>
-      <span class="wg-n l" style="right:${(100 - (sHolds[3][0] - 18) / 3).toFixed(1)}%;top:${(sHolds[3][1] / 4).toFixed(1)}%"><b>One colour, one route</b>Use only the holds in its colour.</span>
-      <span class="wg-n r" style="${at(x0 + 22, y0)}"><b>Start hold</b>Both hands on the hold with the tape under it.</span>
-      ${cc ? `<span class="wg-n l up" style="left:3%;top:${(356 / 4).toFixed(1)}%"><b>Colour is the grade</b><span>${cc[0]} is ${lv}, your level.</span></span>`
-        : `<span class="wg-n l up" style="left:3%;top:${(358 / 4).toFixed(1)}%"><b>Grade tag</b>${lv} is your level.</span>`}
-    </div>
-    <button class="b-lime wg-go" type="button" data-act="scan" data-g="${gx}">${ic.scan}Scan the wall in front of you</button>
-    <p class="cap wg-c">We mark the same four things on your route, plus each move for your height.</p>
-  </section>`;
 }
 
 // AI 1 · photo of a wall: we read the tape colour and the grade on the gym's tag, then draw the moves on the photo, planned for your height and arm span
@@ -1798,6 +1778,11 @@ function record(k = 1) {
   lastRoute = r; lastCut = k; camDone = { r, tries: saved, sent: false };
   render();
 }
+function setupEnd() {
+  const lv = levels[setup.level];
+  data.new.forEach(r => { r.g = lv.hi; r.grade = 'V' + lv.hi; });
+  go('videos');
+}
 function endSession() { session = 'saved'; located = false; go('summary'); }
 
 const actions = {
@@ -1823,12 +1808,11 @@ const actions = {
   },
   lvl: b => { setup.level = +b.dataset.i; readSize(); render(); },
   demo: () => { readSize(); demoHidden = !demoHidden; render(); },
-  done: () => {
-    readSize();
-    const lv = levels[setup.level];
-    data.new.forEach(r => { r.g = lv.hi; r.grade = 'V' + lv.hi; });
-    go('videos'); toast(`${gyms[gi].name} · ready when you are`);
-  },
+  lvlnext: () => { readSize(); go('setup/clips'); },
+  done: () => { setupEnd(); toast(`${gyms[gi].name} · ready when you are`); },
+  // the last set-up screen goes straight into what it offers: the camera roll over Videos, or the camera
+  simport: () => { addEventListener('hashchange', () => { edFrom = 'videos'; openUpload(); }, { once: true }); setupEnd(); },
+  sfilm: () => { setupEnd(); openCam(true); },
   // today
   grade: () => toast('V0 is the easiest, V10 the hardest. Most people start at V0–V2.'),
   guide: () => toast('Guide · grades, tape colours, gym etiquette'),
