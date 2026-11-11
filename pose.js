@@ -1,4 +1,4 @@
-/* chalk. · movement analysis of a video of a climb.
+/* Spotter · movement analysis of a video of a climb.
    MediaPipe Pose Landmarker (full) finds 33 body points, in the browser. poseScan goes through the whole video once and keeps a
    track: which hand or foot moves when, every rest, the arm angles and where the hips are. posePlay then shows that track on the
    video and under it, at whatever moment the video is at. Nothing is uploaded. Needs a connection the first time, to load the model. */

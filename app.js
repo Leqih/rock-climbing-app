@@ -1,4 +1,4 @@
-// chalk. prototype v2: one screen per step of the user flow (FigJam "Flow chart v2"), one hash route per screen.
+// Spotter prototype v2: one screen per step of the user flow (FigJam "Flow chart v2"), one hash route per screen.
 // Set up (#/setup/…) → Videos (#/videos), the first tab, as in KEKE → "+" adds a climb: film a try (#/cam), upload a video, scan, log by hand
 // → "Sent it?" → compare (#/compare) or log the send → "Keep climbing?" → Walls (#/walls) or end-session summary (#/summary)
 // → Profile with your progress (#/profile, a tab) → Community (#/friends). v6 has no Today page: Videos is where you land.
@@ -161,7 +161,7 @@ function tried(r) {
 // in (import, film a try, or look around first). "Your sends are public" sits with the videos
 const setupSteps = ['Gym', 'Level', 'Videos'];
 const ruler = k => `<div class="ruler" aria-label="Step ${k} of ${setupSteps.length}">${setupSteps.map((s, i) => `<span class="${i < k ? 'on' : ''}"><em></em>${s}</span>`).join('')}</div>`;
-const brand = '<div class="bar"><span class="brand">chalk.</span></div>';
+const brand = '<div class="bar"><span class="brand">Spotter</span></div>';
 const readSize = () => { if ($('hIn')) { setup.height = $('hIn').value; setup.span = $('sIn').value; } };
 const setupViews = {
   // opened from a buddy's tag: accept or decline the clip they filmed
@@ -621,10 +621,13 @@ function viewProfile() {
   const total = Object.values(sends).reduce((a, b) => a + b, 0);
   const grades = ['V0', 'V1', 'V2', 'V3', 'V4'], max = Math.max(1, ...Object.values(sends));
   const top = grades.filter(g => sends[g]).pop();
+  // a month's name over the week it starts in
+  const months = Array.from({ length: 12 }, (_, w) => { const d = [0, 1, 2, 3, 4, 5, 6].map(x => dateOf(w * 7 + x)), first = k => [0, 1, 2, 3, 4, 5, 6].some(x => dateOf(k * 7 + x).getDate() === 1), at = d.find(x => x.getDate() === 1) || (w === 0 && !first(1) ? d[0] : null);   // the first column only when the next week doesn't start a month
+    return `<span>${at ? at.toLocaleDateString('en-US', { month: 'short' }) : ''}</span>`; }).join('');
   const cells = Array.from({ length: 84 }, (_, k) => `<i class="${k > TODAY ? 'f' : v.has(k) ? 'v' : ''}${k === TODAY ? ' t' : ''}" title="${dateOf(k).toDateString()}"></i>`).join('');
-  const mo = dateOf(TODAY).getMonth(), pm = (mo + 11) % 12, octo = [...v].filter(k => dateOf(k).getMonth() === pm).length;
+  const mo = dateOf(TODAY).getMonth(), thisMo = [...v].filter(k => k <= TODAY && dateOf(k).getMonth() === mo).length;
   const recap = reg
-    ? `<span class="sub">${MONTHS[pm]} recap</span><b class="num">9 sends</b><span class="sub">${n(octo, 'session', 'sessions')} · hardest V2, ${n(list().filter(r => r.g === 3).reduce((k, r) => k + r.tries, 0), 'try', 'tries')} at V3 so far</span>`
+    ? `<span class="sub">${MONTHS[mo]} so far</span><b class="num">${n(thisMo, 'session', 'sessions')}</b><span class="sub">hardest V2, ${n(list().filter(r => r.g === 3).reduce((k, r) => k + r.tries, 0), 'try', 'tries')} at V3 so far</span>`
     : session === 'saved'
       ? `<span class="sub">${MONTHS[mo]} so far</span><b class="num">${n(tops, 'send', 'sends')}</b><span class="sub">1 session · ${n(tries, 'try', 'tries')} · ${fmt(secs)} on the wall</span>`
       : `<span class="sub">${MONTHS[mo]} so far</span><b class="num">No sessions yet</b><span class="sub">Film or log a climb with Add. It shows up here when you end the session.</span>`;
@@ -642,6 +645,7 @@ function viewProfile() {
     <div class="lb">
       <div class="lt w2 tall"><span class="lt-h">Days you climbed</span>
         <span class="mv"><b>${v.size}</b><span class="mv-l">${v.size === 1 ? 'session' : 'sessions'} since ${shortDay(0)}</span></span>
+        <span class="hm-m" aria-hidden="true">${months}</span><span class="hm-d" aria-hidden="true"><span>Mon</span><i></i><span>Wed</span><i></i><span>Fri</span><i></i><i></i></span>
         <span class="hm" aria-label="${v.size} sessions in 12 weeks">${cells}</span></div>
       <div class="lt w2 tall"><span class="lt-h">Sends per grade</span>
         <span class="mv"><b>${total}</b><span class="mv-l">${total ? `sends · hardest ${top}` : 'sends yet · your first one shows here'}</span></span>
@@ -653,17 +657,10 @@ function viewProfile() {
     </div>
     <div class="hl2 dk2"><h2>You</h2></div>
     <div class="rows">
-      <button class="row" type="button" data-act="to" data-to="videos"><span class="row-t"><strong>Your videos</strong><span>${clips.length ? `${n(clips.length, 'video', 'videos')}${untagged ? ` · ${untagged} without a route` : ' · all analysed'}` : 'None yet · film or upload a try'}</span></span>${ic.arr('#111111')}</button>
-      <button class="row" type="button" data-act="to" data-to="walls"><span class="row-t"><strong>Gyms</strong><span>${been.length ? `Climbed at ${been.join(', ')}` : 'None yet'} · find gyms near you</span></span>${ic.arr('#111111')}</button>
-      <button class="row" type="button" data-act="to" data-to="watch"><span class="row-t"><strong>Watch</strong><span>${watch ? 'Connected · counts tries and session time' : 'Not connected'}</span></span>${ic.arr('#111111')}</button>
+      <button class="row" type="button" data-act="to" data-to="watch"><span class="row-t"><strong>Watch</strong><span>${watch ? 'Connected · starts and stops each try' : 'Not connected'}</span></span>${ic.arr('#111111')}</button>
       <button class="row" type="button" data-act="size"><span class="row-t"><strong>Level and size</strong><span>${reg ? 'V2–V3' : levels[setup.level].g} · ${myH()} cm · used to show you climbers built like you</span></span></button>
       <div class="row"><span class="row-t"><strong>Who sees your climbs</strong><span>Public by default. Hide any climb from its video or the session summary.</span></span></div>
-    </div>
-    <section class="ask-c">
-      <h3>Plan the next session</h3>
-      <p>${reg ? 'Alex and Jo are both free tomorrow.' : 'Add the people you climb with, then pick a gym and a time together.'}</p>
-      <div class="two one"><button class="b-lime" type="button" data-act="to" data-to="friends/plan">${reg ? 'Plan with friends' : 'Find friends'}</button></div>
-    </section>` };
+    </div>` };
 }
 
 /* ---------- Videos: every clip you film, upload or get tagged in, each one analysed ---------- */
@@ -709,6 +706,7 @@ const dayOf = k => k === TODAY ? 'Today' : dateOf(k).toLocaleDateString('en-US',
 const shortDay = k => dateOf(k).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 const rname = r => r.grade ? `${r.color} ${r.grade}` : r.color;
 const clipRoutes = () => [...new Set(clips.map(c => c.r).filter(Boolean))];
+const myRoutes = () => [...new Set(clips.filter(c => !c.place).map(c => c.r).filter(Boolean))];
 const byId = id => clips.find(x => x.id === +id);
 // where a video was filmed, from its location; gym -1 = no location in it ("Unknown gym" until you pick one)
 const gymOf = c => c.place ? { name: c.place } : c.gym === -1 ? null : gyms[c.gym ?? gi];
@@ -738,9 +736,11 @@ const vtile = cs => {
     <img src="img/${c.img}.jpg" alt=""><span class="shade"></span>
     <span class="vt-t">${c.r ? `${sw(c.r)}${c.r.grade || c.r.color}${many ? '' : ` · try ${c.try}`}` : 'No route'}</span>
     ${picking ? '<span class="vt-c"></span>' : ''}
-    <span class="vt-b${an === 'ask' ? ' ask' : ''}">${an === 'hold' ? 'Not analysed' : an === 'ask' ? 'Check this' : an === 'run' ? 'Analysing' : top ? 'Topped' : c.who ? 'Analysed' : c.r ? `Move ${hi}/${c.r.moves}` : 'Tag it'}</span><span class="vt-l">${cs.every(x => x.hidden) ? ic.eyeOff : ''}${many ? `tries ${first}–${c.try}` : c.len}</span>
+    <span class="vt-b${an === 'ask' ? ' ask' : ''}">${an === 'hold' ? 'Not analysed' : an === 'ask' ? 'Check this' : an === 'run' ? 'Analysing' : top ? 'Topped' : !c.r ? 'Tag it' : c.gym === -1 ? 'No gym' : ''}</span><span class="vt-l">${cs.every(x => x.hidden) ? ic.eyeOff : ''}${tileDay(c.k)} · ${many ? `${cs.length} tries` : c.len}</span>
   </button>`;
 };
+// the day on a tile: weekday this week and last, the date before that, the year if it isn't this one
+const tileDay = k => k === TODAY ? 'Today' : k >= TODAY - 13 && k >= 70 ? dateOf(k).toLocaleDateString('en-US', { weekday: 'short' }) : dateOf(k).getFullYear() === dateOf(TODAY).getFullYear() ? shortDay(k) : String(dateOf(k).getFullYear());
 // a day's videos, grouped by route (newest try first); videos without a route stay one card each
 const byRoute = cs => {
   const g = [];
@@ -748,9 +748,11 @@ const byRoute = cs => {
   return g.map(x => x.sort((a, b) => b.try - a.try));
 };
 function viewVideos() {
-  const routes = clipRoutes(), none = clips.filter(c => !c.r), sends = clips.filter(c => c.sent);
-  if (vf !== 'all' && (vf === 'none' ? !none.length : !routes.includes(vf))) vf = 'all';
-  const shown = clips.filter(c => vf === 'all' || (vf === 'none' ? !c.r : c.r === vf)).sort((a, b) => b.k - a.k);
+  // your own tries, and videos of other climbers you imported (a competition film): those get one chip, not one per climber
+  const mine = clips.filter(c => !c.place), other = clips.filter(c => c.place), place = other[0]?.place;
+  const routes = myRoutes(), none = mine.filter(c => !c.r), sends = mine.filter(c => c.sent);
+  if (vf !== 'all' && (vf === 'none' ? !none.length : vf === 'other' ? !other.length : !routes.includes(vf))) vf = 'all';
+  const shown = clips.filter(c => vf === 'all' || (vf === 'none' ? !c.r && !c.place : vf === 'other' ? c.place : c.r === vf)).sort((a, b) => b.k - a.k);
   // a card up top only when there's something to do: no videos yet, or a video that needs a route
   const head = !clips.length
     ? `<section class="glass scan-c"><span class="t2">No videos yet</span>
@@ -763,13 +765,15 @@ function viewVideos() {
       : '';
   const byF = clips.filter(c => c.by), who = [...new Set(byF.map(c => c.by))];
   const chip = (i, label, on) => `<button type="button" data-act="vf" data-i="${i}" aria-pressed="${on}">${label}</button>`;
-  const chips = `<div class="fchips">${chip(-1, `All ${clips.length}`, vf === 'all')}${routes.map((r, i) => chip(i, `${sw(r)}${rname(r)}${r.old ? ` · ${r.wall}` : ''}`, vf === r)).join('')}${none.length ? chip(-2, `No route ${none.length}`, vf === 'none') : ''}</div>`;
+  const chips = `<div class="fchips">${chip(-1, `All ${clips.length}`, vf === 'all')}${routes.map((r, i) => chip(i, `${sw(r)}${rname(r)}`, vf === r)).join('')}${none.length ? chip(-2, `No route ${none.length}`, vf === 'none') : ''}${other.length ? chip(-3, `${place} ${other.length}`, vf === 'other') : ''}</div>`;
   // KEKE's Records: a day, where, and what you got done, then the routes
   // one block per day and gym; videos with no location in them get their own "Unknown gym" block
-  const gk = c => c.gym ?? gi;
-  const grid = [...new Set(shown.map(c => `${c.k}|${gk(c)}`))].map(key => {
-    const day = shown.filter(c => `${c.k}|${gk(c)}` === key), g = gymOf(day[0]), tops = day.filter(c => c.sent).length;
-    return `<div class="vd"><b>${dayOf(day[0].k)}</b> · ${g ? g.name : 'Unknown gym'}<span>${n(day.length, 'try', 'tries')}${tops ? ` · ${n(tops, 'top', 'tops')}` : ''}</span></div><div class="vg">${byRoute(day).map(vtile).join('')}</div>`;
+  const gk = c => c.gym ?? gi, mon = TODAY - (TODAY % 7);
+  const period = k => k >= mon ? 'This week' : k >= mon - 7 ? 'Last week' : dateOf(k).getFullYear() === dateOf(TODAY).getFullYear() ? 'Earlier' : String(dateOf(k).getFullYear());   // the date is on each tile
+  const grid = [...new Set(shown.map(c => period(c.k)))].map(p => {
+    const part = shown.filter(c => period(c.k) === p), tops = part.filter(c => c.sent).length;
+    const tiles = [...new Set(part.map(c => `${c.k}|${gk(c)}`))].flatMap(key => byRoute(part.filter(c => `${c.k}|${gk(c)}` === key)));
+    return `<div class="vd"><b>${p}</b><span>${n(part.length, 'try', 'tries')}${tops ? ` · ${n(tops, 'top', 'tops')}` : ''}</span></div><div class="vg">${tiles.map(vtile).join('')}</div>`;
   }).join('');
   // the highlight reel: every send as one video, labels added
   const reel = sends.length ? `<button class="lt w2 short pt reel-t" type="button" data-act="reel"><img src="img/${sends[0].img}.jpg" alt=""><span class="shade"></span>
@@ -777,7 +781,7 @@ function viewVideos() {
       <span class="mv"><b>${n(sends.length, 'send', 'sends')}</b><span class="mv-l">in one video, labelled with grade and gym</span></span></button>` : '';
   const orig = clips.filter(c => c.orig).length;
   const tail = `<div class="stack old">
-      ${orig ? `<button class="row" type="button" data-act="origdel"><span class="row-t"><strong>Free up space on your phone</strong><span>${n(orig, 'original', 'originals')} still in Photos · ${(orig * .15).toFixed(1)} GB. chalk. keeps the trimmed copies.</span></span>${ic.arr('#111111')}</button>` : ''}
+      ${orig ? `<button class="row" type="button" data-act="origdel"><span class="row-t"><strong>Free up space on your phone</strong><span>${n(orig, 'original', 'originals')} still in Photos · ${(orig * .15).toFixed(1)} GB. Spotter keeps the trimmed copies.</span></span>${ic.arr('#111111')}</button>` : ''}
       ${user === 'regular' ? `<button class="row" type="button" data-act="oldset"><span class="row-t"><strong>Older routes</strong><span>Purple V2 · last climbed ${shortDay(TODAY - 23)} · 3 videos kept</span></span>${ic.arr('#111111')}</button>` : ''}
     </div>`;
   const k = picked.size;
@@ -785,10 +789,10 @@ function viewVideos() {
     ${tabHead('Videos')}
     ${session === 'live' ? `<section class="glass live-bar">
       <span class="dot"></span><b class="num">${fmt(secs)}</b>
-      <span><button class="lb-gym" type="button" data-act="to" data-to="gym/${gi}">${gyms[gi].name}</button> · <span>${tries ? `${n(tries, 'try', 'tries')} · ${n(tops, 'top', 'tops')}` : watch ? 'Tap your watch before each try' : 'Tap Film before each try'}</span></span>
+      <span><button class="lb-gym" type="button" data-act="to" data-to="gym/${gi}">${gyms[gi].name}</button> · <span>${tries ? `${n(tries, 'try', 'tries')} · ${n(tops, 'top', 'tops')}` : watch ? 'Tap Start on your watch before each try' : 'Tap Film before each try'}</span></span>
       <button class="end" type="button" data-act="end">End</button>
     </section>` : ''}
-    <p class="sub-w">${clips.length ? `${n(clips.length, 'video', 'videos')} of your tries · ${clips.some(x => x.an === 'ask') ? `${clips.filter(x => x.an === 'ask').length} to check` : 'newest first'}` : 'Your tries on video, each one analysed'}</p>
+    <p class="sub-w">${clips.length ? `${n(mine.length, 'video', 'videos')} of your tries · ${clips.some(x => x.an === 'ask') ? `${clips.filter(x => x.an === 'ask').length} to check` : 'newest first'}` : 'Your tries on video, each one analysed'}</p>
     ${clips.length ? `<button class="pk-go static vi" type="button" data-act="upload">${ic.up}Import videos</button>` : ''}
     ${head}
     <div class="fold"></div>
@@ -875,9 +879,7 @@ function fallView(c, r, hi) {
       <p class="an-n" id="climbn">Your start</p>
       <p class="an-n">No one in the community has filmed this route yet, so here is your own climb, played again from this video. The wall is made from its frames with you taken off it, in grey; only the holds you used keep their colour, so the colour is your route. S is where you started and the numbers are the order your hands took the rest. The body moves the way the video saw you move, faster while you rest. Holds you didn’t touch stay grey: we can’t yet tell which holds belong to the route.</p>`
       : `<p class="an-n">Shows once this video is analysed: your moves, drawn on its wall.</p>`}</div>`}
-      ${c.who ? '' : `<div class="lt"><span class="lt-h">Can you reach it?</span>
-      <p class="tip-d">At ${myH()} cm with a ${span} cm arm span, move ${next} is in reach from the higher foot.</p>
-      <p class="an-n">A reach check for your size, not a full simulation. It can’t tell how hard the move feels.</p></div>`}</div>`
+</div>`
   };
 }
 // every video is analysed in the background: the climber only confirms what we found, once per route, and fixes it if it's wrong
@@ -915,7 +917,7 @@ function timeline(T) {
       ${lane('Rests', T.rests.map(r => at(r.t0, r.t1, r.straight > .5 ? 'rs' : 'rb')).join(''))}
       <div class="tl-o" id="tlo" role="slider" aria-label="Go to a moment in the video"><i id="tlp"></i></div></div>
     <p class="an-k tl-k"><span><i class="rs"></i>Rest, arms straight</span><span><i class="rb"></i>Rest, arms bent</span></p>
-    <p class="tl-tip" id="tl-tip"></p></section>`;
+</section>`;
 }
 function tlWire() {
   const o = $('tlo'), v = $('lvv'); if (!o || !v) return;
@@ -1037,19 +1039,22 @@ function measured(T) {
   const s = T.stats, row = (big, small, t, clip = clipNear(t, T.D)) => `<button class="row" type="button" ${clip}><span class="row-t"><strong>${big}</strong><span>${small}</span></span><span class="tl-go num">${mmss(t)} ›</span></button>`;
   const m = takeaway(T);
   if (m.vis) m.vis.T = T.D;
+  const shown = (t0, t1 = t0) => (m.vis?.frames || []).some(f => f.s.t >= t0 - .5 && f.s.t <= t1 + .5);   // already a picture on the card
   const sp = m.span || { a: Math.max(0, m.t - 1), b: m.t + 2, mark: 'none' }, spa = sp.a, spb = Math.min(T.D, Math.max(sp.b, spa + 2));
   return `<div class="hl2 dk2"><h2>The main thing</h2></div>
-    <div class="stack"><div class="lt"><span class="lt-h">${m.title}</span>${m.why ? `<p class="tip-d">${m.why}</p>` : ''}${m.vis ? seeBlock(m.vis) : ''}${m.sim ? simBlock(m.sim) : ''}<p class="an-nx"><b>${m.nextLabel || 'Next try'}</b>${m.next}</p>
+    <div class="stack"><div class="lt"><span class="lt-h">${m.title}</span>${m.why ? `<p class="tip-d">${m.why}</p>` : ''}${m.vis ? seeBlock(m.vis) : ''}${m.sim ? simBlock(m.sim) : ''}<p class="an-nx">${m.next}</p>
       <button class="b-ghost an-see" type="button" ${clipAt(spa, spb, sp.mark)}>${m.see} · ${mmss(spa)}–${mmss(spb)}</button></div></div>
-    <div class="hl2 dk2"><h2>What we measured</h2></div>
+    <div class="hl2 dk2"><h2>Also measured</h2></div>
     <div class="rows">${row(n(s.moves, 'hand or foot move', 'hand and foot moves'), `${s.hands} with a hand, ${s.feet} with a foot. Only the ones we’re sure of`, s.first)}
-      ${s.longest ? row(`${s.longest.s.toFixed(1)} s`, 'Your longest rest', s.longest.t, clipAt(s.longest.t, Math.min(T.D, s.longest.t + Math.max(s.longest.s, 2)))) : ''}
+      ${s.longest && !shown(s.longest.t, s.longest.t + s.longest.s) ? row(`${s.longest.s.toFixed(1)} s`, 'Your longest rest', s.longest.t, clipAt(s.longest.t, Math.min(T.D, s.longest.t + Math.max(s.longest.s, 2)))) : ''}
       ${s.longest && s.low && s.restRead >= 50 ? row(`${s.low.a < 90 ? 'Very bent' : s.low.a < 145 ? 'Bent' : 'Straight'} · ${s.low.a}°`, 'Your arms at their most bent, resting. 180° is straight', s.low.t) : ''}
-      ${s.far ? row(s.far.left ? 'Out to the left' : 'Out to the right', 'Your hips, furthest from your feet', s.far.t, clipNear(s.far.t, T.D, 'hip')) : ''}</div>
+      ${s.far && !shown(s.far.t) ? row(s.far.left ? 'Out to the left' : 'Out to the right', 'Your hips, furthest from your feet', s.far.t, clipNear(s.far.t, T.D, 'hip')) : ''}</div>
     <p class="trs-l">We could see you in ${s.seen}% of this video. Tap a row to watch that moment.</p>`;
 }
-const bodyStats = T => `<div class="hl2 dk2"><h2>Your whole climb</h2></div><div class="stack"><div class="lt"><div class="an-g"><div><span>Arms straight</span><b>${T.stats.armRead >= 30 ? `${T.stats.armsStraight}%` : '—'}</b></div><div><span>Hips over feet</span><b>${T.stats.hipsOver}%</b></div><div><span>Moving</span><b>${T.stats.moving}%</b></div></div>
-      <p class="an-n">Share of the time from your first move to your last, in this video.${T.stats.armRead >= 30 ? '' : ' Too far from the camera to read your arms.'}</p></div></div>`;
+// arms: over the whole climb when we can read them; otherwise only at rests, the moments you hold still (the Summary uses the same)
+const bodyStats = T => { const s = T.stats, all = s.armRead >= 30, rest = !all && s.restStraight != null && s.restRead >= 50;
+  return `<div class="hl2 dk2"><h2>Your whole climb</h2></div><div class="stack"><div class="lt"><div class="an-g"><div><span>${rest ? 'Arms straight, resting' : 'Arms straight'}</span><b>${all ? `${s.armsStraight}%` : rest ? `${s.restStraight}%` : '—'}</b></div><div><span>Hips over feet</span><b>${s.hipsOver}%</b></div><div><span>Moving</span><b>${s.moving}%</b></div></div>
+      <p class="an-n">Share of the time from your first move to your last, in this video.${all ? '' : rest ? ' Your arms only read clearly when you stop, so that one counts your rests.' : ' Too far from the camera to read your arms.'}</p></div></div>`; };
 function drawTag(c) {
   const tg = $('tg'); if (!tg) return;
   const fix = tagS.id === c.id, pts = fix ? tagS.pts : c.auto, next = TAGS[tagS.i];
@@ -1106,7 +1111,7 @@ function viewClip(id) {
   const triesStrip = mine.length > 1 || filmable ? `
     <div class="hl2 dk2"><h2>Your tries on ${rname(r)}</h2></div>
     <div class="trs">${mine.map(x => `<button class="${x === c ? 'on' : ''}" type="button" data-act="to" data-to="clip/${x.id}"${x === c ? ' aria-current="true"' : ''} aria-label="Try ${x.try}, ${dayOf(x.k)}">
-      <img src="img/${x.img}.jpg" alt=""><span class="shade"></span><b>Try ${x.try}</b><small>${x.sent ? 'Topped' : `Move ${x.high}`} · ${shortDay(x.k)}</small></button>`).join('')}
+      <img src="img/${x.img}.jpg" alt=""><span class="shade"></span><b>Try ${x.try}</b><small>${x.sent ? 'Topped' : `Reached hold ${x.high}`} · ${shortDay(x.k)}</small></button>`).join('')}
       ${filmable ? `<button class="tr-add" type="button" data-act="film" data-r="${list().indexOf(r)}">${ic.rec}<b>Film try ${r.tries + 1}</b></button>` : ''}</div>
     <p class="trs-l">${mine.length > 1 ? (mine.some(x => x.sent) ? `Topped in ${n(mine.length, 'try', 'tries')} on video.` : gain > 0 ? `From move ${mine[0].high} to move ${mine[mine.length - 1].high} in ${n(mine.length, 'try', 'tries')}.` : `${n(mine.length, 'try', 'tries')} on the same holds, matched for you.`) : 'Film your next try and it lands here, next to this one.'}</p>` : '';
   // the gym: read from where it was filmed; no location in the video → Unknown gym until you pick one (KEKE's "Select Gym")
@@ -1119,7 +1124,7 @@ function viewClip(id) {
   const details = r ? `
     <div class="hl2 dk2"><h2>Details</h2></div>
     <div class="rows">
-      <div class="row"><span class="row-t"><strong>${sw(r)}${rname(r)}${c.imp ? '' : ` · ${r.wall}`}</strong><span>Route · ${c.imp || c.orig ? 'read from the tape colour in frame' : 'the route you were on'}</span></span>
+      <div class="row"><span class="row-t"><strong>${sw(r)}${rname(r)}</strong><span>Route · ${c.imp || c.orig ? 'read from the tape colour in frame' : 'the route you were on'}</span></span>
         <button class="pj" type="button" data-act="place" data-i="${c.id}">Change</button></div>
       ${gymRow}
     </div>` : `
@@ -1181,12 +1186,13 @@ function viewClip(id) {
         : `<img src="img/${c.img}.jpg" alt=""><span class="shade"></span>`}
       <button class="play-b" type="button" data-act="${lv ? 'lvplay' : 'vplay'}" data-len="${c.len}" aria-label="Play the video">${ic.play}</button>
       <div class="tg" id="tg" hidden></div>
+      ${lv && (state === 'done' || state === 'none') ? `<button class="sp-o" type="button" data-act="spd" aria-label="Playback speed">${speed}×</button>` : ''}
+      ${two ? '<p class="tl-tip" id="tl-tip"></p>' : ''}
       <span class="clip-l">${r ? `<span class="pk-tag">${sw(r)}${rname(r)} · try ${c.try}</span>` : '<span class="pk-tag">No route yet</span>'}
-        <span>${dayOf(c.k)} · ${r && !c.imp ? r.wall : g ? g.name : 'Unknown gym'} · ${c.len}${c.raw ? `, trimmed from ${c.raw}` : ''}${c.by ? ` · filmed by ${c.by}` : ''}</span></span></div>${side}</div>
+        <span>${dayOf(c.k)} · ${g ? g.name : 'Unknown gym'} · ${c.len}${c.raw ? `, trimmed from ${c.raw}` : ''}${c.by ? ` · filmed by ${c.by}` : ''}</span></span></div>${side}</div>
     ${two ? timeline(c.track) : ''}
     ${state === 'done' && !c.track ? `<section class="glass scrub"><div class="mv-t" aria-label="Moves; you reached move ${hi}">${ticks}</div>
       <p class="scrub-l">${c.sent ? `Topped · all ${mv} moves` : `You reached move ${hi} of ${mv}`}</p></section>` : ''}
-    ${lv && (state === 'done' || state === 'none') ? `<div class="sp"><span>Speed</span><div class="sp-b">${[.25, .5, 1].map(s => `<button type="button" data-act="spd" data-v="${s}" aria-pressed="${s === speed}">${s}×</button>`).join('')}</div></div>` : ''}
     <div class="fold"></div>
     ${state === 'none' ? `${details}${thisVideo}` : state === 'run' ? runCard : state === 'ask' ? askCard : `
       <div class="fchips ctabs">${tabs.map(([k, l]) => `<button type="button" data-act="ctab" data-v="${k}" aria-pressed="${k === tab}">${l}</button>`).join('')}</div>
@@ -1198,7 +1204,7 @@ const shareBtns = `<div class="two"><button class="b-ghost" type="button" data-a
 const where = c => `${c.r.wall}${c.r.old ? '' : ` · ${gyms[gi].name}`}`;
 function openShare(c) {
   pane(`<h2>Share your send</h2><span class="sub">Grade, tape colour and gym added from the video</span>
-    <div class="poster"><img src="img/${c.img}.jpg" alt=""><span class="shade"></span><span class="po-brand">chalk.</span>
+    <div class="poster"><img src="img/${c.img}.jpg" alt=""><span class="shade"></span><span class="po-brand">Spotter</span>
       <span class="po-b"><span class="pk-tag">${sw(c.r)}${rname(c.r)}</span><b>Topped</b><span>on try ${c.try} · ${where(c)} · ${shortDay(c.k)}</span></span></div>
     ${shareBtns}`);
 }
@@ -1333,7 +1339,7 @@ function viewFriends(tab) {
     <div class="hl2 dk2"><h2>Friends’ climbs</h2>${theirs.length ? `<span class="hint2">${n(theirs.length, 'video', 'videos')}</span>` : ''}</div>
     ${vids}` };
 }
-// add friends without leaving the page: people from your contacts on chalk., and people who post from your gym
+// add friends without leaving the page: people from your contacts on Spotter, and people who post from your gym
 function openFriendAdd() {
   const f = follows[user], at = gyms[gi].name;
   const local = [...new Set(feedAll().filter(p => !p.gym && (p.g ?? gi) === gi && p.who !== 'You' && PEOPLE[p.who]).map(p => p.who))].filter(w => !['Mia', 'Leo', 'Noor'].includes(w)).slice(0, 5);
@@ -1501,6 +1507,8 @@ function feedWire() {
 // camFree = you said it's none of your routes: the tries are saved without a route and tagged later in Videos
 // camReading = opened from "+" with no route picked: the tag says so until the tape in frame is read
 // camDone = what the last recording saved, shown in the camera so the next try is one tap away
+// wcl = this session's climbs when the watch drives the camera: { n, c (the clip), r, read }. recS = seconds on the REC timer
+let wcl = [], recS = 0;
 let cut = 0, cutT = null, camPick = false, camFree = false, camReading = false, camRead = false, camT = null, camDone = null;
 const filmRoute = () => camFree ? null : camRoute();
 // the camera opens at once. A route picked on a card is used as it is; otherwise the tape in frame is read first.
@@ -1523,7 +1531,32 @@ function camResult() {
         : `<button class="b-glass" type="button" data-act="camsee">What to change</button><button class="b-lime" type="button" data-act="sent">${ic.check}I topped it</button>`}</div>
     </div>`;
 }
+// with a watch, the watch drives the camera: the orange button starts and stops each climb. The phone never asks anything:
+// it counts climbs like the watch, reads the route and how high you got from each video, and keeps the screen on, dimmed
+function viewWatchCam() {
+  const N = wcl.length + 1, last = clips.find(c => c.k === TODAY);
+  const tm = s => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+  const strip = wcl.slice().reverse().map(w => `<span class="${w.read ? '' : 'rd'}"><b>Climb ${w.n}</b>${!w.read ? 'Reading…' : w.r ? `${sw(w.r)}${w.r.color} ${w.r.grade} · ${w.c.sent ? 'topped' : `hold ${w.c.high}`}` : 'No route · tag it later'}</span>`).join('');
+  return { bare: true, dark: true, html: '', overlay: `
+    <img src="img/${(filmRoute() || {}).img || 'wall2'}.jpg" alt="Camera view of the wall">
+    ${filming ? '<span class="cam-live" aria-hidden="true"></span>' : '<span class="cam-dim" aria-hidden="true"></span>'}
+    <div class="cam-top">
+      <button class="bk" type="button" data-act="back" aria-label="Back">${ic.back}</button>
+      <span class="pk-tag">${filming ? `Climb ${N}` : `Climb ${N} next`}</span>
+      ${filming ? `<span class="rec-on"><i></i>REC <span id="recT" class="num">${tm(recS)}</span></span>` : `<span class="cam-w">${ic.watch('#FFFFFF')}Watch</span>`}
+    </div>
+    <p class="cam-rd">${filming ? 'Press the orange button on your watch when you’re down' : 'Your watch starts recording · screen stays on, dimmed'}</p>
+    <span class="cam-fr" aria-hidden="true"></span>
+    ${!filming && !wcl.length ? '<p class="cam-hint">Prop the phone up so the whole route fits. Then press the orange button on your watch to start climb 1.</p>' : ''}
+    ${!filming && wcl.length ? `<div class="cam-wl" aria-live="polite">${strip}</div>` : ''}
+    <div class="cam-bot">
+      ${last ? `<button class="cam-last" type="button" data-act="to" data-to="clip/${last.id}" aria-label="Your last video"><img src="img/${last.img}.jpg" alt=""></button>` : '<span></span>'}
+      <button class="shut${filming ? ' on' : ''}" type="button" data-act="shoot" aria-label="${filming ? `Stop climb ${N}` : `Start climb ${N}`}"><i></i></button>
+      ${wcl.length && !filming ? '<button class="cam-s cam-end" type="button" data-act="wend">End session</button>' : '<span class="cam-s">or tap here</span>'}
+    </div>` };
+}
 function viewCam() {
+  if (watch) return viewWatchCam();
   const r = filmRoute(), next = r ? r.tries + 1 : 1;
   const chips = Array.from({ length: cut }, (_, i) => `<span>Try ${next + i} · 0:${34 + i * 5}</span>`).join('');
   const busy = filming || camReading;
@@ -1552,29 +1585,48 @@ function viewCam() {
 }
 
 /* ---------- Watch: log tries from the wrist while the phone films ---------- */
-const face = (top, mid, ui) => `<span class="wf"><span class="wf-s"><span class="wf-t">${top}</span><b>${mid}</b>${ui}</span></span>`;
+// the watch only starts and stops a try. It never asks anything: the phone reads the route and how high you got from the video.
+// Rest counts up, no timer telling you when to go. The page has a watch you can tap through, the same four screens
+let wst = 0;
+function watchDemo() {
+  const r = current() || list()[0], hi = r.highs?.[r.highs.length - 1] || Math.min(3, r.moves);
+  const tm = new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }).replace(/\s?[AP]M/, '');
+  const tb = t => `<span class="aw-tb"><b>${t}</b><span class="num">${tm}</span></span>`, ab = t => `<span class="aw-ab"><i></i>${t}</span>`;
+  // the same screens as watch.html: check the frame, climb, saved, rest. The orange Action button starts and stops a climb
+  const S = [
+    `${tb('Spotter')}<span class="aw-b"><span class="aw-pv"><img src="img/v864.jpg" alt=""><span><i></i>Phone · filming when you start</span></span>${ab('Press to start climb 1')}</span>`,
+    `${tb('Climb 1')}<span class="aw-b"><span class="aw-s"><i class="aw-rec"></i>Filming on your phone</span><span class="aw-big lime num">0:23</span>${ab('Press when you’re down')}</span>`,
+    `${tb('Climb 1')}<span class="aw-b"><svg class="aw-ring" viewBox="0 0 150 150"><circle cx="75" cy="75" r="62" stroke="rgba(221,242,106,.22)"/><circle cx="75" cy="75" r="62" stroke="#DDF26A" stroke-linecap="round" stroke-dasharray="389.6" stroke-dashoffset="130" transform="rotate(-90 75 75)"/></svg><span class="aw-n">Saved · 0:48<br>Reading it on your phone</span></span>`,
+    `${tb('Rest')}<span class="aw-b"><span class="aw-big num">1:42</span><span class="aw-cell"><span><b style="color:${r.hex}">●</b> <b style="color:#fff">${rname(r)}</b><em>Climb 1 · try ${r.tries} on it</em></span><b>Hold ${hi} of ${r.moves}</b></span>${ab('Press to start climb 2')}</span>`];
+  const cap = ['Your phone’s camera, on your wrist: step in and check you’re in frame. Then press the orange Action button.',
+    'Press the orange button again when you’re down, or double tap.',
+    'Nothing to answer. Your phone reads the route and how high you got.',
+    'Once it’s read, the route and your try on it show here. Rest counts up: press when you’re ready.'];
+  return `<div class="wd" id="wdemo">
+      <button class="aw" type="button" data-act="wtap" aria-label="Tap the watch: next screen"><span class="aw-dev"><span class="aw-ws">${S[wst]}</span><img class="aw-bz" src="img/watch-ultra.png" alt=""><span class="aw-act"></span></span></button>
+      <span class="wd-dots">${S.map((_, i) => `<button type="button" data-act="wgo" data-i="${i}" aria-label="Screen ${i + 1}" aria-current="${i === wst}"></button>`).join('')}</span>
+      <p class="wd-c"><b>${['Check the frame', 'Climbing', 'Saved', 'Resting'][wst]}</b>${cap[wst]}</p></div>`;
+}
 function viewWatch() {
-  const r = current() || list()[0], k = r.tries + 1;
-  const faces = [
-    [`${r.color} ${r.grade}`, `Try ${k}`, '<span class="wf-b">Tap</span>', 'Tap as you start. The phone starts filming.'],
-    [`Try ${k}`, 'Sent it?', '<span class="wf-2"><i>✓</i><i>✕</i></span>', 'Tap when you’re down, then answer.'],
-    ['Rest', '1:42', '<span class="wf-ring"></span>', 'Buzzes when it’s time to go again.']
-  ];
+  const mineW = user === 'regular' ? 'Maria’s Apple Watch' : 'Your Apple Watch';
   return { photo: 'woman3', html: `
     ${bar('Watch')}
     <h1 class="hl">Climb with your watch</h1>
-    <p class="sub-w">Chalky hands, phone on the floor: log each try from your wrist while the phone films.</p>
+    <p class="sub-w">Your phone films from the floor. Your wrist starts and stops each try, so every video is one try.</p>
     <section class="glass scan-c">
-      <span class="t2">${watch ? 'Maria’s Apple Watch' : 'Apple Watch or Wear OS'}</span>
-      <span class="sub">${watch ? 'Connected · counts tries and session time' : 'Not connected yet'}</span>
+      <span class="t2">${watch ? mineW : 'Apple Watch or Wear OS'}</span>
+      <span class="sub">${watch ? 'Connected · starts and stops each try' : 'Not connected yet'}</span>
       ${watch ? '<button class="b-glass" type="button" data-act="watch">Disconnect</button>' : `<button class="pk-go static" type="button" data-act="watch">${ic.watch('#111111')}Connect a watch</button>`}
     </section>
     <div class="fold"></div>
-    <div class="hl2 dk2"><h2>On your wrist</h2></div>
-    <div class="lb">
-      <div class="lt w2 tall faces">${faces.map(([t, m, u, c]) => `<span class="wfc">${face(t, m, u)}<span class="cap">${c}</span></span>`).join('')}</div>
-      <div class="lt short"><span class="lt-h">No signal?</span><span class="mv"><span class="mv-l">Tries save on the watch and sync when your phone is back.</span></span></div>
-      <div class="lt short"><span class="lt-h">Session time</span><span class="mv"><span class="mv-l">From your first tap to End, rest included.</span></span></div>
+    <div class="hl2 dk2"><h2>On your wrist</h2><span class="hint2">tap the watch</span></div>
+    ${watchDemo()}
+    <div class="rows">
+      <a class="row" href="watch.html" target="_blank" rel="noopener"><span class="row-t"><strong>Open the watch prototype</strong><span>The watch app on its own page, full size</span></span>${ic.arr('#111111')}</a>
+      <div class="row"><span class="row-t"><strong>Wrong route or try?</strong><span>Fix it on the video later. The watch never asks while you climb.</span></span></div>
+      <div class="row"><span class="row-t"><strong>No signal?</strong><span>Tries save on the watch and sync when your phone is back.</span></span></div>
+      <div class="row"><span class="row-t"><strong>Apple Health</strong><span>Each session saves as a Climbing workout: time, heart rate and calories, each climb a segment. Asks once.</span></span></div>
+      <div class="row"><span class="row-t"><strong>Session time</strong><span>From your first climb to End, rest included.</span></span></div>
     </div>` };
 }
 
@@ -1903,7 +1955,7 @@ function openSheet() {
   sheet.classList.add('show'); scrim.classList.add('show');
 }
 
-function start() { session = 'live'; secs = 0; tries = 0; tops = 0; posted = false; today.clear(); }
+function start() { session = 'live'; secs = 0; tries = 0; tops = 0; posted = false; wcl = []; today.clear(); }
 // AI 4 · one recording (shutter or watch): every try in it is cut out and filed to the route, then "Sent it?" about the last one
 function record(k = 1) {
   const r = filmRoute();
@@ -1918,6 +1970,17 @@ function record(k = 1) {
   }
   lastRoute = r; lastCut = k; camDone = { r, tries: saved, sent: false };
   render();
+}
+// a climb filmed with the watch: saved at once, read from the video a moment later. Never asks if you topped it
+function watchClimb() {
+  const r = filmRoute(), n = wcl.length + 1;
+  tries++; secs += 240;
+  let c;
+  if (r) { sel[user] = list().indexOf(r); r.tries++; tried(r); logOf(r).tries++; lastRoute = r; lastCut = 1;
+    c = addClip(r, { try: r.tries, high: r.highs[r.highs.length - 1], k: TODAY, raw: `1:${String(5 + r.tries * 4).padStart(2, '0')}`, ...VIDS[r.tries % VIDS.length] }); }
+  else c = addClip(null, { k: TODAY, ...VIDS[n % VIDS.length] });
+  const w = { n, c, r, read: false }; wcl.push(w); render();
+  setTimeout(() => { w.read = true; if (page === 'cam') render(); }, 1800);
 }
 function setupEnd() {
   const lv = levels[setup.level];
@@ -1988,12 +2051,14 @@ const actions = {
     toast(first ? `Your first send! ${rname(camDone.r)}` : `${rname(camDone.r)} sent`);
   },
   sentnote: () => openSheet(),
+  // End on the phone ends the watch too, and the other way round
+  wend: () => { endSession(); toast('Session ended on your watch too'); },
   camsee: () => { lastRoute = camDone.r; go('compare'); },
   camdone: () => go('videos'),
   keep: () => { closeAll(); go(`gym/${gi}`); },
   endnow: () => { closeAll(); endSession(); },
   fr: b => { frame = Math.min(210, Math.max(1, frame + +b.dataset.d)); render(); },
-  again: () => { openCam(false); toast(watch ? 'Rest a minute, then tap your watch as you start' : 'Rest a minute, then start filming'); },
+  again: () => { openCam(false); toast(watch ? 'Tap Start on your watch when you’re ready' : 'Start filming when you’re ready'); },
   // v2 · add a climb: film, upload, log by hand; the watch
   // Film opens the camera and nothing else; the session starts with the first recording
   film: b => { if (b.dataset.r) { sel[user] = +b.dataset.r; located = false; } openCam(!b.dataset.r); },
@@ -2002,10 +2067,12 @@ const actions = {
     if (!filming) {
       // prototype: a try is cut every few seconds while recording
       if (session !== 'live') start();
-      filming = true; cut = 0; camDone = null; camPick = false; render();
+      filming = true; cut = 0; recS = 0; camDone = null; camPick = false; render();
+      if (watch) { cutT = setInterval(() => { recS++; const t = $('recT'); if (t) t.textContent = `${Math.floor(recS / 60)}:${String(recS % 60).padStart(2, '0')}`; }, 1000); return; }
       cutT = setInterval(() => { if (filming && page === 'cam' && cut < 4) { cut++; render(); } }, 2500);
       return;
     }
+    if (watch) { filming = false; watchClimb(); return; }
     const k = Math.max(1, cut); filming = false; cut = 0; record(k);
   },
   upload: () => { edFrom = page; openUpload(); },
@@ -2056,7 +2123,9 @@ const actions = {
   dset: b => { draft[b.dataset.k] = b.dataset.k === 'color' ? b.dataset.v : +b.dataset.v; drawLog(); },
   dk: b => { draft.k = Math.max(1, Math.min(20, draft.k + +b.dataset.d)); drawLog(); },
   logsave: () => saveLog(),
-  watch: () => { watch = !watch; render(); toast(watch ? 'Watch connected · tap it before each try' : 'Watch disconnected'); },
+  wtap: () => { wst = (wst + 1) % 4; $('wdemo').outerHTML = watchDemo(); },
+  wgo: b => { wst = +b.dataset.i; $('wdemo').outerHTML = watchDemo(); },
+  watch: () => { watch = !watch; render(); toast(watch ? 'Watch connected · tap Start before each try' : 'Watch disconnected'); },
   notnow: () => { const r = lastRoute || current(); openAsk('keep', `${r.color} ${r.grade} saved for next time`); },
   hide: b => {
     const [r, e] = [...today.entries()][+b.dataset.i];
@@ -2068,7 +2137,7 @@ const actions = {
     posted = true; go('videos');
   },
   // videos: filter, open, tag a route, hide, delete
-  vf: b => { const i = +b.dataset.i; vf = i === -1 ? 'all' : i === -2 ? 'none' : clipRoutes()[i]; render(); },
+  vf: b => { const i = +b.dataset.i; vf = i === -1 ? 'all' : i === -2 ? 'none' : i === -3 ? 'other' : myRoutes()[i]; render(); },
   place: b => { const c = byId(b.dataset.i); openLog(c.r, c); },
   anok: b => { const c = byId(b.dataset.i); confirmed(c, c.auto); },
   tagstart: b => { $('lvv')?.pause(); tagS = { id: +b.dataset.i, i: 0, pts: {} }; drawTag(byId(b.dataset.i)); document.querySelector('.screen').scrollTo(0, 0); },
@@ -2077,7 +2146,7 @@ const actions = {
   retag: b => { const c = byId(b.dataset.i); c.tags = null; c.an = 'ask'; tagS = { id: null, i: 0, pts: {} }; render(); document.querySelector('.screen').scrollTo(0, 0); },
   pvplay: pvPlay,
   ctab: b => { cTab = b.dataset.v; document.querySelectorAll('.ctabs button').forEach(x => x.setAttribute('aria-pressed', x === b)); document.querySelectorAll('.pn').forEach(p => { p.hidden = p.dataset.pn !== cTab; }); },
-  spd: b => { speed = +b.dataset.v; const v = $('lvv'); if (v) v.playbackRate = speed; document.querySelectorAll('.sp-b button').forEach(x => x.setAttribute('aria-pressed', x === b)); },
+  spd: b => { speed = { 1: .5, .5: .25, .25: 1 }[speed] || 1; const v = $('lvv'); if (v) v.playbackRate = speed; b.textContent = `${speed}×`; },   // 1× → 0.5× → 0.25×
   vplay: b => toast(`Playing · ${b.dataset.len}`),
   segplay: b => segOpen(b),
   segtoggle: () => { const v = $('cpv'); if (!v || !seg) return; if (seg.over) segAgain(); else if (v.paused) v.play().catch(() => {}); else v.pause(); },
@@ -2109,11 +2178,11 @@ const actions = {
     picking = false; picked.clear(); closeAll(); render(); toast(`${n(k, 'video', 'videos')} deleted · the tries stay in your log`);
   },
   close: () => closeAll(),
-  // originals in Photos: chalk. keeps the trimmed copy
+  // originals in Photos: Spotter keeps the trimmed copy
   oldset: () => toast(`Purple V2 · 3 videos, last climbed ${shortDay(TODAY - 23)}`),
   origdel: () => {
     const k = clips.filter(c => c.orig).length;
-    pane(`<h2>Delete ${n(k, 'original', 'originals')} from Photos?</h2><span class="sub">chalk. keeps a trimmed copy of each, with its analysis. Frees ${(k * .15).toFixed(1)} GB.</span>
+    pane(`<h2>Delete ${n(k, 'original', 'originals')} from Photos?</h2><span class="sub">Spotter keeps a trimmed copy of each, with its analysis. Frees ${(k * .15).toFixed(1)} GB.</span>
       <div class="two"><button class="b-ghost" type="button" data-act="close">Keep them</button><button class="b-lime" type="button" data-act="origyes">Delete originals</button></div>`);
   },
   origyes: () => { const k = clips.filter(c => c.orig).length; clips.forEach(c => { c.orig = false; }); closeAll(); render(); toast(`${(k * .15).toFixed(1)} GB freed on your phone`); },
@@ -2124,7 +2193,7 @@ const actions = {
   shsend: () => { closeAll(); toast(user === 'regular' ? 'Sent to Alex and Jo' : 'Link copied · paste it anywhere'); },
   // profile, friends
   size: () => toast('Change your level, height and arm span here'),
-  export: () => toast(user === 'regular' ? 'chalk-log.csv · 142 tries, 24 sends, every video link' : `chalk-log.csv · ${n(tries, 'try', 'tries')} so far`),
+  export: () => toast(user === 'regular' ? 'spotter-log.csv · 142 tries, 24 sends, every video link' : `spotter-log.csv · ${n(tries, 'try', 'tries')} so far`),
   ftag: b => {
     tagPending = false;
     if (b.dataset.v === '1') [4, 5].forEach(t => addClip(data.regular[0], { try: t, high: 4, k: 75, len: `0:4${t}`, img: 'woman2', by: 'Alex' }));

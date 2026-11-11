@@ -1,6 +1,6 @@
-# chalk. prototype
+# Spotter prototype
 
-Clickable prototype of chalk., an indoor bouldering app for beginners (DTX 495, UIUC).
+Clickable prototype of Spotter, an indoor bouldering app for beginners (DTX 495, UIUC).
 Every screen follows a step of the user flow ("Flow chart v2" in FigJam).
 Plain HTML, CSS and JavaScript: no build step, no dependencies.
 
@@ -101,7 +101,7 @@ v2 answers those questions:
   - Videos can be managed in bulk, and originals deleted from Photos to free space.
   - A send can be shared as a poster, and all sends as a highlight reel, labelled for you.
 - Set up went from five screens (gym, import clips, clips sorted, level, sharing) to two (gym, then level with the sharing note). Importing moved out of set up: Videos offers the climbing videos it finds in Photos, with a dot on its tab.
-- KEKE is an archive for climbers who already film themselves. chalk. stays aimed at beginners: one tip and one drill per try, beta from climbers your height, and a fast start.
+- KEKE is an archive for climbers who already film themselves. Spotter stays aimed at beginners: one tip and one drill per try, beta from climbers your height, and a fast start.
 
 v3 follows KEKE's user flow, from a screen recording of the app (Nov 3, 2026): add first, fix later.
 

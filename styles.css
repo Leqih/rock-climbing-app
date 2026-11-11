@@ -1,4 +1,4 @@
-/* chalk. prototype. Every screen: soft blurred photo behind the top (white text, glass), flat light tiles below it,
+/* Spotter prototype. Every screen: soft blurred photo behind the top (white text, glass), flat light tiles below it,
    light numerals, square-ish corners, one lime action. Lime = you / act now, lilac = next goal / projects.
    Screen-specific styles (set up, walls, route, compare, summary, progress, friends) live in pages.css. */
 :root {
@@ -105,7 +105,7 @@ h1, h2, p { margin: 0; }
 .short .mv b { font-size: 36px; }
 .short .mv-l { font-size: 14px; }
 .avs { position: absolute; top: 14px; right: 14px; display: flex; padding-left: 8px; }
-.avs img { width: 30px; height: 30px; border-radius: 6px; margin-left: -8px; box-shadow: 0 0 0 2px #F3F3F1; filter: grayscale(1); object-position: 50% 25%; }
+.avs img { width: 30px; height: 30px; border-radius: 6px; margin-left: -8px; box-shadow: 0 0 0 2px #F3F3F1; object-position: 50% 25%; }
 .sqb { position: absolute; top: 12px; right: 12px; width: 36px; height: 36px; border-radius: 4px; background: var(--ink); display: grid; place-items: center; }
 .cv { display: block; margin-top: 8px; font-size: 13px; color: #9A9C98; }
 .cv b { font-size: 28px; font-weight: 300; color: var(--ink); }
@@ -132,7 +132,7 @@ h1, h2, p { margin: 0; }
 .pk-h { margin-bottom: 8px; font-size: 13px; color: rgba(255, 255, 255, .88); }
 .pks { display: grid; grid-template-columns: 1fr 88px; grid-template-rows: repeat(3, 1fr); gap: 8px; height: 312px; }
 .pk { position: relative; grid-row: 1 / -1; border-radius: 8px; overflow: hidden; color: var(--white); }
-.pk img, .pk-s img { position: absolute; inset: 0; filter: grayscale(1) contrast(1.05); object-position: 50% 30%; }
+.pk img, .pk-s img { position: absolute; inset: 0; object-position: 50% 30%; }
 .pk .shade { position: absolute; inset: 0; background: linear-gradient(to top, rgba(17, 17, 17, .88) 0%, rgba(17, 17, 17, .5) 45%, rgba(17, 17, 17, .1) 80%); }
 .pk-s { position: relative; display: block; border-radius: 8px; overflow: hidden; color: var(--white); }
 .pk-s .shade { position: absolute; inset: 0; background: linear-gradient(to top, rgba(17, 17, 17, .8), rgba(17, 17, 17, .1) 75%); }
@@ -180,7 +180,7 @@ h1, h2, p { margin: 0; }
 .cb-t { height: 4px; background: rgba(255, 255, 255, .14); }
 .cb-f { display: block; height: 100%; background: var(--white); }
 .cb-f.lime { background: var(--lime); }
-.tile.photo img { position: absolute; inset: 0; filter: grayscale(1) contrast(1.05); object-position: 50% 30%; }
+.tile.photo img { position: absolute; inset: 0; object-position: 50% 30%; }
 .tile.photo .shade { position: absolute; inset: 0; background: linear-gradient(to top, rgba(17, 17, 17, .85) 0%, rgba(17, 17, 17, .55) 45%, rgba(17, 17, 17, .05) 80%); }
 .tile .play { width: 40px; height: 40px; border-radius: 6px; background: rgba(255, 255, 255, .82); display: grid; place-items: center; top: 12px; left: 12px; }
 .tile.photo b { font-size: 36px; }
