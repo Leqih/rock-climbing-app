@@ -3,7 +3,7 @@
 // The climbing videos are The Way Up (Maschek & Schedl, CC BY 4.0): ten climbers on the same two routes, filmed from the floor.
 // You are one of them; five others with full scans are the community. Their names, likes and comments are sample data.
 // Every number about a climb is measured from its video (video/<vid>.track.json, or a live scan in the browser).
-// Routes: #/videos (tab) · #/clip/<id> · #/vs/<id>-<v> · #/route/<i> · #/walls (Gyms tab) · #/gyms (map) · #/gym/<i> · #/friends (tab) · #/friends/plan
+// Routes: #/videos (tab) · #/shelf/all|gym (a binder) · #/clip/<id> · #/vs/<id>-<v> · #/route/<i> · #/walls (Gyms tab) · #/gyms (map) · #/gym/<i> · #/friends (tab) · #/friends/plan
 // · #/scan (photo a route, its beta drawn on) · #/person/<name> · #/profile (tab) · #/session (log by hand, the session clock) · #/summary · #/watch · #/cam · #/setup
 // Back from v8 (2026-11-12): other gyms and the map, logging by hand, the session clock, the watch, the highlight reel, the share poster,
 // CSV export, friends with plans and a who's-free week, following, and portraits for the sample people
@@ -210,33 +210,56 @@ const rcard = i => { const r = ROUTES[i], cs = mineOn(i), top = cs.some(topOf) |
 const pcard = (x, last) => `<div class="vc pc"><button class="fr-f" type="button" data-act="to" data-to="person/${x.who}" aria-label="${x.who}’s page">${avatar(x.who)}</button>
     <span class="vc-b"><b>${x.who}</b><span class="vc-d">${peerLine(x)}</span></span>
     ${last ? `<button class="pc-go" type="button" data-act="to" data-to="vs/${last.id}-${x.i}" aria-label="Compare your try with ${x.who}">VS</button>` : `<button class="pc-go w" type="button" data-act="fwatch" data-v="${x.i}">Watch</button>`}</div>`;
+// Videos is a shelf, like a card collector's binders: a box with everything, two pinned moments, then one binder per gym.
+// A binder opens on its own page (#/shelf/all or #/shelf/gym): the route tabs and the two-column feed of tries
+const vtops = () => ROUTES.filter((r, i) => mineOn(i).some(topOf) || handOn(i).some(l => l.sent)).length;
+const vlogged = () => logs.filter(l => l.tries || l.sent).length + glogs.length;
 function viewVideos() {
+  const hn = vlogged();
   const head = !clips.length ? `<section class="glass scan-c"><span class="t2">No videos yet</span>
       <span class="sub">Film a try at ${gym.name} or import one from your camera roll. Spotter finds every move and shows you others on the same route.</span>
       <div class="two"><button class="b-glass" type="button" data-act="upload">Import videos</button><button class="b-lime" type="button" data-act="film">${ic.rec}Film a try</button></div></section>` : '';
-  const tops = ROUTES.filter((r, i) => mineOn(i).some(topOf) || handOn(i).some(l => l.sent)).length, hn = logs.filter(l => l.tries || l.sent).length;
-  // tabs: everything, one per route you have tries on, and grade days. Newest first; on one day the hand log goes after the videos
+  const tops = vtops(), newest = [...clips].sort((p, q) => agoOf(p) - agoOf(q) || q.id - p.id);
+  const box = clips.length || hn ? `<button class="vbox" type="button" data-act="to" data-to="shelf/all" aria-label="All videos">
+      <span class="vbox-f">${[2, 1, 0].map(k => newest[k] ? `<img src="img/${newest[k].img}.jpg" alt="">` : '<i></i>').join('')}</span>
+      <span class="vbox-t"><b>All videos</b><span>${n(clips.length, 'video', 'videos')}</span>${hn ? `<span>${n(hn, 'day by hand', 'days by hand')}</span>` : ''}</span></button>` : '';
+  // pinned: your hardest send and the highlight reel, only once something is topped
+  const sent = clips.filter(topOf), best = sent.sort((p, q) => GR.indexOf(ROUTES[q.ri].grade) - GR.indexOf(ROUTES[p.ri].grade) || agoOf(p) - agoOf(q))[0];
+  const pins = best ? `<div class="sec"><h2>Pinned</h2></div><div class="rgrid">
+      <button class="vc" type="button" data-act="to" data-to="clip/${best.id}"><span class="vc-i rc"><img src="img/${best.img}.jpg" alt=""><span class="vc-t g">Hardest send</span></span>
+        <span class="vc-b"><span class="vc-r">${sw(ROUTES[best.ri])}${rname(ROUTES[best.ri])}</span><b>Try ${tryOf(best)}</b><span class="vc-d">${dayLabel(agoOf(best))}</span></span></button>
+      <button class="vc" type="button" data-act="reel"><span class="vc-i rc"><img src="img/${newest.find(topOf).img}.jpg" alt=""><span class="vc-pl">${ic.play.replace('#111111', '#FFFFFF')}</span></span>
+        <span class="vc-b"><span class="vc-r">Highlight reel</span><b>${n(sent.length, 'send', 'sends')}</b><span class="vc-d">${sent.length * 8} seconds</span></span></button></div>` : '';
+  // one binder per gym you've climbed at: four of its newest videos through the sleeve
+  const binder = clips.length || hn ? `<div class="sec"><h2>Gyms</h2></div><div class="rgrid">
+      <button class="vc bnd" type="button" data-act="to" data-to="shelf/gym" aria-label="${gym.name}">
+        <span class="bnd-s">${[0, 1, 2, 3].map(k => newest[k] ? `<img src="img/${newest[k].img}.jpg" alt="">` : '<i></i>').join('')}</span>
+        <span class="vc-b"><span class="vc-r">${gym.name}</span><b>${n(clips.length, 'video', 'videos')}</b>
+        <span class="vc-d">${tops ? `<span class="stg on">${tops} of ${ROUTES.length} routes topped</span>` : `${ROUTES.length} routes`}</span></span></button></div>` : '';
+  return { photo: clips.length ? clips[clips.length - 1].img : 'wayup-p3-green', html: `
+    ${tabHead('Videos')}
+    ${planToday()}
+    ${head}
+    <div class="fold"></div>
+    ${box}${pins}${binder}` };
+}
+// a binder: every try (all) or one gym's, with a tab per route and one for grade days. Newest first; on one day the hand log goes after the videos
+function viewShelf(a) {
   const rs = ROUTES.map((r, i) => i).filter(i => mineOn(i).length || handOn(i).length), gd = [...new Set(glogs.map(x => x.ago))].sort((p, q) => p - q);
   if (vTab !== 'all' && vTab !== 'grade' && !rs.includes(+vTab)) vTab = 'all';
   if (vTab === 'grade' && !gd.length) vTab = 'all';
   const items = [];
   rs.filter(i => vTab === 'all' || +vTab === i).forEach(i => { mineOn(i).forEach(c => items.push([agoOf(c), 0, vcard(c)])); handOn(i).forEach(l => items.push([l.ago, 1, vhand(l)])); });
   if (vTab === 'all' || vTab === 'grade') gd.forEach(d => items.push([d, 2, vgrade(d, gday(d))]));
-  items.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  items.sort((p, q) => p[0] - q[0] || p[1] - q[1]);
   const peer = vTab !== 'all' && vTab !== 'grade' ? vpeers(+vTab) : '';
   const tabs = rs.length + (gd.length ? 1 : 0) > 1 ? `<div class="vtabs" role="tablist">
       <button type="button" role="tab" data-act="vtab" data-t="all" aria-selected="${vTab === 'all'}">All</button>
       ${rs.map(i => `<button type="button" role="tab" data-act="vtab" data-t="${i}" aria-selected="${vTab === String(i)}">${rname(ROUTES[i])}</button>`).join('')}
       ${gd.length ? `<button type="button" role="tab" data-act="vtab" data-t="grade" aria-selected="${vTab === 'grade'}">By grade</button>` : ''}</div>` : '';
-  const groups = items.length ? `${tabs}<div class="vfeed">${peer}${items.map(x => x[2]).join('')}</div>` : '';
-  return { photo: clips.length ? clips[clips.length - 1].img : 'wayup-p3-green', html: `
-    ${tabHead('Videos')}
-    <p class="sub-w">${clips.length || hn ? `${gym.name} · ${tops} of ${ROUTES.length} routes topped` : `Your tries at ${gym.name}, each one analysed`}</p>
-    ${planToday()}
-    ${head}
-    <div class="fold"></div>
-    ${vTab === 'all' ? reelTile() : ''}
-    ${groups}` };
+  return { html: `${bar()}
+    <h1 class="hl">${a === 'gym' ? gym.name : 'All videos'}</h1>
+    ${items.length ? `${tabs}<div class="vfeed">${peer}${items.map(x => x[2]).join('')}</div>` : ''}` };
 }
 
 /* ---------- Import from the camera roll ---------- */
@@ -301,7 +324,7 @@ async function analyse(c, seed) {
     c.auto = track?.first || null;
     if (c.auto && c.track) { c.tags = c.auto; c.an = 'done'; } else c.an = 'ask';
   }
-  if (here() || ['videos', 'profile', 'route', 'vs', 'session'].includes(page)) render();
+  if (here() || ['videos', 'shelf', 'profile', 'route', 'vs', 'session'].includes(page)) render();
 }
 const anState = cs => cs.some(x => x.hold) ? 'hold' : cs.some(x => x.an === 'ask') ? 'ask' : cs.some(x => (x.r || vidOf(x)) && x.an !== 'done') ? 'run' : 'done';
 // the track of this video, under it: each hand and foot over time, and every rest. Tap anywhere to go to that moment
@@ -1356,9 +1379,6 @@ function openReel(day) {
     <p class="hint">Each send plays for 8 seconds, from its last move to the top.</p>
     ${shareBtns()}`);
 }
-const reelTile = () => { const s = clips.filter(topOf); return s.length ? `<div class="lb"><button class="lt w2 short pt reel-t" type="button" data-act="reel"><img src="img/${s[s.length - 1].img}.jpg" alt=""><span class="shade"></span>
-    <span class="lt-h">Highlight reel</span><span class="sqb">${ic.play.replace('#111111', '#FFFFFF')}</span>
-    <span class="mv"><b>${n(s.length, 'send', 'sends')}</b><span class="mv-l">${s.length * 8} seconds, labels added</span></span></button></div>` : ''; };
 
 /* ---------- Export: your log as a CSV file ---------- */
 function exportLog() {
@@ -1486,8 +1506,8 @@ const moreActions = {
 };
 
 /* ---------- shell: routing, render, sheets ---------- */
-const views = { setup: viewSetup, videos: viewVideos, clip: viewClip, vs: viewVs, route: viewRoute, walls: viewGymsTab, gyms: viewGyms, gym: viewGym, friends: viewFriends, person: viewPerson, profile: viewProfile, cam: viewCam, session: viewSession, logc: viewSession, scan: viewScan, summary: viewSummary, watch: viewWatch };
-const tabOf = { videos: 'videos', clip: 'videos', vs: 'videos', cam: 'videos', route: 'walls', walls: 'walls', gyms: 'walls', gym: 'walls', session: 'videos', logc: 'videos', scan: 'walls', summary: 'profile', watch: 'profile', friends: 'friends', person: 'friends', profile: 'profile' };
+const views = { setup: viewSetup, videos: viewVideos, shelf: viewShelf, clip: viewClip, vs: viewVs, route: viewRoute, walls: viewGymsTab, gyms: viewGyms, gym: viewGym, friends: viewFriends, person: viewPerson, profile: viewProfile, cam: viewCam, session: viewSession, logc: viewSession, scan: viewScan, summary: viewSummary, watch: viewWatch };
+const tabOf = { videos: 'videos', shelf: 'videos', clip: 'videos', vs: 'videos', cam: 'videos', route: 'walls', walls: 'walls', gyms: 'walls', gym: 'walls', session: 'videos', logc: 'videos', scan: 'walls', summary: 'profile', watch: 'profile', friends: 'friends', person: 'friends', profile: 'profile' };
 const tabs = ['videos', 'walls', 'friends', 'profile'];
 const dock = document.querySelector('.dock');
 function readHash() { const [p = '', a = ''] = location.hash.replace(/^#\/?/, '').split('/'); page = views[p] ? p : 'videos'; arg = a; }
