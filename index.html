@@ -10,8 +10,8 @@
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Urbanist:wght@300;400;500;600;700&display=swap">
   <!-- Gyms page map: Leaflet with OpenStreetMap tiles; needs a connection -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin>
-  <link rel="stylesheet" href="styles.css?v=20261111v112">
-  <link rel="stylesheet" href="pages.css?v=20261111v112">
+  <link rel="stylesheet" href="styles.css?v=20261111v196">
+  <link rel="stylesheet" href="pages.css?v=20261111v196">
 </head>
 <body>
 <main class="stage">
@@ -46,8 +46,12 @@
       <span class="sub" id="sheetSub"></span>
       <div class="field">
         <span class="lbl" id="feltLbl">How did it feel?</span>
-        <div class="opts" id="feltOpts"><button type="button" aria-pressed="false">Easier</button><button type="button" aria-pressed="false">About right</button><button type="button" aria-pressed="false">Harder</button></div>
-        <p class="hint">Helps us pick your next route.</p>
+        <div class="opts" id="feltOpts"><button type="button" aria-pressed="false">Soft</button><button type="button" aria-pressed="false">Spot on</button><button type="button" aria-pressed="false">Hard</button></div>
+        <p class="hint">Compared with the grade on the tag. Climbers looking at this route see what everyone said.</p>
+      </div>
+      <div class="field">
+        <span class="lbl">How much did you like it?</span>
+        <div class="stars" id="starOpts" role="radiogroup" aria-label="Stars"><button type="button" role="radio" aria-checked="false" aria-label="1 star" data-n="1">★</button><button type="button" role="radio" aria-checked="false" aria-label="2 stars" data-n="2">★</button><button type="button" role="radio" aria-checked="false" aria-label="3 stars" data-n="3">★</button><button type="button" role="radio" aria-checked="false" aria-label="4 stars" data-n="4">★</button><button type="button" role="radio" aria-checked="false" aria-label="5 stars" data-n="5">★</button></div>
       </div>
       <div class="field">
         <label class="lbl" for="noteIn">Note</label>
@@ -76,8 +80,8 @@
 </main>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin></script>
 <!-- live pose analysis on clips: MediaPipe Pose Landmarker, loaded from jsDelivr when a clip plays -->
-<script src="pose.js?v=20261111v112"></script>
-<script src="app.js?v=20261111v112"></script>
-<script src="i18n.js?v=20261111v112"></script>
+<script src="pose.js?v=20261111v196"></script>
+<script src="app.js?v=20261111v196"></script>
+<script src="i18n.js?v=20261111v196"></script>
 </body>
 </html>

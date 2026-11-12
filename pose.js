@@ -92,10 +92,7 @@
     ctx.lineWidth = 3 * u; ctx.strokeStyle = 'rgba(255,255,255,.9)';
     BONES.forEach(([a, b]) => { if (p[a].v < .3 || p[b].v < .3) return; ctx.beginPath(); ctx.moveTo(p[a].x, p[a].y); ctx.lineTo(p[b].x, p[b].y); ctx.stroke(); });
     // elbows: lime when straight, white ring when bent
-    [[P.le, f.el], [P.re, f.er]].forEach(([i, a]) => { if (a == null) return; ctx.beginPath(); ctx.arc(p[i].x, p[i].y, 5 * u, 0, 7); ctx.fillStyle = a > 145 ? '#DDF26A' : '#FF8A65'; ctx.fill();
-      // the angle, right where it's measured
-      const x = p[i].x + 9 * u, y = p[i].y - 7 * u, s = `${Math.round(a)}°`; ctx.font = `600 ${15 * u}px sans-serif`; const w = ctx.measureText(s).width;
-      ctx.fillStyle = 'rgba(17,17,17,.75)'; ctx.fillRect(x - 3 * u, y - 14 * u, w + 6 * u, 18 * u); ctx.fillStyle = '#FFFFFF'; ctx.fillText(s, x, y); });
+    [[P.le, f.el], [P.re, f.er]].forEach(([i, a]) => { if (a == null) return; ctx.beginPath(); ctx.arc(p[i].x, p[i].y, 5 * u, 0, 7); ctx.fillStyle = a > 145 ? '#DDF26A' : '#FF8A65'; ctx.fill(); });
     [P.ls, P.rs, P.lh, P.rh, P.lk, P.rk].forEach(i => { if (p[i].v < .3) return; ctx.beginPath(); ctx.arc(p[i].x, p[i].y, 3.5 * u, 0, 7); ctx.fillStyle = '#FFFFFF'; ctx.fill(); });
     // the hand or foot that is moving now
     LIMBS.forEach(([k, name]) => { const q = p[P[k]]; if (q.v < .3) return; const on = name === f.now;
@@ -593,6 +590,14 @@
     if (stills[key]) return Promise.resolve(stills[key]);
     return line = line.then(() => grab(src, T, s, mark, tone)).then(u => stills[key] = u).catch(() => null);
   };
+  // where the climber is at time t (0 to 1 across and down), from the nearest frame where we could see them; null if none near
+  window.poseBox = (T, t) => {
+    const i = Math.min(T.S.length - 1, Math.max(0, Math.round(t * T.hz)));
+    for (let d = 0; d < 6; d++) for (const k of [i - d, i + d]) { const f = T.S[k]; if (!f?.p) continue;
+      const q = unpack(f, 1, 1).filter(Boolean), xs = q.map(a => a.x), ys = q.map(a => a.y);
+      return { x0: Math.min(...xs), x1: Math.max(...xs), y0: Math.min(...ys), y1: Math.max(...ys) }; }
+    return null;
+  };
   window.posePlay = (v, cv, T, mark) => {   // with a mark: only the picture, for a stretch played on its own
     const ctx = cv.getContext('2d'); cv.width = T.W; cv.height = T.H;
     let last = -1;
@@ -606,6 +611,10 @@
         f = { pts, now: a.now || T.moves.find(m => t >= m.t0 && t <= m.t)?.name || null, el: a.el, er: a.er, off: a.off, trail }; }
       draw(ctx, f, T.W, T.H, mark);
       if (mark) return;
+      // where the climber is in the picture right now (0 to 1 across and down), for zooming in on them
+      if (!f) window.poseNow = null;
+      if (f) { const ps = f.pts.filter(Boolean); if (ps.length) { const xs = ps.map(q => q.x / T.W), ys = ps.map(q => q.y / T.H);
+        window.poseNow = { x0: Math.min(...xs), x1: Math.max(...xs), y0: Math.min(...ys), y1: Math.max(...ys) }; } }
       const rest = T.rests.find(r => t >= r.t0 && t < r.t1), bent = f ? arm(f) : null, straight = bent > 145;
       set('tl-time', `${clock(t)} / ${clock(T.D)}`);
       set('tl-now', !f ? 'Can’t see you here' : f.now ? `${f.now} moving` : rest ? `Resting · ${(t - rest.t0).toFixed(1)} s` : 'Between moves');

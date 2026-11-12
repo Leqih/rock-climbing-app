@@ -898,3 +898,346 @@ a.row { text-decoration: none; color: inherit; }
 .cam-wl span.rd { background: rgba(255, 255, 255, .2); color: var(--white); }
 .cam-wl .sw { box-shadow: none; }
 .cam-end { justify-self: end; height: 36px; padding: 0 14px; border-radius: 18px; background: rgba(255, 255, 255, .16); }
+/* analysis: video full width; the live readouts sit in Body as three cells in a row */
+.pn .lv-s { display: grid; grid-template-columns: repeat(3, 1fr); grid-auto-rows: auto; gap: 8px; margin-top: 12px; }
+.pn .lv-s div { padding: 10px 12px; }
+.pn .lv-s b { font-size: 15px; }
+.pn .tl { margin-top: 8px; }
+.ctabs { margin-top: 12px; }
+.an-k1 { display: block; margin-bottom: 4px; font-size: 13px; font-weight: 600; color: var(--mid); }
+.pn .lv-s.n2 { grid-template-columns: repeat(2, 1fr); }
+/* Videos tile: one line at the bottom */
+.vt-b { display: flex; align-items: center; gap: 3px; }
+.vt-b svg { width: 12px; height: 12px; }
+/* Profile: the recap on a solid card, readable over the photo; heatmap labels big enough to read */
+.recap.solid { padding: 16px; border-radius: 8px; background: var(--white); color: var(--ink); }
+.recap.solid .sub { font-size: 14px; color: var(--mid); }
+.me + .recap { margin-top: 16px; }
+.hm-m, .hm-d { font-size: 12px; }
+.hm-m { bottom: 150px; }
+/* analysis: the video centred; the live tip in Body; times that play their stretch */
+.lv-w.two { justify-content: center; }
+.lv-tip { margin: 12px 0 0; padding: 12px 14px; border-radius: 8px; background: var(--ink); color: var(--white); font-size: 14px; line-height: 1.35; }
+.t-at { display: inline; padding: 0 2px; font: inherit; color: inherit; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.tip-n { display: block; margin-top: 6px; font-size: 13px; line-height: 1.35; color: var(--mid); }
+.lv-k { margin: 6px 0 0; font-size: 13px; color: var(--mid); }
+/* analysis: the video sticks under the status bar, on the same frosted band as the status bar */
+.lv-w.two { position: sticky; top: 0; z-index: 3; margin: 0 -16px; padding: 0 16px 8px; }
+/* the box keeps its full size; only the video scales. The frosted band behind it is as tall as the video looks, so
+   below it the page shows through, and clicks pass through to it */
+.lv-w.two { pointer-events: none; align-items: flex-start; }
+.lv-w.two > * { pointer-events: auto; }
+.lv-w.two .clip { z-index: 1; }
+.lv-w.two::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: var(--bh, 100%); opacity: 0; background: var(--hd); }
+.lv-w.two.stuck::before { opacity: 1; }
+.lv-w.two .clip { transition: none; }
+.seg-l { position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%); z-index: 2; display: flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px; border-radius: 15px; background: var(--lime); color: var(--ink); font-size: 13px; font-weight: 600; white-space: nowrap; }
+/* analysis: let go and the page settles on the next section, its heading right under the video */
+/* the tabs stick under the video: the bottom of the header, with one hairline under it */
+.screen.snap { --hd: #E4E5E6; }
+.screen.snap .ctabs { position: sticky; z-index: 3; margin-top: 0; padding: 12px 16px 10px; background: transparent; }
+.screen.snap .ctabs.stuck { background: var(--hd); box-shadow: 0 1px 0 rgba(17, 17, 17, .1); }
+.screen.snap { overflow-anchor: none; }
+/* the live readouts keep one line each, so nothing changes height while the video plays */
+.pn .lv-s b { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* the status bar over the analysis header: the same colour, so the header reads as one piece from the top of the screen */
+.phone.scrolled:has(.screen.snap) .status { background: #E4E5E6; backdrop-filter: none; -webkit-backdrop-filter: none; }
+/* analysis: no size animations on the video (a video resized by a transition drew outside its box, with a black strip) */
+.lv-w.two .clip, .lv-w.two::before, .screen.snap .ctabs { transition: none; }
+/* analysis: the tabs are the top of a sheet, with a handle to pull it up or tap */
+.screen.snap { scroll-snap-type: none; }
+.screen.snap .ctabs { padding-top: 22px; border-radius: 16px 16px 0 0; cursor: grab; }
+.screen.snap .ctabs::before { content: ""; position: absolute; top: 8px; left: 50%; width: 36px; height: 4px; margin-left: -18px; border-radius: 2px; background: rgba(17, 17, 17, .22); }
+/* analysis: the header (status bar, band behind the video, sheet top) fades in with the sheet, --sk going 0 to 1 */
+.lv-w.two::before, .lv-w.two.stuck::before { opacity: var(--sk, 0); }
+.screen.snap .ctabs, .screen.snap .ctabs.stuck { background: rgba(228, 229, 230, var(--sk, 0)); box-shadow: 0 1px 0 rgba(17, 17, 17, calc(.1 * var(--sk, 0))); }
+.phone.scrolled:has(.screen.snap) .status, .phone:has(.screen.snap) .status { background: rgba(228, 229, 230, var(--sk, 0)); backdrop-filter: none; -webkit-backdrop-filter: none; }
+/* analysis: the picture whose moment is playing in the video */
+.kf.on .kf-i { box-shadow: 0 0 0 3px var(--lime); }
+.an-see.on, .t-at.on { background: var(--lime); }
+/* analysis: the video follows the climber, zoomed in */
+.clip.zoom video, .clip.zoom canvas { transform-origin: 0 0; will-change: transform; }
+.tl-o { touch-action: none; }
+/* analysis: the playback speed sits with the time in the timeline, not on the video */
+.tl-r2 { display: flex; align-items: baseline; gap: 10px; }
+.tl-sp { padding: 0; font-size: 14px; font-weight: 600; color: var(--white); text-decoration: underline; text-underline-offset: 3px; }
+/* compare: the numbers as a small table, one row per climber, under one line saying what was counted */
+.pv-n { margin-top: 12px; border-top: 1px solid rgba(17, 17, 17, .1); }
+.pv-nh { display: block; padding: 10px 0 4px; font-size: 13px; color: var(--mid); }
+.pv-nr { display: grid; grid-template-columns: 1fr auto auto; gap: 16px; align-items: center; padding: 8px 0; font-size: 15px; }
+.pv-nr + .pv-nr { border-top: 1px solid rgba(17, 17, 17, .06); }
+.pv-nr span { display: flex; align-items: center; gap: 8px; }
+.pv-nr b { font-weight: 600; text-align: right; }
+.pv-nr i { width: 10px; height: 10px; border-radius: 2px; }
+.pv-n .you { background: var(--lime); }
+.pv-n .them { background: var(--lilac); }
+/* follow-cam video row: Make, then its progress, then Save and Share, all in the row */
+.row.fc .row-t { flex: 1; min-width: 0; }
+.row.fc .an-run { margin-top: 8px; }
+.fc-a { display: flex; gap: 8px; }
+a.pj { display: inline-flex; align-items: center; text-decoration: none; color: inherit; }
+/* gym: your first visit, a short list you tick off, then the gym's own site */
+.fvc { margin-top: 16px; padding: 14px 16px 12px; border-radius: 8px; background: var(--white); }
+.fv-h { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; }
+.fv-h b { font-size: 17px; font-weight: 600; }
+.fv-h span { font-size: 13px; color: var(--mid); }
+.fv-r { display: flex; gap: 12px; align-items: flex-start; width: 100%; padding: 10px 0; text-align: left; border-top: 1px solid rgba(17, 17, 17, .06); }
+.fv-r:first-of-type { border-top: 0; }
+.fv-r i { flex: none; width: 20px; height: 20px; margin-top: 1px; border-radius: 50%; box-shadow: inset 0 0 0 1.5px rgba(17, 17, 17, .35); }
+.fv-r.on i { background: var(--lime); box-shadow: inset 0 0 0 1.5px var(--ink); background-image: radial-gradient(circle, var(--ink) 3px, transparent 3.5px); }
+.fv-r.on strong { text-decoration: line-through; color: var(--mid); }
+.fv-site { display: flex; justify-content: space-between; align-items: center; width: 100%; margin-top: 6px; text-decoration: none; color: var(--ink); }
+.fvc .cap { margin: 8px 0 0; }
+/* log the send: stars; route: how the grade feels */
+.stars { display: flex; gap: 6px; margin-top: 8px; }
+.stars button { width: 44px; height: 44px; border-radius: 8px; font-size: 22px; line-height: 1; color: #C9CAC6; box-shadow: inset 0 0 0 1px #E2E2DE; }
+.stars button.on { color: var(--ink); }
+.fl-b { display: flex; gap: 2px; height: 10px; margin-top: 10px; border-radius: 5px; overflow: hidden; }
+.fl-b i { min-width: 4px; }
+.fl-soft { background: var(--lime); } .fl-ok { background: #C9CAC6; } .fl-hard { background: #FF8A65; }
+.fl-k { display: flex; gap: 14px; margin-top: 8px; font-size: 13px; color: var(--mid); }
+.fl-k b { color: var(--ink); font-weight: 600; }
+.fl-k span:last-child { margin-left: auto; color: var(--ink); font-weight: 600; }
+.fl .cap { display: block; margin-top: 6px; }
+.fv-site { height: auto; min-height: 44px; padding: 10px 14px; gap: 12px; text-align: left; font-size: 14px; }
+/* first visit: a ticked step shrinks to its name; all ticked, the card is one line */
+.fv-r.on { padding: 6px 0; }
+.fv-r.on .row-t > span { display: none; }
+.fv-r.on i { width: 16px; height: 16px; margin-top: 2px; background-image: radial-gradient(circle, var(--ink) 2.5px, transparent 3px); }
+.fv-r.on strong { font-size: 14px; font-weight: 400; }
+.fv-all { width: 100%; margin: 0; text-align: left; }
+.fvc:has(.fv-all) { padding: 14px 16px; }
+/* gym page: open or closed under the address; one card style (light, like the rows) for everything below the buttons */
+.gy-op { display: flex; align-items: center; gap: 8px; margin: -12px 0 16px; font-size: 15px; font-weight: 600; color: var(--white); }
+.gy-op i { width: 8px; height: 8px; border-radius: 50%; background: #FF8A65; }
+.gy-op.on i { background: var(--lime); }
+.gy-op .gh-live { font-weight: 400; }
+.fvc, .gc, .gy-ab { border-radius: 8px; background: #F3F3F1; color: var(--ink); backdrop-filter: none; -webkit-backdrop-filter: none; box-shadow: none; }
+.gc { margin-top: 12px; }
+.gc .gc-bars i { background: rgba(17, 17, 17, .14); }
+.gc .gc-bars i.on { background: var(--ink); }
+.gc .gc-ax, .gc .sub { color: var(--mid); }
+.fv-site { background: var(--white); }
+.gy-ab { padding: 4px 16px 12px; }
+.gy-l { display: grid; grid-template-columns: 96px 1fr; gap: 12px; padding: 10px 0; border-bottom: 1px solid rgba(17, 17, 17, .06); font-size: 14px; }
+.gy-l span { color: var(--mid); }
+.gy-l b { font-weight: 500; }
+.gy-ab .gr-c { margin: 10px 0 0; }
+.gy-ab .gy-has { margin: 12px 0 4px; }
+.gy-has span, .gy-has button { padding: 6px 10px; border-radius: 4px; background: var(--white); font-size: 13px; color: var(--ink); }
+.gy-has button { font-weight: 600; }
+.gy-ab .cap { margin: 8px 0 0; }
+/* gym page v2 (KEKE's layout): small title, two tabs, flat */
+.gy-op2 { margin: 4px 0 0; color: var(--ink); font-size: 14px; }
+.gy-tabs { display: flex; margin: 12px -16px 0; border-bottom: 1px solid rgba(17, 17, 17, .1); }
+.gy-tabs button { flex: 1; height: 44px; font-size: 16px; font-weight: 600; color: var(--mid); }
+.gy-tabs button[aria-selected="true"] { color: var(--ink); box-shadow: inset 0 -2px 0 var(--ink); }
+.gy-who2 { margin: 14px 0 0; color: var(--ink); }
+.gy-who2 b { color: var(--ink); }
+.gy-tools { display: flex; justify-content: space-between; align-items: center; margin: 14px 0 10px; }
+.gy-when { height: 34px; padding: 0 14px; border-radius: 17px; box-shadow: inset 0 0 0 1.5px var(--ink); font-size: 14px; font-weight: 600; }
+.gy-empty { display: grid; justify-items: center; gap: 8px; padding: 32px 16px; border-radius: 8px; background: #F3F3F1; text-align: center; }
+.gy-empty b { font-size: 17px; font-weight: 600; }
+.gy-empty span { font-size: 14px; color: var(--mid); max-width: 280px; }
+.gy-empty .b-ghost, .gy-empty .b-lime { margin-top: 8px; width: auto; padding: 0 20px; }
+.gy-st2 { margin: 0 0 12px; color: var(--ink); }
+.gy-car { display: flex; gap: 8px; margin: 14px -16px 0; padding: 0 16px; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; }
+.gy-car img { flex: none; width: 82%; aspect-ratio: 3 / 2; object-fit: cover; border-radius: 8px; scroll-snap-align: center; }
+.gy-dots { display: flex; justify-content: center; gap: 6px; margin-top: 10px; }
+.gy-dots i { width: 6px; height: 6px; border-radius: 50%; background: rgba(17, 17, 17, .2); }
+.gy-dots i.on { background: var(--ink); }
+.gy-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 14px; }
+.gy-t { display: grid; gap: 4px; padding: 14px 16px; border-radius: 8px; background: #F3F3F1; }
+.gy-t span { font-size: 13px; color: var(--mid); }
+.gy-t span.on { color: #2E7D32; font-weight: 600; } .gy-t span.off { color: #C4502A; font-weight: 600; }
+.gy-t b { font-size: 17px; font-weight: 600; }
+.gy-2 + .gr-c { margin: 8px 0 0; }
+.gy-ab { margin-top: 12px; }
+.gy-wh { padding: 4px 16px; }
+.gy-ad { display: flex; align-items: flex-start; gap: 12px; padding: 12px 0; text-decoration: none; color: var(--ink); }
+.gy-ad + .gy-ad { border-top: 1px solid rgba(17, 17, 17, .06); }
+.gy-ad > svg { flex: none; width: 18px; height: 18px; margin-top: 2px; stroke: var(--ink); }
+.gy-ad > span:first-of-type, .gy-ad > span:not([aria-hidden]) { flex: 1; display: grid; gap: 4px; }
+.gy-ad b { font-size: 15px; font-weight: 500; }
+.gy-ad span span { font-size: 13px; color: var(--mid); }
+.gy-web { justify-content: space-between; padding-left: 30px; }
+.gy-lk { justify-self: start; padding: 0; font-size: 14px; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
+.gy-cp { flex: none; height: 30px; padding: 0 12px; border-radius: 15px; background: var(--white); font-size: 13px; font-weight: 600; }
+.gy-sh { padding: 14px 0 2px; font-size: 13px; font-weight: 600; color: var(--mid); }
+.gy-l1 { grid-template-columns: 1fr; }
+.gy-cta { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; height: 52px; margin-top: 20px; }
+.gy-cta svg { width: 16px; height: 16px; }
+.gy-tabs button { display: flex; justify-content: center; align-items: center; text-align: center; padding: 0; }
+.gy-cta { font-size: 16px; font-weight: 600; }
+.bar:has(+ .gy-tabs) span, .bar:has(+ .gy-op2) span { font-size: 18px; font-weight: 600; color: var(--ink); }
+/* gym tabs: inside the page margins; the underline only as wide as the word, KEKE's way */
+.gy-tabs { margin: 12px 0 0; }
+.gy-tabs button[aria-selected="true"] { box-shadow: none; }
+.gy-tabs button span { display: inline-flex; align-items: center; height: 100%; padding: 0 2px; }
+.gy-tabs button[aria-selected="true"] span { box-shadow: inset 0 -3px 0 var(--ink); }
+/* feed: each post's route, KEKE's way (hold colour, grade, gym); a gym's videos full screen; a route with no video yet */
+.ts-rt { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; pointer-events: auto; }
+.ts-hold { width: 28px; height: 28px; border-radius: 50%; box-shadow: 0 0 0 2px var(--lime); }
+.ts-gr { display: grid; place-items: center; min-width: 40px; height: 28px; padding: 0 10px; border-radius: 14px; background: var(--lime); color: var(--ink); font-size: 14px; font-weight: 700; }
+.ts-rt button { height: 28px; padding: 0 12px; border-radius: 14px; background: rgba(0, 0, 0, .45); color: var(--white); font-size: 13px; }
+.tok-bk { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; background: rgba(0, 0, 0, .35); }
+.tok-g { font-size: 16px; font-weight: 600; color: var(--white); }
+.tok-sp { width: 40px; }
+.nb { display: grid; grid-template-columns: auto 1fr; gap: 10px 12px; align-items: start; margin-top: 16px; padding: 14px 16px; border-radius: 8px; background: #F3F3F1; color: var(--ink); }
+.nb-i { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: var(--ink); color: var(--lime); font-size: 13px; font-weight: 700; font-style: italic; }
+.nb .b-lime { grid-column: 1 / -1; display: flex; align-items: center; justify-content: center; gap: 8px; height: 48px; }
+/* feed: a post with no route, and VS (your try side by side with this one) */
+.ts-no { height: 28px; display: inline-flex; align-items: center; padding: 0 12px; border-radius: 14px; background: rgba(0, 0, 0, .45); color: rgba(255, 255, 255, .78); font-size: 13px; }
+.ts-rt .ts-vs { margin-left: auto; height: 32px; padding: 0 12px; border-radius: 8px; background: var(--white); color: var(--ink); font-size: 15px; font-weight: 800; font-style: italic; letter-spacing: -.5px; }
+.ts-gr.un { background: rgba(0, 0, 0, .45); color: var(--white); box-shadow: inset 0 0 0 1.5px var(--lime); }
+/* feed: the gym, on the video (KEKE); whether they topped it */
+.ts-gym { justify-self: start; display: inline-flex; align-items: center; gap: 6px; height: 28px; margin-bottom: 4px; padding: 0 12px 0 10px; border-radius: 14px; background: rgba(0, 0, 0, .45); color: var(--white); font-size: 13px; pointer-events: auto; }
+.ts-gym svg { width: 14px; height: 14px; }
+.ts-st { display: inline-flex; align-items: center; gap: 4px; height: 28px; padding: 0 12px; border-radius: 14px; background: rgba(0, 0, 0, .45); color: rgba(255, 255, 255, .85); font-size: 13px; font-weight: 600; }
+.ts-st.on { background: var(--white); color: var(--ink); }
+.ts-st svg { width: 14px; height: 14px; }
+/* gym Routes tab (Kaya's way): the floor plan with a pin per wall, filter chips, the list */
+.pl-box { margin-top: 14px; padding: 8px; border-radius: 8px; background: #F3F3F1; }
+.pl-svg { display: block; width: 100%; height: auto; }
+.pl-out { fill: var(--white); stroke: rgba(17, 17, 17, .18); stroke-width: 2; }
+.pl-in { fill: #E6ECF5; stroke: rgba(17, 17, 17, .12); }
+.pl-pin { cursor: pointer; }
+.pl-pin circle { fill: var(--white); stroke: rgba(17, 17, 17, .2); stroke-width: 1.5; }
+.pl-pin text { font-size: 13px; font-weight: 600; fill: var(--ink); }
+.pl-pin .pl-l { font-size: 11px; }
+.pl-pin.on circle { fill: var(--ink); stroke: var(--ink); }
+.pl-pin.on text:not(.pl-l) { fill: var(--white); }
+.pl-pin.dim { opacity: .45; }
+.pl-svg.sm .pl-pin circle { fill: #D9DCD6; stroke: none; }
+.pl-svg.sm .pl-pin.on circle { fill: var(--lime); stroke: var(--ink); stroke-width: 2.5; }
+.rt-h { display: flex; align-items: center; gap: 8px; margin-top: 16px; }
+.rt-h b { font-size: 18px; font-weight: 600; }
+.rt-h .hint2 { margin-left: auto; }
+.rt-x { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: #E6E6E2; font-size: 12px; }
+.rt-f { display: flex; gap: 8px; margin: 10px -16px 0; padding: 0 16px; overflow-x: auto; scrollbar-width: none; }
+.rt-f button { flex: none; height: 34px; padding: 0 14px; border-radius: 17px; box-shadow: inset 0 0 0 1.5px rgba(17, 17, 17, .25); font-size: 13px; font-weight: 600; }
+.rt-f button[aria-pressed="true"] { background: var(--ink); color: var(--white); box-shadow: none; }
+.rts { display: grid; margin-top: 8px; }
+.rt { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid rgba(17, 17, 17, .08); text-align: left; color: var(--ink); }
+.rt img { flex: none; width: 60px; height: 60px; border-radius: 6px; object-fit: cover; }
+.rt .row-t { flex: 1; min-width: 0; }
+.rt strong { display: flex; align-items: center; gap: 6px; font-size: 16px; }
+.rt-new { padding: 1px 6px; border-radius: 4px; background: var(--lime); font-size: 11px; font-style: normal; font-weight: 700; }
+.rt-m { font-size: 13px; color: var(--mid); }
+.rt-m b { color: var(--ink); font-weight: 600; }
+/* route page: your history + the wall on the plan; Log send and Attempt */
+.rh { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.rh-h { display: grid; align-content: start; gap: 0; }
+.rh-r { display: flex; justify-content: space-between; align-items: baseline; padding: 8px 0; border-top: 1px solid rgba(17, 17, 17, .08); font-size: 14px; }
+.rh-r:first-of-type { margin-top: 6px; }
+.rh-r b { font-size: 18px; font-weight: 600; }
+.rh-m { display: grid; align-content: start; gap: 6px; text-align: left; }
+.rh-a { display: grid; grid-template-columns: 1.4fr 1fr; gap: 8px; margin-top: 8px; }
+.rh-a button { height: 52px; font-size: 16px; font-weight: 600; }
+/* log send sheet */
+.ls-st { margin-bottom: 4px; }
+.ls-l { display: flex; justify-content: space-between; align-items: center; margin-top: 14px; padding: 10px 0; border-top: 1px solid rgba(17, 17, 17, .08); border-bottom: 1px solid rgba(17, 17, 17, .08); font-weight: 600; }
+/* logbook on Profile */
+.lgb { padding: 12px 16px 6px; border-radius: 8px; background: #F3F3F1; color: var(--ink); }
+.lgb-d { display: flex; align-items: center; justify-content: space-between; }
+.lgb-d > span { display: grid; justify-items: center; }
+.lgb-d b { font-size: 16px; font-weight: 600; }
+.lgb-d > span span { font-size: 13px; color: var(--mid); }
+.lgb-d button { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; background: var(--white); }
+.lgb-d button:last-child svg { transform: scaleX(-1); }
+.lgb-d button:disabled { opacity: .3; }
+.lgb-s { display: grid; grid-template-columns: repeat(3, 1fr); margin: 12px 0 4px; text-align: center; font-size: 12px; color: var(--mid); }
+.lgb-s b { display: block; font-size: 22px; font-weight: 600; color: var(--ink); }
+.lgb-r { display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px 0; border-top: 1px solid rgba(17, 17, 17, .08); text-align: left; color: var(--ink); }
+.lgb-r .row-t { flex: 1; min-width: 0; }
+.lgb-v { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; color: var(--mid); }
+.lgb-v.on { padding: 4px 10px; border-radius: 14px; background: var(--lime); color: var(--ink); font-weight: 600; }
+.lgb-v svg { width: 14px; height: 14px; }
+/* Log a climb page: date, gym, plan and routes; a route opens its Log send / Attempt in place */
+.lg-top { display: flex; justify-content: center; margin: 4px 0 12px; }
+.lg-day { display: grid; justify-items: center; }
+.lg-day b { font-size: 18px; font-weight: 600; }
+.lg-day span { font-size: 13px; color: var(--mid); }
+.rt-w { border-bottom: 1px solid rgba(17, 17, 17, .08); }
+.rt-w .rt { border-bottom: 0; width: 100%; }
+.rt-w.on { margin: 0 -8px; padding: 0 8px 10px; border-radius: 8px; background: #F3F3F1; border-bottom-color: transparent; }
+.rt-act { display: grid; grid-template-columns: 1.3fr 1fr 44px; gap: 8px; }
+.rt-act button { height: 46px; font-size: 15px; font-weight: 600; }
+.rt-more { display: grid; place-items: center; border-radius: 8px; background: var(--white); }
+/* Log a climb: today's numbers stick on top, the filters under them; the plan smaller; swipe a route row */
+.lg-sum { position: sticky; top: 0; z-index: 4; display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0 -16px; padding: 8px 16px; background: var(--bg, #D8DBDD); }
+.lg-sum .lg-day { font-size: 14px; color: var(--mid); }
+.lg-sum .lg-day b { color: var(--ink); font-weight: 600; }
+.lg-n { display: flex; gap: 12px; font-size: 12px; color: var(--mid); }
+.lg-n span { display: grid; justify-items: center; line-height: 1.1; }
+.lg-n b { font-size: 18px; font-weight: 600; color: var(--ink); }
+.pl-box.sm2 { padding: 4px 8px; }
+.pl-box.sm2 .pl-svg { max-height: 150px; margin: 0 auto; }
+.rt-stick { position: sticky; top: 50px; z-index: 3; margin: 0 -16px; padding: 0 16px 8px; background: var(--bg, #D8DBDD); }
+.rt-stick .rt-h { margin-top: 12px; padding-top: 4px; }
+.rt-tip { margin: 6px 0 0; font-size: 12px; color: var(--mid); }
+.rt-sec { margin: 14px 0 2px; font-size: 13px; font-weight: 600; color: var(--mid); text-transform: uppercase; letter-spacing: .04em; }
+.rt-w { position: relative; overflow: hidden; }
+.rt-w .rt { position: relative; z-index: 1; background: var(--bg, #D8DBDD); touch-action: pan-y; transition: transform .2s; }
+.rt-w.on .rt { background: #F3F3F1; }
+.rt-w.drag .rt { transition: none; }
+.sw-l, .sw-r { position: absolute; top: 0; bottom: 0; display: none; align-items: center; gap: 6px; padding: 0 16px; font-size: 14px; font-weight: 700; }
+.rt-w.drag .sw-l, .rt-w.drag .sw-r { display: flex; }
+.sw-l { left: 0; right: 50%; background: #E7EBDC; color: var(--mid); }
+.sw-r { right: 0; left: 50%; justify-content: flex-end; background: #E6E6E2; color: var(--mid); }
+.rt-w.go-l .sw-l { background: var(--lime); color: var(--ink); }
+.rt-w.go-r .sw-r { background: var(--ink); color: var(--white); }
+.sw-l svg { width: 16px; height: 16px; }
+/* Log a climb: undo in the toast; the clock and End; snap a tag */
+.toast.un { display: flex; align-items: center; gap: 14px; pointer-events: auto; padding: 8px 8px 8px 16px; }
+.toast.un button { padding: 6px 12px; border-radius: 6px; background: var(--lime); color: var(--ink); font-weight: 700; font-size: 13px; }
+.lg-clk { display: flex; align-items: center; gap: 8px; }
+.lg-clk b { font-size: 20px; font-weight: 600; }
+.lg-dot { width: 8px; height: 8px; border-radius: 50%; background: #E5484D; animation: lgb 1.2s infinite; }
+@keyframes lgb { 50% { opacity: .3; } }
+.lg-clk button { height: 30px; padding: 0 12px; border-radius: 15px; background: var(--ink); color: var(--white); font-size: 13px; font-weight: 600; }
+.lg-snap { display: inline-flex; align-items: center; gap: 6px; height: 30px; margin-left: 4px; padding: 0 10px; border-radius: 15px; background: var(--white); font-size: 13px; font-weight: 600; }
+.lg-snap svg { width: 16px; height: 16px; }
+.lg-cam { position: relative; display: grid; place-items: center; height: 180px; margin-top: 12px; border-radius: 8px; background: #1B1B1B url(img/wall2.jpg) center/cover; color: var(--white); font-weight: 600; overflow: hidden; }
+.lg-scan { position: absolute; left: 10%; right: 10%; height: 2px; background: var(--lime); box-shadow: 0 0 12px var(--lime); animation: lgs 1.2s ease-in-out infinite alternate; }
+@keyframes lgs { from { top: 15%; } to { top: 85%; } }
+.lg-cam > span:last-child { position: relative; padding: 4px 10px; border-radius: 6px; background: rgba(0, 0, 0, .55); }
+.rt-w.flash { animation: lgf 1.4s ease-out; }
+@keyframes lgf { 0%, 40% { box-shadow: inset 0 0 0 2px var(--lime); } 100% { box-shadow: inset 0 0 0 2px transparent; } }
+.lgb-s.ss { margin: 14px 0 6px; padding: 10px 0; border-radius: 8px; background: #F3F3F1; }
+/* Log a climb: grade groups that fold; a how-to for new climbers; after a send, ask for its video */
+button.rt-sec { display: flex; align-items: center; gap: 8px; width: 100%; margin: 14px 0 2px; padding: 4px 0; text-align: left; }
+button.rt-sec span { padding: 1px 7px; border-radius: 9px; background: #E6E6E2; font-size: 11px; color: var(--ink); text-transform: none; letter-spacing: 0; }
+button.rt-sec i { margin-left: auto; font-style: normal; }
+.lg-tip { position: relative; margin-top: 10px; padding: 12px 40px 12px 14px; border-radius: 8px; background: var(--white); font-size: 13px; line-height: 1.4; }
+.lg-tip > b { display: block; margin-bottom: 4px; font-size: 15px; }
+.lg-tip p { margin: 0 0 4px; color: var(--mid); }
+.lg-tip p b { color: var(--ink); }
+.lg-tip .rt-x { position: absolute; top: 10px; right: 10px; }
+.rt-vid { display: grid; gap: 8px; margin: 0 0 10px; padding: 10px 12px; border-radius: 8px; background: #E9F3C2; font-size: 13px; }
+.rt-vb { display: flex; gap: 8px; align-items: center; }
+.rt-vb button:not(.rt-x) { display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 12px; border-radius: 17px; background: var(--ink); color: var(--white); font-size: 13px; font-weight: 600; }
+.rt-vb button:nth-child(2) { background: var(--white); color: var(--ink); }
+.rt-vb .rt-x { margin-left: auto; }
+.rt-vb svg { width: 14px; height: 14px; }
+.cd-note { display: block; margin: 10px auto 0; font-size: 13px; color: rgba(255, 255, 255, .8); text-decoration: underline; text-underline-offset: 3px; }
+.cam-done .b-lime svg { width: 14px; height: 14px; margin-right: 6px; }
+/* Editor: the batch of imported videos on top */
+.ed-q { display: flex; gap: 8px; margin: 4px 0 12px; overflow-x: auto; }
+.ed-q button { position: relative; flex: 0 0 52px; height: 68px; border-radius: 8px; overflow: hidden; opacity: .55; }
+.ed-q button.on { opacity: 1; box-shadow: inset 0 0 0 2px var(--lime); }
+.ed-q img { width: 100%; height: 100%; object-fit: cover; }
+.ed-q span { position: absolute; left: 5px; bottom: 4px; color: #fff; font-size: 12px; font-weight: 700; text-shadow: 0 1px 3px rgba(0,0,0,.6); }
+.ed-q em { position: absolute; top: 4px; right: 4px; display: grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; background: var(--lime); }
+.ed-q em svg { width: 12px; height: 12px; }
+.roll .roll-d { grid-column: 1 / -1; margin: 6px 0 0; font-size: 13px; font-weight: 600; color: var(--mid); }
+.roll ~ .btn-l { position: sticky; bottom: 0; z-index: 2; box-shadow: 0 -12px 0 var(--white); }
+/* Set up: done steps go back; cm or inches; room under the public post */
+.ruler button { text-align: left; color: var(--white); font: inherit; }
+.su-u { display: inline-flex; margin-left: 8px; padding: 2px; border-radius: 14px; background: rgba(17, 17, 17, .08); }
+.su-u button { height: 24px; padding: 0 10px; border-radius: 12px; font-size: 12px; font-weight: 600; color: var(--mid); }
+.su-u button[aria-pressed="true"] { background: var(--white); color: var(--ink); }
+.post-demo + .cap { margin-top: 10px; }
+/* Clip page: post with a line */
+.row.pst { gap: 10px; }
+.row.pst input { flex: 1; min-width: 0; height: 40px; padding: 0 12px; border: 0; border-radius: 8px; background: #F3F3F1; font: inherit; font-size: 15px; color: var(--ink); }
