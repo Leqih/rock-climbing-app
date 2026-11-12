@@ -10,7 +10,7 @@
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
   <style>
     /* watchOS: SF Compact on Apple devices, Inter elsewhere. Sizes are in points of a 49 mm Ultra screen */
-    :root { --lime: #DDF26A; --red: #FF453A; --orange: #FF7A1A; --gray: rgba(235, 235, 245, .6); --glass: rgba(255, 255, 255, .16); --cell: rgba(255, 255, 255, .11); --stage: #E7E7E3;
+    :root { --lime: #C2FF01; --red: #FF453A; --orange: #FF7A1A; --gray: rgba(235, 235, 245, .6); --glass: rgba(255, 255, 255, .16); --cell: rgba(255, 255, 255, .11); --stage: #E7E7E3;
       --f: -apple-system, 'SF Compact Rounded', 'SF Compact', 'SF Pro Rounded', 'Inter', system-ui, sans-serif; }
     * { box-sizing: border-box; }
     html, body { margin: 0; height: 100%; background: var(--stage); }
@@ -106,7 +106,7 @@
       <div class="bt"><button class="cap" type="button" data-a="go">I’m down</button></div>`;
     if (S.step === 2) { const c = S.climbs[S.climbs.length - 1];
       return `${tb('Climb ' + c.n)}
-      <div class="body"><svg class="ring" viewBox="0 0 150 150"><circle cx="75" cy="75" r="62" stroke="rgba(221,242,106,.22)"/><circle id="rp" cx="75" cy="75" r="62" stroke="#DDF26A" stroke-linecap="round" stroke-dasharray="389.6" stroke-dashoffset="389.6" transform="rotate(-90 75 75)"/></svg>
+      <div class="body"><svg class="ring" viewBox="0 0 150 150"><circle cx="75" cy="75" r="62" stroke="rgba(221,242,106,.22)"/><circle id="rp" cx="75" cy="75" r="62" stroke="#C2FF01" stroke-linecap="round" stroke-dasharray="389.6" stroke-dashoffset="389.6" transform="rotate(-90 75 75)"/></svg>
         <span class="note">Saved · ${mmss(c.len)}<br>Reading it on your phone</span></div>`; }
     if (S.step === 3) { const c = S.climbs[S.climbs.length - 1], r = t >= S.readAt ? c.r : null;
       return `${tb('Rest')}

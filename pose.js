@@ -88,22 +88,22 @@
     const u = W / 420, p = f.pts;
     // hand paths over the last moment
     for (const k of ['lw', 'rw']) { const tr = f.trail?.[k] || []; if (tr.length < 2) continue;
-      ctx.strokeStyle = 'rgba(221,242,106,.55)'; ctx.lineWidth = 3 * u; ctx.lineCap = 'round'; ctx.beginPath(); tr.forEach((q, i) => i ? ctx.lineTo(q.x, q.y) : ctx.moveTo(q.x, q.y)); ctx.stroke(); }
+      ctx.strokeStyle = 'rgba(194,255,1,.55)'; ctx.lineWidth = 3 * u; ctx.lineCap = 'round'; ctx.beginPath(); tr.forEach((q, i) => i ? ctx.lineTo(q.x, q.y) : ctx.moveTo(q.x, q.y)); ctx.stroke(); }
     ctx.lineWidth = 3 * u; ctx.strokeStyle = 'rgba(255,255,255,.9)';
     BONES.forEach(([a, b]) => { if (p[a].v < .3 || p[b].v < .3) return; ctx.beginPath(); ctx.moveTo(p[a].x, p[a].y); ctx.lineTo(p[b].x, p[b].y); ctx.stroke(); });
     // elbows: lime when straight, white ring when bent
-    [[P.le, f.el], [P.re, f.er]].forEach(([i, a]) => { if (a == null) return; ctx.beginPath(); ctx.arc(p[i].x, p[i].y, 5 * u, 0, 7); ctx.fillStyle = a > 145 ? '#DDF26A' : '#FF8A65'; ctx.fill(); });
+    [[P.le, f.el], [P.re, f.er]].forEach(([i, a]) => { if (a == null) return; ctx.beginPath(); ctx.arc(p[i].x, p[i].y, 5 * u, 0, 7); ctx.fillStyle = a > 145 ? '#C2FF01' : '#FF8A65'; ctx.fill(); });
     [P.ls, P.rs, P.lh, P.rh, P.lk, P.rk].forEach(i => { if (p[i].v < .3) return; ctx.beginPath(); ctx.arc(p[i].x, p[i].y, 3.5 * u, 0, 7); ctx.fillStyle = '#FFFFFF'; ctx.fill(); });
     // the hand or foot that is moving now
     LIMBS.forEach(([k, name]) => { const q = p[P[k]]; if (q.v < .3) return; const on = name === f.now;
-      ctx.beginPath(); ctx.arc(q.x, q.y, (on ? 10 : 5) * u, 0, 7); ctx.fillStyle = on ? '#DDF26A' : 'rgba(255,255,255,.85)'; ctx.fill();
+      ctx.beginPath(); ctx.arc(q.x, q.y, (on ? 10 : 5) * u, 0, 7); ctx.fillStyle = on ? '#C2FF01' : 'rgba(255,255,255,.85)'; ctx.fill();
       if (on) { ctx.lineWidth = 2 * u; ctx.strokeStyle = '#111111'; ctx.stroke(); ctx.strokeStyle = 'rgba(255,255,255,.9)'; ctx.lineWidth = 3 * u; } });
     // hip over feet: a plumb line from the hips
     const hm = mid(p[P.lh], p[P.rh]), am = mid(p[P.la], p[P.ra]);
-    ctx.setLineDash([4 * u, 5 * u]); ctx.lineWidth = 1.5 * u; ctx.strokeStyle = Math.abs(f.off) < .35 ? 'rgba(221,242,106,.9)' : 'rgba(255,138,101,.9)';
+    ctx.setLineDash([4 * u, 5 * u]); ctx.lineWidth = 1.5 * u; ctx.strokeStyle = Math.abs(f.off) < .35 ? 'rgba(194,255,1,.9)' : 'rgba(255,138,101,.9)';
     ctx.beginPath(); ctx.moveTo(hm.x, hm.y); ctx.lineTo(hm.x, am.y); ctx.stroke(); ctx.setLineDash([]);
     if (mark === 'hip') {   // watching a stretch about the hips: how far they are from the middle of the feet
-      const c = Math.abs(f.off) < .35 ? '#DDF26A' : '#FF8A65', dot = (o, r, fill) => { ctx.beginPath(); ctx.arc(o.x, o.y, r * u, 0, 7); ctx.fillStyle = fill; ctx.fill(); ctx.lineWidth = 2 * u; ctx.strokeStyle = '#111111'; ctx.stroke(); };
+      const c = Math.abs(f.off) < .35 ? '#C2FF01' : '#FF8A65', dot = (o, r, fill) => { ctx.beginPath(); ctx.arc(o.x, o.y, r * u, 0, 7); ctx.fillStyle = fill; ctx.fill(); ctx.lineWidth = 2 * u; ctx.strokeStyle = '#111111'; ctx.stroke(); };
       ctx.lineWidth = 4 * u; ctx.strokeStyle = c; ctx.beginPath(); ctx.moveTo(hm.x, hm.y); ctx.lineTo(hm.x, am.y); ctx.lineTo(am.x, am.y); ctx.stroke(); dot(hm, 9, c); dot(am, 7, '#FFFFFF'); }
   }
 
@@ -330,7 +330,7 @@
     const clamp = (a, lo, hi) => Math.max(lo, Math.min(hi, a));
     const x0 = clamp((Math.min(...xs) + Math.max(...xs) - w) / 2, 0, T.W - w), y0 = clamp((Math.min(...ys) + Math.max(...ys) - h) / 2, 0, T.H - h);
     const cv = document.createElement('canvas'); cv.width = 340; cv.height = 414;
-    const ctx = cv.getContext('2d'), sc = cv.width / w, px = a => a / sc, col = tone === 'good' ? '#DDF26A' : '#FF8A65';
+    const ctx = cv.getContext('2d'), sc = cv.width / w, px = a => a / sc, col = tone === 'good' ? '#C2FF01' : '#FF8A65';
     ctx.setTransform(sc, 0, 0, sc, -x0 * sc, -y0 * sc); ctx.drawImage(still, 0, 0, T.W, T.H); ctx.lineCap = 'round';
     ctx.strokeStyle = 'rgba(255,255,255,.75)'; ctx.lineWidth = px(3);
     BONES.forEach(([a, b]) => { if (q[a].v < .3 || q[b].v < .3) return; ctx.beginPath(); ctx.moveTo(q[a].x, q[a].y); ctx.lineTo(q[b].x, q[b].y); ctx.stroke(); });
@@ -483,7 +483,7 @@
     let h = Math.max(...ys) - Math.min(...ys) + pad * 2, w = h * RATIO;
     if (w < Math.max(...xs) - Math.min(...xs) + pad * 2) { w = Math.max(...xs) - Math.min(...xs) + pad * 2; h = w / RATIO; }
     let x0 = (Math.min(...xs) + Math.max(...xs) - w) / 2, y0 = (Math.min(...ys) + Math.max(...ys) - h) / 2;
-    const sc = cv.width / w, X = q => (F(q).x - x0) * sc, Y = q => (F(q).y - y0) * sc, ctx = cv.getContext('2d'), bg = document.createElement('canvas'), LIME = '#DDF26A', LILAC = '#D9B8F5', u = cv.width / 300;
+    const sc = cv.width / w, X = q => (F(q).x - x0) * sc, Y = q => (F(q).y - y0) * sc, ctx = cv.getContext('2d'), bg = document.createElement('canvas'), LIME = '#C2FF01', LILAC = '#D9B8F5', u = cv.width / 300;
     bg.width = cv.width; bg.height = cv.height;
     const hands = holds.filter(q => q.k[1] === 'w').sort((a, b) => a.t - b.t);
     const BON = [['sl', 'sr'], ['hl', 'hr'], ['sl', 'hl'], ['sr', 'hr'], ['sl', 'el'], ['el', 'hL'], ['sr', 'er'], ['er', 'hR'], ['hl', 'kl'], ['kl', 'fL'], ['hr', 'kr'], ['kr', 'fR']];
@@ -562,7 +562,7 @@
     if (w < (Math.max(...xs) - Math.min(...xs)) * 1.2) { w = (Math.max(...xs) - Math.min(...xs)) * 1.2; h = w / RATIO; }
     if (h > T.H) { h = T.H; w = h * RATIO; } if (w > T.W) { w = T.W; h = w / RATIO; }
     const clamp = (a, lo, hi) => Math.max(lo, Math.min(hi, a)), x0 = clamp((Math.min(...xs) + Math.max(...xs) - w) / 2, 0, T.W - w), y0 = clamp((Math.min(...ys) + Math.max(...ys) - h) / 2, 0, T.H - h), sc = cv.width / w;
-    const X = q => (q.x - x0) * sc, Y = q => (q.y - y0) * sc, ctx = cv.getContext('2d'), bg = document.createElement('canvas'), LIME = '#DDF26A';
+    const X = q => (q.x - x0) * sc, Y = q => (q.y - y0) * sc, ctx = cv.getContext('2d'), bg = document.createElement('canvas'), LIME = '#C2FF01';
     bg.width = cv.width; bg.height = cv.height;
     const head = plan.keys[0], rad = hypot(head[11], head[12]) * .32 * sc;
     const body = (q, col, lw, edge) => { ctx.lineCap = 'round'; const line = (c, l) => { ctx.strokeStyle = c; ctx.lineWidth = l; BONES.forEach(([a, b]) => { ctx.beginPath(); ctx.moveTo(X(q[a]), Y(q[a])); ctx.lineTo(X(q[b]), Y(q[b])); ctx.stroke(); });
