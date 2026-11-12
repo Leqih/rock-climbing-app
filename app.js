@@ -128,6 +128,7 @@ const n = (k, w, pl) => `${k} ${k === 1 ? w : pl}`;
 const ic = {
   pin: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2B2D2E" stroke-width="1.8"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>',
   bell: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#111111" stroke-width="1.7" stroke-linecap="round"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"/><path d="M10 20.5a2.2 2.2 0 0 0 4 0"/></svg>',
+  expand: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#111111" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>',
   arr: c => `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="1.8" stroke-linecap="round"><path d="M7 17 17 7M9 7h8v8"/></svg>`,
   scan: '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#111111" stroke-width="1.7" stroke-linecap="round"><path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2"/><circle cx="12" cy="12" r="3"/></svg>',
   check: '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#111111" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5 10 17 19 7"/></svg>',
@@ -699,6 +700,10 @@ function viewCompare() {
 function viewSummary() {
   const rows = [...today.entries()];
   const any = rows.some(([, e]) => !e.hidden && e.sent);
+  const allT = rows.reduce((s, [, e]) => s + Math.max(e.tries, e.sent ? 1 : 0), 0), allS = rows.filter(([, e]) => e.sent).length;
+  const best = rows.filter(([, e]) => e.sent).map(([r]) => r).sort((p, q) => q.g - p.g)[0];
+  // your hardest before today, from the logbook
+  const prevBest = Math.max(-1, ...Object.entries(book).filter(([k]) => +k < TODAY).flatMap(([, m]) => [...m].filter(([, e]) => e.sent).map(([r]) => r.g)));
   // one photo tile per climb with its Public / Hidden toggle, then one tile saying who sees the sends
   const pub = rows.filter(([, e]) => e.sent && !e.hidden).length, hid = rows.filter(([, e]) => e.hidden).length;
   const sz = sizes(rows.length + 1);
@@ -708,7 +713,7 @@ function viewSummary() {
       <img src="img/${r.img}.jpg" alt=""><span class="shade"></span>
       ${vid(r) ? `<button class="pt-open" type="button" data-act="to" data-to="clip/${vid(r).id}" aria-label="${r.color} ${r.grade}: open the video"></button><span class="pt-play">${ic.play}</span>` : ''}
       <span class="pk-tag">${sw(r)}${r.color} ${r.grade}</span>
-      <span class="pt-b">${e.sent ? `<b>Topped</b><span>on try ${r.tries}</span>` : r.mine ? `<b>${e.tries}</b><span>${e.tries === 1 ? 'try' : 'tries'} by hand</span>`
+      <span class="pt-b">${e.sent ? `<b>Topped</b><span>${e.hand ? 'logged by hand' : `on try ${r.tries}`}</span>` : r.mine || e.hand ? `<b>${e.tries}</b><span>${e.tries === 1 ? 'try' : 'tries'} by hand</span>`
         : `<b>${Math.max(0, ...r.highs)}<small>/${r.moves}</small></b><span>highest move</span>`}</span>
       <button class="vis${e.hidden ? ' off' : ''}" type="button" data-act="hide" data-i="${i}" aria-pressed="${e.hidden}">${e.hidden ? `${ic.eyeOff}Hidden` : `${ic.eye}Public`}</button>
     </div>`).join('');
@@ -718,12 +723,13 @@ function viewSummary() {
   return { photo: 'woman2', html: `
     <h1 class="hl tab">${posted ? 'Session posted' : 'Session saved'}</h1>
     <p class="sub-w">${gyms[gi].name} · ${dateOf(TODAY).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</p>
-    <section class="glass trio"><div><b class="num">${fmt(secs)}</b><span>time</span></div><div><b class="num">${tries}</b><span>${tries === 1 ? 'try' : 'tries'}</span></div><div><b class="num">${tops}</b><span>${tops === 1 ? 'send' : 'sends'}</span></div></section>
+    <section class="glass trio"><div><b class="num">${fmt(secs)}</b><span>time</span></div><div><b class="num">${allT}</b><span>${allT === 1 ? 'try' : 'tries'}</span></div><div><b class="num">${allS}</b><span>${allS === 1 ? 'send' : 'sends'}</span></div></section>
+    ${best ? `<div class="sm-best">${ic.check}<span>Hardest send today: <b>${rname(best)}</b>${best.g > prevBest ? ' · your hardest yet' : ''}</span></div>` : ''}
     <div class="fold"></div>
     <div class="hl2 dk2"><h2>Hide any climb?</h2></div>
     <p class="cap">Sends post to your profile and friends’ feed, where friends can comment. Hidden climbs and their videos stay private. Tap a climb to watch it.</p>
     ${rows.length ? `<div class="lb">${climbs}${who}</div>`
-      : '<div class="row"><span class="row-t"><strong>No tries recorded</strong><span>Next time, tap Film on the route card before each try and they show up here.</span></span></div>'}`,
+      : '<div class="row"><span class="row-t"><strong>No tries recorded</strong><span>Next time, film a try or log one on Log a climb, and it shows up here.</span></span></div>'}`,
     cta: `<button class="b-lime" type="button" data-act="post">${any && !posted ? 'Post and finish' : 'Done'}</button>` };
 }
 
@@ -1008,6 +1014,15 @@ function pvPlay() {
   pv.on = true; label('Pause both'); if (!done(a, a0 + la)) a.play().catch(() => {}); if (!done(b, b0 + lb)) b.play().catch(() => {});
   const tick = () => { if (!pv?.on || !a.isConnected) return; if (done(a, a0 + la)) a.pause(); if (done(b, b0 + lb)) b.pause(); if (over()) { pv.on = false; label('Watch again'); return; } requestAnimationFrame(tick); }; tick();
 }
+// the one thing to try next time, read only from the counts in the pair (nothing else is known about them)
+function vsTake(p) {
+  if (p.me) return '';
+  let s = '';
+  if (p.off && p.themF - p.youF >= 2) s = `${p.who} moved their feet ${p.themF - p.youF} more times in the same ${p.off} s. Try small foot steps up before each reach.`;
+  else if (p.off && p.youN - p.themN >= 2) s = `You made ${p.youN - p.themN} more hand moves than ${p.who}. Look for the next hold before you let go.`;
+  else if (p.youN && p.you - p.them >= 5) s = `${p.who} got to the next shared hold in ${p.them} s, you in ${p.you} s, with ${n(p.youN - p.themN, 'more hand move', 'more hand moves')} from you. Plan the sequence from the ground first.`;
+  return s ? `<div class="pv-t"><b>Try next time</b><span>${s}</span></div>` : '';
+}
 function fallView(c, r, hi) {
   const next = Math.min(hi + 1, r.moves), span = mySpan();
   const line = pts => pts.map(p => p.join(',')).join(' ');
@@ -1018,7 +1033,10 @@ function fallView(c, r, hi) {
       ${peer.me ? '' : `<p class="an-n">${peer.h} cm · climbing for ${peer.yrs}</p>`}
       <div class="pv"><figure><span class="pv-b" style="aspect-ratio:${vidOf(c).ar}"><video id="pv0" src="video/${c.vid}.mp4" poster="img/${vidOf(c).img}0.jpg" muted playsinline preload="auto"></video><canvas id="pc0"></canvas></span><figcaption><i class="you"></i>${peer.me || 'You'}</figcaption></figure>
         <figure><span class="pv-b" style="aspect-ratio:${peer.ar}"><video id="pv1" src="video/${peer.vid}.mp4" poster="img/${peer.img}0.jpg" muted playsinline preload="auto"></video><canvas id="pc1"></canvas></span><figcaption><i class="them"></i>${peer.who}</figcaption></figure></div>
-      <button class="b-lime pv-go" type="button" id="pvg" data-act="pvplay">${ic.play}Play side by side</button>
+      <div class="pv-ctl"><button class="b-lime pv-go" type="button" id="pvg" data-act="pvplay">${ic.play}Play side by side</button>
+        <button class="pv-x" type="button" id="pvs" data-act="pvslow" aria-pressed="false">0.5×</button>
+        ${page === 'vs' ? '' : `<button class="pv-x" type="button" data-act="to" data-to="vs/${c.id}" aria-label="Full screen">${ic.expand}</button>`}</div>
+      ${vsTake(peer)}
       <p class="tip-d">${peer.off ? 'Both start as your first foot leaves the ground.' : peer.youN ? 'Both start on the same hold. Watch how each of you gets to the next hold you both used.' : peer.say || `Same left-hand hold, then two different choices. ${peer.who} went straight on and reached the next high hold in ${peer.them} s. Your left hand went back to a lower hold first, and you took ${peer.you} s.`}</p>
       ${peer.off ? `<div class="pv-n"><span class="pv-nh">In the first ${peer.off} s off the ground</span>
         <div class="pv-nr"><span><i class="you"></i>You</span><b class="num">${n(peer.youN, 'hand move', 'hand moves')}</b><b class="num">${n(peer.youF, 'foot move', 'foot moves')}</b></div>
@@ -1350,7 +1368,10 @@ function measured(T) {
 // arms: over the whole climb when we can read them; otherwise only at rests, the moments you hold still (the Summary uses the same)
 const bodyStats = T => { const s = T.stats, all = s.armRead >= 30, rest = !all && s.restStraight != null && s.restRead >= 50;
   return `<div class="hl2 dk2"><h2>Your whole climb</h2></div><div class="stack"><div class="lt"><div class="an-g"><div><span>${rest ? 'Arms straight, resting' : 'Arms straight'}</span><b>${all ? `${s.armsStraight}%` : rest ? `${s.restStraight}%` : '—'}</b></div><div><span>Hips over feet</span><b>${s.hipsOver}%</b></div><div><span>Moving</span><b>${s.moving}%</b></div></div>
-      <p class="an-n">Share of the time from your first move to your last, in this video.${all ? '' : rest ? ' Your arms only read clearly when you stop, so that one counts your rests.' : ' Too far from the camera to read your arms.'}</p></div></div>`; };
+      <p class="an-n">Share of the time from your first move to your last, in this video.${all ? '' : rest ? ' Your arms only read clearly when you stop, so that one counts your rests.' : ' Too far from the camera to read your arms.'}</p>
+      <dl class="an-def"><dt>Arms straight</dt><dd>Hanging on straight arms uses your skeleton, not your muscles, so you tire later.</dd>
+        <dt>Hips over feet</dt><dd>Your weight is on your legs, which are stronger than your arms.</dd>
+        <dt>Moving</dt><dd>The rest of the time you were still: reading the route, resting or stuck.</dd></dl></div></div>`; };
 function drawTag(c) {
   const tg = $('tg'); if (!tg) return;
   const fix = tagS.id === c.id, pts = fix ? tagS.pts : c.auto, next = TAGS[tagS.i];
@@ -1399,7 +1420,7 @@ function viewClip(id) {
       <div class="lt"><span class="lt-h">One tip</span><p class="tip-d">${r.short || 'Turn your hip into the wall before the long reach, so your arms stay straight.'}</p></div>
       ${r.old || r.mine ? '' : `<button class="row" type="button" data-act="vcmp" data-i="${c.id}"><span class="row-t"><strong>Compare with someone your height</strong><span>Side by side, move by move</span></span>${ic.arr('#111111')}</button>`}
     </div>` : '';
-  const fv = r && !c.sent ? fallView(c, r, hi) : null;
+  const fv = r && (!c.sent || PEERS[c.vid]) ? fallView(c, r, hi) : null;
   // like KEKE's drawer under the video: where and when it was read from, the route, and every try on that route
   const mine = r ? clips.filter(x => x.r === r).sort((a, b) => a.k - b.k || a.try - b.try) : [];
   const filmable = r && list().includes(r) && !r.topped;
@@ -1461,7 +1482,11 @@ function viewClip(id) {
       <button class="tg-c" type="button" id="tgc" data-act="place" data-i="${c.id}">Wrong route? Change it</button></div></div>`;
   const tabs = [['why', 'Summary'], ...(c.track ? [['body', 'Body']] : []), ...(fv ? [['path', 'Path']] : []), ['info', r ? 'Info' : 'Add route']];
   const tab = tabs.some(([k]) => k === cTab) ? cTab : 'why';
-  const panels = { why: c.track ? `${measured(c.track)}${r ? '' : `<div class="rows"><button class="row" type="button" data-act="ctab" data-v="info"><span class="row-t"><strong>Which route is this?</strong><span>Add it to see this try next to your others</span></span>${ic.arr('#111111')}</button></div>`}` : seen, body: c.track ? `<div class="hl2 dk2"><h2>As it plays</h2></div>${live}${two ? timeline(c.track) : ''}${bodyStats(c.track)}` : '', path: fv ? fv.path : '', info: `${r && !c.who ? triesStrip : ''}${details}${thisVideo}` };
+  const ri = r ? list().indexOf(r) : -1, peerNx = PEERS[c.vid];
+  const nextUp = r ? `<div class="hl2 dk2"><h2>Next</h2></div><div class="rows">
+      ${ri >= 0 && !c.who ? `<button class="row" type="button" data-act="film" data-r="${ri}"><span class="row-t"><strong>${c.sent ? 'Film it again' : 'Film another try'}</strong><span>${rname(r)} · the camera opens on this route</span></span>${ic.arr('#111111')}</button>` : ''}
+      ${peerNx ? `<button class="row" type="button" data-act="to" data-to="vs/${c.id}"><span class="row-t"><strong>Watch it next to ${peerNx.who}</strong><span>Same route, side by side</span></span>${ic.arr('#111111')}</button>` : ''}</div>` : '';
+  const panels = { why: c.track ? `${measured(c.track)}${nextUp}${r ? '' : `<div class="rows"><button class="row" type="button" data-act="ctab" data-v="info"><span class="row-t"><strong>Which route is this?</strong><span>Add it to see this try next to your others</span></span>${ic.arr('#111111')}</button></div>`}` : seen, body: c.track ? `<div class="hl2 dk2"><h2>As it plays</h2></div>${live}${two ? timeline(c.track) : ''}${bodyStats(c.track)}` : '', path: fv ? fv.path : '', info: `${r && !c.who ? triesStrip : ''}${details}${thisVideo}` };
   return { photo: c.img, fit: state === 'ask' && !!lv, after: () => {
       tagWire(c);
       if (!lv) return;
@@ -1707,6 +1732,14 @@ function viewBeta(a) {
   return { dark: true, tok: true, after: feedWire, html: `${top}<div class="tok" id="tok" tabindex="0"><div class="tok-in" id="tokin">${ps.map(([p, k]) => feedPost(p, k)).join('')}</div></div>` };
 }
 const lgFold = new Set(); let lgTipOff = false;
+function viewVs(id) {
+  const c = byId(id), peer = c && PEERS[c.vid];
+  if (!peer || !c.r) return lostClip();
+  const f = fallView(c, c.r, c.sent ? c.r.moves : c.high);
+  // the pair plays once this try's analysis is in (it runs in the background)
+  const wire = () => { if (page !== 'vs' || +arg !== c.id) return; if (c.track) pathWire(); else setTimeout(wire, 400); };
+  return { after: () => setTimeout(wire), html: `${bar(`${peer.me || 'You'} vs ${peer.who}`)}<div class="vsp">${f.path}</div>` };
+}
 let lgAt = 0, lgOpen = null, lgPin = null, lgStart = null, lgTick = null;
 const lgClock = () => { if (!lgStart) lgStart = Date.now(); };
 const mmssT = ms => { const s = Math.floor(ms / 1000), h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60; return `${h ? h + ':' + String(m).padStart(2, '0') : m}:${String(s % 60).padStart(2, '0')}`; };
@@ -1837,11 +1870,19 @@ function feedPost(p, i) {
     ${lv ? '<i class="ts-p"><b></b></i>' : ''}
   </article>`;
 }
-function feedComments(i) {
-  const p = feedAll()[i];
+const mss = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+// where the post's video is now, from its own start (null if it hasn't played)
+const cmNow = i => { const v = document.querySelector(`.ts[data-i="${i}"] video`); if (!v) return null; const s = v.currentTime - (+v.dataset.a || 0); return s > .5 ? s : null; };
+const CM_QUICK = ['Nice send!', 'What was the beta at the top?', 'Trust your feet', 'Same route tomorrow?'];
+let cmAt = true;
+function feedComments(i, draft = '') {
+  const p = feedAll()[i], now = cmNow(i);
   pane(`<h2>${n(p.comments.length, 'comment', 'comments')}</h2>
-    <div class="tcm">${p.comments.length ? p.comments.map(([w, t]) => `<p class="cm"><b>${w}</b> ${t}</p>`).join('') : '<p class="hint">Be the first to comment.</p>'}</div>
-    <div class="cm-row"><input type="text" placeholder="Add a comment" aria-label="Comment on ${p.who}’s climb" data-cm="${i}"><button type="button" data-act="cm" data-i="${i}">Send</button></div>`);
+    <div class="tcm">${p.comments.length ? p.comments.map(([w, t, s]) => `<div class="cm"><p><b>${w}</b> ${s != null ? `<button class="cm-t num" type="button" data-act="cmt" data-i="${i}" data-t="${s}">${mss(s)}</button> ` : ''}${t}</p>${w === 'You' ? '' : `<button class="cm-r" type="button" data-act="cmreply" data-i="${i}" data-w="${w}">Reply</button>`}</div>`).join('') : '<p class="hint">Be the first to comment.</p>'}</div>
+    <div class="cm-q">${CM_QUICK.map(q => `<button type="button" data-act="cmq" data-i="${i}">${q}</button>`).join('')}</div>
+    ${now != null ? `<button class="cm-at" type="button" data-act="cmat" data-i="${i}" aria-pressed="${cmAt}">${cmAt ? ic.check : ''}At ${mss(now)} in the video</button>` : ''}
+    <div class="cm-row"><input type="text" placeholder="Add a comment" aria-label="Comment on ${p.who}’s climb" data-cm="${i}" value="${esc(draft)}"><button type="button" data-act="cm" data-i="${i}">Send</button></div>`);
+  if (draft) { const inp = ask.querySelector('[data-cm]'); inp.focus(); inp.setSelectionRange(draft.length, draft.length); }
 }
 const feedAt_post = b => feedAll()[+b.dataset.i];
 function feedLike(post, on) { const b = post.querySelector('[data-act=flike]'), p = feedAll()[+b.dataset.i], k = likeKey(p); on ? liked.add(k) : liked.delete(k);
@@ -2034,8 +2075,8 @@ function viewWatch() {
 }
 
 /* ---------- shell: routing, render, sheets ---------- */
-const views = { logc: viewLogc, beta: viewBeta, gyms: viewGyms, walls: viewGymsTab, gym: viewGym, scan: viewScan, route: viewRoute, compare: viewCompare, summary: viewSummary, profile: viewProfile, videos: viewVideos, clip: viewClip, friends: viewFriends, person: viewPerson, cam: viewCam, watch: viewWatch, edit: viewEdit };
-const tabOf = { logc: 'profile', beta: 'walls', compare: 'videos', cam: 'videos', watch: 'profile', walls: 'walls', gym: 'walls', gyms: 'walls', scan: 'walls', route: 'walls', videos: 'videos', clip: 'videos', friends: 'friends', person: 'friends', profile: 'profile' };
+const views = { vs: viewVs, logc: viewLogc, beta: viewBeta, gyms: viewGyms, walls: viewGymsTab, gym: viewGym, scan: viewScan, route: viewRoute, compare: viewCompare, summary: viewSummary, profile: viewProfile, videos: viewVideos, clip: viewClip, friends: viewFriends, person: viewPerson, cam: viewCam, watch: viewWatch, edit: viewEdit };
+const tabOf = { vs: 'friends', logc: 'profile', beta: 'walls', compare: 'videos', cam: 'videos', watch: 'profile', walls: 'walls', gym: 'walls', gyms: 'walls', scan: 'walls', route: 'walls', videos: 'videos', clip: 'videos', friends: 'friends', person: 'friends', profile: 'profile' };
 const dock = document.querySelector('.dock');
 function readHash() { const [p = '', a = ''] = location.hash.replace(/^#\/?/, '').split('/'); page = p === 'setup' || views[p] ? p : 'videos'; arg = a; }
 function go(p) { if (location.hash === '#/' + p) render(); else location.hash = '#/' + p; }
@@ -2425,7 +2466,9 @@ function setupEnd() {
   data.new.forEach(r => { r.g = lv.hi; r.grade = 'V' + lv.hi; });
   go('videos');
 }
-function endSession() { session = 'saved'; located = false; go('summary'); }
+function endSession() {
+  for (const [r, e] of book[TODAY] || []) { if (!e.tries && !e.sent) continue; const l = logOf(r); l.tries = Math.max(l.tries, e.tries); if (e.sent) l.sent = true; if (!clips.some(c => c.r === r && c.k === TODAY)) l.hand = true; }
+  session = 'saved'; located = false; lgStart = null; go('summary'); }
 
 const actions = {
   // set up
@@ -2549,7 +2592,7 @@ const actions = {
   },
   log: b => { if (page === 'cam') { openLog(filmRoute()); return; }
     lgAt = b?.dataset?.g ? +b.dataset.g : gi; lgOpen = null; pinYours(); rtWall = null; rtNew = rtTop = false; rtG = rtC = 0; closeAll(); go('logc'); },
-  lgend: () => lgEnd(),
+  lgend: () => session === 'live' ? endSession() : lgEnd(),
   lgfold: b => { const k = b.dataset.k; lgFold.has(k) ? lgFold.delete(k) : lgFold.add(k); render(); },
   lgtip: () => { lgTipOff = true; render(); },
   lgnovid: b => { const r = list()[+b.dataset.i]; bookOf(TODAY, r).novid = true; render(); },
@@ -2610,6 +2653,8 @@ const actions = {
   tagdone: b => { const c = byId(b.dataset.i); confirmed(c, { ...tagS.pts, t: c.auto?.t ?? 0 }, true); },
   retag: b => { const c = byId(b.dataset.i); c.tags = null; c.an = 'ask'; tagS = { id: null, i: 0, pts: {} }; render(); document.querySelector('.screen').scrollTo(0, 0); },
   pvplay: pvPlay,
+  // slow both down together, to watch the feet
+  pvslow: b => { const on = b.getAttribute('aria-pressed') !== 'true'; b.setAttribute('aria-pressed', on); ['pv0', 'pv1'].forEach(id => { const v = $(id); if (v) v.playbackRate = on ? .5 : 1; }); },
   ctab: b => { cTab = b.dataset.v; setTimeout(() => $('main').dispatchEvent(new Event('tabchange'))); document.querySelectorAll('.ctabs button').forEach(x => x.setAttribute('aria-pressed', x === b)); document.querySelectorAll('.pn').forEach(p => { p.hidden = p.dataset.pn !== cTab; }); },
   spd: b => { speed = { 1: .5, .5: .25, .25: 1 }[speed] || 1; const v = $('lvv'); if (v) v.playbackRate = speed; b.textContent = `${speed}×`; },   // 1× → 0.5× → 0.25×
   vplay: b => toast(`Playing · ${b.dataset.len}`),
@@ -2712,7 +2757,7 @@ const actions = {
   cm: b => {
     const i = +b.dataset.i, inp = ask.querySelector(`[data-cm="${i}"]`), t = inp.value.trim();
     if (!t) return;
-    const p = feedAll()[i]; p.comments.push(['You', t.replace(/</g, '&lt;')]);
+    const p = feedAll()[i], s = cmAt ? cmNow(i) : null; p.comments.push(['You', esc(t), s ?? undefined]);
     document.querySelector(`.ts[data-i="${i}"] [data-act=fcm] span`).textContent = p.comments.length; feedComments(i);
   },
   // one tap pauses or plays, two tap likes
@@ -2721,11 +2766,16 @@ const actions = {
     tapT = setTimeout(() => { tapT = null; if (v.paused) { delete v.dataset.stop; v.play().catch(() => {}); } else { v.dataset.stop = 1; v.pause(); } }, 240); },
   flike: b => feedLike(b.closest('.ts'), b.getAttribute('aria-pressed') !== 'true'),
   fcm: b => feedComments(+b.dataset.i),
+  cmreply: b => feedComments(+b.dataset.i, `@${b.dataset.w} `),
+  cmq: b => { const inp = ask.querySelector('[data-cm]'); inp.value = b.textContent; inp.focus(); },
+  cmat: b => { cmAt = !cmAt; feedComments(+b.dataset.i, ask.querySelector('[data-cm]').value); },
+  // a time in a comment: close the comments and play the video from there
+  cmt: b => { const v = document.querySelector(`.ts[data-i="${b.dataset.i}"] video`); closeAll(); if (!v) return; v.currentTime = (+v.dataset.a || 0) + +b.dataset.t; delete v.dataset.stop; v.play().catch(() => {}); },
   fshare: () => toast('Link copied'),
   // following turns the + into a tick, which then fades: once you follow someone there's nothing left to press, as on Douyin
   pfollow: b => { const w = b.dataset.w; follows[user].has(w) ? follows[user].delete(w) : follows[user].add(w); render(); toast(follows[user].has(w) ? `Following ${w}` : `Unfollowed ${w}`); },
   pvid: b => { feedAt = +b.dataset.i; go('friends'); },
-  pcmp: b => { cTab = 'path'; go(`clip/${b.dataset.i}`); },
+  pcmp: b => go(`vs/${b.dataset.i}`),
   ffollow: b => { const w = b.dataset.w; follows[user].add(w); toast(`Following ${w}`);
     document.querySelectorAll(`[data-act=ffollow][data-w="${w}"]`).forEach(x => { x.classList.add('done'); x.disabled = true; setTimeout(() => x.remove(), 700); }); },
   fsave: b => { const p = feedAt_post(b), k = likeKey(p), on = !saved.has(k); on ? saved.add(k) : saved.delete(k);
@@ -2738,6 +2788,7 @@ document.querySelector('.phone').addEventListener('click', e => {
   const b = e.target.closest('[data-act]'); if (!b) return;
   actions[b.dataset.act](b);
 });
+ask.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.dataset.cm) ask.querySelector(`[data-act="cm"][data-i="${e.target.dataset.cm}"]`)?.click(); });
 $('main').addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.dataset.cm) $('main').querySelector(`[data-act="cm"][data-i="${e.target.dataset.cm}"]`).click(); });
 dock.addEventListener('click', e => {
   const b = e.target.closest('[data-dock]'); if (!b) return;

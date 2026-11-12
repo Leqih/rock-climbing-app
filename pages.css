@@ -1241,3 +1241,32 @@ button.rt-sec i { margin-left: auto; font-style: normal; }
 /* Clip page: post with a line */
 .row.pst { gap: 10px; }
 .row.pst input { flex: 1; min-width: 0; height: 40px; padding: 0 12px; border: 0; border-radius: 8px; background: #F3F3F1; font: inherit; font-size: 15px; color: var(--ink); }
+/* VS: controls, one thing to try, and the pair on its own page */
+.pv-ctl { display: flex; gap: 8px; margin-top: 12px; }
+.pv-ctl .pv-go { flex: 1; margin: 0; }
+.pv-x { display: grid; place-items: center; min-width: 48px; padding: 0 10px; border-radius: 8px; background: var(--white); font-size: 14px; font-weight: 700; }
+.pv-x[aria-pressed="true"] { background: var(--ink); color: var(--white); }
+.pv-x svg { width: 18px; height: 18px; }
+.pv-t { display: grid; gap: 2px; margin-top: 12px; padding: 10px 12px; border-radius: 8px; background: #E9F3C2; font-size: 14px; line-height: 1.4; }
+.pv-t b { font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--mid); }
+.vsp .stack > .lt { background: transparent; padding: 0; box-shadow: none; }
+.vsp .pv { gap: 6px; }
+/* Analysis: what each number means */
+.an-def { display: grid; gap: 6px; margin: 12px 0 0; padding-top: 10px; border-top: 1px solid rgba(17, 17, 17, .08); font-size: 13px; line-height: 1.4; }
+.an-def dt { font-weight: 600; }
+.an-def dd { margin: -4px 0 0; color: var(--mid); }
+/* Session summary: the hardest send */
+.sm-best { display: flex; align-items: center; gap: 8px; margin-top: 10px; padding: 10px 12px; border-radius: 8px; background: var(--lime); color: var(--ink); font-size: 14px; }
+.sm-best svg { width: 16px; height: 16px; flex: none; }
+/* Comments: a time in the video, Reply, quick words */
+.tcm .cm { display: flex; align-items: flex-start; gap: 8px; }
+.tcm .cm p { flex: 1; margin: 0; }
+.cm-t { padding: 1px 6px; border-radius: 4px; background: var(--lime); color: var(--ink); font-size: 12px; font-weight: 700; }
+.cm-r { flex: none; font-size: 12px; font-weight: 600; color: var(--mid); }
+.cm-q { display: flex; gap: 6px; margin-top: 12px; overflow-x: auto; }
+.cm-q button { flex: none; height: 30px; padding: 0 12px; border-radius: 15px; background: var(--white); font-size: 13px; }
+.cm-at { display: inline-flex; align-items: center; gap: 4px; margin-top: 10px; font-size: 13px; font-weight: 600; color: var(--mid); }
+.cm-at[aria-pressed="true"] { color: var(--ink); }
+.cm-at svg { width: 14px; height: 14px; }
+.cm-q { scrollbar-width: none; }
+.cm-q::-webkit-scrollbar { display: none; }
