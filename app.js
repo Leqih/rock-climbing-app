@@ -122,6 +122,7 @@ const mine = () => list().filter(known).sort((a, b) => !!b.proj - !!a.proj);
 const current = () => { const r = list()[sel[user]]; return r && known(r) && !r.topped ? r : mine().find(x => !x.topped); };
 // the route the camera reads from the tape in frame: the one you're on, else whatever is in front of it
 const camRoute = () => current() || list().find(x => !x.topped);
+const hSet = () => user === 'regular' || !!setup.height;   // Maria gave hers; a new climber may have skipped it
 const toCm = x => Math.round(+x * (setup.unit === 'in' ? 2.54 : 1)), myH = () => toCm(setup.height) || 165, mySpan = () => toCm(setup.span) || myH();
 const fmt = s => `${Math.floor(s / 3600)}:${String(Math.floor(s / 60) % 60).padStart(2, '0')}`;
 const n = (k, w, pl) => `${k} ${k === 1 ? w : pl}`;
@@ -430,7 +431,7 @@ function routesTab(at, inline) {
     <div class="pl-box sm2">${planSvg(at, rtWall)}</div>
     <div class="rt-stick">
       <div class="rt-h">${rtWall ? `<b>${rtWall}</b><button class="rt-x" type="button" data-act="rtwall" data-w="" aria-label="Show every wall">✕</button>` : `<b>Every wall</b>`}<span class="hint2">${n(pick.length, 'route', 'routes')}</span>
-        <button class="lg-snap" type="button" data-act="lgsnap">${ic.scan}Snap a tag</button></div>
+        <button class="lg-snap" type="button" data-act="lgsnap">${ic.scan}Find by tag</button></div>
       <div class="rt-f">${chip('rtnew', rtNew, 'New')}${chip('rttop', rtTop, 'Classics')}${chip('rtg', rtG > 0, `${RT_G[rtG][0]} ▾`)}${chip('rtc', rtC > 0, rtC ? `${colours[rtC - 1]} ▾` : 'Colour ▾')}</div>
     </div>
     ${tip}
@@ -474,6 +475,7 @@ function viewGym(a) {
       <span class="gy-avs">${people.slice(0, 6).map(w => `<button type="button" data-act="to" data-to="person/${w}" aria-label="${w}’s page">${face(w)}</button>`).join('')}</span>
       <span><b>Here today</b>${people.filter(w => follows[user].has(w)).length ? ` · ${people.filter(w => follows[user].has(w)).join(' and ')} you follow` : ''}</span></div>` : '';
   const act = here ? `<button class="b-lime gy-cta" type="button" data-act="gyfilm" data-g="${at}">${ic.rec}Film a try</button>`
+    : op.open === false ? `<button class="b-lime gy-cta" type="button" data-act="gymaps" data-i="${at}">Directions · ${op.line.replace(/^Closed · /, '')}</button>`
     : `<button class="b-lime gy-cta" type="button" data-act="gyset" data-i="${at}">I’m here</button>`;
 
   // Videos
@@ -494,7 +496,7 @@ function viewGym(a) {
     ${vids.length ? `<div class="vg gy-vg">${byRoute(vids).slice(0, 6).map(vtile).join('')}</div>` : ''}
     ${mineHere ? '' : '<p class="cap">Routes you film, scan or log here show up here.</p>'}
     <div class="stack old">
-      <button class="row" type="button" data-act="scan" data-g="${at}">${ic.scan}<span class="row-t"><strong>Scan a wall</strong><span>Photo a route. We read its tape and grade and draw the moves for your height.</span></span>${ic.arr('#111111')}</button>
+      <button class="row" type="button" data-act="scan" data-g="${at}">${ic.scan}<span class="row-t"><strong>Plan a route</strong><span>Photo a route. We read its tape and grade and draw the moves for your height.</span></span>${ic.arr('#111111')}</button>
       <button class="row" type="button" data-act="log" data-g="${at}">${ic.add}<span class="row-t"><strong>Log a climb</strong><span>Climbed one without a video? Pick it from this gym’s routes and log an attempt or a send.rade.</span></span>${ic.arr('#111111')}</button>
     </div>`;
 
@@ -561,14 +563,14 @@ function viewScan() {
   const corners = '<path d="M14 44V14h30M256 14h30v30M286 356v30h-30M44 386H14v-30" fill="none" stroke="#FFFFFF" stroke-width="2"/>';
   // before the photo: frame the whole route, start hold to top
   if (!shot) return { photo: 'wall2', html: `
-    ${bar('Scan a wall')}
+    ${bar('Plan a route')}
     <div class="cam">
       <img src="img/wall2.jpg" alt="Wall C through the camera"><svg viewBox="0 0 300 400" aria-hidden="true">${corners}</svg>
       <p class="scan-aim">Fit one route in the frame, from the start hold to the top. Include its tag if you can see it.</p>
       <button class="shut scan-shut" type="button" data-act="snap" aria-label="Take the photo"><i></i></button>
     </div>
     <div class="fold"></div>
-    <p class="cap">We read the tape colour and the grade on the gym’s tag, then draw the moves on your photo, planned for ${myH()} cm.</p>` };
+    <p class="cap">We read the tape colour and the grade on the gym’s tag, then draw the moves on your photo, planned for ${hSet() ? `${myH()} cm` : 'an average height (165 cm) until you add yours in Profile'}.</p>` };
   // the reach on move 5 sets the beta: short climbers get a foot first, tall ones go straight
   const span = mySpan(), reach = 172, long = span < reach + 4;
   sBeta[4].d = long ? `The longest reach, ${reach} cm. At ${span} cm arm span, high-step your right foot onto the chip first, then go.` : `The longest reach, ${reach} cm. Your ${span} cm arm span gets there from the jug: keep your arm straight.`;
@@ -586,7 +588,7 @@ function viewScan() {
       ${s.hand ? `<text x="${sHolds[s.h][0] + 20}" y="${sHolds[s.h][1] + 4}" font-size="12" font-weight="700" fill="#DDF26A">${{ L: 'Left hand', R: 'Right hand', B: 'Both hands' }[s.hand]}</text>` : ''}
     </svg>`;
   return { photo: 'wall2', html: `
-    ${bar('Scan a wall')}
+    ${bar('Plan a route')}
     <div class="cam">
       <img src="img/wall2.jpg" alt="Wall C, the purple route with its moves drawn on">${svg}
       <span class="pk-tag scan-tag">${sw(scanned)}Purple ${scanned.grade} · ${scanned.moves} moves</span>
@@ -603,7 +605,7 @@ function viewScan() {
       <div class="lt short"><span class="lt-h">Grade</span><span class="mv"><b>${scanned.grade}</b><span class="mv-l">read from the gym’s tag · ${scanned.wall}</span></span></div>
     </div>
     <div class="stack">
-      <div class="lt"><span class="lt-h">Planned for you</span><p class="tip-d">${myH()} cm tall, ${span} cm arm span. ${long ? 'Move 5 is a stretch for you, so we add a high foot before it.' : 'Every move is in reach without extra feet.'}</p></div>
+      <div class="lt"><span class="lt-h">Planned for you</span><p class="tip-d">${hSet() ? `${myH()} cm tall, ${span} cm arm span.` : 'For an average height and reach (165 cm), as yours isn’t set.'} ${long ? 'Move 5 is a stretch for you, so we add a high foot before it.' : 'Every move is in reach without extra feet.'}</p></div>
       <button class="row" type="button" data-act="scanbeta"><span class="row-t"><strong>Watch climbers your height on it</strong><span>${n(nearOf(scanned).length, 'climber', 'climbers')} your height topped it</span></span>${ic.arr('#111111')}</button>
       <button class="row" type="button" data-act="scanlog"><span class="row-t"><strong>Log it</strong><span>Purple ${scanned.grade} is filled in. Add how it went.</span></span>${ic.pen}</button>
     </div>`,
@@ -723,7 +725,7 @@ function viewSummary() {
   return { photo: 'woman2', html: `
     <h1 class="hl tab">${posted ? 'Session posted' : 'Session saved'}</h1>
     <p class="sub-w">${gyms[gi].name} · ${dateOf(TODAY).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</p>
-    <section class="glass trio"><div><b class="num">${fmt(secs)}</b><span>time</span></div><div><b class="num">${allT}</b><span>${allT === 1 ? 'try' : 'tries'}</span></div><div><b class="num">${allS}</b><span>${allS === 1 ? 'send' : 'sends'}</span></div></section>
+    <section class="glass trio"><div><b class="num">${clk(sesDur)}</b><span>time</span></div><div><b class="num">${allT}</b><span>${allT === 1 ? 'try' : 'tries'}</span></div><div><b class="num">${allS}</b><span>${allS === 1 ? 'send' : 'sends'}</span></div></section>
     ${best ? `<div class="sm-best">${ic.check}<span>Hardest send today: <b>${rname(best)}</b>${best.g > prevBest ? ' · your hardest yet' : ''}</span></div>` : ''}
     <div class="fold"></div>
     <div class="hl2 dk2"><h2>Hide any climb?</h2></div>
@@ -764,7 +766,8 @@ function logbook() {
     <div class="lgb-s"><span><b class="num">${sends}</b>Sends</span><span><b class="num">${att}</b>Attempts</span><span><b class="num">${att ? Math.round(sends / att * 100) + '%' : '–'}</b>Tops rate</span></div>
     ${es.length ? es.map(([r, e]) => `<button class="lgb-r" type="button" data-act="to" data-to="route/${list().indexOf(r)}">${sw(r)}<span class="row-t"><strong>${rname(r)}</strong><span>${gyms[gymAt(r)].name} · ${r.wall}</span></span>
       <span class="lgb-v${e.sent ? ' on' : ''}">${e.sent ? `${ic.check}${e.style || 'Sent'}` : n(e.tries, 'attempt', 'attempts')}</span></button>`).join('')
-      : `<p class="cap">${bookAt === TODAY ? 'Nothing logged today. On a route, tap Attempt or Log send.' : 'Nothing logged this day.'}</p>`}
+      : bookAt === TODAY && page !== 'logc' ? `<div class="lgb-e"><p class="cap">Nothing logged today.</p><button class="pj" type="button" data-act="log">Log a climb</button></div>`
+      : `<p class="cap">${bookAt === TODAY ? 'Nothing logged today. Swipe a route above, or tap it.' : 'Nothing logged this day.'}</p>`}
   </section>`;
 }
 function viewProfile() {
@@ -780,9 +783,11 @@ function viewProfile() {
   const mo = dateOf(TODAY).getMonth(), thisMo = [...v].filter(k => k <= TODAY && dateOf(k).getMonth() === mo).length;
   const recap = reg
     ? `<span class="sub">${MONTHS[mo]} so far</span><b class="num">${n(thisMo, 'session', 'sessions')}</b><span class="sub">hardest V2, ${n(list().filter(r => r.g === 3).reduce((k, r) => k + r.tries, 0), 'try', 'tries')} at V3 so far</span>`
+    : session === 'live'
+      ? `<span class="sub">Climbing now · ${gyms[gi].name}</span><b class="num">${n(dayNums().s, 'send', 'sends')}</b><span class="sub">${n(dayNums().t, 'try', 'tries')} · ${clk(sesSecs())} so far</span><button class="pr-end" type="button" data-act="end">End session</button>`
     : session === 'saved'
-      ? `<span class="sub">${MONTHS[mo]} so far</span><b class="num">${n(tops, 'send', 'sends')}</b><span class="sub">1 session · ${n(tries, 'try', 'tries')} · ${fmt(secs)} on the wall</span>`
-      : `<span class="sub">${MONTHS[mo]} so far</span><b class="num">No sessions yet</b><span class="sub">Film or log a climb with Add. It shows up here when you end the session.</span>`;
+      ? `<span class="sub">${MONTHS[mo]} so far</span><b class="num">${n(dayNums().s, 'send', 'sends')}</b><span class="sub">1 session · ${n(dayNums().t, 'try', 'tries')} · ${clk(sesDur)} on the wall</span>`
+      : `<span class="sub">${MONTHS[mo]} so far</span><b class="num">No sessions yet</b><span class="sub">Film or log a climb with Add and it shows up here right away.</span>`;
   // no reset dates: we can't know them. Routes you stop seeing just move down; their videos stay.
   const reset = '';
   const untagged = clips.filter(c => !c.r).length;
@@ -811,7 +816,7 @@ function viewProfile() {
     <div class="hl2 dk2"><h2>You</h2></div>
     <div class="rows">
       <button class="row" type="button" data-act="to" data-to="watch"><span class="row-t"><strong>Watch</strong><span>${watch ? 'Connected · starts and stops each try' : 'Not connected'}</span></span>${ic.arr('#111111')}</button>
-      <button class="row" type="button" data-act="size"><span class="row-t"><strong>Level and size</strong><span>${reg ? 'V2–V3' : levels[setup.level].g} · ${myH()} cm · used to show you climbers built like you</span></span></button>
+      <button class="row" type="button" data-act="size"><span class="row-t"><strong>Level and size</strong><span>${reg ? 'V2–V3' : levels[setup.level].g} · ${hSet() ? `${myH()} cm` : 'height not set'} · used to show you climbers built like you</span></span></button>
       <div class="row"><span class="row-t"><strong>Who sees your climbs</strong><span>Public by default. Hide any climb from its video or the session summary.</span></span></div>
     </div>` };
 }
@@ -857,7 +862,8 @@ const vidOf = c => [...VIDS, ...PRO, ...WAY, ...CROWD, ...roll].find(v => v.vid 
 function addClip(r, o) { const c = { id: cid++, gym: gi, r, try: 1, high: 0, sent: false, by: '', hidden: false, raw: '', orig: false, ...o }; clips.unshift(c); return c; }
 const dayOf = k => k === TODAY ? 'Today' : dateOf(k).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
 const shortDay = k => dateOf(k).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-const rname = r => r.grade ? `${r.color} ${r.grade}` : r.color;
+const rname = r => r.grade ? `${r.color} ${r.grade}` : HOLD_C.includes(r.color) ? `${r.color} V?` : r.color;
+const HOLD_C = ['Blue', 'Red', 'Yellow', 'Green', 'Orange', 'Pink', 'Purple', 'Black', 'White'];
 const clipRoutes = () => [...new Set(clips.map(c => c.r).filter(Boolean))];
 const myRoutes = () => [...new Set(clips.filter(c => !c.place).map(c => c.r).filter(Boolean))];
 const byId = id => clips.find(x => x.id === +id);
@@ -887,7 +893,7 @@ const vtile = cs => {
   const top = cs.some(x => x.sent), hi = Math.max(...cs.map(x => x.high)), first = cs[cs.length - 1].try, an = anState(cs);
   return `<button class="vt${c.r ? '' : ' none'}${cs.every(x => x.hidden) ? ' hid' : ''}${on ? ' on' : ''}${many ? ' many' : ''}" type="button" ${picking ? `data-act="vpick" data-i="${ids}" aria-pressed="${on}"` : `data-act="to" data-to="${c.hold ? 'edit' : 'clip'}/${c.id}"`} aria-label="${c.r ? `${rname(c.r)}, ${many ? `tries ${first} to ${c.try}` : `try ${c.try}`}` : 'Video without a route'}, ${dayOf(c.k)}">
     <img src="img/${c.img}.jpg" alt=""><span class="shade"></span>
-    <span class="vt-t">${c.r ? `${sw(c.r)}${c.r.grade || c.r.color}${many ? '' : ` · try ${c.try}`}` : 'No route'}</span>
+    <span class="vt-t">${c.r ? `${sw(c.r)}${rname(c.r)}${many ? '' : ` · try ${c.try}`}` : 'No route'}</span>
     ${picking ? '<span class="vt-c"></span>' : ''}
     ${(() => { const st = an === 'hold' ? 'Not analysed' : an === 'ask' ? 'Check this' : an === 'run' ? 'Analysing' : top ? 'Topped' : !c.r ? 'Tag it' : c.gym === -1 ? 'No gym' : '';
       return `<span class="vt-b${an === 'ask' ? ' ask' : ''}">${cs.every(x => x.hidden) ? ic.eyeOff : ''}${st || `${tileDay(c.k)}${many ? ` · ${cs.length} tries` : ''}`}</span>`; })()}
@@ -942,17 +948,17 @@ function viewVideos() {
   return { photo: 'woman1', html: `
     ${tabHead('Videos')}
     ${session === 'live' ? `<section class="glass live-bar">
-      <span class="dot"></span><b class="num">${fmt(secs)}</b>
-      <span><button class="lb-gym" type="button" data-act="to" data-to="gym/${gi}">${gyms[gi].name}</button> · <span>${tries ? `${n(tries, 'try', 'tries')} · ${n(tops, 'top', 'tops')}` : watch ? 'Tap Start on your watch before each try' : 'Tap Film before each try'}</span></span>
+      <span class="dot"></span><b class="num" id="lbclk">${clk(sesSecs())}</b>
+      <span><button class="lb-gym" type="button" data-act="to" data-to="gym/${gi}">${gyms[gi].name}</button> · <span>${dayNums().t ? `${n(dayNums().t, 'try', 'tries')} · ${n(dayNums().s, 'top', 'tops')}` : watch ? 'Tap Start on your watch before each try' : 'Tap Film before each try'}</span></span>
       <button class="end" type="button" data-act="end">End</button>
     </section>` : ''}
-    <p class="sub-w">${clips.length ? `${n(mine.length, 'try', 'tries')} on video · ${clips.some(x => x.an === 'ask') ? `${clips.filter(x => x.an === 'ask').length} to check` : 'newest first'}` : 'Your tries on video, each one analysed'}</p>
+    <p class="sub-w">${clips.length ? `${n(mine.length, 'try', 'tries')} on video · ${mine.some(x => x.an === 'ask') ? `${mine.filter(x => x.an === 'ask').length} to check` : 'newest first'}` : 'Your tries on video, each one analysed'}</p>
     ${head}
     <div class="fold"></div>
     ${clips.length ? `<div class="hl2 dk2"><h2>${picking ? (k ? `${k} selected` : 'Tap to select') : 'Your tries'}</h2><button type="button" data-act="vsel">${picking ? 'Done' : 'Select'}</button></div>
     ${chips}${grid}
     ${picking ? '' : `<div class="lb">
-      <div class="lt short"><span class="lt-h">Analysed</span><span class="mv"><b>${clips.length - none.length}<small>/${clips.length}</small></b><span class="mv-l">highest move and time on each move</span></span></div>
+      <div class="lt short"><span class="lt-h">Analysed</span><span class="mv"><b>${mine.filter(c => c.an === 'done').length}<small>/${mine.length}</small></b><span class="mv-l">of your tries: highest move and time on each move</span></span></div>
       <div class="lt short"><span class="lt-h">Filmed by friends</span><span class="mv"><b>${byF.length}</b><span class="mv-l">${who.length ? `by ${who.join(' and ')}` : 'Pick who filmed you when you log a send'}</span></span></div>
       ${reel}
     </div>
@@ -1630,7 +1636,7 @@ function viewFriends(tab) {
         <div class="two"><button class="b-glass" type="button" data-act="ftag" data-v="0">Decline</button><button class="b-lime" type="button" data-act="ftag" data-v="1">Accept</button></div></section>`
     : '';
   // two tabs along the top, For you and Friends. The first is the feed, the second is everything to do with the people you climb with
-  const top = `<div class="tok-top"><button class="tok-add" type="button" data-act="upload" aria-label="Post a video">${ic.plus}</button>
+  const top = `<div class="tok-top"><span class="tok-add-sp" aria-hidden="true"></span>
     <nav class="tok-tabs"><button type="button" data-act="to" data-to="friends"${plan ? '' : ' aria-current="page"'}>For you</button><button type="button" data-act="to" data-to="friends/plan"${plan ? ' aria-current="page"' : ''}>Friends${reg && tagPending ? '<i></i>' : ''}</button></nav>
     <button class="av sm" type="button" data-act="me" aria-label="Your profile"><img src="img/woman2.jpg" alt=""></button></div>`;
   if (betaBack) { feedAt = 0; betaBack = 0; }   // back from a gym's videos: the feed starts from the top again
@@ -1740,11 +1746,17 @@ function viewVs(id) {
   const wire = () => { if (page !== 'vs' || +arg !== c.id) return; if (c.track) pathWire(); else setTimeout(wire, 400); };
   return { after: () => setTimeout(wire), html: `${bar(`${peer.me || 'You'} vs ${peer.who}`)}<div class="vsp">${f.path}</div>` };
 }
-let lgAt = 0, lgOpen = null, lgPin = null, lgStart = null, lgTick = null;
-const lgClock = () => { if (!lgStart) lgStart = Date.now(); };
+let lgAt = 0, lgOpen = null, lgPin = null, lgStart = null, lgTick = null, sesDur = 0;
+// seconds on the session clock (the time of the last session once it's ended), and how it's written
+const sesSecs = () => session === 'live' && lgStart ? Math.floor((Date.now() - lgStart) / 1000) : sesDur;
+const clk = s => s < 3600 ? `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}` : `${Math.floor(s / 3600)}:${String(Math.floor(s / 60) % 60).padStart(2, '0')} h`;
+// today's climbs, filmed or logged: every log lands in the logbook, so the numbers come from there
+const dayNums = () => { const es = [...(book[TODAY] || new Map()).values()].filter(e => e.tries || e.sent);
+  return { t: es.reduce((s, e) => s + Math.max(e.tries, e.sent ? 1 : 0), 0), s: es.filter(e => e.sent).length }; };
+const lgClock = () => { if (session !== 'live') start(); };
 const mmssT = ms => { const s = Math.floor(ms / 1000), h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60; return `${h ? h + ':' + String(m).padStart(2, '0') : m}:${String(s % 60).padStart(2, '0')}`; };
 function lgAfter() { lgSwipe(); clearInterval(lgTick);
-  lgTick = setInterval(() => { const c = $('lgclk'); if (page !== 'logc' || !c) { clearInterval(lgTick); return; } if (lgStart) c.textContent = mmssT(Date.now() - lgStart); }, 1000); }
+  lgTick = setInterval(() => { const c = $('lgclk'); if (page !== 'logc' || !c) { clearInterval(lgTick); return; } }, 1000); }
 function lgEnd() {
   undoFn = null; toastEl.classList.remove('show', 'un');   // the summary takes over: the last Undo goes
   const es = [...(book[TODAY] || new Map()).entries()].filter(([, e]) => e.tries || e.sent), sent = es.filter(([, e]) => e.sent);
@@ -1763,7 +1775,7 @@ function viewLogc() {
   const es = [...(book[TODAY] || new Map()).values()], sends = es.filter(e => e.sent).length, att = es.reduce((s, e) => s + e.tries, 0);
   return { after: lgAfter, html: `
     ${bar('Log a climb')}
-    <div class="lg-sum">${lgStart ? `<span class="lg-clk"><span class="lg-dot"></span><b class="num" id="lgclk">${mmssT(Date.now() - lgStart)}</b><button type="button" data-act="lgend">End</button></span>`
+    <div class="lg-sum">${session === 'live' ? `<span class="lg-clk"><span class="lg-dot"></span><b class="num" id="lgclk">${clk(sesSecs())}</b><button type="button" data-act="lgend">End</button></span>`
       : `<span class="lg-day"><b>${d.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'short' })}</b> · Today</span>`}
       <span class="lg-n"><span><b class="num">${sends}</b>sends</span><span><b class="num">${att}</b>attempts</span><span><b class="num">${att ? Math.round(sends / att * 100) + '%' : '–'}</b>tops</span></span></div>
     <div class="lg-gym">${ic.pin}<span><b>${gyms[at].name}</b> · ${at === gi ? 'your gym' : 'picked by you'}</span><button type="button" data-act="lggym">Change</button></div>
@@ -1792,9 +1804,9 @@ function lgSwipe() {
 }
 // what a log changes, so Undo can put it back
 function snap(r) { const e = bookOf(TODAY, r), l = logOf(r);
-  const s = { tries: r.tries, highs: [...r.highs], topped: r.topped, sendN: r.sendN, style: r.style, stars: r.stars, feel: r.feel, seen: r.seen, e: { ...e }, l: { ...l }, tops, lgStart };
+  const s = { tries: r.tries, highs: [...r.highs], topped: r.topped, sendN: r.sendN, style: r.style, stars: r.stars, feel: r.feel, seen: r.seen, e: { ...e }, l: { ...l }, tops };
   return () => { Object.assign(r, { tries: s.tries, highs: s.highs, topped: s.topped, sendN: s.sendN, style: s.style, stars: s.stars, feel: s.feel, seen: s.seen });
-    Object.assign(e, s.e); Object.assign(l, s.l); tops = s.tops; lgStart = s.lgStart; render(); toast('Undone'); }; }
+    Object.assign(e, s.e); Object.assign(l, s.l); tops = s.tops; render(); toast('Undone'); }; }
 function sendNow(o) { ls = o; const r = list()[ls.i], undo = snap(r), e = bookOf(TODAY, r); lgClock();
   while (r.tries < ls.k) { r.tries++; tried(r); }
   markSent(r); r.sendN = (r.sendN || 0) + 1; r.seen = true; r.style = ls.style;
@@ -2114,11 +2126,10 @@ function render() {
 function island() {
   const el = document.querySelector('.island'), live = session === 'live';
   el.classList.toggle('live', live);
-  const now = secs + (filming ? recS : 0);
-  const clk = now < 3600 ? `${Math.floor(now / 60)}:${String(now % 60).padStart(2, '0')}` : fmt(now);
-  el.innerHTML = live ? `<i></i><b class="num">${clk}</b>` : '';
+  const now = clk(sesSecs());
+  el.innerHTML = live ? `<i></i><b class="num">${now}</b>` : '';
   live ? el.setAttribute('data-act', 'island') : el.removeAttribute('data-act');
-  el.setAttribute('aria-label', live ? `Climbing at ${gyms[gi].name}, ${clk}. Open the session` : '');
+  el.setAttribute('aria-label', live ? `Climbing at ${gyms[gi].name}, ${now}. Open the session` : '');
 }
 
 const toastEl = $('toast');
@@ -2140,7 +2151,7 @@ function pane(html) {
 // "Keep climbing?" after a log or a compare. A recording's tries are shown in the camera itself (camResult).
 let lastCut = 1;
 function openAsk(kind, title = '') {
-  pane(`<h2>${title}</h2><span class="sub">${fmt(secs)} so far · ${n(tries, 'try', 'tries')} · ${n(tops, 'top', 'tops')}</span>
+  pane(`<h2>${title}</h2><span class="sub">${clk(sesSecs())} so far · ${n(dayNums().t, 'try', 'tries')} · ${n(dayNums().s, 'top', 'tops')}</span>
       <p class="ask-q">Keep climbing?</p>
       <div class="two"><button class="b-ghost" type="button" data-act="endnow">End session</button><button class="b-lime" type="button" data-act="keep">Pick a route</button></div>`);
 }
@@ -2148,11 +2159,11 @@ function openAsk(kind, title = '') {
 // "+": KEKE's add menu. Four ways in, each one tap, no questions first: the camera reads which route you're on,
 // and anything wrong is fixed later.
 function openAdd() {
-  pane(`<h2>Add a climb</h2><span class="sub">${gyms[gi].name} · ${session === 'live' ? `climbing for ${fmt(secs)}` : 'today'}</span>
+  pane(`<h2>Add a climb</h2><span class="sub">${gyms[gi].name} · ${session === 'live' ? `climbing for ${clk(sesSecs())}` : 'today'}</span>
     <div class="add-g">
       <button class="main" type="button" data-act="film">${ic.rec}<b>Film</b><span>${watch ? 'Your watch marks each try' : 'We cut out each try'}</span></button>
       <button type="button" data-act="upload">${ic.up}<b>Upload</b><span>Videos from Photos</span></button>
-      <button type="button" data-act="scan">${ic.scan}<b>Scan a wall</b><span>Its moves, for your height</span></button>
+      <button type="button" data-act="scan">${ic.scan}<b>Plan a route</b><span>Photo a wall, moves for your height</span></button>
       <button type="button" data-act="log">${ic.pen}<b>Log by hand</b><span>No video needed</span></button>
     </div>`);
 }
@@ -2434,7 +2445,7 @@ function openSheet() {
   sheet.classList.add('show'); scrim.classList.add('show');
 }
 
-function start() { session = 'live'; secs = 0; tries = 0; tops = 0; posted = false; wcl = []; today.clear(); }
+function start() { session = 'live'; lgStart = Date.now(); sesDur = 0; secs = 0; tries = 0; tops = 0; posted = false; wcl = []; today.clear(); }
 // AI 4 · one recording (shutter or watch): every try in it is cut out and filed to the route, then "Sent it?" about the last one
 function record(k = 1) {
   const r = filmRoute();
@@ -2468,7 +2479,7 @@ function setupEnd() {
 }
 function endSession() {
   for (const [r, e] of book[TODAY] || []) { if (!e.tries && !e.sent) continue; const l = logOf(r); l.tries = Math.max(l.tries, e.tries); if (e.sent) l.sent = true; if (!clips.some(c => c.r === r && c.k === TODAY)) l.hand = true; }
-  session = 'saved'; located = false; lgStart = null; go('summary'); }
+  sesDur = sesSecs(); session = 'saved'; located = false; lgStart = null; go('summary'); }
 
 const actions = {
   // set up
@@ -2598,7 +2609,7 @@ const actions = {
   lgnovid: b => { const r = list()[+b.dataset.i]; bookOf(TODAY, r).novid = true; render(); },
   lgdone: () => { lgStart = null; closeAll(); render(); toast('Session saved to your Logbook'); },
   // snap a route's tag: we read its colour and grade (prototype: one of this gym's routes you haven't logged today), then the list opens it
-  lgsnap: () => { pane(`<h2>Snap the tag</h2><span class="sub">Point at the tape on the start hold</span><div class="lg-cam"><span class="lg-scan"></span><span>Reading…</span></div>`);
+  lgsnap: () => { pane(`<h2>Find by tag</h2><span class="sub">Point at the tape on the start hold</span><div class="lg-cam"><span class="lg-scan"></span><span>Reading…</span></div>`);
     setTimeout(() => { const at = lgAt, all = list().map((r, i) => [r, i]).filter(([r]) => gymAt(r) === at && !book[TODAY]?.get(r)?.sent);
       const [r, i] = all[Math.floor(Date.now() / 1000) % all.length] || [];
       closeAll(); if (r == null) return;
@@ -2797,7 +2808,7 @@ dock.addEventListener('click', e => {
   if (k === 'plus') { openAdd(); return; }
   go(k);
 });
-setInterval(() => { if (session === 'live') { secs += 60; if (page === 'videos') render(); else island(); } }, 60000);
+setInterval(() => { if (session !== 'live') return; island(); ['lbclk', 'lgclk'].forEach(id => { const l = $(id); if (l) l.textContent = clk(sesSecs()); }); }, 1000);
 
 scrim.addEventListener('click', closeAll);
 ask.addEventListener('input', e => { if (e.target.id === 'gq') filterGyms(e.target.value); });

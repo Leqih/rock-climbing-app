@@ -1270,3 +1270,9 @@ button.rt-sec i { margin-left: auto; font-style: normal; }
 .cm-at svg { width: 14px; height: 14px; }
 .cm-q { scrollbar-width: none; }
 .cm-q::-webkit-scrollbar { display: none; }
+/* Profile: End from the live session card */
+.pr-end { justify-self: start; margin-top: 10px; height: 34px; padding: 0 14px; border-radius: 17px; background: var(--ink); color: var(--white); font-size: 13px; font-weight: 600; }
+/* Community: the top bar keeps its balance without the second Add; empty logbook with a way in */
+.tok-add-sp { width: 40px; height: 40px; }
+.lgb-e { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.lgb-e .cap { margin: 0; }
