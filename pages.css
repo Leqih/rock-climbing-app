@@ -1276,3 +1276,106 @@ button.rt-sec i { margin-left: auto; font-style: normal; }
 .tok-add-sp { width: 40px; height: 40px; }
 .lgb-e { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .lgb-e .cap { margin: 0; }
+
+/* v9 · Videos grouped by route; side by side numbers; your body try by try */
+.vr-h h2 { display: flex; align-items: center; gap: 8px; }
+.vr-h button { font-size: 13px; font-weight: 600; color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
+.vr-s { margin: -4px 0 10px; font-size: 13px; color: var(--mid); }
+.vs-r { grid-template-columns: 1fr 72px 72px; }
+.vs-r > span { color: var(--mid); font-size: 14px; }
+.vs-h b { display: flex; align-items: center; justify-content: flex-end; gap: 6px; font-size: 13px; }
+.pv-b video, .pv-b canvas { will-change: transform; }
+.row.fr-p { padding: 10px 0; }
+.row.fr-p .fr-f { flex: none; }
+.pf-t { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; grid-template-columns: 96px; align-items: end; gap: 8px; padding: 10px 0; border-bottom: 1px solid rgba(17, 17, 17, .06); }
+.pf-t > span:first-child { align-self: center; font-size: 13px; color: var(--mid); }
+.pf-b { display: grid; justify-items: center; gap: 4px; }
+.pf-b i { display: block; width: 100%; max-width: 34px; height: 60px; border-radius: 3px; background: linear-gradient(to top, var(--lime) var(--h, 0), #ECECEA 0); }
+.pf-b b { font-size: 13px; font-weight: 600; }
+.pf-b small { font-size: 11px; color: var(--mid); }
+
+/* v9 · This session: film, log by hand, the clock and the watch on one page */
+.ss-act { grid-template-columns: 1fr 1fr; }
+.ss-just img, .ss-open img { flex: none; width: 44px; height: 58px; border-radius: 6px; object-fit: cover; }
+.ss-open { flex: none; margin-right: 10px; }
+.ss-just { gap: 10px; }
+.gy-cta:disabled { opacity: .4; }
+
+.ss-g button.on { box-shadow: inset 0 0 0 2px var(--ink); }
+.ss-g button:disabled { opacity: .45; }
+.ss-hand .rt { cursor: default; }
+.ss-today { padding-top: 2px; }
+.ss-today .lgb-r:first-child { border-top: 0; }
+.ss-th { flex: none; width: 36px; height: 48px; border-radius: 4px; object-fit: cover; }
+
+/* v9 · Scan a wall: the photo is a 9:16 frame of the rope wall */
+.cam.sc9 { aspect-ratio: 9 / 16; width: min(100%, 300px); margin-left: auto; margin-right: auto; }
+.cam.sc9 > img { width: 100%; height: 100%; object-fit: cover; filter: brightness(.6); }
+.sc-pick { margin-top: 12px; justify-content: center; }
+.sc-pick .sw { margin-right: 6px; }
+.bst + .lb { margin-top: 8px; }
+.sc-end { height: 96px; }
+
+/* v9 · a try logged by hand, in its route's grid on Videos */
+.vt-h { background: var(--white); color: var(--ink); box-shadow: inset 0 0 0 1px rgba(17, 17, 17, .12); }
+.vt-h > svg { position: absolute; top: 50%; left: 50%; width: 26px; height: 26px; transform: translate(-50%, -60%); opacity: .55; }
+.vt-h .vt-t { background: var(--stage); }
+.vt-h .vt-b svg path { stroke: var(--ink); }
+
+/* v9 · the clock panel from the Dynamic Island */
+.pn-clk { display: flex; align-items: center; justify-content: center; gap: 10px; margin: 18px 0 6px; }
+.pn-clk b { font-size: 44px; font-weight: 600; letter-spacing: -.02em; }
+.pn-s { margin-top: 8px; }
+.pn-l { max-height: 180px; overflow: auto; margin-top: 6px; }
+
+/* v9 · today's plan, on top of Videos */
+.pt-day { display: flex; align-items: center; gap: 10px; margin-top: 12px; padding: 10px; border-radius: 8px; background: var(--white); color: var(--ink); }
+.pt-day img { flex: none; width: 44px; height: 44px; border-radius: 6px; object-fit: cover; }
+.pt-day .row-t { flex: 1; min-width: 0; }
+.pt-day .b-lime { flex: none; width: auto; height: 36px; padding: 0 16px; font-size: 14px; }
+
+/* v9 · Log by hand, by grade: rocks on a white page, one per grade, and a sheet with the breakdown */
+.gl-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 2px 0 4px; }
+.gl-top > span { display: grid; justify-items: start; gap: 2px; }
+.gl-top b { display: flex; align-items: center; gap: 6px; font-size: 18px; font-weight: 800; }
+.gl-gym { display: flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 600; color: var(--ink); text-decoration: underline; text-underline-offset: 3px; text-decoration-color: rgba(17, 17, 17, .3); }
+.gl-rope { display: flex; gap: 6px; }
+.gl-rope button { height: 34px; padding: 0 14px; border-radius: 17px; background: var(--white); box-shadow: inset 0 0 0 1px #DADAD6; font-size: 14px; font-weight: 600; }
+.gl-rope button[aria-pressed="true"] { background: var(--ink); color: var(--white); box-shadow: none; }
+.gl-map { margin: 0 -16px; }
+.gl-map svg { display: block; width: 100%; max-height: 50vh; margin: 0 auto; touch-action: none; user-select: none; -webkit-user-select: none; }
+.peb { fill: rgba(17, 17, 17, .07); }
+.gb { cursor: pointer; outline: none; }
+.gb path { fill: var(--white); stroke: rgba(17, 17, 17, .14); stroke-width: 1.5; transition: fill .15s; }
+.gb > text { font-size: 30px; font-weight: 900; fill: var(--ink); text-anchor: middle; pointer-events: none; letter-spacing: -.02em; }
+.gb.down path, .gb:focus-visible path { fill: #F0F0EC; }
+.gb.hit path { fill: var(--lime); stroke: none; }
+.gb .bd circle { fill: var(--ink); }
+.gb .bd text { font-size: 13px; font-weight: 800; fill: var(--white); text-anchor: middle; pointer-events: none; }
+.gl-how { margin: 4px 0 10px; text-align: center; font-size: 13px; color: var(--mid); }
+.gl-how b { color: var(--ink); }
+.gl-sh { margin: 0 -16px; padding: 4px 16px 18px; border-radius: 16px 16px 0 0; background: var(--white); min-height: 118px; box-shadow: 0 -1px 0 rgba(17, 17, 17, .06); }
+.gl-grab { display: block; width: 100%; height: 22px; }
+.gl-grab i { display: block; width: 40px; height: 4px; margin: 6px auto; border-radius: 2px; background: rgba(17, 17, 17, .2); }
+.gl-e { padding: 20px 0; text-align: center; font-size: 16px; color: var(--mid); }
+.gl-h { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; font-size: 14px; color: var(--mid); }
+.gl-h button { display: flex; align-items: center; gap: 4px; font-size: 14px; font-weight: 600; color: var(--ink); }
+.gl-b { display: grid; grid-template-columns: 46px 1fr 24px; align-items: center; gap: 10px; height: 28px; }
+.gl-b b { font-weight: 800; }
+.gl-b .num { text-align: right; }
+.gl-bar { display: flex; height: 12px; border-radius: 6px; overflow: hidden; background: rgba(17, 17, 17, .06); }
+.gl-bar i { display: block; height: 100%; background: #C3C8CB; }
+.gl-bar i.s { background: var(--lime); }
+.gl-sh.open .gl-list { max-height: 56vh; overflow: auto; }
+.gl-r { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; padding: 8px 8px 8px 12px; border-radius: 10px; background: #F3F3F1; }
+.gl-r > b { width: 44px; flex: none; font-weight: 900; }
+.gl-r > span:not(.gl-seg) { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 12px; color: var(--mid); }
+.gl-seg { display: flex; padding: 2px; border-radius: 16px; background: rgba(17, 17, 17, .07); }
+.gl-seg button { height: 28px; padding: 0 9px; border-radius: 14px; font-size: 13px; font-weight: 600; color: var(--mid); }
+.gl-seg button[aria-pressed="true"] { background: var(--lime); color: var(--ink); }
+.gl-x { flex: none; width: 28px; height: 28px; font-size: 18px; color: var(--mid); }
+.gl-sum { padding: 10px 12px; border-radius: 8px; background: var(--white); }
+.gl-gth { width: 40px; height: 40px; margin-right: 10px; }
+.b-lime:disabled { opacity: .45; }
+.vt-gr .vt-rg { position: absolute; top: 50%; left: 0; right: 0; transform: translateY(-50%); text-align: center; font-size: 18px; font-weight: 800; }
+.sm-best + .fold + .cap { margin-top: 14px; }

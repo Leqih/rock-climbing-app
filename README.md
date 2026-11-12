@@ -1,6 +1,6 @@
 # Spotter prototype
 
-Clickable prototype of Spotter, an indoor bouldering app for beginners (DTX 495, UIUC).
+Clickable prototype of Spotter, an indoor climbing app (top rope included) for beginners (DTX 495, UIUC).
 Every screen follows a step of the user flow ("Flow chart v2" in FigJam).
 Plain HTML, CSS and JavaScript: no build step, no dependencies.
 
@@ -8,12 +8,13 @@ Plain HTML, CSS and JavaScript: no build step, no dependencies.
 
 | File | What it holds |
 |---|---|
-| `index.html` | Phone frame, dock, the "Log the send" sheet, the "Keep climbing?" sheet |
+| `index.html` | Phone frame, dock, the "Log the send" sheet, the sheet every other pane opens in; Leaflet for the gym map |
 | `styles.css` | Colour tokens (`:root`), the phone frame, dock and shared tiles |
 | `pages.css` | Every other screen, in flow order |
 | `app.js` | Sample data, one view function per screen, hash routing and click handling |
 | `i18n.js` | 中文 / English: the Chinese for every string, and the volume-down switch |
-| `img/` | Photos used on the pages (Unsplash) |
+| `pose.js` | The body scan (MediaPipe Pose Landmarker) and everything drawn from it |
+| `img/`, `video/` | Frames, posters, gym photos; the climbing videos and their scans |
 
 ## Run it locally
 
@@ -29,7 +30,7 @@ Then go to http://localhost:8000.
 
 ## Live on Vercel
 
-https://chalk-prototype-omega.vercel.app (project `chalk-prototype`, static, no build step). Snapshots are at `/versions/v1/` to `/versions/v7/`. To update it, run this from this folder:
+https://chalk-prototype-omega.vercel.app (project `chalk-prototype`, static, no build step). Snapshots are at `/versions/v1/` to `/versions/v8/` (no v6). To update it, run this from this folder:
 
 ```bash
 vercel deploy --prod
@@ -43,44 +44,49 @@ Press the phone's volume-down button to switch the whole prototype to Chinese, a
 
 After changing a CSS or JS file, bump the `?v=` string on its link in `index.html` so browsers don't keep showing the old copy.
 
-## Screens, in flow order
+## Screens (v9)
 
-| Flow lane | Step | Screen |
+v9 is one loop: film or import a try at the ARC Climbing Wall, see what your body did, then watch it next to someone else on the same route. Everything else from v8 was cut.
+
+| Screen | What it does | Route |
 |---|---|---|
-| Set up | Opened from a buddy's tag: accept or decline the clip | `#/setup/tag` (open with `?from=tag`) |
-| Set up | Pick your gym / add your gym in 30 s | `#/setup/gym`, `#/setup/addgym` |
-| Set up | Your level, and height and arm span (optional) | `#/setup/level` |
-| Set up | Your videos: what the app does, on a real analysed frame; "your sends are public, hide any climb"; then Import from Photos (Videos with the camera roll open), Film a try (camera), or look around first (Videos) | `#/setup/clips` |
-| At the gym | Scan a wall (Walls or "+"): frame one route and snap; we read its tape colour and the grade on the gym's tag, and draw the moves on the photo: start, each hand in order, the feet for it. Step through move by move; the longest reach is planned for your height and arm span. At the bottom: Retake, or Open this route (its beta, your tries and Film try 1 are there); log it, or watch climbers your height on it (v4) | `#/scan` |
-| At the gym | Walls: your routes (climbed, filmed or scanned) and Scan a wall to find new ones; no gym route list, no reset dates (v4) | `#/walls` |
-| At the gym | Gyms near you (tap the gym's name in Walls, or Profile): 1, 5, 10 or 25 mi; a list (photo, distance, street, crowd now; tap one to make it your gym, Directions opens Maps) or a full-screen real map (OpenStreetMap) with you in the middle, a ring at that distance and a pin per gym; tap a pin for its card (v6) | `#/gyms` |
-| At the gym | Pick a project; beta from climbers your height | `#/route/<n>` |
-| At the gym | "+" → add a climb: Film, Upload, Scan a wall, Log by hand, four equal tiles (v4). Always Add, in a session too | sheet on any screen |
-| At the gym | Film your tries: "Film try N" on the route card opens the camera at once; the session starts with the first recording. One recording for many tries; each try is cut out automatically. After Stop the tries stay on the camera with the highest move of each: "I topped it" or "What to change", and the shutter for the next try (v4) | `#/cam` |
-| At the gym | Upload: pick one or many (videos already added are hidden), and you're back in Videos at once while they're read in the background (v3) | sheet → `#/videos` |
-| At the gym | Log by hand: gym from your location (or search and pick); snap the route's tag, or pick tape colour and grade | sheet |
-| At the gym | A live session shows in the Dynamic Island on every page; tap it for the session bar (clock, tries, End) at the top of Videos | status bar |
-| At the gym | Watch: connect, the three wrist screens of a try (v2) | `#/watch` |
-| Learn from the fall | Compare with a sender, one tip and one drill, try again now? | `#/compare` |
-| Log the send | How it felt, a note, who filmed you → "Keep climbing?" | sheets on any screen |
-| Over time | End session: tries, sends, time; hide any climb (its videos too); tap a climb to watch its video | `#/summary` |
-| Over time | Profile (a tab, and your photo at the top of every other tab): progress heatmap, sends per grade, monthly recap, export, watch, sharing | `#/profile` |
-| Over time | Videos, the first tab and where the app opens (v6): each day with its gym and tries, one card per route with every try on it inside; filter by route (v3) | `#/videos` |
-| Over time | One video: play, highest move, time on the move you stall, one tip, compare; your tries on this route side by side, with Film the next try; route and gym under the video, Change to fix; public or hidden, delete; share a send as a poster | `#/clip/<id>` |
-| Over time | A video is analysed as soon as it arrives, on any page, and Videos shows Analysing or Check this on its card: `pose.js` goes through the whole video once, in the browser, with real progress. The three sample videos ship with that scan already done (`video/*.track.json`), so a demo doesn't wait; Fix it scans for real. On the first video of a route you confirm the climber and route we found (Looks right, or Fix it and tap your head, hands and feet, which scans again from your taps); later tries on that route skip this. The result is shown on the video and under it, at the moment the video is at: skeleton and elbow angles on the picture, moves so far, arms and hips beside it, and a timeline of each hand and foot and every rest that you can tap to go to that moment. Summary opens with one conclusion from those numbers, shown with frames taken from the video itself (two to compare when there's something to compare, one when there's too little to judge) and a strip of the whole climb. A video with no route yet is analysed too; tagging the route adds the route side, then what to do next. The hips conclusion only says what happened, without telling you what to do: on The Way Up, climbers with more experience were centred less, so the rule isn't good enough to be advice. Its button plays just that stretch at half speed right there in the card, with its start, end and current time, and stops at its end. The frames and the rows under What we measured play the same way, where you tapped them, then lists what we measured, each with its moment. A move on the route (Move 4/6) is not a hand and foot move (25 in a video): the first is how far you got, the second is what we track. Moves, rests, angles and hips come from this video. The fall reason, path and drill are marked Example: they need the hold map. Videos play start to end at 0.25×, 0.5× or 1× | `#/clip/<id>` |
-| Learn from the fall | Why you came off, on a video of a fall: likely reason with its evidence, hands and feet over time, your path against climbers your height, a reach check, falls across routes and one drill. Sample data: the hold map and contact log are not built yet | `#/clip/<id>` |
-| Over time | A video with no route: pick the gym if it has no location, then tap the route's photo or pick tape colour and grade, right on the video's page (v3) | `#/clip/<id>` |
-| Over time | Videos opens on every imported video, newest first, with Import videos at the top. The two sample videos are already imported for every climber, new or regular. Import is a demo: it opens the prototype camera roll, and no real file is read. Below the videos: analysed count, filmed by friends, highlight reel, Select to hide / change route / delete several, free up space, older routes | `#/videos` |
-| Over time | Community: a feed of videos people posted, with likes and comments, then group climbs and the partner calendar | `#/friends` |
+| Intro | First open for a new climber: what Spotter does, on a frame the analysis drew on; Import videos, Film a try, or look around | `#/setup` |
+| Videos (tab) | Your tries, grouped by route, newest first: each video with Analysing / Topped / Not topped and the day, and each day logged by hand as a plain "By hand" tile in the same grid (today's opens Log by hand). A highlight reel of your sends. On a day you have a plan you're going to, it sits on top until the session starts: Start (at ARC: starts the clock and opens \"+\") or Open (another gym) | `#/videos` |
+| Add ("+") | Four equal tiles: Film, Import, Log by hand, Scan a wall | sheet |
+| Scan a wall | Photo a route; its beta is drawn on the photo hold by hold, with the feet for each move. The beta is how Leo climbed it, read from the scan of their video | `#/scan` |
+| Beta (no camera) | The same beta, opened from a route page ("See the beta") or from your analysis' Summary ("Your moves and the beta": your hand moves next to the beta's, counted the same way). Film a try on it, no Retake | `#/scan` |
+| Log by hand | By grade, not by route, since routes get reset. Rocks on a white page, one per grade: tap = Send, swipe up = Flash, swipe down = Project. Pick the gym (any of the five) and what you climbed there, only what the gym lists: Boulder (V0 to V8+) and/or Top rope (5.6 to 5.12+). The sheet below shows the grade breakdown with Undo; pull it open for every climb, each switchable between Flash / Send / Project or removable. Save session ends the session. Days logged by grade show on Videos (By grade), in the Profile logbook, the clock panel, the summary and the CSV | `#/session` |
+| Session clock | Tapping the clock in the Dynamic Island opens a panel over the current page: the time, today's sends and attempts per route, Keep climbing and End session | panel |
+| Import | Your camera roll (your three sample videos); importing one opens its analysis, several land in Videos | sheet |
+| Film | Full-screen camera; the route is read from the holds in frame; Stop opens the new try's analysis. Filming starts the session clock | `#/cam` |
+| One try | The video with the body drawn on it. Summary (the main thing, from the scan), Body (live readouts, timeline, whole-climb numbers), Compare (everyone else on this route), Info (your tries on it, route, public or hidden, share as a poster, delete) | `#/clip/<id>` |
+| Side by side | Your try and one other climber's, both from their first move, each zoomed in and following its climber; one "Try next time" and six numbers, all counted from the two scans | `#/vs/<id>-<video>` |
+| Route | Your tries and every climber on it, with VS | `#/route/<i>` |
+| Gyms (tab) | Where you climb (the ARC), then four more gyms near the Quad, each with the gym's own hours and address | `#/walls` |
+| Map | The gyms on an OpenStreetMap map, with a 1 / 5 / 10 / 50 mi ring | `#/gyms` |
+| One gym | ARC (`#/gym/0`): photos, hours, address, the two routes with videos, Log a climb, Plan a session. Any other gym: only what it publishes (photos, hours, day pass, what's there) | `#/gym/<i>` |
+| Community (tab) | For you: every public video from the gym, one at a time: like, comment at a moment in the video, VS. Friends: who you follow, sessions planned together (join or plan one at a nearby gym), who's free this week, friends' climbs | `#/friends`, `#/friends/plan` |
+| Someone's page | Follow, their videos and the routes you both climbed | `#/person/<name>` |
+| Profile (tab) | The session now, tries on video, routes topped, each route try by try, hips over feet and moving per try, the logbook by day, CSV export, the watch, who sees new videos | `#/profile` |
+| Session summary | After End: time, tries, sends, hardest send, and Public / Hidden for each climb. Then, from today's videos: Look at your analysis, Share your send (the poster) and Today's highlight reel; a session logged only by hand says why there's none | `#/summary` |
+| Watch | Connect a watch and tap through its four screens; the camera shows Watch ready | `#/watch` |
+
+## Back from v8
+
+v9 first cut everything outside film → analysis → compare. These came back on Nov 12, rebuilt on the v9 world (ARC's two routes, the same five climbers): other gyms and the map, logging by hand, the session clock, the watch, the highlight reel, the share poster, CSV export, plans with friends, the who's-free week, following, and Unsplash portraits for the sample people (stock models, not these names). The other gyms show only what they publish: nobody has filmed there, so they have no routes or videos.
+
+## The sample world
+
+All climbing footage is The Way Up (Maschek & Schedl, CC BY 4.0): ten climbers on the same two routes of a tall top-rope wall. v9 shows it as the ARC Climbing Wall's rope wall (real address and hours from campusrec.illinois.edu), routes Green 5.8 and Orange 5.9 (sample grades). You are the climber filmed as p2 (`wayup-p2a-orange`, `wayup-p2-green`, `wayup-p2b-orange`); Noor, Sam, Leo, Kai and Mia are p8, p1, p3, p10 and p5, the ones with full scans. Topped or not is what each video's last frame shows. Names, likes and comments are sample; every number about a climb is measured from its video. `wayup-p2a-orange` has no shipped scan, so it is scanned live in the browser the first time (then kept in localStorage).
 
 ## Two climbers
 
-- `index.html` opens as a new climber, at set up.
-- `index.html?view=regular` opens as Maria a few months in, on Videos, with projects, a friend's tag and history.
+- `index.html` opens as a new climber, on the intro, with nothing imported.
+- `index.html?view=regular` opens on Videos with your three tries already imported, and comments on them.
 
 ## Versions
 
-`versions/v1/` to `versions/v5/` are frozen copies of the prototype, all from Nov 3, 2026, kept to show how the design changed. Open `index.html` in any of them. `versions/v7/` was frozen on Nov 9, 2026; it has its own code, pictures and model, and plays the videos from the site's `video/` folder (`../../video/`), so don't delete a video v7 still uses. v6 is commit 1fd4ba8.
+`versions/v1/` to `versions/v5/` are frozen copies of the prototype, all from Nov 3, 2026, kept to show how the design changed. Open `index.html` in any of them. `versions/v7/` was frozen on Nov 9, 2026; it has its own code, pictures and model, and plays the videos from the site's `video/` folder (`../../video/`), so don't delete a video v7 still uses. v6 is commit 1fd4ba8. `versions/v8/` was frozen on Nov 12, 2026, before v9 cut the app down to one loop; it also plays from `../../video/`.
 It assumes the gym publishes its routes (lists, scan, beta all come from that data) and records tries only through the in-app Record button.
 Questions that led to the next version:
 
