@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Spotter style directions</title>
+<link href="https://fonts.googleapis.com/css2?family=Urbanist:ital,wght@0,400;0,600;0,700;0,800;0,900;1,900&display=swap" rel="stylesheet">
+<style>
+:root { --lime: #C2FF01; --orange: #FF6A1F; --ink: #111111; }
+* { box-sizing: border-box; margin: 0; }
+body { font-family: Urbanist, system-ui, sans-serif; background: #D9D9D6; color: var(--ink); padding: 32px 16px 48px; }
+.top { max-width: 1240px; margin: 0 auto 24px; }
+.top h1 { font-size: 28px; font-weight: 900; letter-spacing: -.02em; }
+.top p { margin-top: 6px; color: #555; font-size: 15px; }
+.row { max-width: 1240px; margin: 0 auto; display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 28px; justify-items: center; }
+.col h2 { font-size: 20px; font-weight: 900; letter-spacing: -.01em; }
+.col > p { font-size: 13px; color: #555; margin: 4px 0 12px; max-width: 360px; line-height: 1.4; }
+.phone { width: 360px; height: 740px; border-radius: 44px; padding: 10px; background: #111; box-shadow: 0 20px 50px rgba(0,0,0,.25); }
+.scr { position: relative; height: 100%; border-radius: 36px; overflow: hidden; }
+.st { height: 44px; display: flex; align-items: center; justify-content: space-between; padding: 0 28px; font-size: 14px; font-weight: 700; }
+.body { position: absolute; inset: 44px 0 0; overflow: hidden; padding: 0 16px; }
+img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.dock { position: absolute; left: 14px; right: 14px; bottom: 18px; height: 58px; display: grid; grid-template-columns: repeat(4, 1fr) 58px; gap: 8px; }
+.dock .bar { grid-column: 1 / 5; display: grid; grid-template-columns: repeat(4, 1fr); align-items: center; text-align: center; font-size: 11px; font-weight: 700; }
+.dock .add { display: grid; place-items: center; font-size: 30px; font-weight: 400; line-height: 1; }
+.dock svg { display: block; margin: 0 auto 3px; }
+
+/* ---------- A. Clean editorial ---------- */
+.a .scr { background: #FFFFFF; }
+.a h3 { font-size: 40px; font-weight: 900; letter-spacing: -.04em; margin: 10px 0 2px; }
+.a .meta { font-size: 13px; color: #777; font-weight: 600; }
+.a .hero { margin: 18px -16px 0; height: 250px; position: relative; }
+.a .hero .cap { position: absolute; left: 16px; bottom: 14px; right: 16px; color: #fff; }
+.a .hero .cap small { display: inline-block; background: var(--lime); color: var(--ink); font-size: 11px; font-weight: 800; padding: 3px 7px; }
+.a .hero .cap b { display: block; font-size: 24px; font-weight: 900; letter-spacing: -.02em; margin-top: 6px; text-shadow: 0 1px 12px rgba(0,0,0,.4); }
+.a .hero::after { content: ""; position: absolute; inset: 0; background: linear-gradient(transparent 50%, rgba(0,0,0,.55)); }
+.a .hero .cap { z-index: 1; }
+.a .stats { display: grid; grid-template-columns: repeat(3, 1fr); margin-top: 18px; }
+.a .stats div b { display: block; font-size: 30px; font-weight: 900; letter-spacing: -.04em; line-height: 1; }
+.a .stats div span { font-size: 12px; color: #777; font-weight: 600; }
+.a .sh { display: flex; justify-content: space-between; align-items: baseline; margin: 22px 0 10px; }
+.a .sh b { font-size: 18px; font-weight: 900; }
+.a .sh span { font-size: 13px; font-weight: 700; }
+.a .strip { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; height: 128px; }
+.a .dock .bar { background: #fff; box-shadow: 0 6px 24px rgba(0,0,0,.12); color: #999; }
+.a .dock .bar .on { color: var(--ink); }
+.a .dock .add { background: var(--ink); color: var(--lime); }
+
+/* ---------- B. Night wall ---------- */
+.b .scr { background: #0E0F0E; color: #F2F2EE; }
+.b .st { color: #fff; }
+.b h3 { font-size: 34px; font-weight: 900; letter-spacing: -.03em; margin: 10px 0 14px; display: flex; justify-content: space-between; align-items: center; }
+.b h3 i { width: 34px; height: 34px; border-radius: 50%; overflow: hidden; }
+.b .card { background: #1A1B1A; border-radius: 6px; overflow: hidden; }
+.b .card .ph { height: 196px; position: relative; }
+.b .card .ph small { position: absolute; left: 10px; top: 10px; background: var(--lime); color: var(--ink); font-size: 11px; font-weight: 800; padding: 3px 7px; }
+.b .card .tx { padding: 12px 14px 14px; display: flex; justify-content: space-between; align-items: end; }
+.b .card .tx b { font-size: 20px; font-weight: 900; display: block; }
+.b .card .tx span { font-size: 12px; color: #9A9A95; }
+.b .card .tx em { font-style: normal; font-size: 34px; font-weight: 900; color: var(--lime); letter-spacing: -.04em; line-height: 1; }
+.b .wk { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-top: 12px; text-align: center; font-size: 11px; color: #777; }
+.b .wk i { display: block; font-style: normal; height: 30px; line-height: 30px; margin-top: 4px; background: #1A1B1A; color: #ddd; font-weight: 800; font-size: 13px; }
+.b .wk i.on { background: var(--lime); color: var(--ink); }
+.b .wk i.now { background: #fff; color: var(--ink); }
+.b .sh { margin: 18px 0 10px; font-size: 18px; font-weight: 900; }
+.b .two { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; height: 120px; }
+.b .two div { border-radius: 6px; overflow: hidden; }
+.b .dock .bar { background: #1F201F; color: #8A8A85; border-radius: 6px; }
+.b .dock .bar .on { color: var(--lime); }
+.b .dock .add { background: var(--lime); color: var(--ink); border-radius: 6px; }
+
+/* ---------- C. Chalk & route colour ---------- */
+.c .scr { background: #F4F1EA; }
+.c h3 { font-size: 36px; font-weight: 900; letter-spacing: -.03em; margin: 10px 0 2px; }
+.c .meta { font-size: 13px; font-weight: 700; color: #6B675E; }
+.c .big { margin-top: 16px; background: var(--ink); color: #fff; border-radius: 6px; padding: 14px; display: grid; grid-template-columns: 1fr 112px; gap: 12px; }
+.c .big b { font-size: 56px; font-weight: 900; letter-spacing: -.05em; line-height: .9; color: var(--lime); }
+.c .big span { font-size: 13px; font-weight: 700; color: #BDBDB6; display: block; margin-top: 6px; }
+.c .big .ph { height: 128px; border-radius: 4px; overflow: hidden; transform: rotate(3deg); }
+.c .sh { margin: 18px 0 10px; font-size: 18px; font-weight: 900; }
+.c .routes { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.c .rt { border-radius: 6px; overflow: hidden; }
+.c .rt .ph { height: 112px; }
+.c .rt .tx { padding: 10px 12px 12px; }
+.c .rt .tx b { font-size: 17px; font-weight: 900; display: block; }
+.c .rt .tx span { font-size: 12px; font-weight: 700; opacity: .75; }
+.c .g { background: #2FB36B; color: var(--ink); }
+.c .o { background: var(--orange); color: var(--ink); }
+.c .dock .bar { background: var(--ink); color: rgba(255,255,255,.6); border-radius: 6px; }
+.c .dock .bar .on { color: var(--lime); }
+.c .dock .add { background: var(--lime); color: var(--ink); border-radius: 6px; }
+</style>
+</head>
+<body>
+<div class="top">
+  <h1>Three style directions for Spotter</h1>
+  <p>The same Videos tab, drawn three ways. Pick one (or mix parts); I'll then restyle every page to match.</p>
+</div>
+<div class="row">
+
+  <div class="col a">
+    <h2>A · Clean editorial</h2>
+    <p>White page, big black type, your photos full width. Lime only as a small accent; no mascot, no grid wash, no grey boxes. Calm and grown-up.</p>
+    <div class="phone"><div class="scr">
+      <div class="st"><span>9:41</span><span>●●●</span></div>
+      <div class="body">
+        <h3>Videos</h3><div class="meta">ARC Climbing Wall · this week</div>
+        <div class="hero"><img src="img/wayup-p2b-orange.jpg" alt=""><div class="cap"><small>Hardest send</small><b>Orange 5.9 · try 2</b></div></div>
+        <div class="stats"><div><b>03</b><span>videos</span></div><div><b>2/2</b><span>routes topped</span></div><div><b>70%</b><span>hips over feet</span></div></div>
+        <div class="sh"><b>All videos</b><span>See all →</span></div>
+        <div class="strip"><img src="img/wayup-p2-green.jpg" alt=""><img src="img/wayup-p2a-orange.jpg" alt=""><img src="img/wayup-p3-green.jpg" alt=""></div>
+      </div>
+      <div class="dock"><div class="bar"><span class="on">Videos</span><span>Gyms</span><span>Social</span><span>Profile</span></div><div class="add">+</div></div>
+    </div></div>
+  </div>
+
+  <div class="col b">
+    <h2>B · Night wall</h2>
+    <p>Dark, like the gym in the evening. Photos glow, numbers in lime, chalk-white type. Easy on the eyes between tries.</p>
+    <div class="phone"><div class="scr">
+      <div class="st"><span>9:41</span><span>●●●</span></div>
+      <div class="body">
+        <h3>Videos <i><img src="img/av-noor.jpg" alt=""></i></h3>
+        <div class="card"><div class="ph"><img src="img/wayup-p2b-orange.jpg" alt=""><small>Hardest send</small></div>
+          <div class="tx"><div><b>All videos</b><span>3 on video · 3 days by hand</span></div><em>03</em></div></div>
+        <div class="wk">
+          <div>F<i>6</i></div><div>S<i class="on">7</i></div><div>S<i>8</i></div><div>M<i>9</i></div><div>T<i class="on">10</i></div><div>W<i>11</i></div><div>T<i class="now">12</i></div>
+        </div>
+        <div class="sh">Pinned</div>
+        <div class="two"><div><img src="img/wayup-p2-green.jpg" alt=""></div><div><img src="img/wayup-p3-green.jpg" alt=""></div></div>
+      </div>
+      <div class="dock"><div class="bar"><span class="on">Videos</span><span>Gyms</span><span>Social</span><span>Profile</span></div><div class="add">+</div></div>
+    </div></div>
+  </div>
+
+  <div class="col c">
+    <h2>C · Chalk &amp; route colour</h2>
+    <p>Warm chalk-white page; each route card takes the colour of its holds (green, orange). One ink block for your count. Playful but less busy than now.</p>
+    <div class="phone"><div class="scr">
+      <div class="st"><span>9:41</span><span>●●●</span></div>
+      <div class="body">
+        <h3>Videos</h3><div class="meta">Your climbing album · Nov 2026</div>
+        <div class="big"><div><b>03</b><span>videos<br>+ 3 days by hand</span></div><div class="ph"><img src="img/wayup-p2b-orange.jpg" alt=""></div></div>
+        <div class="sh">Your routes</div>
+        <div class="routes">
+          <div class="rt g"><div class="ph"><img src="img/wayup-p2-green.jpg" alt=""></div><div class="tx"><b>Green 5.8</b><span>Topped · try 1</span></div></div>
+          <div class="rt o"><div class="ph"><img src="img/wayup-p2a-orange.jpg" alt=""></div><div class="tx"><b>Orange 5.9</b><span>Topped · try 2</span></div></div>
+        </div>
+      </div>
+      <div class="dock"><div class="bar"><span class="on">Videos</span><span>Gyms</span><span>Social</span><span>Profile</span></div><div class="add">+</div></div>
+    </div></div>
+  </div>
+
+</div>
+</body>
+</html>

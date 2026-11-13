@@ -1,7 +1,13 @@
 /* Spotter prototype: shared tokens and app-wide pieces (phone frame, dock, sheets, lists, tiles).
    A white app: white screen, white cards with #EDEDED hairlines, ink type, lime #C2FF01 for actions, orange #FF6A1F
    for what speaks to you. Screen styles and the design system that ties them together live in pages.css. */
-:root { --bg: #FFFFFF; --card: #FFFFFF; --line: #EDEDED; --soft: #9A9A9A; --r-s: 10px; --r-m: 14px; --r-l: 22px; --sh: none; --ink: #111111; --white: #FFFFFF; --mid: #666666; --glass: rgba(58, 58, 58, .42); --glass-line: rgba(255, 255, 255, .16); --lime: #C2FF01; --orange: #FF6A1F; --lilac: var(--orange); --warn: #F2452E; --stage: #CBCBCB; --f: "Urbanist", "Helvetica Neue", Arial, system-ui, sans-serif; color-scheme: light; }
+:root { --ease: cubic-bezier(.23, 1, .32, 1); --bg: #FFFFFF; --card: #FFFFFF; --white: #FFFFFF; --ink: #111111;
+  /* one grey ramp: fill → line → track → placeholder → neutral mark → icon → text → dark */
+  --g50: #F4F4F4; --line: #EDEDED; --g200: #E2E2DE; --g300: #D6D6D2; --g400: #BDBDB8; --soft: #9A9A9A; --mid: #666666; --g700: #3A3C3A;
+  /* two accents and three states */
+  --lime: #C2FF01; --lime-soft: #E9F3C2; --orange: #FF6A1F; --ok: #2E7D32; --warn: #E5484D; --warn-ink: #C4502A;
+  --stage: #CBCBCB; --glass: rgba(58, 58, 58, .42); --glass-line: rgba(255, 255, 255, .16);
+  --r-s: 4px; --r-m: 6px; --r-l: 10px; --sh: none; --f: "Urbanist", "Helvetica Neue", Arial, system-ui, sans-serif; color-scheme: light; }
 * { box-sizing: border-box; }
 html, body { background: var(--stage); color: var(--ink); }
 body { font-family: var(--f); font-size: 14px; line-height: 1.35; -webkit-font-smoothing: antialiased; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 32px; }
@@ -43,7 +49,7 @@ h1, h2, p { margin: 0; }
 .av img { object-position: 60% 25%; }
 .who { flex: 1; min-width: 0; }
 .who strong { display: block; font-size: 18px; font-weight: 600; }
-.who button { display: flex; align-items: center; gap: 4px; font-size: 13px; color: #2B2D2E; }
+.who button { display: flex; align-items: center; gap: 4px; font-size: 13px; color: var(--g700); }
 /* headlines */
 .hl { margin: 40px 0 12px; line-height: 1.1; }
 .hl2 { display: flex; justify-content: space-between; }
@@ -57,14 +63,14 @@ h1, h2, p { margin: 0; }
 .lt.w2 { grid-column: span 2; }
 .lt-h { display: block; line-height: 1.1; }
 .mv b { display: block; font-size: 40px; line-height: 1; }
-.mv-l { display: block; margin-top: 6px; font-size: 16px; line-height: 1.2; color: #9A9C98; }
+.mv-l { display: block; margin-top: 6px; font-size: 16px; line-height: 1.2; color: var(--mid); }
 /* level as a staircase: one step per grade, lime = grades you climb, lilac = the next one, dark top edge = where you are */
 .steps { position: absolute; left: 16px; right: 16px; bottom: 16px; height: 120px; display: flex; align-items: flex-end; gap: 3px; }
-.st { position: relative; flex: 1; border-radius: 3px 3px 0 0; background: #E2E2DE; }
+.st { position: relative; flex: 1; border-radius: 3px 3px 0 0; background: var(--g200); }
 .st.on { background: var(--lime); }
-.st.next { background: var(--lilac); }
+.st.next { background: var(--orange); }
 .st.cur { box-shadow: inset 0 3px 0 var(--ink); }
-.st i { position: absolute; top: 6px; left: 0; right: 0; font-style: normal; font-size: 10px; font-weight: 600; text-align: center; color: #8A8C88; }
+.st i { position: absolute; top: 6px; left: 0; right: 0; font-style: normal; font-size: 10px; font-weight: 600; text-align: center; color: var(--mid); }
 .st.on i, .st.next i { color: var(--ink); }
 .lb { grid-auto-rows: 147px; }
 .lt.tall { grid-row: span 2; height: auto; }
@@ -72,7 +78,7 @@ h1, h2, p { margin: 0; }
 .short .mv b { font-size: 36px; }
 .short .mv-l { font-size: 14px; }
 .sqb { position: absolute; top: 12px; right: 12px; width: 36px; height: 36px; border-radius: var(--r-s); background: var(--ink); display: grid; place-items: center; }
-.cv { display: block; margin-top: 8px; font-size: 13px; color: #9A9C98; }
+.cv { display: block; margin-top: 8px; font-size: 13px; color: var(--mid); }
 .cv b { font-size: 28px; font-weight: 300; color: var(--ink); }
 .crowd svg { position: absolute; left: 16px; right: 16px; bottom: 14px; width: calc(100% - 32px); height: 40px; }
 /* the route you are on: its photo, the line drawn on it (top right), hero number and tip at the bottom */
@@ -102,7 +108,7 @@ h1, h2, p { margin: 0; }
 .tile.photo b { font-size: 36px; }
 /* every tab has a label so beginners never guess an icon; the lime cell is the one action: start, then record */
 .dock { position: absolute; left: 16px; right: 16px; bottom: 22px; display: grid; grid-template-columns: 1fr 1fr 1.25fr 1fr 1fr; gap: 2px; backdrop-filter: blur(20px) saturate(1.2); -webkit-backdrop-filter: blur(20px) saturate(1.2); z-index: 5; }
-.dk { position: relative; height: 56px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; color: #7A7C78; text-align: center; }
+.dk { position: relative; height: 56px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; color: var(--mid); text-align: center; }
 .dk span:not(.pip) { line-height: 1; }
 .dk[aria-current="page"] span { font-weight: 600; }
 .dk.plus span { font-weight: 600; }
@@ -112,12 +118,12 @@ h1, h2, p { margin: 0; }
 .scrim.show { opacity: 1; pointer-events: auto; }
 .sheet { position: absolute; left: 0; right: 0; bottom: 0; z-index: 7; background: var(--white); padding: 8px 20px 40px; transform: translateY(100%); transition: transform .25s; visibility: hidden; }
 .sheet.show { transform: none; visibility: visible; }
-.grab { width: 36px; height: 5px; border-radius: 3px; background: #E2E2DE; margin: 0 auto 16px; }
+.grab { width: 36px; height: 5px; border-radius: 3px; background: var(--g200); margin: 0 auto 16px; }
 .sheet .sub { font-size: 14px; color: var(--mid); }
 .lbl { font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--mid); }
 .field { margin-top: 24px; }
 .opts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 8px; }
-.opts button { height: 44px; border-radius: var(--r-m); box-shadow: inset 0 0 0 1px #E2E2DE; text-align: center; font-weight: 600; }
+.opts button { height: 44px; border-radius: var(--r-m); box-shadow: inset 0 0 0 1px var(--g200); text-align: center; font-weight: 600; }
 .opts button[aria-pressed="true"] { background: var(--ink); color: var(--white); box-shadow: none; }
 .hint { margin-top: 8px; font-size: 12px; color: var(--mid); }
 .btn-l { display: block; width: 100%; margin-top: 24px; background: var(--ink); color: var(--white); font-size: 16px; text-align: center; }

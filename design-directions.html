@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Spotter · three directions</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Urbanist:ital,wght@0,400;0,600;0,700;0,800;0,900;1,800;1,900&family=Archivo+Black&display=swap" rel="stylesheet">
+<style>
+/* Three directions for Spotter's Videos home, side by side. Same content in each: your album (3 videos, 3 days logged by hand,
+   1 video without a gym), the hardest send, the highlight reel, ARC Climbing Wall. Static mockups: nothing here is wired up. */
+:root { --ink: #111111; --lime: #C2FF01; --orange: #FF6A1F; --white: #FFFFFF; --mid: #666666;
+  --px: polygon(0 4px, 4px 4px, 4px 0, calc(100% - 4px) 0, calc(100% - 4px) 4px, 100% 4px, 100% calc(100% - 4px), calc(100% - 4px) calc(100% - 4px), calc(100% - 4px) 100%, 4px 100%, 4px calc(100% - 4px), 0 calc(100% - 4px));
+  --sticker: drop-shadow(2.5px 0 0 #FFF) drop-shadow(-2.5px 0 0 #FFF) drop-shadow(0 2.5px 0 #FFF) drop-shadow(0 -2.5px 0 #FFF) drop-shadow(0 8px 10px rgba(17,17,17,.22)); }
+* { box-sizing: border-box; margin: 0; }
+body { background: #D4D4D0; color: var(--ink); font-family: "Urbanist", system-ui, sans-serif; padding: 40px 16px 60px; }
+img { display: block; width: 100%; height: 100%; object-fit: cover; }
+button { font: inherit; color: inherit; border: 0; background: none; padding: 0; }
+.intro { max-width: 1240px; margin: 0 auto 28px; }
+.intro h1 { font-size: 34px; font-weight: 900; letter-spacing: -.03em; }
+.intro p { margin-top: 6px; max-width: 760px; font-size: 15px; line-height: 1.5; color: #444; }
+.row { display: flex; flex-wrap: wrap; justify-content: center; gap: 36px; max-width: 1300px; margin: 0 auto; }
+.col { width: 390px; max-width: 100%; }
+.tag { display: inline-block; padding: 3px 10px; background: var(--ink); color: var(--lime); font-weight: 900; font-size: 14px; clip-path: var(--px); }
+.col h2 { margin: 10px 0 4px; font-size: 22px; font-weight: 900; letter-spacing: -.02em; }
+.col > p { margin-bottom: 14px; font-size: 14px; line-height: 1.45; color: #444; min-height: 62px; }
+.ph { position: relative; width: 390px; max-width: 100%; height: 844px; border-radius: 52px; overflow: hidden; border: 9px solid #111; box-shadow: 0 30px 60px rgba(0,0,0,.18); }
+.st { position: absolute; z-index: 9; top: 0; left: 0; right: 0; height: 48px; display: flex; justify-content: space-between; align-items: center; padding: 6px 30px 0 34px; font-weight: 700; font-size: 15px; }
+.st::after { content: ""; position: absolute; left: 50%; top: 10px; width: 112px; height: 32px; margin-left: -56px; border-radius: 18px; background: #111; }
+.st i { width: 58px; height: 12px; background: linear-gradient(90deg, currentColor 0 30%, transparent 30% 40%, currentColor 40% 62%, transparent 62% 72%, currentColor 72%); border-radius: 2px; }
+.sc { position: absolute; inset: 0; padding: 56px 16px 120px; overflow: hidden; }
+.masc { display: block; }
+.stk { filter: var(--sticker); }
+/* shared dock shapes */
+.dock { position: absolute; z-index: 8; left: 14px; right: 14px; bottom: 22px; height: 64px; display: grid; grid-template-columns: 1fr 1fr 1.2fr 1fr 1fr; align-items: center; padding: 0 6px; }
+.dock span { display: grid; justify-items: center; gap: 3px; font-size: 11px; font-weight: 700; }
+.dock svg { width: 22px; height: 22px; }
+.dock .add { justify-self: center; display: grid; place-items: center; width: 62px; height: 62px; margin-top: -26px; font-size: 30px; font-weight: 900; }
+.hm { position: absolute; z-index: 9; bottom: 8px; left: 50%; width: 130px; height: 5px; margin-left: -65px; border-radius: 3px; background: #111; }
+
+/* ================= A · Lime party (after 酒鬼) =================
+   Whole page lime, huge title, bento cards: one big album card, two stacked; black bars for the main action. */
+.A { background: linear-gradient(rgba(17,17,17,.06) 1px, transparent 1px) 0 0 / 22px 22px, linear-gradient(90deg, rgba(17,17,17,.06) 1px, transparent 1px) 0 0 / 22px 22px, linear-gradient(180deg, #D6FF5C 0%, #E9FFA6 38%, #F5FFE0 100%); }
+.A .hd { position: relative; height: 150px; }
+.A .t { font-family: "Archivo Black", "Urbanist", sans-serif; font-size: 46px; line-height: .98; letter-spacing: -.02em; }
+.A .t small { display: block; font-family: "Urbanist"; font-size: 16px; font-weight: 800; letter-spacing: 0; margin-bottom: 6px; }
+.A .hd .masc { position: absolute; right: -4px; top: 6px; width: 118px; height: 110px; transform: rotate(12deg); }
+.A .spark { position: absolute; font-size: 22px; }
+.A .bar { display: flex; align-items: center; gap: 10px; height: 50px; padding: 0 8px 0 16px; background: #111; color: #fff; border-radius: 14px; }
+.A .bar b { flex: 1; font-size: 16px; font-weight: 900; font-style: italic; }
+.A .bar em { display: grid; place-items: center; height: 36px; padding: 0 14px; border-radius: 10px; background: var(--lime); color: #111; font-style: normal; font-weight: 900; }
+.A .bento { display: grid; grid-template-columns: 1.1fr 1fr; gap: 10px; margin-top: 12px; }
+.A .card { position: relative; border-radius: 16px; background: #fff; overflow: hidden; box-shadow: 0 0 0 2px #111; }
+.A .alb { grid-row: span 2; padding: 12px; display: grid; align-content: start; gap: 6px; }
+.A .alb h3 { display: flex; align-items: center; justify-content: space-between; padding: 6px 10px; margin: -12px -12px 6px; background: var(--lime); font-size: 15px; font-weight: 900; border-bottom: 2px solid #111; }
+.A .stack { position: relative; height: 128px; margin-top: 4px; }
+.A .stack img { position: absolute; width: 74px; height: 100px; border-radius: 8px; border: 2px solid #111; }
+.A .stack img:nth-child(1) { left: 0; top: 14px; transform: rotate(-10deg); }
+.A .stack img:nth-child(2) { left: 38px; top: 2px; z-index: 1; }
+.A .stack img:nth-child(3) { left: 76px; top: 16px; transform: rotate(9deg); }
+.A .big { font-family: "Archivo Black"; font-size: 54px; line-height: .9; }
+.A .alb p { font-size: 13px; font-weight: 700; color: #444; }
+.A .warn { justify-self: start; padding: 2px 8px; background: var(--orange); font-size: 12px; font-weight: 900; clip-path: var(--px); }
+.A .mini { display: flex; gap: 10px; align-items: center; padding: 10px; min-height: 104px; }
+.A .mini .im { flex: none; width: 58px; height: 78px; border-radius: 8px; overflow: hidden; border: 2px solid #111; }
+.A .mini b { display: block; font-size: 15px; font-weight: 900; line-height: 1.15; }
+.A .mini small { display: block; margin-top: 4px; font-size: 12px; font-weight: 700; color: #555; }
+.A .hot { position: absolute; right: -6px; top: -6px; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; background: var(--orange); color: #fff; font-size: 11px; font-weight: 900; transform: rotate(14deg); box-shadow: 0 0 0 2px #111; }
+.A .tabs { display: flex; gap: 18px; margin: 18px 0 10px; font-size: 16px; font-weight: 700; color: #555; }
+.A .tabs b { position: relative; color: #111; font-weight: 900; }
+.A .tabs b::after { content: ""; position: absolute; left: 0; right: 0; bottom: -5px; height: 6px; background: var(--lime); box-shadow: 0 0 0 1.5px #111; border-radius: 3px; }
+.A .gym { display: flex; gap: 12px; align-items: center; padding: 10px; border-radius: 16px; background: #fff; box-shadow: 0 0 0 2px #111; }
+.A .gym .im { width: 74px; height: 74px; border-radius: 10px; overflow: hidden; }
+.A .gym b { display: block; font-size: 17px; font-weight: 900; }
+.A .gym small { display: block; margin-top: 3px; font-size: 13px; font-weight: 700; color: #555; }
+.A .gym .ok { display: inline-block; margin-top: 6px; padding: 1px 8px; background: #111; color: var(--lime); font-size: 12px; font-weight: 900; clip-path: var(--px); }
+.A .dock { background: #111; border-radius: 22px; color: rgba(255,255,255,.6); }
+.A .dock .on { color: var(--lime); }
+.A .dock .add { background: var(--lime); color: #111; border-radius: 18px; transform: rotate(-6deg); box-shadow: 0 0 0 3px #111; }
+
+/* ================= B · Climber ID (after IF穿搭) =================
+   Pale grey, a giant outlined word behind, your climber card on a lanyard as the hero, dashed boxes, pixel tags. */
+.B { background: #F1F1EE; }
+.B .wm { position: absolute; left: 0; right: 0; top: 62px; text-align: center; font-family: "Archivo Black"; font-size: 46px; line-height: 1.02; color: transparent; -webkit-text-stroke: 1.5px rgba(17,17,17,.12); letter-spacing: -.01em; }
+.B .top { position: relative; display: flex; align-items: center; justify-content: space-between; }
+.B .logo { display: flex; align-items: center; gap: 8px; font-weight: 900; font-size: 18px; }
+.B .logo i { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; background: var(--lime); box-shadow: 0 0 0 2px #111; font-style: normal; font-family: "Archivo Black"; font-size: 15px; }
+.B .pill { padding: 7px 14px; border-radius: 20px; box-shadow: inset 0 0 0 1.5px #111; font-size: 13px; font-weight: 800; background: #fff; }
+.B .hero { position: relative; height: 330px; margin-top: 4px; }
+.B .lan { position: absolute; left: 50%; top: 0; width: 6px; height: 70px; margin-left: -3px; background: #111; border-radius: 3px; }
+.B .clip { position: absolute; left: 50%; top: 62px; width: 34px; height: 22px; margin-left: -17px; border-radius: 4px; background: #9CC9E8; box-shadow: 0 0 0 2px #111; }
+.B .id { position: absolute; left: 50%; top: 88px; width: 176px; height: 232px; margin-left: -88px; padding: 10px; border-radius: 16px; background: #111; transform: rotate(-4deg); box-shadow: 0 16px 30px rgba(17,17,17,.25); }
+.B .id .in { position: relative; height: 100%; border-radius: 10px; background: linear-gradient(rgba(17,17,17,.08) 1px, transparent 1px) 0 0 / 14px 14px, linear-gradient(90deg, rgba(17,17,17,.08) 1px, transparent 1px) 0 0 / 14px 14px, var(--lime); padding: 12px; overflow: hidden; }
+.B .id .masc { width: 108px; height: 100px; margin: 2px auto 0; }
+.B .id b { display: block; margin-top: 6px; font-family: "Archivo Black"; font-size: 20px; text-align: center; }
+.B .id small { display: block; text-align: center; font-size: 12px; font-weight: 800; }
+.B .id .num { display: flex; justify-content: space-around; margin-top: 8px; font-family: "Archivo Black"; font-size: 18px; text-align: center; }
+.B .id .num span { display: block; font-family: "Urbanist"; font-size: 10px; font-weight: 800; text-transform: uppercase; }
+.B .ptag { position: absolute; padding: 4px 12px; font-family: "Archivo Black"; font-size: 16px; clip-path: var(--px); }
+.B .p1 { left: 8px; top: 150px; background: var(--lime); box-shadow: inset 0 0 0 2px #111; transform: rotate(-6deg); }
+.B .p2 { right: 4px; top: 214px; background: var(--orange); color: #fff; transform: rotate(5deg); }
+.B .duo { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.B .dash { position: relative; padding: 12px; border-radius: 14px; border: 2px dashed rgba(17,17,17,.3); background: rgba(255,255,255,.6); }
+.B .dash .after { position: absolute; right: 10px; top: -12px; padding: 2px 8px; background: var(--orange); color: #fff; font-size: 12px; font-weight: 900; clip-path: var(--px); }
+.B .dash .im { height: 92px; border-radius: 10px; overflow: hidden; }
+.B .dash b { display: block; margin-top: 8px; font-size: 15px; font-weight: 900; }
+.B .dash small { font-size: 12px; font-weight: 700; color: #555; }
+.B .cta { position: relative; display: flex; align-items: center; gap: 12px; height: 60px; margin-top: 14px; padding: 0 16px 0 70px; border-radius: 14px; background: var(--lime); box-shadow: inset 0 0 0 2px #111; font-size: 17px; font-weight: 900; }
+.B .cta .masc { position: absolute; left: 6px; top: -18px; width: 58px; height: 54px; transform: rotate(-12deg); }
+.B .tabs { display: flex; justify-content: center; gap: 56px; margin-top: 18px; font-size: 17px; font-weight: 800; color: #AAA; }
+.B .tabs b { color: #111; position: relative; }
+.B .tabs b::after { content: ""; position: absolute; left: 50%; bottom: -10px; width: 22px; height: 6px; margin-left: -11px; background: var(--lime); box-shadow: 0 0 0 1.5px #111; clip-path: polygon(0 0, 100% 0, 80% 100%, 20% 100%); }
+.B .dock { background: #fff; border-radius: 22px; box-shadow: 0 0 0 2px #111; color: #888; }
+.B .dock .on { color: #111; }
+.B .dock .add { background: #111; color: var(--lime); border-radius: 50%; box-shadow: 0 0 0 3px var(--lime), 0 0 0 5px #111; }
+
+/* ================= C · Night session (sporty, data first) =================
+   Black page, neon lime numbers, the climbing data as the hero, photos as a film strip, orange only for "do this". */
+.C { background: #0E0E0E; color: #fff; }
+.C .st { color: #fff; }
+.C .st::after { background: #000; }
+.C .hd { display: flex; align-items: center; justify-content: space-between; }
+.C .t { font-size: 34px; font-weight: 900; font-style: italic; letter-spacing: -.04em; }
+.C .t span { color: var(--lime); }
+.C .av { width: 40px; height: 40px; border-radius: 50%; overflow: hidden; box-shadow: 0 0 0 2px var(--lime); }
+.C .scorebox { position: relative; margin-top: 16px; padding: 18px; border-radius: 20px; background: radial-gradient(120% 90% at 100% 0%, rgba(194,255,1,.28), transparent 60%), #1A1A1A; overflow: hidden; }
+.C .scorebox small { font-size: 12px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: rgba(255,255,255,.6); }
+.C .score { margin-top: 2px; font-family: "Archivo Black"; font-size: 84px; line-height: .9; color: var(--lime); letter-spacing: -.03em; }
+.C .score sub { font-size: 34px; color: rgba(255,255,255,.5); vertical-align: baseline; }
+.C .scorebox p { margin-top: 6px; font-size: 14px; font-weight: 700; color: rgba(255,255,255,.75); }
+.C .scorebox .masc { position: absolute; right: 12px; bottom: 10px; width: 78px; height: 72px; transform: rotate(10deg); }
+.C .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 8px; }
+.C .stat { padding: 12px; border-radius: 14px; background: #1A1A1A; }
+.C .stat b { display: block; font-family: "Archivo Black"; font-size: 26px; }
+.C .stat span { font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: rgba(255,255,255,.55); }
+.C .sec { display: flex; justify-content: space-between; align-items: baseline; margin: 20px 0 10px; }
+.C .sec h3 { font-size: 18px; font-weight: 900; }
+.C .sec a { font-size: 13px; font-weight: 800; color: var(--lime); }
+.C .strip { display: flex; gap: 8px; margin-right: -16px; }
+.C .fr { position: relative; flex: none; width: 128px; height: 176px; border-radius: 14px; overflow: hidden; }
+.C .fr::after { content: ""; position: absolute; inset: 0; background: linear-gradient(to top, rgba(0,0,0,.75), transparent 55%); }
+.C .fr b { position: absolute; z-index: 1; left: 10px; bottom: 26px; font-size: 15px; font-weight: 900; }
+.C .fr small { position: absolute; z-index: 1; left: 10px; bottom: 10px; font-size: 11px; font-weight: 700; color: rgba(255,255,255,.7); }
+.C .fr .k { position: absolute; z-index: 1; left: 8px; top: 8px; padding: 1px 7px; background: var(--lime); color: #111; font-size: 11px; font-weight: 900; clip-path: var(--px); }
+.C .fr .k.o { background: var(--orange); }
+.C .todo { display: flex; align-items: center; gap: 12px; margin-top: 12px; padding: 12px 14px; border-radius: 14px; background: var(--orange); color: #111; }
+.C .todo b { flex: 1; font-size: 15px; font-weight: 900; }
+.C .todo em { font-style: normal; font-weight: 900; padding: 6px 12px; border-radius: 10px; background: #111; color: #fff; font-size: 13px; }
+.C .dock { background: #1A1A1A; border-radius: 22px; color: rgba(255,255,255,.5); box-shadow: inset 0 0 0 1px rgba(255,255,255,.08); }
+.C .dock .on { color: var(--lime); }
+.C .dock .add { background: var(--lime); color: #111; border-radius: 50%; box-shadow: 0 0 24px rgba(194,255,1,.45); }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute"><symbol id="m" viewBox="0 0 56 52"><path d="M9 22 18 12l17-2 13 9 3 15-9 12-18 2-13-8z" fill="#C2FF01" stroke="#111" stroke-width="2.6" stroke-linejoin="round"/><path d="M12 19c2-9 12-14 23-12 6 1 9 5 9 9-9-3-21-2-32 3z" fill="#FF6A1F" stroke="#111" stroke-width="2.6" stroke-linejoin="round"/><path d="M41 15c4 0 8 1 11 4" fill="none" stroke="#111" stroke-width="2.6" stroke-linecap="round"/><rect x="20" y="24" width="4" height="7" rx="1" fill="#111"/><rect x="32" y="23" width="4" height="7" rx="1" fill="#111"/><path d="M19 35c4 5 13 5 18-1" fill="none" stroke="#111" stroke-width="2.6" stroke-linecap="round"/></symbol>
+<symbol id="i-v" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="m10 9 5 3-5 3z" fill="currentColor"/></symbol>
+<symbol id="i-g" viewBox="0 0 24 24"><path d="M12 21s-7-6.1-7-11.4a7 7 0 0 1 14 0C19 14.9 12 21 12 21z" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="9.6" r="2.6" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol>
+<symbol id="i-s" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M2.5 20c0-3.6 2.9-6.5 6.5-6.5s6.5 2.9 6.5 6.5M15.5 4.8a3.5 3.5 0 0 1 0 6.4M18 13.9c2.1.9 3.5 3 3.5 6.1" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+<symbol id="i-p" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol></svg>
+
+<div class="intro">
+  <h1>Three directions for the Videos home ✦</h1>
+  <p>Same content in all three: your album (3 videos, 3 days logged by hand, 1 video without a gym), your hardest send, the highlight reel and ARC Climbing Wall. Pick one, or mix pieces, and it becomes the style for every tab.</p>
+</div>
+
+<div class="row">
+<!-- A -->
+<div class="col"><span class="tag">A</span><h2>Lime party</h2><p>After 酒鬼. The whole page is lime with a pixel grid, the title is huge, cards sit in a bento grid with ink outlines, and the mascot is the hero illustration.</p>
+<div class="ph A"><div class="st">9:41<i></i></div><div class="sc">
+  <div class="hd"><h3 class="t"><small>Spotter ✦ ARC Climbing Wall</small>Your<br>climbs</h3>
+    <svg class="masc stk"><use href="#m"/></svg><span class="spark" style="right:118px;top:18px">✦</span><span class="spark" style="right:8px;top:118px;font-size:16px">✦</span></div>
+  <div class="bar"><b>Film a try, see every move</b><em>Film</em></div>
+  <div class="bento">
+    <div class="card alb"><h3>All videos <span>→</span></h3>
+      <div class="stack"><img src="img/wayup-p2a-orange.jpg" alt=""><img src="img/wayup-p2-green.jpg" alt=""><img src="img/wayup-p2b-orange.jpg" alt=""></div>
+      <span class="big">3</span><p>videos · 3 days by hand</p><span class="warn">1 without a gym</span></div>
+    <div class="card mini"><span class="hot">HOT</span><span class="im"><img src="img/wayup-p2b-orange.jpg" alt=""></span><span><b>Hardest send</b><small>Orange 5.9 · try 2</small></span></div>
+    <div class="card mini" style="background:#111;color:#fff"><span class="im" style="border-color:var(--lime)"><img src="img/wayup-p2-green.jpg" alt=""></span><span><b>Highlight reel</b><small style="color:rgba(255,255,255,.7)">2 sends · 16 s ▶</small></span></div>
+  </div>
+  <div class="tabs"><b>By gym</b><span>By route</span><span>By day</span></div>
+  <div class="gym"><span class="im"><img src="img/gym-arc-1.jpg" alt=""></span><span><b>ARC Climbing Wall</b><small>2 videos · 2 of 2 routes topped</small><span class="ok">Open till 11 PM</span></span></div>
+</div>
+<nav class="dock"><span class="on"><svg><use href="#i-v"/></svg>Videos</span><span><svg><use href="#i-g"/></svg>Gyms</span><b class="add">+</b><span><svg><use href="#i-s"/></svg>Social</span><span><svg><use href="#i-p"/></svg>Profile</span></nav><i class="hm"></i></div></div>
+
+<!-- B -->
+<div class="col"><span class="tag">B</span><h2>Climber ID</h2><p>After IF穿搭. Pale grey with a giant outlined word behind, your climber card hanging on a lanyard as the hero, pixel stickers, dashed boxes, a lime bar with the mascot stuck on.</p>
+<div class="ph B"><div class="st">9:41<i></i></div><div class="sc">
+  <div class="wm">YOUR<br>CLIMBER<br>CARD</div>
+  <div class="top"><span class="logo"><i>S</i>Spotter</span><span class="pill">All videos</span></div>
+  <div class="hero"><i class="lan"></i><i class="clip"></i>
+    <div class="id"><div class="in"><svg class="masc"><use href="#m"/></svg><b>You</b><small>ARC · top rope</small>
+      <div class="num"><div>3<span>videos</span></div><div>2/2<span>topped</span></div><div>5.9<span>best</span></div></div></div></div>
+    <span class="ptag p1">Climber*</span><span class="ptag p2">Card</span></div>
+  <div class="duo">
+    <div class="dash"><span class="after">Hardest</span><div class="im"><img src="img/wayup-p2b-orange.jpg" alt=""></div><b>Orange 5.9</b><small>Try 2 · topped</small></div>
+    <div class="dash"><span class="after" style="background:#111;color:var(--lime)">Reel</span><div class="im"><img src="img/wayup-p2-green.jpg" alt=""></div><b>Highlight reel</b><small>2 sends · 16 s</small></div>
+  </div>
+  <div class="cta"><svg class="masc stk"><use href="#m"/></svg>Film your next try</div>
+  <div class="tabs"><b>Videos</b><span>By gym</span></div>
+</div>
+<nav class="dock"><span class="on"><svg><use href="#i-v"/></svg>Videos</span><span><svg><use href="#i-g"/></svg>Gyms</span><b class="add">+</b><span><svg><use href="#i-s"/></svg>Social</span><span><svg><use href="#i-p"/></svg>Profile</span></nav><i class="hm"></i></div></div>
+
+<!-- C -->
+<div class="col"><span class="tag">C</span><h2>Night session</h2><p>Sporty and data first. Black page, neon lime numbers as the hero, your videos as a film strip, orange only for the one thing to do. Fewer stickers, more like a training app.</p>
+<div class="ph C"><div class="st">9:41<i></i></div><div class="sc">
+  <div class="hd"><h3 class="t">Your <span>climbs</span></h3><span class="av"><img src="img/woman2.jpg" alt=""></span></div>
+  <div class="scorebox"><small>Routes topped at ARC</small><div class="score">2<sub>/2</sub></div><p>Orange 5.9 on try 2 · Tuesday</p><svg class="masc stk"><use href="#m"/></svg></div>
+  <div class="stats"><div class="stat"><b>3</b><span>videos</span></div><div class="stat"><b>3</b><span>days by hand</span></div><div class="stat"><b style="color:var(--lime)">5.9</b><span>best grade</span></div></div>
+  <div class="sec"><h3>Your videos</h3><a>All →</a></div>
+  <div class="strip">
+    <div class="fr"><img src="img/wayup-p2b-orange.jpg" alt=""><span class="k">Hardest send</span><b>Orange 5.9</b><small>Try 2 · Tuesday</small></div>
+    <div class="fr"><img src="img/wayup-p2-green.jpg" alt=""><span class="k">Topped</span><b>Green 5.8</b><small>Try 1 · Tuesday</small></div>
+    <div class="fr"><img src="img/wayup-p2a-orange.jpg" alt=""><span class="k o">+ Gym</span><b>Orange 5.9</b><small>Try 1 · Nov 5</small></div>
+  </div>
+  <div class="todo"><b>1 video has no gym</b><em>Add gym</em></div>
+</div>
+<nav class="dock"><span class="on"><svg><use href="#i-v"/></svg>Videos</span><span><svg><use href="#i-g"/></svg>Gyms</span><b class="add">+</b><span><svg><use href="#i-s"/></svg>Social</span><span><svg><use href="#i-p"/></svg>Profile</span></nav><i class="hm"></i></div></div>
+</div>
+</body>
+</html>

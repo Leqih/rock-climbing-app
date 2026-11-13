@@ -92,7 +92,7 @@
     ctx.lineWidth = 3 * u; ctx.strokeStyle = 'rgba(255,255,255,.9)';
     BONES.forEach(([a, b]) => { if (p[a].v < .3 || p[b].v < .3) return; ctx.beginPath(); ctx.moveTo(p[a].x, p[a].y); ctx.lineTo(p[b].x, p[b].y); ctx.stroke(); });
     // elbows: lime when straight, white ring when bent
-    [[P.le, f.el], [P.re, f.er]].forEach(([i, a]) => { if (a == null) return; ctx.beginPath(); ctx.arc(p[i].x, p[i].y, 5 * u, 0, 7); ctx.fillStyle = a > 145 ? '#C2FF01' : '#FF8A65'; ctx.fill(); });
+    [[P.le, f.el], [P.re, f.er]].forEach(([i, a]) => { if (a == null) return; ctx.beginPath(); ctx.arc(p[i].x, p[i].y, 5 * u, 0, 7); ctx.fillStyle = a > 145 ? '#C2FF01' : '#FF6A1F'; ctx.fill(); });
     [P.ls, P.rs, P.lh, P.rh, P.lk, P.rk].forEach(i => { if (p[i].v < .3) return; ctx.beginPath(); ctx.arc(p[i].x, p[i].y, 3.5 * u, 0, 7); ctx.fillStyle = '#FFFFFF'; ctx.fill(); });
     // the hand or foot that is moving now
     LIMBS.forEach(([k, name]) => { const q = p[P[k]]; if (q.v < .3) return; const on = name === f.now;
@@ -103,7 +103,7 @@
     ctx.setLineDash([4 * u, 5 * u]); ctx.lineWidth = 1.5 * u; ctx.strokeStyle = Math.abs(f.off) < .35 ? 'rgba(194,255,1,.9)' : 'rgba(255,138,101,.9)';
     ctx.beginPath(); ctx.moveTo(hm.x, hm.y); ctx.lineTo(hm.x, am.y); ctx.stroke(); ctx.setLineDash([]);
     if (mark === 'hip') {   // watching a stretch about the hips: how far they are from the middle of the feet
-      const c = Math.abs(f.off) < .35 ? '#C2FF01' : '#FF8A65', dot = (o, r, fill) => { ctx.beginPath(); ctx.arc(o.x, o.y, r * u, 0, 7); ctx.fillStyle = fill; ctx.fill(); ctx.lineWidth = 2 * u; ctx.strokeStyle = '#111111'; ctx.stroke(); };
+      const c = Math.abs(f.off) < .35 ? '#C2FF01' : '#FF6A1F', dot = (o, r, fill) => { ctx.beginPath(); ctx.arc(o.x, o.y, r * u, 0, 7); ctx.fillStyle = fill; ctx.fill(); ctx.lineWidth = 2 * u; ctx.strokeStyle = '#111111'; ctx.stroke(); };
       ctx.lineWidth = 4 * u; ctx.strokeStyle = c; ctx.beginPath(); ctx.moveTo(hm.x, hm.y); ctx.lineTo(hm.x, am.y); ctx.lineTo(am.x, am.y); ctx.stroke(); dot(hm, 9, c); dot(am, 7, '#FFFFFF'); }
   }
 
@@ -330,7 +330,7 @@
     const clamp = (a, lo, hi) => Math.max(lo, Math.min(hi, a));
     const x0 = clamp((Math.min(...xs) + Math.max(...xs) - w) / 2, 0, T.W - w), y0 = clamp((Math.min(...ys) + Math.max(...ys) - h) / 2, 0, T.H - h);
     const cv = document.createElement('canvas'); cv.width = 340; cv.height = 414;
-    const ctx = cv.getContext('2d'), sc = cv.width / w, px = a => a / sc, col = tone === 'good' ? '#C2FF01' : '#FF8A65';
+    const ctx = cv.getContext('2d'), sc = cv.width / w, px = a => a / sc, col = tone === 'good' ? '#C2FF01' : '#FF6A1F';
     ctx.setTransform(sc, 0, 0, sc, -x0 * sc, -y0 * sc); ctx.drawImage(still, 0, 0, T.W, T.H); ctx.lineCap = 'round';
     ctx.strokeStyle = 'rgba(255,255,255,.75)'; ctx.lineWidth = px(3);
     BONES.forEach(([a, b]) => { if (q[a].v < .3 || q[b].v < .3) return; ctx.beginPath(); ctx.moveTo(q[a].x, q[a].y); ctx.lineTo(q[b].x, q[b].y); ctx.stroke(); });
@@ -483,7 +483,7 @@
     let h = Math.max(...ys) - Math.min(...ys) + pad * 2, w = h * RATIO;
     if (w < Math.max(...xs) - Math.min(...xs) + pad * 2) { w = Math.max(...xs) - Math.min(...xs) + pad * 2; h = w / RATIO; }
     let x0 = (Math.min(...xs) + Math.max(...xs) - w) / 2, y0 = (Math.min(...ys) + Math.max(...ys) - h) / 2;
-    const sc = cv.width / w, X = q => (F(q).x - x0) * sc, Y = q => (F(q).y - y0) * sc, ctx = cv.getContext('2d'), bg = document.createElement('canvas'), LIME = '#C2FF01', LILAC = '#D9B8F5', u = cv.width / 300;
+    const sc = cv.width / w, X = q => (F(q).x - x0) * sc, Y = q => (F(q).y - y0) * sc, ctx = cv.getContext('2d'), bg = document.createElement('canvas'), LIME = '#C2FF01', ORANGE = '#FF6A1F', u = cv.width / 300;
     bg.width = cv.width; bg.height = cv.height;
     const hands = holds.filter(q => q.k[1] === 'w').sort((a, b) => a.t - b.t);
     const BON = [['sl', 'sr'], ['hl', 'hr'], ['sl', 'hl'], ['sr', 'hr'], ['sl', 'el'], ['el', 'hL'], ['sr', 'er'], ['er', 'hR'], ['hl', 'kl'], ['kl', 'fL'], ['hr', 'kr'], ['kr', 'fR']];
@@ -496,12 +496,12 @@
         ctx.globalAlpha = on ? 1 : .55; ctx.beginPath(); ctx.arc(bx, by, br, 0, 7); ctx.fillStyle = on ? LIME : '#FFFFFF'; ctx.fill(); ctx.lineWidth = 1 * u; ctx.strokeStyle = '#111111'; ctx.stroke();
         ctx.fillStyle = '#111111'; ctx.font = `700 ${(r.n > 9 ? 6 : 7) * u}px Urbanist, system-ui, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(r.n || 'S', bx, by + .3 * u); ctx.globalAlpha = 1; });
       const hx = X(p.head), hy = Y(p.head), nx = X(p.sm), ny = Y(p.sm), hd = Math.hypot(hx - nx, hy - ny) || 1, neck = { x: hx + (nx - hx) / hd * R, y: hy + (ny - hy) / hd * R };
-      [['rgba(17,17,17,.75)', 5.5 * u], [LILAC, 3 * u]].forEach(([c, l]) => { ctx.strokeStyle = c; ctx.lineWidth = l; BON.forEach(([a, b]) => { ctx.beginPath(); ctx.moveTo(X(p[a]), Y(p[a])); ctx.lineTo(X(p[b]), Y(p[b])); ctx.stroke(); });
+      [['rgba(17,17,17,.75)', 5.5 * u], [ORANGE, 3 * u]].forEach(([c, l]) => { ctx.strokeStyle = c; ctx.lineWidth = l; BON.forEach(([a, b]) => { ctx.beginPath(); ctx.moveTo(X(p[a]), Y(p[a])); ctx.lineTo(X(p[b]), Y(p[b])); ctx.stroke(); });
         if (hd > R) { ctx.beginPath(); ctx.moveTo(nx, ny); ctx.lineTo(neck.x, neck.y); ctx.stroke(); } ctx.beginPath(); ctx.arc(hx, hy, R, 0, 7); ctx.stroke(); });
       // hands and feet reach on to the hold, so the body visibly holds or stands on it
       const ends = [['hL', 'tL'], ['hR', 'tR'], ['fL', 'gL'], ['fR', 'gR']];
-      [['rgba(17,17,17,.75)', 5 * u], [LILAC, 2.6 * u]].forEach(([c, l]) => { ctx.strokeStyle = c; ctx.lineWidth = l; ends.forEach(([a, b]) => { ctx.beginPath(); ctx.moveTo(X(p[a]), Y(p[a])); ctx.lineTo(X(p[b]), Y(p[b])); ctx.stroke(); }); });
-      ends.forEach(([, k]) => { ctx.beginPath(); ctx.arc(X(p[k]), Y(p[k]), 2.4 * u, 0, 7); ctx.fillStyle = LILAC; ctx.fill(); ctx.lineWidth = 1.2 * u; ctx.strokeStyle = '#111111'; ctx.stroke(); });
+      [['rgba(17,17,17,.75)', 5 * u], [ORANGE, 2.6 * u]].forEach(([c, l]) => { ctx.strokeStyle = c; ctx.lineWidth = l; ends.forEach(([a, b]) => { ctx.beginPath(); ctx.moveTo(X(p[a]), Y(p[a])); ctx.lineTo(X(p[b]), Y(p[b])); ctx.stroke(); }); });
+      ends.forEach(([, k]) => { ctx.beginPath(); ctx.arc(X(p[k]), Y(p[k]), 2.4 * u, 0, 7); ctx.fillStyle = ORANGE; ctx.fill(); ctx.lineWidth = 1.2 * u; ctx.strokeStyle = '#111111'; ctx.stroke(); });
       if (move !== said) { said = move; onMove?.(move, n); } };
     // the wall without you on it: twelve frames from across the climb, each laid on the wall where it belongs, and for every pixel
     // the middle value of the ones that saw it. The climber is in a different place in each, so the wall is what stays
