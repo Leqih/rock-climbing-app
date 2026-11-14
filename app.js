@@ -256,29 +256,23 @@ const heroes = {
       <span class="hs-s">${oth.length ? `With ${names(oth)}` : 'You planned it'}</span>
       ${oth.length ? `<span class="hs-avs">${oth.slice(0, 3).map(w => `<i>${avatar(w)}</i>`).join('')}</span>` : ''}
       <div class="hs-go">${p.g === 0 ? '<button class="b-lime" type="button" data-act="plstart">Start the session</button>' : `<button class="b-lime" type="button" data-act="to" data-to="gym/${p.g}">Open the gym</button>`}</div></section>`; },
-  new: () => `<div class="sec"><h2>Your album</h2></div><button class="vbox vbox-empty" type="button" data-act="film" aria-label="Film your first try"><span class="vbox-st" aria-hidden="true">${MASC}</span><span class="vbox-f"><i></i><i></i><i>${ic.plus}</i></span>
-      <span class="vbox-t"><b>Empty for now</b><span>Your first try goes here</span></span></button>
+  new: () => `<div class="sec"><h2>Your album</h2></div>
+      <div class="ae" role="group" aria-label="Your album is empty">
+        <span class="ae-g" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+        <span class="ae-t"><b>No videos yet</b><span>Every try you film or import shows up here.</span></span></div>
       <div class="hs-go"><button class="b-lime" type="button" data-act="film">${ic.rec}Film a try</button><button class="b-ghost" type="button" data-act="upload">Import videos</button></div>`,
   back: () => '' };
 // your album: the box with everything (photos fanned out), two pinned moments, then one binder per gym
 function album() {
   const hn = vlogged(), tops = vtops(), newest = newestClips(), nogym = clips.filter(c => c.gy == null).length, here = newest.filter(c => c.gy === 0);
   if (!clips.length && !hn) return '';
-  // the album as a calendar page (after the drinking-calendar card in the team's references): a lime header strip, the count
-  // set like a date, highlighter blocks, the fanned photos, this week with the days you climbed, a burst for what needs you,
-  // and a folded orange corner with the arrow. No strokes: everything separates by fill.
-  const now = new Date(), went = new Set([...clips.map(agoOf), ...logs.filter(l => l.tries || l.sent).map(l => l.ago), ...glogs.map(g => g.ago)]);
-  const week = [6, 5, 4, 3, 2, 1, 0].map(k => { const d = new Date(now); d.setDate(now.getDate() - k);
-    return `<span class="a2-d${went.has(k) ? ' on' : ''}${k === 0 ? ' now' : ''}"><i>${'SMTWTFS'[d.getDay()]}</i><b class="num">${d.getDate()}</b></span>`; }).join('');
-  const box = `<button class="vbox a2" type="button" data-act="to" data-to="shelf/all" aria-label="All videos: ${n(clips.length, 'video', 'videos')}">
-      <span class="vbox-st" aria-hidden="true">${MASC}</span>
-      <span class="a2-h"><b>All videos</b><span>${now.toLocaleString('en', { month: 'short' }).toUpperCase()} ${now.getFullYear()}</span></span>
-      <span class="a2-p">
-        <span class="a2-n"><b class="num">${String(clips.length).padStart(2, '0')}</b><span><strong>${clips.length === 1 ? 'video' : 'videos'}</strong>${hn ? `<span>+ ${n(hn, 'day', 'days')} logged by hand</span>` : ''}</span></span>
-        <span class="a2-go" aria-hidden="true">${ic.arr('#C2FF01')}</span>
-        <span class="a2-f">${[0, 1, 2].map(k => newest[k] ? `<span class="a2-ph"><img src="img/${newest[k].img}.jpg" alt="">${newest[k].gy == null ? '<span class="a2-ng">No gym</span>' : ''}</span>` : '<span class="a2-ph a2-ph-e"></span>').join('')}</span>
-        <span class="a2-wk"><em>This week</em><span>${week}</span></span>
-      </span></button>`;
+  // the album is just your videos: a grid by day, newest first. Each tile says the route and whether you topped it.
+  const days = [...new Set(newest.map(agoOf))];
+  const tile = c => `<button class="al-t" type="button" data-act="to" data-to="clip/${c.id}" aria-label="${rname(ROUTES[c.ri])}, try ${tryOf(c)}${topOf(c) ? ', topped' : ''}">
+      <img src="img/${c.img}.jpg" alt="" loading="lazy">${c.gy == null ? '<span class="al-ng">No gym</span>' : ''}${topOf(c) ? `<span class="al-ok" aria-hidden="true">${ic.check}</span>` : ''}
+      <span class="al-r">${sw(ROUTES[c.ri])}<b>${ROUTES[c.ri].grade}</b><i>Try ${tryOf(c)}</i></span></button>`;
+  const box = `<div class="al">${days.map(d => `<div class="al-d"><h3>${dayLabel(d)}</h3><div class="al-g">${newest.filter(c => agoOf(c) === d).map(tile).join('')}</div></div>`).join('')}
+      ${hn ? `<p class="al-hn">+ ${n(hn, 'day', 'days')} logged by hand</p>` : ''}</div>`;
   const sent = clips.filter(topOf), best = [...sent].sort((p, q) => GR.indexOf(ROUTES[q.ri].grade) - GR.indexOf(ROUTES[p.ri].grade) || agoOf(p) - agoOf(q))[0];
   const pins = best ? `<div class="sec"><h2>Pinned</h2></div><div class="rgrid pin">
       <button class="vc" type="button" data-act="to" data-to="clip/${best.id}" aria-label="Hardest send: ${rname(ROUTES[best.ri])}, try ${tryOf(best)}"><span class="vc-i rc"><img src="img/${best.img}.jpg" alt=""><span class="vc-t g">Hardest send</span>${gymTag(best)}</span>
@@ -290,7 +284,7 @@ function album() {
         <span class="bnd-s">${[0, 1, 2, 3].map(k => here[k] ? `<img src="img/${here[k].img}.jpg" alt="">` : '<i></i>').join('')}</span>
         <span class="vc-b"><span class="vc-r">${gym.name}</span><b>${n(here.length, 'video', 'videos')}</b>
         <span class="vc-d">${tops ? `<span class="stg on">${tops} of ${ROUTES.length} routes topped</span>` : `${ROUTES.length} routes`}</span></span></button></div>`;
-  return `<div class="sec"><h2>Your album</h2></div>${box}${pins}${binder}`;
+  return `<div class="sec al-h"><h2>Your album <span class="num">${clips.length}</span></h2>${sent.length ? `<button class="al-reel" type="button" data-act="reel">${ic.play}Play reel</button>` : ''}</div>${box}${binder}`;
 }
 function viewVideos() {
   const sc = sceneOf();
@@ -997,20 +991,20 @@ function viewProfile() {
       // your Climber ID, after the lanyard ID card in the team's references: a lime card on an ink strap, the mascot as a
       // charm on the clip, big faint words behind it. Your photo, name, home gym, hardest send and style on the card.
       const sentC = clips.filter(topOf), top = [...sentC].sort((p, q) => GR.indexOf(ROUTES[q.ri].grade) - GR.indexOf(ROUTES[p.ri].grade))[0];
-      return `<section class="cid" aria-label="Your climber ID">
-      <span class="cid-strap" aria-hidden="true"><i></i></span><span class="cid-clip" aria-hidden="true"></span>
-      <div class="cid-card"><span class="cid-slot" aria-hidden="true"></span><div class="cid-in">
-        <span class="cid-top"><em>Spotter · Climber ID</em><em class="num">No. 0042</em></span>
-        <span class="cid-me"><span class="cid-ph">${avatar('You')}</span><span><strong>You</strong><span>${gym.name}</span></span></span>
-        <span class="cid-st">
-          <span><b class="num">${top ? ROUTES[top.ri].grade : '—'}</b><i>hardest send</i></span>
-          <span><b class="num">${clips.length}</b><i>on video</i></span>
-          <span><b class="num">${tops}<small>/${ROUTES.length}</small></b><i>topped</i></span></span>
-        <span class="cid-ft"><button class="me-st cid-pick" type="button" data-act="to" data-to="pick/edit">${styleLine() || (picks.has('all') ? 'All of it' : 'Pick your style')} ✦</button><span>${n(follows.size, 'friend', 'friends')}</span></span>
-      </div></div></section>`; })()}
+      return `<section class="ph" aria-label="Your profile">
+      <div class="ph-cv"><img src="img/${clips[0]?.img || 'gym-arc-1'}.jpg" alt=""></div>
+      <div class="ph-me"><span class="ph-av">${avatar('You')}</span>
+        <button class="ph-st" type="button" data-act="to" data-to="pick/edit">${styleLine() || (picks.has('all') ? 'All of it' : 'Pick your style')}</button></div>
+      <h2 class="ph-n">You</h2><p class="ph-g">${ic.pin}${gym.name}${follows.size ? ` · ${n(follows.size, 'friend', 'friends')}` : ''}</p>
+      <div class="ph-s${clips.length ? '' : ' ph-s-e'}">
+        <span><b class="num">${top ? ROUTES[top.ri].grade : '—'}</b><i>hardest send</i></span>
+        <span><b class="num">${clips.length || '—'}</b><i>on video</i></span>
+        <span><b class="num">${tops ? `${tops}<small>/${ROUTES.length}</small>` : '—'}</b><i>topped</i></span></div>
+      ${follows.size ? '' : `<button class="ph-fr" type="button" data-act="to" data-to="friends">Find friends</button>`}
+      </section>`; })()}
     ${session === 'live' ? `<section class="recap solid"><span class="sub">Climbing now · ${gym.name}</span><b class="num" id="prclk">${clk(sesSecs())}</b><span class="sub">${n(dayLog(0).reduce((s, e) => s + e.tries, 0) + gday(0).length, 'try', 'tries')} · ${n(dayLog(0).filter(e => e.sent).length + gday(0).filter(gsent).length, 'send', 'sends')} today</span><button class="pr-end" type="button" data-act="lgend">End session</button></section>` : ''}
     <div class="fold"></div>
-    ${prog ? `<div class="sec"><h2>Your routes</h2></div><div class="rgrid">${ROUTES.map((r, i) => i).filter(i => mineOn(i).length).map(rcard).join('')}</div>` : '<p class="cap">Film or import a try and your progress shows up here.</p>'}
+    ${prog ? `<div class="sec"><h2>Your routes</h2></div><div class="rgrid">${ROUTES.map((r, i) => i).filter(i => mineOn(i).length).map(rcard).join('')}</div>` : ''}
     ${trend.length > 1 ? `<div class="hl2 dk2"><h2>Your body, try by try</h2><span class="hint2">oldest first</span></div>
       <div class="stack"><div class="lt pf">${bars('Hips over feet', s => s.hipsOver)}${bars('Moving', s => s.moving)}
         <p class="an-n">From each analysed video, first move to last. G = Green, O = Orange, then the try.</p></div></div>` : ''}
@@ -1047,41 +1041,107 @@ const gyms = [gym,
 
 /* ---------- Gyms tab: where you climb, then the others near you. Map, and one page per gym ---------- */
 const atGym = i => i === 0 ? { videos: clips.length, last: clips.length ? Math.min(...clips.map(agoOf)) : null } : { videos: 0, last: null };
+// a gym in a list: photo, name, distance and town, whether it's open; a round button for directions
+const NAV = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11 21 3l-8 18-2-8z"/></svg>';
+const openDot = o => `<span class="g3-o${o.open ? ' on' : ''}"><i></i>${o.line}</span>`;
 function gymCard(g, i) {
-  const a = atGym(i), o = gymOpen(g), what = a.videos ? `${n(a.videos, 'try', 'tries')} on video${a.last !== null ? ` · last climbed ${dayLabel(a.last)}` : ''}` : g.addr.split(',').pop().trim();
-  return `<div class="gy">
-      <button class="gy-main" type="button" data-act="to" data-to="gym/${i}">
-        <img src="img/${g.img}.jpg" alt="">
-        <span class="row-t"><strong>${g.name}</strong><span>${g.dist} · ${what}</span><span class="stg${o.open ? ' open' : ''}">${o.line}</span></span>
-      </button>
-      <button class="gy-go" type="button" data-act="gymaps" data-i="${i}" aria-label="Directions to ${g.name}">${ic.pin}Directions</button>
+  const a = atGym(i), o = gymOpen(g), what = a.videos ? `${n(a.videos, 'try', 'tries')} on video` : g.addr.split(',').pop().trim();
+  return `<div class="g3r">
+      <button class="g3r-m" type="button" data-act="to" data-to="gym/${i}"><img src="img/${g.img}.jpg" alt="">
+        <span class="g3r-t"><strong>${g.name}</strong><span>${g.dist} · ${what}</span>${openDot(o)}</span></button>
+      <button class="g3-nav" type="button" data-act="gymaps" data-i="${i}" aria-label="Directions to ${g.name}">${NAV}</button>
     </div>`;
 }
+// where you climb: the photo is the card, the name and what you did there sit on it
 function gymBig(g) {
   const a = atGym(0), o = gymOpen(g);
-  return `<div class="gb2"><button class="gb2-i" type="button" data-act="to" data-to="gym/0"><img src="img/${g.img}.jpg" alt=""><span class="stg${o.open ? ' open' : ''}">${o.line}</span></button>
-    <div class="gb2-b"><button type="button" data-act="to" data-to="gym/0"><strong>${g.name}</strong><span>${g.dist}${a.videos ? ` · ${n(a.videos, 'try', 'tries')} on video` : ''}${a.last !== null ? ` · last climbed ${dayLabel(a.last)}` : ''}</span></button>
-    <button class="gy-go" type="button" data-act="gymaps" data-i="0" aria-label="Directions to ${g.name}">${ic.pin}Directions</button></div></div>`;
+  const meta = [g.dist, a.videos ? n(a.videos, 'try', 'tries') + ' on video' : '', a.last !== null ? 'last climbed ' + dayLabel(a.last) : ''].filter(Boolean).join(' · ');
+  return `<div class="g3"><button class="g3-i" type="button" data-act="to" data-to="gym/0" aria-label="${g.name}"><img src="img/${g.img}.jpg" alt="">${openDot(o)}
+      <span class="g3-t"><strong>${g.name}</strong><span>${meta}</span></span></button>
+    <button class="g3-nav g3-nav-l" type="button" data-act="gymaps" data-i="0" aria-label="Directions to ${g.name}">${NAV}</button></div>`;
 }
 // the location bar: where you're looking (tap to change it) and the map, side by side.
 // "Near you" lists every gym by distance from you; a town lists only the gyms in it
 let gArea = 'near';
 const AREAS = ['Champaign', 'Urbana', 'Bloomington'];
 const inArea = g => gArea === 'near' || g.addr.includes(gArea);
+// Gyms tab, map first, the way map apps work: the map holds still and fills the screen; the gyms sit in a sheet over it that you
+// drag between three heights (peek, half, full) and that scrolls on its own. A pin and a row select the same gym: tap a pin and the
+// sheet rises to that gym; tap a row and the map moves to its pin. A selected row opens to "Open gym" and "Directions".
+var tmap = null, gtSnap = 'half', gtSel = null;
 function viewGymsTab() {
-  const list = gyms.slice(1).map((g, k) => [g, k + 1]).filter(([g]) => inArea(g)), shown = [gym, ...list.map(x => x[0])].filter(inArea);
-  const open = shown.filter(g => gymOpen(g).open).length;
-  return { photo: 'gym-arc-3', html: `
-    ${tabHead('Gyms')}
-    <div class="gloc"><button class="gloc-a" type="button" data-act="garea">${ic.pin}<b>${gArea === 'near' ? 'Near you' : gArea}</b><svg class="gloc-v" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></button>
-      <span class="gloc-n">${open ? `${open} open now` : 'all closed now'}</span>
-      <button class="gloc-m" type="button" data-act="to" data-to="gyms"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2zM9 4v14M15 6v14"/></svg>Map</button></div>
-    <div class="fold"></div>
-    <div class="sec"><h2>Where you climb</h2></div>
-    ${gymBig(gym)}
-    <div class="sec"><h2>${gArea === 'near' ? 'More near you' : `More in ${gArea}`}</h2></div>
-    ${list.length ? `<div class="gy-list">${list.map(([g, i]) => gymCard(g, i)).join('')}</div>
-    <p class="cap">No one has filmed at these yet, so Spotter shows only what the gym publishes.</p>` : `<p class="cap">No other gyms in ${gArea} yet.</p>`}` };
+  const list = gyms.map((g, i) => [g, i]).filter(([g]) => inArea(g));
+  const open = list.filter(([g]) => gymOpen(g).open).length;
+  const row = ([g, i]) => { const o = gymOpen(g), a = atGym(i);
+    return `<div class="gt-r${gtSel === i ? ' sel' : ''}" id="gtr${i}"><button class="gt-m" type="button" data-act="gtsel" data-i="${i}" aria-expanded="${gtSel === i}"><img src="img/${g.img}.jpg" alt="">
+      <span class="gt-t"><strong>${g.name}${i === 0 ? '<em>Your gym</em>' : ''}</strong><span>${g.dist.replace(' from the Quad', '')}${a.videos ? ` · ${n(a.videos, 'try', 'tries')} on video` : ''}</span>${openDot(o)}</span></button>
+      <div class="gt-x"><button class="gt-b1" type="button" data-act="to" data-to="gym/${i}">Open gym</button><button class="gt-b2" type="button" data-act="gymaps" data-i="${i}">${NAV}Directions</button></div></div>`; };
+  return { map: true, html: '', overlay: `<div class="gt-map" id="gtmap">${window.L ? '' : '<p class="gm-off">The map needs an internet connection. The list works without one.</p>'}</div>
+    <div class="gt-head"><div class="gt-ht"><h1 class="hl tab">Gyms${MASC}</h1><button class="av sm" type="button" data-act="to" data-to="profile" aria-label="Your profile">${avatar('You')}</button></div>
+      <div class="gt-top"><button class="gloc-a" type="button" data-act="garea">${ic.pin}<b>${gArea === 'near' ? 'Near you' : gArea}</b><svg class="gloc-v" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></button>
+        <span class="gt-n">${open ? `${open} open now` : 'all closed now'}</span></div></div>
+    <section class="gt-sheet" id="gtsheet" aria-label="Gyms list"><div class="gt-sh" id="gtsh"><span class="gt-grab" aria-hidden="true"></span>
+      <div class="gt-h"><h2>${gArea === 'near' ? 'Near you' : gArea}</h2><span>${n(list.length, 'gym', 'gyms')}</span></div></div>
+      <div class="gt-lw" id="gtlw">${list.length ? `<div class="gt-l">${list.map(row).join('')}</div>` : `<p class="cap">No gyms in ${gArea} yet.</p>`}
+      <p class="cap">Gyms no one has filmed at show only what the gym publishes.</p></div></section>`, after: () => gtWire(list) };
+}
+const gtSnaps = () => { const H = $('camx').clientHeight; return { full: 112, half: Math.round(H * .5), peek: H - 250 }; };
+const gtTop = () => parseFloat($('gtsheet')?.style.top) || gtSnaps()[gtSnap];
+function gtSet(s, anim = true) {
+  const sh = $('gtsheet'); if (!sh) return;
+  gtSnap = s; sh.classList.toggle('anim', anim); sh.style.top = gtSnaps()[s] + 'px'; sh.dataset.snap = s;
+}
+// keep a gym's pin in the open part of the map: under the header, above the sheet
+function gtFocus(i, anim = true) {
+  if (!tmap) return;
+  const ll = gymLL(gyms[i]), p = tmap.latLngToContainerPoint(ll), W = $('gtmap').clientWidth, top = 150, bot = gtSnaps()[gtSnap];
+  tmap.panBy([p.x - W / 2, p.y - (top + bot) / 2], { animate: anim });
+}
+function gtSelect(i, from) {
+  gtSel = gtSel === i && from === 'row' ? null : i;
+  document.querySelectorAll('.tp').forEach(el => el.classList.toggle('sel', +el.dataset.i === gtSel));
+  document.querySelectorAll('.gt-r').forEach(r => { const on = r.id === 'gtr' + gtSel; r.classList.toggle('sel', on); r.querySelector('.gt-m').setAttribute('aria-expanded', on); });
+  if (gtSel === null) return;
+  if (from === 'pin' && gtSnap === 'peek') gtSet('half');
+  const r = $('gtr' + i), lw = $('gtlw');
+  if (r && lw) setTimeout(() => lw.scrollTo({ top: lw.scrollTop + r.getBoundingClientRect().top - lw.getBoundingClientRect().top - 4, behavior: 'smooth' }), from === 'pin' ? 60 : 0);
+  setTimeout(() => gtFocus(i), from === 'pin' && gtSnap === 'half' ? 260 : 0);
+}
+function gtWire(list) {
+  if (tmap) { tmap.remove(); tmap = null; }
+  gtSet(gtSnap, false);
+  // dragging the sheet by its top: follows the finger, then settles on the nearest height (a flick goes one further)
+  const sh = $('gtsheet'), hd = $('gtsh');
+  let y0 = 0, top0 = 0, last = 0, lt = 0, v = 0, moved = false, drag = false;
+  const move = e => { if (!drag) return;
+    const dy = e.clientY - y0; if (Math.abs(dy) > 4) moved = true;
+    const s = gtSnaps(), now = performance.now(); v = (e.clientY - last) / Math.max(1, now - lt); last = e.clientY; lt = now;
+    let t = top0 + dy; if (t < s.full) t = s.full - (s.full - t) * .25; if (t > s.peek) t = s.peek + (t - s.peek) * .25;
+    sh.style.top = t + 'px'; e.preventDefault(); };
+  const end = () => { if (!drag) return; drag = false;
+    window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', end); window.removeEventListener('pointercancel', end);
+    if (!moved) { gtSet(gtSnap === 'peek' ? 'half' : gtSnap === 'half' ? 'full' : 'half'); return; }
+    const s = gtSnaps(), t = gtTop() + v * 180;
+    gtSet(['full', 'half', 'peek'].reduce((b, k) => Math.abs(s[k] - t) < Math.abs(s[b] - t) ? k : b, 'half')); };
+  hd.addEventListener('pointerdown', e => { drag = true; y0 = last = e.clientY; top0 = gtTop(); lt = performance.now(); v = 0; moved = false; sh.classList.remove('anim');
+    window.addEventListener('pointermove', move, { passive: false }); window.addEventListener('pointerup', end); window.addEventListener('pointercancel', end); });
+  const el = $('gtmap');
+  if (!el || !window.L || !list.length) return;
+  tmap = L.map(el, { zoomControl: false, attributionControl: true, scrollWheelZoom: true, zoomSnap: .25 });
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19,
+    attribution: '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>' }).addTo(tmap);
+  L.marker(HERE, { icon: L.divIcon({ className: 'tp-you', html: '<i></i>', iconSize: [16, 16] }), interactive: false, keyboard: false }).addTo(tmap);
+  const close = list.filter(([g]) => g.mi <= 5), fit = gArea === 'near' && close.length ? close : list;
+  const pts = [...(gArea === 'near' ? [HERE] : []), ...fit.map(([g]) => gymLL(g))];
+  tmap.fitBounds(L.latLngBounds(pts), { paddingTopLeft: [40, 170], paddingBottomRight: [40, $('camx').clientHeight - gtSnaps()[gtSnap] + 30], maxZoom: 14 });
+  list.forEach(([g, i]) => {
+    const pin = L.marker(gymLL(g), { title: g.name, riseOnHover: true, zIndexOffset: i === 0 ? 500 : 0,
+      icon: L.divIcon({ className: `tp${i === 0 ? ' me' : ''}${gtSel === i ? ' sel' : ''}`, html: `<span class="tp-ph"><img src="img/${g.img}.jpg" alt=""></span><b>${g.name}</b>`, iconSize: [0, 0] }) }).addTo(tmap);
+    pin.getElement().dataset.i = i;
+    pin.on('click', ev => { L.DomEvent.stopPropagation(ev); gtSelect(i, 'pin'); });
+  });
+  tmap.on('click', () => { if (gtSel !== null) { gtSel = null; document.querySelectorAll('.tp.sel, .gt-r.sel').forEach(x => x.classList.remove('sel')); } });
+  if (gtSel !== null) gtFocus(gtSel, false);
 }
 // the map: Leaflet with OpenStreetMap tiles. You are on the UIUC Main Quad; each gym sits at its distance and bearing from there
 let gymR = 10, gymPin = null, gmap = null;
@@ -1278,17 +1338,12 @@ function openAdd() {
     { act: 'data-act="upload"', k: 'k-orange', icon: ic.up, t: 'Import', d: 'A video from your camera roll' },
     { act: 'data-act="to" data-to="session"', k: 'k-white', icon: ic.pen, t: 'Log by hand', d: 'No video needed' },
     { act: 'data-act="scan"', k: 'k-ink', icon: ic.scan, t: 'Scan a wall', d: 'See a route\'s beta', tag: 'New' }];
-  const lead = opts.find(o => !o.off), rest = opts.filter(o => o !== lead && !o.off), off = opts.filter(o => o.off);
-  const roll = newestClips().slice(0, 3);
-  const tag = o => o.tag && !o.off ? `<em class="add-tag">${o.tag}</em>` : '';
-  const big = `<button class="add-big ${lead.k}" type="button" ${lead.act}><i class="add-i">${lead.icon}</i>
-      <span class="add-bt"><strong>${lead.t}${tag(lead)}</strong><span>${lead.d}</span></span>${go}
-      ${roll.length ? `<span class="add-ph" aria-hidden="true">${roll.map(c => `<img src="img/${c.img}.jpg" alt="">`).join('')}</span>` : ''}</button>`;
-  const sm = rest.map(o => `<button class="add-sm ${o.k}" type="button" ${o.act}><i class="add-i">${o.icon}</i>
-      <strong>${o.t}</strong><span>${o.d}</span>${tag(o)}</button>`).join('');
-  pane(`<div class="add-x"><span class="add-badge" aria-hidden="true">${MASC}</span>
-    <h2 class="add-h">Add a try ✦</h2>
-    <div class="add-l2">${big}<div class="add-row n${rest.length}">${sm}</div>${off.map(o => `<p class="add-off"><i>${o.icon}</i><b>${o.t}</b> is off · ${o.d.toLowerCase()}</p>`).join('')}</div>
+  // a plain action sheet: title, then one row per way in. The first available one is lime; one that is off stays, greyed.
+  const chev = '<svg class="ax-c" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>';
+  const first = opts.find(o => !o.off);
+  pane(`<div class="ax"><h2 class="ax-h">Add a try</h2>
+    <div class="ax-l">${[...opts.filter(o => !o.off), ...opts.filter(o => o.off)].map(o => `<button class="ax-r${o === first ? ' ax-1' : ''}" type="button" ${o.off ? 'disabled' : o.act}>
+      <i class="ax-i ${o.k}">${o.icon}</i><span class="ax-t"><strong>${o.t}${o.tag && !o.off ? `<em>${o.tag}</em>` : ''}</strong><span>${o.d}</span></span>${o.off ? '' : chev}</button>`).join('')}</div>
     </div>`);
 }
 /* ---------- Log by hand, by grade ---------- */
@@ -1587,6 +1642,7 @@ const moreActions = {
   // share
   share: b => openShare(byId(b.dataset.i)),
   reel: b => openReel(b.dataset.day ? +b.dataset.day : null),
+  gtsel: b => gtSelect(+b.dataset.i, 'row'),
   shsave: () => { closeAll(); toast('Saved to Photos'); },
   shsend: () => { closeAll(); toast(follows.size ? `Sent to ${[...follows].slice(0, 2).join(' and ')}` : 'Link copied · paste it anywhere'); },
   // friends
@@ -1640,6 +1696,7 @@ function render() {
   $('plus').innerHTML = `${ic.plus}<span>Add</span>`;
   island();
   if (gmap && !v.map) { gmap.remove(); gmap = null; }
+  if (tmap && page !== 'walls') { tmap.remove(); tmap = null; }
   v.after?.();
   // every video is analysed as soon as it's here, whichever page you're on
   clips.forEach(c => { if (!c.an) analyse(c); });
