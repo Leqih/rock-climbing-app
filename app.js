@@ -993,15 +993,23 @@ function viewProfile() {
   const hid = clips.filter(c => c.hidden).length;
   return { photo: clips[0]?.img || 'gym-arc-1', html: `
     ${tabHead('Profile')}
-    <div class="me"><span class="av">${avatar('You')}</span>
-      <span class="row-t"><strong>You</strong><span>${gym.name} · ${n(follows.size, 'friend', 'friends')}</span>
-        <button class="me-st" type="button" data-act="to" data-to="pick/edit">${styleLine() || (picks.has('all') ? 'All of it' : 'Pick your style')} ✦</button></span></div>
+    ${(() => {
+      // your Climber ID, after the lanyard ID card in the team's references: a lime card on an ink strap, the mascot as a
+      // charm on the clip, big faint words behind it. Your photo, name, home gym, hardest send and style on the card.
+      const sentC = clips.filter(topOf), top = [...sentC].sort((p, q) => GR.indexOf(ROUTES[q.ri].grade) - GR.indexOf(ROUTES[p.ri].grade))[0];
+      return `<section class="cid" aria-label="Your climber ID">
+      <span class="cid-strap" aria-hidden="true"><i></i></span><span class="cid-clip" aria-hidden="true"></span>
+      <div class="cid-card"><span class="cid-slot" aria-hidden="true"></span><div class="cid-in">
+        <span class="cid-top"><em>Spotter · Climber ID</em><em class="num">No. 0042</em></span>
+        <span class="cid-me"><span class="cid-ph">${avatar('You')}</span><span><strong>You</strong><span>${gym.name}</span></span></span>
+        <span class="cid-st">
+          <span><b class="num">${top ? ROUTES[top.ri].grade : '—'}</b><i>hardest send</i></span>
+          <span><b class="num">${clips.length}</b><i>on video</i></span>
+          <span><b class="num">${tops}<small>/${ROUTES.length}</small></b><i>topped</i></span></span>
+        <span class="cid-ft"><button class="me-st cid-pick" type="button" data-act="to" data-to="pick/edit">${styleLine() || (picks.has('all') ? 'All of it' : 'Pick your style')} ✦</button><span>${n(follows.size, 'friend', 'friends')}</span></span>
+      </div></div></section>`; })()}
     ${session === 'live' ? `<section class="recap solid"><span class="sub">Climbing now · ${gym.name}</span><b class="num" id="prclk">${clk(sesSecs())}</b><span class="sub">${n(dayLog(0).reduce((s, e) => s + e.tries, 0) + gday(0).length, 'try', 'tries')} · ${n(dayLog(0).filter(e => e.sent).length + gday(0).filter(gsent).length, 'send', 'sends')} today</span><button class="pr-end" type="button" data-act="lgend">End session</button></section>` : ''}
     <div class="fold"></div>
-    <div class="lb">
-      <div class="lt short"><span class="lt-h">On video</span><span class="mv"><b>${clips.length}</b><span class="mv-l">${clips.length === 1 ? 'try' : 'tries'}</span>${done.length < clips.length ? `<span class="mv-l">${done.length} analysed so far</span>` : ''}</span></div>
-      <div class="lt short"><span class="lt-h">Topped</span><span class="mv"><b>${tops}<small>/${ROUTES.length}</small></b><span class="mv-l">routes with videos here</span></span></div>
-    </div>
     ${prog ? `<div class="sec"><h2>Your routes</h2></div><div class="rgrid">${ROUTES.map((r, i) => i).filter(i => mineOn(i).length).map(rcard).join('')}</div>` : '<p class="cap">Film or import a try and your progress shows up here.</p>'}
     ${trend.length > 1 ? `<div class="hl2 dk2"><h2>Your body, try by try</h2><span class="hint2">oldest first</span></div>
       <div class="stack"><div class="lt pf">${bars('Hips over feet', s => s.hipsOver)}${bars('Moving', s => s.moving)}
