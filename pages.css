@@ -1576,3 +1576,81 @@ a.pj { display: inline-flex; align-items: center; text-decoration: none; color: 
 .opts button:not([aria-pressed="true"]), .stars button:not([aria-checked="true"]), textarea.note { background: var(--g50); }
 textarea.note:focus { outline: 2px solid var(--ink); outline-offset: 0; background: var(--white); }
 
+
+/* Profile, sticker-book polish: you as a sticker (white die-cut edge, a small tilt), a bigger name; the two stats become
+   flat colour blocks like the album card: a lime one and an ink one, the number set large like a date. */
+.me { align-items: center; gap: 14px; }
+.me .av { width: 64px; height: 64px; flex: none; transform: rotate(-4deg); box-shadow: 0 0 0 3px var(--white), 0 6px 14px rgba(17, 17, 17, .18); }
+.me .row-t strong { font-size: 24px; font-weight: 900; letter-spacing: -.03em; line-height: 1.05; }
+.me .row-t > span { font-size: 13px; }
+.lb:has(> .lt.short) { gap: 8px; }
+.lt.short { min-height: 128px !important; padding: 14px !important; border-radius: 4px !important; display: flex !important; flex-direction: column !important; justify-content: space-between !important; }
+.lt.short:first-child { background: var(--lime) !important; }
+.lt.short:nth-child(2) { background: var(--ink) !important; color: var(--white); }
+.lt.short .lt-h { position: static !important; font-size: 11px !important; font-weight: 800 !important; letter-spacing: .08em; text-transform: uppercase; color: inherit !important; opacity: .7; }
+.lt.short .mv { position: static !important; display: grid; gap: 2px; margin: 0 !important; }
+.lt.short .mv b { font-size: 48px !important; font-weight: 900 !important; letter-spacing: -.05em; line-height: .9; }
+.lt.short .mv b small { font-size: 22px; color: inherit; opacity: .55; }
+.lt.short:nth-child(2) .mv b { color: var(--lime); }
+.lt.short .mv-l { margin: 0; font-size: 12px !important; font-weight: 700; line-height: 1.3; color: inherit !important; opacity: .75; }
+.lt.short .mv-l + .mv-l { font-weight: 600; opacity: .6; }
+.lt.short .mv { display: grid !important; grid-template-columns: 1fr; align-items: start !important; } .lt.short .mv b { display: block !important; margin-bottom: 4px; }
+
+/* Gyms: "Directions" was a grey icon-over-label column repeated on every row. Now an ink pixel-cut square with a lime pin,
+   the same go square as the album card, so each row ends in one clear action and the gym name gets the width. */
+.gy-go { flex: none; display: grid !important; place-items: center; width: 40px; height: 40px; padding: 0 !important; gap: 0 !important;
+  background: var(--ink) !important; color: var(--lime) !important; clip-path: var(--px); font-size: 0 !important; transition: transform .16s var(--ease); }
+.gy-go svg { width: 18px; height: 18px; stroke: var(--lime) !important; margin: 0 !important; }
+.gy-go:active { transform: scale(.92); }
+@media (hover: hover) { .gy-go:hover { transform: translateY(-2px); } }
+.gy-go { width: 40px !important; min-width: 40px !important; max-width: 40px; height: 40px !important; align-self: center; }
+
+/* Pixel speech-bubble tags (the "ID Card" tag in the reference): the pixel-cut box gets a stepped tail at the bottom left.
+   Used where a tag points at something: "Hardest send" on a photo, Best / New in the Add sheet, your style on the ID card. */
+:root { --px-tail: polygon(0 4px, 4px 4px, 4px 0, calc(100% - 4px) 0, calc(100% - 4px) 4px, 100% 4px, 100% calc(100% - 10px), calc(100% - 4px) calc(100% - 10px), calc(100% - 4px) calc(100% - 6px), 18px calc(100% - 6px), 18px calc(100% - 3px), 15px calc(100% - 3px), 15px 100%, 9px 100%, 9px calc(100% - 6px), 4px calc(100% - 6px), 4px calc(100% - 10px), 0 calc(100% - 10px)); }
+.vc-t.g, .add-tag, .cid-pick { clip-path: var(--px-tail) !important; padding-bottom: 6px !important; height: auto !important; }
+.add-tag { line-height: 18px; }
+
+/* ===== Profile · Climber ID, v2 =====
+   A real lanyard: a woven ink strap printed with the name, a brushed-metal clip, an ink card holder with a punched slot,
+   the lime card inside it. One mascot on the page (the header's); no faint words; the stats live on the card, set as one
+   calm row of numbers instead of heavy boxes. */
+.cid { position: relative; display: flex; flex-direction: column; align-items: center; margin: 4px 0 22px; }
+.cid-strap { position: relative; width: 22px; height: 58px; overflow: hidden; border-radius: 0 0 2px 2px;
+  background: var(--ink); }
+.cid-strap i { position: absolute; left: 0; right: 0; top: -40px; bottom: 0; writing-mode: vertical-rl;
+  font-style: normal; font-size: 8px; font-weight: 900; letter-spacing: .18em; color: var(--lime); text-align: center; line-height: 22px; }
+.cid-strap i::before { content: "SPOTTER · SPOTTER · SPOTTER"; }
+.cid-clip { position: relative; z-index: 2; width: 34px; height: 22px; margin-top: -4px; border-radius: 5px;
+  background: linear-gradient(180deg, #F2F2EE 0%, #C9C9C3 55%, #A8A8A1 100%); box-shadow: 0 2px 4px rgba(17, 17, 17, .25); }
+.cid-clip::after { content: ""; position: absolute; left: 50%; top: 7px; width: 14px; height: 6px; margin-left: -7px; border-radius: 3px; background: rgba(17, 17, 17, .35); }
+.cid-card { position: relative; width: 100%; max-width: 312px; margin-top: -6px; padding: 18px 8px 8px; border-radius: 14px; background: var(--ink);
+  box-shadow: 0 18px 36px rgba(17, 17, 17, .22), 0 3px 8px rgba(17, 17, 17, .12);
+  transform: rotate(-2deg); transform-origin: 50% -30px; animation: cidSwing 1.1s cubic-bezier(.3, 1.4, .5, 1) both; }
+@keyframes cidSwing { 0% { transform: rotate(7deg); } 100% { transform: rotate(-2deg); } }
+.cid-slot { position: absolute; left: 50%; top: 6px; width: 40px; height: 6px; margin-left: -20px; border-radius: 3px; background: #3A3B3A; }
+.cid-in { position: relative; overflow: hidden; padding: 14px 14px 12px; border-radius: 8px; background: var(--lime); color: var(--ink); }
+.cid-in::before { content: ""; position: absolute; inset: 0; pointer-events: none; opacity: .35;
+  background: linear-gradient(rgba(17, 17, 17, .07) 1px, transparent 1px) 0 0 / 12px 12px, linear-gradient(90deg, rgba(17, 17, 17, .07) 1px, transparent 1px) 0 0 / 12px 12px; }
+.cid-in > * { position: relative; }
+.cid-top { display: flex; justify-content: space-between; align-items: center; font-size: 9px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
+.cid-top em { font-style: normal; opacity: .6; }
+.cid-me { display: flex; align-items: center; gap: 12px; margin-top: 12px; }
+.cid-ph { flex: none; width: 64px; height: 64px; overflow: hidden; border-radius: 6px; background: var(--ink); }
+.cid-ph img { width: 100%; height: 100%; object-fit: cover; }
+.cid-me > span:last-child { display: grid; gap: 4px; min-width: 0; }
+.cid-me strong { font-size: 30px; font-weight: 900; letter-spacing: -.045em; line-height: .95; }
+.cid-me span span { font-size: 12px; font-weight: 700; opacity: .65; }
+.cid-st { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 14px; padding-top: 12px; background: linear-gradient(rgba(17, 17, 17, .14), rgba(17, 17, 17, .14)) top / 100% 1px no-repeat; }
+.cid-st > span { display: grid; gap: 3px; }
+.cid-st > span + span { padding-left: 12px; background: linear-gradient(rgba(17, 17, 17, .14), rgba(17, 17, 17, .14)) left / 1px 100% no-repeat; }
+.cid-st b { font-size: 24px; font-weight: 900; letter-spacing: -.04em; line-height: 1; }
+.cid-st b small { font-size: 14px; opacity: .5; }
+.cid-st i { font-style: normal; font-size: 11px; font-weight: 700; opacity: .6; }
+.cid-ft { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; }
+.cid-ft > span { font-size: 11px; font-weight: 700; opacity: .6; }
+.cid-pick { margin: 0 !important; }
+@media (hover: hover) { .cid-card { transition: transform .5s var(--ease); } .cid:hover .cid-card { transform: rotate(-.5deg); } }
+@media (prefers-reduced-motion: reduce) { .cid-card { animation: none; } }
+.cid-strap i { top: 0; bottom: 0; display: grid; place-items: center; }
+.cid-strap i::before { content: "SPOTTER"; letter-spacing: .14em; }

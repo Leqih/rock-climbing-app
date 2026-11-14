@@ -146,10 +146,13 @@ Small or square corners: 4px, 6px, 10px; 12px only on the top corners of bottom 
 
 ### Tags
 - **Style:** pixel-cut, label type; lime for good news, orange (ink text) for asks.
+- **Speech-bubble tags:** a tag that points at something (Hardest send on a photo, Best / New, your style) gets a stepped pixel tail at the bottom left.
 
 ### Cards / Containers
 - **Album card (calendar page):** light grey paper under a lime header strip (italic title, month and year); one top row with the video count set large like a date ("03"), what it counts, and an ink pixel-cut go square; one large and two small photos (orange "No gym" tag on a photo that needs one); a full-width "This week" strip (lime = climbed, ink = today). Flat: no outline, no faux page curl.
 - **Video card (Pinned):** light grey fill, no outline, 4:3 photo flush on top, tag on the photo, route swatch + name, bold try number, day.
+- **Climber ID (Profile top):** a real lanyard. A woven ink strap printed "SPOTTER" in lime, a brushed-metal clip, an ink card holder (slot at the top), the lime card inside it on a faint grid: tiny uppercase header and number, your photo, your name large, one row of three numbers split by hairlines (hardest send, on video, topped; no boxes), your style as an orange speech-bubble tag and your friend count. One mascot per page (the header's); no faint words behind. It swings in once on load (off for reduced motion). The stats live only on the card; there is no separate stats row.
+- **Go squares:** row actions (Directions, the album arrow) are a 40px ink pixel-cut square with a lime icon, no label.
 
 ### Navigation
 - **Dock:** an ink bar with the four tabs (white labels at 62% opacity, 11px; active item lime icon and label, no underline), and Add as its own lime block at the right end, in thumb reach, a bold + only.
