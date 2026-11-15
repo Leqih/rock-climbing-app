@@ -2530,3 +2530,6 @@ textarea.note:focus { outline: 2px solid var(--ink); outline-offset: 0; backgrou
 .stt-o svg { width: 18px; height: 18px; margin-left: auto; }
 
 .stt-o:not([class*="is-"]) i { display: none; }
+
+/* Style picker: the back button and title stay put while the shapes scroll under them */
+.pk-top { position: sticky; top: -44px; z-index: 20; }
