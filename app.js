@@ -863,8 +863,8 @@ function pvPlay() {
 
 /* ---------- A route: your tries and everyone else's ---------- */
 const betaRow = (ri, T) => { const B = betaOf(ri), me = T && stepsOf(T).steps.length - 1, k = B && B.steps.length - 1;
-  return `<button class="row fr-p" type="button" data-act="rbeta" data-r="${ri}"><span class="fr-f">${avatar('Leo')}</span><span class="row-t"><strong>${T ? 'Your moves and the beta' : 'See the beta'}</strong>
-    <span>${!B ? 'From how Leo topped it' : T ? `You: ${n(me, 'hand move', 'hand moves')} · Leo’s beta: ${k}` : `${n(k, 'hand move', 'hand moves')}, hold by hold · from how Leo topped it`}</span></span>${ic.arr('#111111')}</button>`; };
+  return `<button class="row fr-p" type="button" data-act="rbeta" data-r="${ri}"><span class="fr-f">${avatar(B ? B.x.who : 'Leo')}</span><span class="row-t"><strong>${T ? 'Your moves and the beta' : 'See the beta'}</strong>
+    <span>${!B ? 'From a climber who topped it' : T ? `You: ${n(me, 'hand move', 'hand moves')} · ${B.x.who}’s beta: ${k}` : `${n(k, 'hand move', 'hand moves')}, hold by hold · from how ${B.x.who} topped it`}</span></span>${ic.arr('#111111')}</button>`; };
 function viewRoute(a) {
   const i = +a, r = ROUTES[i];
   if (!r) return lostClip();
@@ -945,7 +945,7 @@ function feedPost(p, i) {
     <div class="ts-rail"><span class="ts-av"><button class="ts-face" type="button" data-act="to" data-to="${me ? 'profile' : `person/${p.who}`}" aria-label="${me ? 'Your profile' : `${p.who}’s page`}">${avatar(p.who)}</button><span class="ts-author">${esc(p.who)}</span></span>
       <button class="ts-nice" type="button" data-act="flike" data-i="${i}" aria-pressed="${on}" aria-label="Like">${tokIc.heart}<span class="ts-like-label">${on ? 'NICE!' : 'NICE'}</span></button>
       <button type="button" data-act="fcm" data-i="${i}" aria-label="Comment">${tokIc.talk}<span class="ts-action-label">Chat</span></button><button type="button" data-act="fmore" data-i="${i}" aria-label="Video options"><span class="ts-more-icon" aria-hidden="true">•••</span><span>More</span></button></div>
-    <div class="ts-c"><div class="ts-info"><span class="ts-gym">${ic.pin.replace(/#2B2D2E|#111111/g, '#FFFFFF')}${esc(p.c ? gymName(p.c) : gym.name)}</span></div>${p.note ? `<p>${esc(p.note)}</p>` : ''}<div class="ts-tools"><span class="ts-route"><i class="ts-route-color" style="background:${r.hex}" aria-hidden="true"></i>${esc(r.color)} · ${esc(r.grade)}</span>${vs}<button type="button" data-act="fbeta" data-r="${p.c ? p.c.ri : x.ri}" aria-label="See route beta"><span class="ts-action-icon ts-beta-icon" aria-hidden="true">B</span></button></div></div>
+    <div class="ts-c"><div class="ts-info"><span class="ts-gym">${ic.pin.replace(/#2B2D2E|#111111/g, '#FFFFFF')}${esc(p.c ? gymName(p.c) : gym.name)}</span></div>${p.note ? `<p>${esc(p.note)}</p>` : ''}<div class="ts-tools"><span class="ts-route"><i class="ts-route-color" style="background:${r.hex}" aria-hidden="true"></i>${esc(r.color)} · ${esc(r.grade)}</span>${vs}<button type="button" data-act="fbeta" data-r="${p.c ? p.c.ri : x.ri}" data-v="${x.i}" aria-label="See route beta"><span class="ts-action-icon ts-beta-icon" aria-hidden="true">B</span></button></div></div>
     <span class="ts-time"><span class="ts-elapsed">0:00</span> / ${x.len}</span><i class="ts-p"><b></b></i>
   </article>`;
 }
@@ -1385,13 +1385,47 @@ const stepsOf = T => {
   // the climber walks in from the side before starting: hand positions far off the route's line, before the first one on it, are not holds
   const xs = steps.map(q => q.pos[0]).sort((p, q) => p - q), mid = xs[xs.length >> 1];
   while (steps.length > 2 && Math.abs(steps[0].pos[0] - mid) > 65) steps.shift();
-  steps[0] = { ...steps[0], hand: 'B', feet: [] };
-  return { steps, feet: T.moves.filter(m => (m.k === 'la' || m.k === 'ra') && m.t >= steps[0].t).length }; };
-const betaOf = ri => { const x = V.find(q => q.who === 'Leo' && q.ri === ri), T = x && TRK[x.vid]; return T ? { x, T, ...stepsOf(T) } : null; };
+  // the climb ends at the top: the highest hand position. Anything after it is climbing down or walking off
+  const top = steps.reduce((a, q, i) => q.pos[1] < steps[a].pos[1] ? i : a, 0);
+  steps = steps.slice(0, top + 1);
+  // the start holds: where each hand first lands on the wall. Where the climber stood before that is not a hold
+  const iL = steps.findIndex((q, i) => i && q.hand === 'lw'), iR = steps.findIndex((q, i) => i && q.hand === 'rw');
+  const l0 = iL > 0 ? steps[iL].pos : steps[0].pos, r0 = iR > 0 ? steps[iR].pos : steps[0].pos, i0 = Math.max(iL, iR, 0);
+  const tS = steps[i0].t;
+  const S = { hand: 'B', pos: [(l0[0] + r0[0]) / 2, (l0[1] + r0[1]) / 2], holds: [l0, r0], feet: [], t: tS };
+  // a hand that only shifts on the hold it already holds is not a move: it is folded into that hand's last hold.
+  // So is a short drop back down: a re-grip, not progress
+  const dist = (p, q) => Math.hypot(p[0] - q[0], p[1] - q[1]), near = (p, q) => dist(p, q) < 40;
+  const held = { lw: l0, rw: r0 }, out = [S];
+  let carry = [];
+  steps.slice(i0 + 1).forEach(q => {
+    if (q.pos[1] > held[q.hand][1] && dist(held[q.hand], q.pos) < 80) { carry = carry.concat(q.feet); return; }
+    if (near(held[q.hand], q.pos)) { carry = carry.concat(q.feet); held[q.hand] = q.pos; const last = [...out].reverse().find(o => o.hand === q.hand); if (last) last.pos = q.pos; return; }
+    const match = near(held[q.hand === 'lw' ? 'rw' : 'lw'], q.pos);
+    // hands swapping back and forth on one hold is one match, not several
+    if (match && out[out.length - 1].match) { carry = carry.concat(q.feet); held[q.hand] = q.pos; return; }
+    out.push({ ...q, from: held[q.hand], feet: carry.concat(q.feet), match });
+    carry = []; held[q.hand] = q.pos; });
+  // how far and which way each hand goes, in words: size against this climb's typical move, direction in eighths
+  const lens = out.slice(1).map(q => Math.hypot(q.pos[0] - q.from[0], q.pos[1] - q.from[1])).sort((p, q) => p - q), med = lens[lens.length >> 1] || 1;
+  out.slice(1).forEach(q => { const dx = q.pos[0] - q.from[0], dy = q.from[1] - q.pos[1], d = Math.hypot(dx, dy);
+    q.dir = BDIR[(Math.round(Math.atan2(dy, dx) / (Math.PI / 4)) + 8) % 8];
+    q.size = d > med * 1.4 ? 'long' : d < med * .6 ? 'short' : ''; });
+  const end = out[out.length - 1].t;
+  return { steps: out, feet: T.moves.filter(m => (m.k === 'la' || m.k === 'ra') && m.t >= tS && m.t <= end).length }; };
+const BDIR = ['right', 'up and right', 'up', 'up and left', 'left', 'down and left', 'down', 'down and right'];
+// the beta for a route: the video it was opened from when that climber topped it; otherwise a send by someone else (Leo first)
+const betaOf = (ri, vi = null) => {
+  const ask = vi != null ? V[vi] : null, ok = x => x && x.ri === ri && x.top && TRK[x.vid];
+  const x = ok(ask) ? ask : [V.find(q => q.who === 'Leo' && q.ri === ri), ...V.filter(q => q.who !== 'You' && q.ri === ri)].find(ok);
+  return x ? { x, ask, T: TRK[x.vid], ...stepsOf(TRK[x.vid]) } : null; };
+const handWord = { lw: 'Left hand', rw: 'Right hand' };
+const moveSay = q => q.match ? `${handWord[q.hand]} matches the other hand` : `${handWord[q.hand]}: ${q.size ? q.size + ' ' : ''}reach ${q.dir}`;
 // the beta opened from a route or from your analysis: no camera, so no Retake
-let betaOnly = false;
+let betaOnly = false, betaV = null;
 function viewScan() {
-  const r = ROUTES[scanRi], B = betaOf(scanRi), corners = '<path d="M24 80V24h56M460 24h56v56M516 880v56h-56M80 936H24v-56" fill="none" stroke="#FFFFFF" stroke-width="3"/>';
+  needTracks(V.filter(q => q.ri === scanRi));
+  const r = ROUTES[scanRi], B = betaOf(scanRi, betaV), corners = '<path d="M24 80V24h56M460 24h56v56M516 880v56h-56M80 936H24v-56" fill="none" stroke="#FFFFFF" stroke-width="3"/>';
   needTracks(V.filter(q => q.who === 'Leo'));
   if (!scanShot) return { html: `${bar('Find beta')}
     <div class="scan-start"><div class="scan-start-head"><span>EXPLORE A ROUTE</span><h1>Find your beta<span>✦</span></h1><p>Choose a route to see how another climber moved.</p></div>
@@ -1405,32 +1439,42 @@ function viewScan() {
       <path d="M${B.steps.map(q => pt(q.pos)).join(' L')}" fill="none" stroke="rgba(194,255,1,.5)" stroke-width="3" stroke-dasharray="8 10"/>
       ${bstep ? `<path d="M${pt(prev.pos)} L${pt(st.pos)}" stroke="#C2FF01" stroke-width="6" stroke-linecap="round"/>` : ''}
       ${st.feet.map(q => `<rect x="${q.pos[0] - 11}" y="${q.pos[1] - 11}" width="22" height="22" rx="4" fill="#FFFFFF" stroke="#111111" stroke-width="2"/>`).join('')}
-      ${B.steps.map((q, i) => { const on = i === bstep, done = i < bstep; return on ? '' : `<circle cx="${q.pos[0].toFixed(0)}" cy="${q.pos[1].toFixed(0)}" r="14" fill="${done ? 'rgba(194,255,1,.45)' : 'rgba(17,17,17,.55)'}" stroke="#C2FF01" stroke-width="3"/>`; }).join('')}
-      <circle cx="${st.pos[0].toFixed(0)}" cy="${st.pos[1].toFixed(0)}" r="24" fill="#C2FF01" stroke="#111111" stroke-width="3"/>
-      <text x="${st.pos[0].toFixed(0)}" y="${(st.pos[1] + 8).toFixed(0)}" text-anchor="middle" font-size="22" font-weight="700" fill="#111111">${bstep || 'S'}</text>
+      ${B.steps.map((q, i) => { const on = i === bstep, done = i < bstep; return on || !i ? '' : `<circle cx="${q.pos[0].toFixed(0)}" cy="${q.pos[1].toFixed(0)}" r="14" fill="${done ? 'rgba(194,255,1,.45)' : 'rgba(17,17,17,.55)'}" stroke="#C2FF01" stroke-width="3"/>`; }).join('')}
+      ${(bstep ? [[st.pos, bstep]] : st.holds.map((h, k) => [h, k ? 'R' : 'L'])).map(([q, l]) => `<circle cx="${q[0].toFixed(0)}" cy="${q[1].toFixed(0)}" r="24" fill="#C2FF01" stroke="#111111" stroke-width="3"/>
+      <text x="${q[0].toFixed(0)}" y="${(q[1] + 8).toFixed(0)}" text-anchor="middle" font-size="22" font-weight="700" fill="#111111">${l}</text>`).join('')}
     </svg>`;
-  const feet = st.feet.map(q => fn[q.k]);
-  const title = bstep ? `${hn[st.hand]} · position ${bstep}` : 'Start: both hands on';
-  const how = !bstep ? 'Hands on the first holds, feet low. The marks show estimated hand positions from Leo’s video; holds are not verified.'
-    : feet.length ? `First move your ${feet.join(', then your ')} (the white ${feet.length > 1 ? 'squares' : 'square'}). Then reach.` : 'Feet stay where they are. Just reach.';
+  const feet = st.feet.map(q => fn[q.k]).filter((f, i, l) => f !== l[i - 1]), who = B.x.who === 'You' ? 'you' : B.x.who, whose = B.x.who === 'You' ? 'your' : `${B.x.who}’s`;
+  const title = bstep ? moveSay(st) : 'Start: both hands on';
+  const how = !bstep ? `Left hand on L, right hand on R: the first holds ${who} grabbed. Positions are estimated from ${whose} video; holds are not verified.`
+    : `${feet.length ? `Feet first: ${feet.join(', then ')} (the white ${feet.length > 1 ? 'squares' : 'square'}). ` : 'Feet stay where they are. '}${st.match ? 'Then bring this hand onto the hold the other one is on.' : st.size === 'long' ? 'Then reach: one of the longest moves on this climb.' : st.size === 'short' ? 'Then a short move to the next hold.' : 'Then reach for the next hold.'}`;
   const hands = N, foots = B.feet;
+  // the beta came from somewhere else than the video you opened it from: say why
+  const swap = B.ask && B.ask !== B.x ? `<p class="beta-caveat">${B.ask.who === 'You' ? 'You' : B.ask.who} didn’t top it on that video, so this is ${whose} send.</p>` : '';
+  // your own try on this route, read the same way: how many moves, and the first one that went another way
+  const myT = B.x.who === 'You' ? null : V.filter(q => q.who === 'You' && q.ri === scanRi).map(q => TRK[q.vid]).filter(Boolean).pop();
+  // matches are compared out: the reaches between holds are what makes a line, so the first reach that differs is where you split
+  const mine = myT && stepsOf(myT).steps, reach = s => s.map((q, i) => [q, i]).filter(([q, i]) => i && !q.match);
+  const mR = mine && reach(mine), bR = reach(B.steps), k = mR ? mR.findIndex(([q], j) => bR[j] && (q.hand !== bR[j][0].hand || q.dir !== bR[j][0].dir)) : -1;
+  const diff = k >= 0 && k < bR.length ? bR[k][1] : -1, myDiff = k >= 0 ? mR[k][0] : null;
+  const vsYou = mine ? `<div class="lt short"><span class="lt-h">Your try</span><span class="mv"><b>${mine.length - 1}<small> vs ${N}</small></b><span class="mv-l">${diff > 0 ? `you split at move ${diff}` : mine.length - 1 > N ? 'same line, extra moves' : 'same line'}</span></span></div>` : '';
+  const vsLine = myDiff && diff > 0 ? `<p class="bst-d bst-you">Here you split: your ${moveSay(myDiff).toLowerCase().replace(':', ' went').replace('reach ', '')}; ${who === 'you' ? 'you' : who}’s ${moveSay(B.steps[diff]).toLowerCase().replace(':', ' went').replace('reach ', '')}.</p>` : '';
   return { html: `
-    ${bar(`Movement reference · ${rname(r)}`)}<p class="beta-caveat">Based on an existing video’s estimated body positions. These marks are not verified holds or a confirmed route.</p>
+    ${bar(`Movement reference · ${rname(r)}`)}<p class="beta-caveat">Based on an existing video’s estimated body positions. These marks are not verified holds or a confirmed route.</p>${swap}
     <div class="cam sc9">
-      <img src="img/${r.img}.jpg" alt="${rname(r)} with its beta drawn on">${svg}
+      <img src="img/${B.x.img}.jpg" alt="${rname(r)} with its beta drawn on">${svg}
       <span class="pk-tag scan-tag">${sw(r)}${rname(r)} · ${n(hands, 'hand move', 'hand moves')}</span>
     </div>
     <section class="glass bst">
       <div class="bst-h"><span class="lt-h">${bstep ? `Move ${bstep} of ${N}` : 'Before you start'}</span>
         <span class="fr-ctl"><button type="button" data-act="bstep" data-d="-1" aria-label="Previous move"${bstep ? '' : ' disabled'}>‹</button><button type="button" data-act="bstep" data-d="1" aria-label="Next move"${bstep < N ? '' : ' disabled'}>›</button></span></div>
-      <p class="bst-t">${title}</p><p class="bst-d">${how}</p>
+      <p class="bst-t">${title}</p><p class="bst-d">${how}</p>${bstep === diff ? vsLine : ''}
     </section>
     <div class="lb">
-      <div class="lt short"><span class="lt-h">Route</span><span class="mv"><b>${rname(r)}</b><span class="mv-l">${r.color} holds</span></span></div>
-      <div class="lt short"><span class="lt-h">Beta</span><span class="mv"><b>${hands}<small> + ${foots}</small></b><span class="mv-l">hand and foot moves</span></span></div>
+      ${vsYou ? '' : `<div class="lt short"><span class="lt-h">Route</span><span class="mv"><b>${rname(r)}</b><span class="mv-l">${r.color} holds</span></span></div>`}
+      <div class="lt short"><span class="lt-h">Beta</span><span class="mv"><b>${hands}<small> + ${foots}</small></b><span class="mv-l">hand and foot moves</span></span></div>${vsYou}
     </div>
     <div class="rows">
-      <button class="row fr-p" type="button" data-act="fwatch" data-v="${B.x.i}"><span class="fr-f">${avatar('Leo')}</span><span class="row-t"><strong>This is how Leo climbed it</strong><span>Topped in ${mmss(climbS(B.T))} · read from their video. Watch it</span></span>${ic.arr('#111111')}</button>
+      <button class="row fr-p" type="button" data-act="fwatch" data-v="${B.x.i}"><span class="fr-f">${avatar(B.x.who)}</span><span class="row-t"><strong>${B.x.who === 'You' ? 'This is how you climbed it' : `This is how ${B.x.who} climbed it`}</strong><span>Topped in ${mmss(climbS(B.T))} · read from the video. Watch it</span></span>${ic.arr('#111111')}</button>
       <button class="row" type="button" data-act="to" data-to="route/${scanRi}"><span class="row-t"><strong>Other climbers on ${rname(r)}</strong><span>${n(peersOn(scanRi).length, 'video', 'videos')} · your own way may differ</span></span>${ic.arr('#111111')}</button>
     </div><div class="sc-end"></div>`,
     cta: betaOnly ? `<button class="b-lime" type="button" data-act="film">${ic.rec}Film a try on it</button>` : `<button class="b-ghost" type="button" data-act="rescan">Choose another</button><button class="b-lime" type="button" data-act="film">${ic.rec}Film a try on it</button>` };
@@ -1872,12 +1916,12 @@ const moreActions = {
   // logging and the session
   rtry: b => { const ri = +b.dataset.r; lgClock(); logOf(0, ri).tries++; render(); toast(`${rname(ROUTES[ri])} · attempt ${dayLog(0).find(e => e.ri === ri).tries} today`); },
   rsend: b => openSheet(+b.dataset.r),
-  scan: () => { closeAll(); betaOnly = false; scanShot = false; bstep = 0; scanRi = ROUTES.findIndex((r, i) => V.some(x => x.who === 'Leo' && x.ri === i) && !mineOn(i).some(topOf)); if (scanRi < 0) scanRi = 0; go('scan'); },
+  scan: () => { closeAll(); betaOnly = false; betaV = null; scanShot = false; bstep = 0; scanRi = ROUTES.findIndex((r, i) => V.some(x => x.who === 'Leo' && x.ri === i) && !mineOn(i).some(topOf)); if (scanRi < 0) scanRi = 0; go('scan'); },
   scanri: b => { scanRi = +b.dataset.i; render(); },
-  rbeta: b => { betaOnly = true; scanRi = +b.dataset.r; scanShot = true; bstep = 0; go('scan'); },
+  rbeta: b => { betaOnly = true; betaV = b.dataset.v != null ? +b.dataset.v : null; scanRi = +b.dataset.r; scanShot = true; bstep = 0; go('scan'); },
   snap: () => { scanShot = true; bstep = 0; render(); },
   rescan: () => { scanShot = false; render(); },
-  bstep: b => { const B = betaOf(scanRi); if (!B) return; bstep = Math.max(0, Math.min(B.steps.length - 1, bstep + +b.dataset.d)); const y = document.querySelector('.screen').scrollTop; render(); document.querySelector('.screen').scrollTop = y; },
+  bstep: b => { const B = betaOf(scanRi, betaV); if (!B) return; bstep = Math.max(0, Math.min(B.steps.length - 1, bstep + +b.dataset.d)); const y = document.querySelector('.screen').scrollTop; render(); document.querySelector('.screen').scrollTop = y; },
   glopen: () => { glOpen = !glOpen; render(); },
   glrope: b => { glTy = b.dataset.v; glGrade = null; render(); },
   glgrade: b => { glGrade = b.dataset.g; render(); },
