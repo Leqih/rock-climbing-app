@@ -1442,6 +1442,34 @@ const betaOf = (ri, vi = null) => {
   return x ? { x, ask, T: TRK[x.vid], ...stepsOf(TRK[x.vid]) } : null; };
 const handWord = { lw: 'Left hand', rw: 'Right hand' };
 const moveSay = q => q.match ? `${handWord[q.hand]} matches the other hand` : `${handWord[q.hand]}: ${q.size ? q.size + ' ' : ''}reach ${q.dir}`;
+// a route's own holds, found in the photo by their colour: the video's first frame (the wall before the climber covers it),
+// pixels of the route's hue that are saturated enough, joined into blobs. Positions are in the 540x960 frame the moves use
+// hue range, then the saturation and brightness a hold's pixels clear. Measured on these walls' footage: their orange holds read coral
+const HOLDS = {}, WALL = {}, HUE = { Green: [85, 160, .28, .15], Orange: [348, 375, .5, .45], Blue: [190, 232, .35, .2], Yellow: [44, 66, .45, .4], Purple: [262, 300, .3, .2], Pink: [305, 345, .35, .35], Red: [345, 372, .5, .3] };
+function findHolds(im, [h0, h1, s0, v0]) {
+  const W = 270, H = 480, cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+  const cx = cv.getContext('2d', { willReadFrequently: true }); cx.drawImage(im, 0, 0, W, H);
+  const d = cx.getImageData(0, 0, W, H).data, m = new Uint8Array(W * H);
+  for (let i = 0; i < W * H; i++) { const r = d[i * 4] / 255, g = d[i * 4 + 1] / 255, b = d[i * 4 + 2] / 255, mx = Math.max(r, g, b), c = mx - Math.min(r, g, b);
+    if (!c || c / mx < s0 || mx < v0) continue;
+    let h = (mx === r ? ((g - b) / c + 6) % 6 : mx === g ? (b - r) / c + 2 : (r - g) / c + 4) * 60;
+    if (h < h0 && h + 360 <= h1) h += 360;
+    if (h >= h0 && h <= h1) m[i] = 1; }
+  const seen = new Uint8Array(W * H), out = [];
+  for (let i = 0; i < W * H; i++) { if (!m[i] || seen[i]) continue; const st = [i]; seen[i] = 1; let n = 0, sx = 0, sy = 0, x0 = W, x1 = 0, y0 = H, y1 = 0;
+    while (st.length) { const p = st.pop(), x = p % W, y = (p / W) | 0; n++; sx += x; sy += y; x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y);
+      for (const q of [x > 0 ? p - 1 : -1, x < W - 1 ? p + 1 : -1, p - W, p + W]) if (q >= 0 && q < W * H && m[q] && !seen[q]) { seen[q] = 1; st.push(q); } }
+    if (n >= 8) out.push({ x: sx / n * 2, y: sy / n * 2, r: Math.max(x1 - x0, y1 - y0) + 2 }); }
+  return out; }
+function needHolds(img, color) {
+  const key = `${img}|${color}`;
+  if (key in HOLDS) return HOLDS[key] || [];
+  // the photo the holds were found in is the one to draw on: the empty wall when the video has one
+  HOLDS[key] = null; const at = [page, arg];
+  const load = src => new Promise((ok, no) => { const im = new Image(); im.onload = () => ok(im); im.onerror = no; im.src = src; });
+  load(`img/${img}0.jpg`).catch(() => load(`img/${img}.jpg`)).then(im => { WALL[img] = im.getAttribute('src'); HOLDS[key] = HUE[color] ? findHolds(im, HUE[color]) : []; })
+    .catch(() => { HOLDS[key] = []; }).then(() => { if (page === at[0] && arg === at[1]) render(); });
+  return []; }
 // the beta opened from a route or from your analysis: no camera, so no Retake
 let betaOnly = false, betaV = null;
 function viewScan() {
@@ -1456,17 +1484,30 @@ function viewScan() {
   if (!B) return { html: `${bar('Find beta')}<div class="scan-unavailable"><h1>Beta isn’t available yet</h1><p>We couldn’t load a recorded climb for this route.</p><button class="b-lime" type="button" data-act="rescan">Choose another route</button></div>` };
   const N = B.steps.length - 1, st = B.steps[bstep], prev = B.steps[Math.max(0, bstep - 1)], pt = q => `${q[0].toFixed(0)} ${q[1].toFixed(0)}`;
   const hn = { lw: 'Left hand', rw: 'Right hand', B: 'Both hands' }, fn = { la: 'left foot', ra: 'right foot' };
-  const svg = `<svg viewBox="0 0 540 960" aria-hidden="true">
-      <path d="M${B.steps.map(q => pt(q.pos)).join(' L')}" fill="none" stroke="rgba(194,255,1,.5)" stroke-width="3" stroke-dasharray="8 10"/>
-      ${bstep ? `<path d="M${pt(prev.pos)} L${pt(st.pos)}" stroke="#C2FF01" stroke-width="6" stroke-linecap="round"/>` : ''}
-      ${st.feet.map(q => `<rect x="${q.pos[0] - 11}" y="${q.pos[1] - 11}" width="22" height="22" rx="4" fill="#FFFFFF" stroke="#111111" stroke-width="2"/>`).join('')}
-      ${B.steps.map((q, i) => { const on = i === bstep, done = i < bstep; return on || !i ? '' : `<circle cx="${q.pos[0].toFixed(0)}" cy="${q.pos[1].toFixed(0)}" r="14" fill="${done ? 'rgba(194,255,1,.45)' : 'rgba(17,17,17,.55)'}" stroke="#C2FF01" stroke-width="3"/>`; }).join('')}
-      ${(bstep ? [[st.pos, bstep]] : st.holds.map((h, k) => [h, k ? 'R' : 'L'])).map(([q, l]) => `<circle cx="${q[0].toFixed(0)}" cy="${q[1].toFixed(0)}" r="24" fill="#C2FF01" stroke="#111111" stroke-width="3"/>
-      <text x="${q[0].toFixed(0)}" y="${(q[1] + 8).toFixed(0)}" text-anchor="middle" font-size="22" font-weight="700" fill="#111111">${l}</text>`).join('')}
+  // the photo zooms to the climb: the box around every hand position, padded, kept at the frame's 9:16. Marks are sized for the
+  // screen (zk), drawn as thin rings so the holds under them stay visible; the line is drawn only as far as the move you are on
+  const hs = needHolds(B.x.img, r.color);
+  const snap = p => { let o = null, bd = 55; hs.forEach(h => { const dd = Math.hypot(h.x - p[0], h.y - (p[1] - 12)); if (dd < bd) { bd = dd; o = h; } }); return o ? [o.x, o.y] : Object.assign([...p], { est: true }); };
+  const P = B.steps.map(q => snap(q.pos)), S0 = B.steps[0].holds.map(snap), at = i => P[i];
+  const ps = [...P.slice(1), ...S0], pad = 70;
+  let x0 = Math.min(...ps.map(q => q[0])) - pad, x1 = Math.max(...ps.map(q => q[0])) + pad, y0 = Math.min(...ps.map(q => q[1])) - pad, y1 = Math.max(...ps.map(q => q[1])) + pad;
+  let vw = x1 - x0, vh = y1 - y0; if (vw / vh < 9 / 16) vw = vh * 9 / 16; else vh = vw * 16 / 9;
+  if (vw > 540) { vw = 540; vh = 960; }
+  const vx = Math.max(0, Math.min(540 - vw, (x0 + x1 - vw) / 2)), vy = Math.max(0, Math.min(960 - vh, (y0 + y1 - vh) / 2)), zk = vw / 540, f = v => v.toFixed(1);
+  const ring = (q, r, c, w, o = 1) => `<circle cx="${f(q[0])}" cy="${f(q[1])}" r="${f(r * zk)}" fill="none" stroke="${c}" stroke-width="${f(w * zk)}" opacity="${o}"${q.est ? ` stroke-dasharray="${f(4 * zk)} ${f(4 * zk)}"` : ''}/>`;
+  const badge = (q, l) => `<circle cx="${f(q[0] + 20 * zk)}" cy="${f(q[1] - 20 * zk)}" r="${f(13 * zk)}" fill="#C2FF01" stroke="#111111" stroke-width="${f(2 * zk)}"/>
+      <text x="${f(q[0] + 20 * zk)}" y="${f(q[1] - 20 * zk + 6 * zk)}" text-anchor="middle" font-size="${f(16 * zk)}" font-weight="800" fill="#111111">${l}</text>`;
+  const svg = `<svg viewBox="${f(vx)} ${f(vy)} ${f(vw)} ${f(vh)}" aria-hidden="true">
+      <image href="${WALL[B.x.img] || `img/${B.x.img}.jpg`}" x="0" y="0" width="540" height="960" style="filter:brightness(.9)"/>
+      ${hs.map(h => `<circle cx="${f(h.x)}" cy="${f(h.y)}" r="${f(Math.max(h.r * .6 + 4, 9))}" fill="none" stroke="#FFFFFF" stroke-width="${f(1.6 * zk)}" stroke-dasharray="${f(3 * zk)} ${f(2.5 * zk)}" opacity=".85"/>`).join('')}
+      ${bstep ? `<path d="M${P.slice(1, bstep + 1).map(q => `${f(q[0])} ${f(q[1])}`).join(' L')}" fill="none" stroke="#C2FF01" stroke-width="${f(2.5 * zk)}" stroke-dasharray="${f(6 * zk)} ${f(6 * zk)}" opacity=".8"/>` : ''}
+      ${B.steps.map((q, i) => i && i !== bstep ? ring(at(i), 11, i < bstep ? '#C2FF01' : '#FFFFFF', 2, i < bstep ? .7 : .75) : '').join('')}
+      ${st.feet.map(q => `<rect x="${f(q.pos[0] - 8 * zk)}" y="${f(q.pos[1] - 8 * zk)}" width="${f(16 * zk)}" height="${f(16 * zk)}" rx="${f(3 * zk)}" fill="none" stroke="#FFFFFF" stroke-width="${f(2.5 * zk)}"/>`).join('')}
+      ${(bstep ? [[at(bstep), bstep]] : S0.map((h, m) => [h, m ? 'R' : 'L'])).map(([q, l]) => ring(q, 22, '#111111', 6, .35) + ring(q, 22, '#C2FF01', 3.5) + badge(q, l)).join('')}
     </svg>`;
   const feet = st.feet.map(q => fn[q.k]).filter((f, i, l) => f !== l[i - 1]), who = B.x.who === 'You' ? 'you' : B.x.who, whose = B.x.who === 'You' ? 'your' : `${B.x.who}’s`;
   const title = bstep ? moveSay(st) : 'Start: both hands on';
-  const how = !bstep ? `Left hand on L, right hand on R: the first holds ${who} grabbed. Positions are estimated from ${whose} video; holds are not verified.`
+  const how = !bstep ? `Left hand on L, right hand on R: the first holds ${who} grabbed. The dashed circles are this route’s ${r.color.toLowerCase()} holds.`
     : `${feet.length ? `Feet first: ${feet.join(', then ')} (the white ${feet.length > 1 ? 'squares' : 'square'}). ` : 'Feet stay where they are. '}${st.match ? 'Then bring this hand onto the hold the other one is on.' : st.size === 'long' ? 'Then reach: one of the longest moves on this climb.' : st.size === 'short' ? 'Then a short move to the next hold.' : 'Then reach for the next hold.'}`;
   const hands = N, foots = B.feet;
   // the beta came from somewhere else than the video you opened it from: say why
@@ -1480,9 +1521,9 @@ function viewScan() {
   const vsYou = mine ? `<div class="lt short"><span class="lt-h">Your try</span><span class="mv"><b>${mine.length - 1}<small> vs ${N}</small></b><span class="mv-l">${diff > 0 ? `you split at move ${diff}` : mine.length - 1 > N ? 'same line, extra moves' : 'same line'}</span></span></div>` : '';
   const vsLine = myDiff && diff > 0 ? `<p class="bst-d bst-you">Here you split: your ${moveSay(myDiff).toLowerCase().replace(':', ' went').replace('reach ', '')}; ${who === 'you' ? 'you' : who}’s ${moveSay(B.steps[diff]).toLowerCase().replace(':', ' went').replace('reach ', '')}.</p>` : '';
   return { html: `
-    ${bar(`Movement reference · ${rname(r)}`)}<p class="beta-caveat">Based on an existing video’s estimated body positions. These marks are not verified holds or a confirmed route.</p>${swap}
+    ${bar(`Movement reference · ${rname(r)}`)}${swap}
     <div class="cam sc9">
-      <img src="img/${B.x.img}.jpg" alt="${rname(r)} with its beta drawn on">${svg}
+      ${svg}
       <span class="pk-tag scan-tag">${sw(r)}${rname(r)} · ${n(hands, 'hand move', 'hand moves')}</span>
     </div>
     <section class="glass bst">
