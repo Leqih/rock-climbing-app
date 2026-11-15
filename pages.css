@@ -2372,3 +2372,50 @@ textarea.note:focus { outline: 2px solid var(--ink); outline-offset: 0; backgrou
 .scan-start { padding: 18px 16px 28px; }.scan-start-head > span { color: #6c7870; font-size: 10px; letter-spacing: .09em; font-weight: 800; }.scan-start-head h1 { margin: 4px 0; font-size: 29px; line-height: 1.1; letter-spacing: -.045em; }.scan-start-head h1 span { color: #83a817; }.scan-start-head p { color: #69736c; font-size: 13px; margin: 0 0 14px; }
 .scan-start-photo { position: relative; height: min(35vh, 290px); overflow: hidden; border-radius: 22px; background: #1c211e; }.scan-start-photo img { width: 100%; height: 100%; object-fit: cover; object-position: center 42%; display: block; }.scan-start-photo::after { content: ''; position: absolute; inset: 50% 0 0; background: linear-gradient(transparent,#101510aa); pointer-events: none; }.scan-route-tag, .scan-demo-label { position: absolute; z-index: 1; bottom: 12px; padding: 7px 10px; border-radius: 999px; font-size: 11px; font-weight: 800; }.scan-route-tag { left: 12px; display: flex; align-items: center; gap: 5px; background: #fff; color: #151915; }.scan-demo-label { right: 12px; background: #161c18d9; color: white; font-size: 10px; }
 .scan-start-label { display: flex; justify-content: space-between; align-items: center; margin: 20px 0 9px; }.scan-start-label strong { font-size: 15px; }.scan-start-label span { font-size: 11px; color: #737d76; }.scan-route-options { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; }.scan-route-options button { display: flex; align-items: center; gap: 8px; min-height: 54px; padding: 10px; background: #fff; border-radius: 16px; text-align: left; }.scan-route-options button[aria-pressed=true] { background: #dcebf7; box-shadow: inset 0 0 0 1px #bdd9ef; }.scan-route-options button > span:not(.sw) { display: grid; gap: 2px; flex: 1; }.scan-route-options strong { font-size: 13px; }.scan-route-options small { color: #66736b; font-size: 11px; }.scan-route-options b { font-size: 14px; }.scan-disclaimer { margin: 13px 2px 0; color: #737b76; font-size: 11px; line-height: 1.4; }.scan-unavailable { padding: 35px 18px; }.scan-unavailable h1 { font-size: 25px; letter-spacing: -.04em; }.scan-unavailable p { color: #68716b; font-size: 13px; }.scan-unavailable button { width: 100%; margin-top: 18px; }
+
+/* Pick your style: twelve shapes on a taller stage that scrolls, with room under it for the button */
+.screen.fit:has(.pk-stage) { overflow-y: auto; }
+.pk-stage { height: 880px; }
+.pk-panel:has(.pk-stage) { height: auto; min-height: calc(var(--stage-height, 880px) + 60px); padding-bottom: 120px; }
+.pk-stage { margin-bottom: calc(var(--stage-height, 880px) - 880px); }
+
+/* Pick your style on a wall, in the app's own greys: the header's #e7e7e5 carries on down as the wall, a grid of bolt holes
+   and a few holds in the same grey a shade darker; the shapes sit on it white like volumes, lime when picked */
+.pk-panel:has(.pk-stage) { background:
+  url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%22240%22%20height%3D%22240%22%20viewBox%3D%220%200%20240%20240%22%3E%3Cpath%20transform%3D%22translate%2840%2052%29%22%20d%3D%22M-10-6c4-7%2015-6%2019%201s-1%2012-8%2012-14-6-11-13z%22%20fill%3D%22%23111%22%20fill-opacity%3D%22.07%22/%3E%3Cpath%20transform%3D%22translate%28168%2034%29%22%20d%3D%22M-13%200c0-7%209-10%2015-8s10%207%206%2012-15%205-21-4z%22%20fill%3D%22%23111%22%20fill-opacity%3D%22.07%22/%3E%3Cpath%20transform%3D%22translate%28214%20128%29%22%20d%3D%22M-7-10c7-3%2013%202%2012%2010s-10%209-14%205-4-12%202-15z%22%20fill%3D%22%23111%22%20fill-opacity%3D%22.07%22/%3E%3Cpath%20transform%3D%22translate%28100%20132%29%22%20d%3D%22M-15-3c3-8%2014-9%2019-3s3%2013-5%2014-16-3-14-11z%22%20fill%3D%22%23111%22%20fill-opacity%3D%22.07%22/%3E%3Cpath%20transform%3D%22translate%2828%20206%29%22%20d%3D%22M-9-9c8-2%2014%203%2012%2011s-12%206-15%201%200-10%203-12z%22%20fill%3D%22%23111%22%20fill-opacity%3D%22.07%22/%3E%3Cpath%20transform%3D%22translate%28176%20214%29%22%20d%3D%22M-12-5c5-7%2016-4%2017%203s-6%2012-13%2010-9-8-4-13z%22%20fill%3D%22%23111%22%20fill-opacity%3D%22.07%22/%3E%3C/svg%3E") 0 0 / 240px 240px,
+  radial-gradient(circle, rgba(17, 17, 17, .2) 1.4px, transparent 2px) 10px 10px / 20px 20px,
+  #e7e7e5; }
+.pk-panel:has(.pk-stage) .pk-q { width: fit-content; max-width: 100%; padding: 7px 12px; border-radius: 999px; background: rgba(255, 255, 255, .85); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
+.pk-stage .pk:not(.on) { background: #fff; }
+.pk-stage .pk { filter: drop-shadow(0 3px 6px rgba(17, 17, 17, .08)); }
+
+/* Pick your style: a compact header (back and the title on one line) so the wall gets the screen */
+.pk-top:has(~ .pk-panel .pk-stage) { display: flex; align-items: center; gap: 12px; padding: 58px 16px 10px; overflow: visible; }
+.pk-top:has(~ .pk-panel .pk-stage) .pk-bk { flex: none; width: 36px; height: 36px; }
+.pk-top:has(~ .pk-panel .pk-stage) .pk-h { flex: 1; min-width: 0; margin: 0; font-size: 22px; line-height: 1.1; }
+.pk-top:has(~ .pk-panel .pk-stage) .pk-h span { display: inline; font-size: inherit; margin-right: .25em; }
+.pk-top:has(~ .pk-panel .pk-stage) .pk-st { display: none; }
+.pk-top:has(~ .pk-panel .pk-stage) .pk-px { display: none; }
+.pk-top ~ .pk-panel:has(.pk-stage) { margin-top: 0; border-radius: 0; padding-top: 8px; }
+
+/* One top row on every page: it starts right under the status bar (54px) and is 52px tall, everything in it centred
+   on the same line: the page title, the For you / Friends switch, the back button, your avatar */
+.m .tabh, .m:has(.al) .tabh, .m:has(.ae) .tabh { height: 52px; margin-top: 0; align-items: center; }
+.m .tabh .hl, .m:has(.al) .tabh .hl, .m:has(.ae) .tabh .hl { margin: 0; }
+.gt-ht { height: 52px; }
+.screen.tok-on .tok-top { top: 54px; height: 52px; min-height: 0; }
+.tok-top.lt-top { height: 52px; min-height: 0; padding-top: 0; }
+.pk-top:has(~ .pk-panel .pk-stage) { box-sizing: border-box; height: 106px; padding: 54px 16px 0; }
+.tabh .av.sm, .gt-ht .av.sm, .tok-top .av.sm { margin: 0; }
+.gt-ht .hl.tab { margin: 0; }
+
+/* Filming review: the same three outcomes as Log by hand, asked before Save */
+.cam-res { display: grid; gap: 8px; margin: 0 0 14px; }
+.cam-res strong { font-size: 15px; font-weight: 800; letter-spacing: -.01em; }
+.cam-res > div { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.cam-res button { display: flex; align-items: center; justify-content: center; gap: 6px; height: 44px; border-radius: 999px; background: rgba(255, 255, 255, .1); color: #fff; font-size: 14px; font-weight: 700; transition: background-color .15s, color .15s, transform .12s; }
+.cam-res button:active { transform: scale(.97); }
+.cam-res button[aria-pressed="true"] { background: var(--lime); color: #111; }
+.cam-res small { font-size: 12px; color: rgba(255, 255, 255, .6); }
+.cam-review-actions button:disabled { opacity: .4; }
+

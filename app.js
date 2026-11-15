@@ -63,7 +63,7 @@ const agoOf = c => c.ago ?? V[c.v].ago;
 const byId = id => clips.find(x => x.id === +id);
 // try number: your tries on that route, oldest first
 const tryOf = c => clips.filter(x => x.ri === c.ri && (agoOf(x) > agoOf(c) || agoOf(x) === agoOf(c) && x.id <= c.id)).length;
-const topOf = c => V[c.v].top;
+const topOf = c => c.res ? c.res !== 'Project' : V[c.v].top;
 // gy = the gym (index in gyms), read from where the video was filmed. null = location was off, so you pick it: the video gets a tag until you do
 const NOLOC = new Set(['wayup-p2a-orange']);
 const gymName = c => c.gy == null ? 'No gym yet' : gyms[c.gy].name;
@@ -163,16 +163,23 @@ function viewSetup() {
 }
 
 /* ---------- Pick your climbing style: a page of shapes you tap, after the "Pick" pages in the team's references ----------
-   Seven shapes scattered and tilted (pixel heart, starburst, diamonds, triangle, circle, square). Grey until picked,
+   Twelve shapes scattered and tilted (pixel heart, starburst, diamonds, triangle, circle, square). Grey until picked,
    orange once picked. Reached after the first screen ("Look around first") and from Profile. What you pick shows on Profile. */
 const STYLES = [
-  ['rope', 'Top rope', 'dia', 118, 14, 222, 74, -14],
-  ['boulder', 'Bouldering', 'heart', 34, 98, 196, 176, -8],
-  ['lead', 'Lead', 'burst', -4, 268, 150, 150, 0],
-  ['slab', 'Slab', 'tri', 214, 206, 156, 140, 12],
-  ['over', 'Overhang', 'dia', 112, 352, 214, 70, -14],
-  ['train', 'Training', 'sq', 18, 430, 140, 120, 10],
-  ['all', 'All of it', 'circ', 214, 432, 124, 124, 0]];
+  // two to a row, each one clear of its neighbours even after its tilt
+  ['rope', 'Top rope', 'dia', 8, 14, 200, 66, -6],
+  ['crimp', 'Crimps', 'circ', 236, 4, 118, 118, 0],
+  ['boulder', 'Bouldering', 'heart', 10, 110, 180, 160, -6],
+  ['slab', 'Slab', 'tri', 214, 140, 146, 132, 8],
+  ['lead', 'Lead', 'burst', 8, 300, 140, 140, 0],
+  ['over', 'Overhang', 'dia', 162, 320, 200, 64, -8],
+  ['tech', 'Technical', 'dia', 4, 470, 196, 64, 8],
+  ['dyno', 'Dynos', 'burst', 214, 410, 140, 140, 0],
+  ['endure', 'Endurance', 'sq', 14, 572, 150, 104, -6],
+  ['out', 'Outdoor', 'tri', 196, 570, 150, 136, -8],
+  ['train', 'Training', 'sq', 30, 710, 140, 104, 6],
+  ['all', 'All of it', 'circ', 220, 736, 124, 124, 0]];
+const STAGE_H = 880;
 let savedStyles;
 try { savedStyles = JSON.parse(localStorage.getItem('spotter-styles') || '[]'); } catch (_) { savedStyles = []; }
 const picks = new Set(Array.isArray(savedStyles) ? savedStyles.filter(k => STYLES.some(style => style[0] === k)) : []);
@@ -192,10 +199,10 @@ function fitStylePicker() {
   if (!screen || !stage || !question) return;
   const resize = () => {
     if (!stage.isConnected) { window.removeEventListener('resize', resize); return; }
-    const availableHeight = screen.clientHeight - question.getBoundingClientRect().bottom / (screen.getBoundingClientRect().height / screen.clientHeight) + screen.getBoundingClientRect().top / (screen.getBoundingClientRect().height / screen.clientHeight) - 100;
-    const scale = Math.max(.3, Math.min(1, stage.parentElement.clientWidth / 370, availableHeight / 570));
+    // twelve styles don't fit one screen at a size you can tap, so the stage scales to the width only and the page scrolls
+    const scale = Math.max(.3, Math.min(1, stage.parentElement.clientWidth / 370));
     stage.style.setProperty('--stage-scale', scale);
-    stage.parentElement.style.setProperty('--stage-height', `${570 * scale}px`);
+    stage.parentElement.style.setProperty('--stage-height', `${STAGE_H * scale}px`);
   };
   resize(); stylePickerResize = resize; window.addEventListener('resize', resize);
 }
@@ -387,7 +394,7 @@ function importPicks(vs) {
 
 /* ---------- Film a try: the phone camera, full screen ---------- */
 // the camera reads the route from the holds in frame. In this prototype it films the next of your sample tries
-let filming = false, recS = 0, recT = null, camStep = 'frame', camRoute = null, camGym = null, camColor = '', camGrade = '';
+let filming = false, recS = 0, recT = null, camStep = 'frame', camRoute = null, camGym = null, camColor = '', camGrade = '', camRes = null;
 const nextRoll = () => V.find(v => !v.added);
 const HOLD_COLORS = { Green:'#2E9E62', Orange:'#F08A24', Blue:'#3F82CA', Red:'#D74D48', Yellow:'#E3C43A', Purple:'#8F69B8', Pink:'#DE7DA5', White:'#EEEEEE', Black:'#303030' };
 function openHoldColors(context) {
@@ -396,20 +403,17 @@ function openHoldColors(context) {
 }
 function openCameraPicker(kind) {
   if (kind === 'color') { openHoldColors('cam'); return; }
-  if (kind === 'gym') {
-    pane(`<div class="choice-panel"><h2>Choose a gym</h2><label class="choice-search">${ic.search}<input id="cam-gym-search" type="search" placeholder="Search gyms or cities" aria-label="Search gyms or cities"></label><div class="choice-rows">${gyms.map((g,i) => `<button type="button" data-act="campickgym" data-i="${i}" data-search="${(g.name+' '+g.addr).toLowerCase()}" aria-pressed="${camGym === i}"><span><strong>${g.name}</strong><small>${g.addr}</small></span>${camGym === i ? '<b>✓</b>' : ''}</button>`).join('')}</div><p id="cam-gym-empty" hidden>No matching gyms.</p></div>`);
-    $('cam-gym-search').addEventListener('input', e => { let count = 0; const q = e.target.value.trim().toLowerCase(); document.querySelectorAll('.choice-rows button').forEach(b => { const match = b.dataset.search.includes(q); b.hidden = !match; if (match) count++; }); $('cam-gym-empty').hidden = count > 0; }); return;
-  }
+  if (kind === 'gym') { openGymPick('cam'); return; }
   pane(`<div class="choice-panel"><h2>Choose a grade</h2><p>Choose the grade for your climb.</p>${[['Rope',GR],['Boulder',VG]].map(([title,grades]) => `<h3>${title}</h3><div class="grade-choices">${grades.map(g => `<button type="button" data-act="campickgrade" data-grade="${g}" aria-pressed="${camGrade === g}">${g}</button>`).join('')}</div>`).join('')}</div>`);
 }
 
 function viewCam() {
   const v = nextRoll(), last = clips[clips.length - 1];
-  if (camStep === 'review' && v) return { bare: true, dark: true, html: '', overlay: `<div class="cam-review"><header><button class="bk" type="button" data-act="camretake" aria-label="Back">${ic.back}</button><strong>Preview your climb</strong></header><div class="cam-preview"><video src="video/${v.vid}.mp4" poster="img/${v.img}0.jpg" controls playsinline preload="metadata"></video></div><p>Demo preview · camera not connected</p><div class="cam-review-actions"><button type="button" data-act="camretake">Retake</button><button type="button" data-act="camsave">Save climb</button></div></div>` };
+  if (camStep === 'review' && v) return { bare: true, dark: true, html: '', overlay: `<div class="cam-review"><header><button class="bk" type="button" data-act="camretake" aria-label="Back">${ic.back}</button><strong>Preview your climb</strong></header><div class="cam-preview"><video src="video/${v.vid}.mp4" poster="img/${v.img}0.jpg" controls playsinline preload="metadata"></video></div><div class="cam-res"><strong>How did it go?</strong><div>${[['Flash', '✦'], ['Send', '✓'], ['Project', '↗']].map(([k, icon]) => `<button type="button" data-act="camres" data-k="${k}" aria-pressed="${camRes === k}"><span aria-hidden="true">${icon}</span>${KL[k]}</button>`).join('')}</div><small>${camRes === 'Flash' ? 'Finished on your first try' : camRes === 'Send' ? 'Finished after more than one try' : camRes === 'Project' ? 'Still working on it' : 'Pick one to save'}</small></div><div class="cam-review-actions"><button type="button" data-act="camretake">Retake</button><button type="button" data-act="camsave"${camRes ? '' : ' disabled'}>Save climb</button></div></div>` };
   return { bare: true, dark: true, html: '', overlay: `
     <img src="img/${v ? `${v.img}0` : 'gym-arc-1'}.jpg" alt="">
-    <div class="cam-top"><button class="bk" type="button" data-act="back" aria-label="Back">${ic.back}</button><div class="cam-tags" aria-label="Climb details"><button class="cam-chip cam-chip-gym" type="button" data-act="campicker" data-kind="gym"${filming ? ' disabled' : ''}>${camGym === null ? 'Gym' : gyms[camGym].name}<svg aria-hidden="true" class="cam-chevron" viewBox="0 0 16 16"><path d="m4 6 4 4 4-4"/></svg></button><button class="cam-chip" type="button" data-act="campicker" data-kind="color"${filming ? ' disabled' : ''}>${camColor ? `<i style="--hold:${HOLD_COLORS[camColor]}"></i>${camColor}` : 'Colour'}<svg aria-hidden="true" class="cam-chevron" viewBox="0 0 16 16"><path d="m4 6 4 4 4-4"/></svg></button><button class="cam-chip" type="button" data-act="campicker" data-kind="grade"${filming ? ' disabled' : ''}>${camGrade || 'Grade'}<svg aria-hidden="true" class="cam-chevron" viewBox="0 0 16 16"><path d="m4 6 4 4 4-4"/></svg></button></div></div><span class="cam-demo-note">Demo preview · camera not connected</span>${filming ? `<span class="rec-on cam-recording"><i></i>REC <span id="recT" class="num">${mmss(recS)}</span></span>` : ''}
-    <span class="cam-fr" aria-hidden="true"></span><div class="cam-guide"><strong>${!v ? 'No videos available' : filming ? 'Recording preview' : 'Get the whole climb in frame'}</strong><span>${!v ? 'Import a video to add a climb.' : filming ? 'Tap stop when the climb is complete.' : camGym === null || !camColor || !camGrade ? 'Choose a gym, colour and grade to start.' : 'Set your phone down where it can see the whole wall.'}</span></div>
+    <div class="cam-top"><button class="bk" type="button" data-act="back" aria-label="Back">${ic.back}</button><div class="cam-tags" aria-label="Climb details"><button class="cam-chip cam-chip-gym" type="button" data-act="campicker" data-kind="gym"${filming ? ' disabled' : ''}>${camGym === null ? 'Gym' : gyms[camGym].name}<svg aria-hidden="true" class="cam-chevron" viewBox="0 0 16 16"><path d="m4 6 4 4 4-4"/></svg></button><button class="cam-chip" type="button" data-act="campicker" data-kind="grade"${filming ? ' disabled' : ''}>${camGrade || 'Grade'}<svg aria-hidden="true" class="cam-chevron" viewBox="0 0 16 16"><path d="m4 6 4 4 4-4"/></svg></button><button class="cam-chip" type="button" data-act="campicker" data-kind="color"${filming ? ' disabled' : ''}>${camColor ? `<i style="--hold:${HOLD_COLORS[camColor]}"></i>${camColor}` : 'Colour'}<svg aria-hidden="true" class="cam-chevron" viewBox="0 0 16 16"><path d="m4 6 4 4 4-4"/></svg></button></div></div>${filming ? `<span class="rec-on cam-recording"><i></i>REC <span id="recT" class="num">${mmss(recS)}</span></span>` : ''}
+    <span class="cam-fr" aria-hidden="true"></span><div class="cam-guide"><strong>${!v ? 'No videos available' : filming ? 'Recording preview' : 'Get the whole climb in frame'}</strong><span>${!v ? 'Import a video to add a climb.' : filming ? 'Tap stop when the climb is complete.' : camGym === null || !camColor || !camGrade ? 'Choose a gym, grade and colour to start.' : 'Set your phone down where it can see the whole wall.'}</span></div>
     <div class="cam-bot">${last ? `<button class="cam-last" type="button" data-act="to" data-to="clip/${last.id}" aria-label="Your last video"><img src="img/${last.img}.jpg" alt=""></button>` : '<span></span>'}<button class="shut${filming ? ' on' : ''}" type="button" data-act="shoot" aria-label="${filming ? 'Stop recording' : 'Start recording'}"${!v || (!filming && (camGym === null || !camColor || !camGrade)) ? ' disabled' : ''}><i></i></button><span></span></div><div class="cam-shutter-label">${filming ? 'Stop' : 'Start'}</div>` };
 }
 
@@ -1088,7 +1092,7 @@ function viewProfile() {
       // charm on the clip, big faint words behind it. Your photo, name, home gym, hardest send and style on the card.
       const sentC = clips.filter(topOf), top = [...sentC].sort((p, q) => GR.indexOf(ROUTES[q.ri].grade) - GR.indexOf(ROUTES[p.ri].grade))[0];
       return `<section class="ph" aria-label="Your profile">
-      <div class="ph-cv ph-shape-container" id="profile-shapes" role="img" aria-label="${picks.size ? `Your climbing styles: ${STYLES.filter(style => picks.has(style[0])).map(style => style[1]).join(', ')}` : 'Choose your climbing style to fill this space'}">${picks.size ? STYLES.filter(style => picks.has(style[0])).map(([k, label, shape]) => `<span class="ph-shape pk-${shape}" aria-hidden="true"><span>${label}</span></span>`).join('') : '<span class="ph-shape-empty">Your climbing style lives here</span>'}</div>
+      <div class="ph-cv ph-shape-container" id="profile-shapes" role="img" aria-label="${picks.size ? `Your climbing styles: ${STYLES.filter(style => picks.has(style[0])).map(style => style[1]).join(', ')}` : 'Choose your climbing style to fill this space'}">${picks.size ? STYLES.filter(style => picks.has(style[0])).map(([k, label, shape]) => `<span class="ph-shape pk-${shape}" aria-hidden="true"><span>${label}</span></span>`).join('') : ''}</div>
       <div class="ph-me"><span class="ph-av">${avatar('You')}</span>
         <button class="ph-st" type="button" data-act="to" data-to="pick/edit">${styleLine() || (picks.has('all') ? 'All of it' : 'Pick your style')}</button></div>
       <h2 class="ph-n">You</h2><p class="ph-g">${ic.pin}${gym.name}${follows.size ? ` · ${n(follows.size, 'friend', 'friends')}` : ''}</p>
@@ -1516,6 +1520,13 @@ const gwhere = xs => [...new Set(xs.map(x => gyms[x.gy].name))].join(', ');
 const kinds = g => [...(g.has.some(h => /boulder/i.test(h)) ? ['Boulder'] : []), ...(g.has.some(h => /top rope/i.test(h)) ? ['Top rope'] : [])];
 // shown labels: "Send" here is a climb (完攀), not the Send button under comments (发送), so it carries an invisible word joiner
 const KL = { Flash: 'Flash', Send: 'Send⁠', Project: 'Project' };
+// the gym you're at today: chosen once in either flow (film or log by hand), offered in both until midnight
+const TODAY_GYM_KEY = 'spotter-today-gym';
+function todayGym() {
+  try { const t = JSON.parse(localStorage.getItem(TODAY_GYM_KEY) || 'null');
+    return t && t.d === new Date().toDateString() && gyms[t.i] ? t.i : null; } catch { return null; }
+}
+function setTodayGym(i) { try { localStorage.setItem(TODAY_GYM_KEY, JSON.stringify({ i, d: new Date().toDateString() })); } catch {} }
 let glGym = null, glTy = 'Top rope', glOpen = false, glHit = null, glGrade = null, glResult = null, glStep = 0, glAttempts = 1, glColor = '';
 let glLocation = 'idle', glPosition = null, glGymChosen = false;
 // where each grade's rock sits, in a 340 × 460 box: x, y, width and height radius
@@ -1552,13 +1563,15 @@ function glLocate() {
     if (page === 'session' || page === 'logc') { render(); if (($('ask').classList.contains('show') && $('gl-gym-search')) || (glGym === null && !$('ask').classList.contains('show'))) openGymPick(); }
   }, () => { glLocation = 'unavailable'; if (page === 'session' || page === 'logc') { render(); if (($('ask').classList.contains('show') && $('gl-gym-search')) || (glGym === null && !$('ask').classList.contains('show'))) openGymPick(); } }, {enableHighAccuracy:true,timeout:8000,maximumAge:60000});
 }
-function openGymPick() {
+function openGymPick(context = 'gl') {
+  const sel = context === 'cam' ? camGym : glGym;
   const entries = glNearby();
   const help = glLocation === 'loading' ? 'Finding your location…' : glPosition ? 'Distances use approximate map locations. Please confirm your gym.' : 'Location unavailable. Search or choose a gym below.';
-  pane(`<div class="gl-picker"><h2>Choose a gym</h2><p>${help}</p><label class="gl-picker-search">${ic.search || ''}<input id="gl-gym-search" type="search" placeholder="Search gyms or cities" aria-label="Search gyms or cities"></label><button class="gl-locate" type="button" data-act="gllocate">${ic.pin} ${glLocation === 'loading' ? 'Locating…' : 'Use my location'}</button><h3>${glPosition ? 'Nearby gyms' : 'Available gyms'}</h3><div class="rows gl-picker-rows">${entries.map(({g,i,dist}) => `<button class="row" type="button" data-act="glgy" data-i="${i}" data-search="${(g.name+' '+g.addr).toLowerCase()}" aria-pressed="${i === glGym}">${g.img ? `<img class="ss-th gl-gth" src="img/${g.img}.jpg" alt="">` : ''}<span class="row-t"><strong>${g.name}</strong><span>${g.addr}${dist === null ? '' : ` · ~${dist < 1 ? dist.toFixed(1) : Math.round(dist)} mi`}</span></span>${i === glGym ? ic.check : ''}</button>`).join('')}</div><p id="gl-gym-empty" hidden>No matching gyms.</p></div>`);
+  pane(`<div class="gl-picker"><h2>Choose a gym</h2><p>${help}</p><label class="gl-picker-search">${ic.search || ''}<input id="gl-gym-search" type="search" placeholder="Search gyms or cities" aria-label="Search gyms or cities"></label><button class="gl-locate" type="button" data-act="gllocate">${ic.pin} ${glLocation === 'loading' ? 'Locating…' : 'Use my location'}</button><h3>${glPosition ? 'Nearby gyms' : 'Available gyms'}</h3><div class="rows gl-picker-rows">${entries.map(({g,i,dist}) => `<button class="row" type="button" data-act="glgy" data-context="${context}" data-i="${i}" data-search="${(g.name+' '+g.addr).toLowerCase()}" aria-pressed="${i === sel}">${g.img ? `<img class="ss-th gl-gth" src="img/${g.img}.jpg" alt="">` : ''}<span class="row-t"><strong>${g.name}</strong><span>${g.addr}${dist === null ? '' : ` · ~${dist < 1 ? dist.toFixed(1) : Math.round(dist)} mi`}</span></span>${i === sel ? ic.check : ''}</button>`).join('')}</div><p id="gl-gym-empty" hidden>No matching gyms.</p></div>`);
   const input = $('gl-gym-search'); input.addEventListener('input', () => { const q = input.value.trim().toLowerCase(); let found = 0; document.querySelectorAll('.gl-picker-rows .row').forEach(row => { const match = row.dataset.search.includes(q); row.hidden = !match; if (match) found++; }); $('gl-gym-empty').hidden = found > 0; });
 }
 function viewSession() {
+  if (glGym === null && todayGym() !== null) { glGym = todayGym(); glGymChosen = true; }
   const es = gday(0), G = gyms[glGym], tys = G ? kinds(G) : ['Boulder', 'Top rope'];
   if (!tys.includes(glTy)) { glTy = tys[tys.length - 1]; glGrade = null; }
   const grades = glTy === 'Boulder' ? VG : GR;
@@ -1864,8 +1877,8 @@ const moreActions = {
   glback: () => { if (glStep) { glStep--; document.querySelector('.screen').scrollTop = 0; render(); } else { actions.back(); } },
   gladd: () => { if (glGrade) glAdd(glGrade, glResult); },
   glgym: () => openGymPick(),
-  gllocate: () => { glLocate(); openGymPick(); },
-  glgy: b => { glGym = +b.dataset.i; glGymChosen = true; closeAll(); render(); },
+  gllocate: () => { const cam = page === 'cam'; glLocate(); openGymPick(cam ? 'cam' : 'gl'); },
+  glgy: b => { const i = +b.dataset.i; setTodayGym(i); if (b.dataset.context === 'cam') camGym = i; else { glGym = i; glGymChosen = true; } closeAll(); render(); },
   glk: b => { const x = glogs[+b.dataset.i]; x.k = b.dataset.k; if (x.k === 'Flash') x.attempts = 1; render(); },
   gldel: b => { const [x] = glogs.splice(+b.dataset.i, 1); if (!gday(0).length) glOpen = false; render(); toast(`Removed · ${x.g} · ${KL[x.k]}`); },
   glundo: () => { const i = glogs.map(x => x.ago).lastIndexOf(0); if (i < 0) return; const [x] = glogs.splice(i, 1); if (!gday(0).length) glOpen = false; render(); toast(`Removed · ${x.g} · ${KL[x.k]}`); },
@@ -1978,12 +1991,12 @@ const actions = {
   back: () => history.length > 1 ? history.back() : go('videos'),
   close: () => closeAll(),
   // add
-  film: () => { closeAll(); filming = false; camStep = 'frame'; camRoute = null; camGym = null; camColor = ''; camGrade = ''; go('cam'); },
+  film: () => { closeAll(); filming = false; camStep = 'frame'; camRoute = null; camGym = todayGym(); camColor = ''; camGrade = ''; camRes = null; go('cam'); },
   upload: () => { if (page === 'setup') { history.replaceState(null, '', '#/videos'); readHash(); render(); } openUpload(); },
   upick: b => { const i = +b.dataset.i; upSel.has(i) ? upSel.delete(i) : upSel.add(i); drawRoll(); },
   upnext: () => { const s = [...upSel]; if (s.length) importPicks(s); },
   campicker: b => openCameraPicker(b.dataset.kind),
-  campickgym: b => { camGym = +b.dataset.i; closeAll(); render(); },
+  campickgym: b => { camGym = +b.dataset.i; setTodayGym(camGym); closeAll(); render(); },
   campickgrade: b => { camGrade = b.dataset.grade; closeAll(); render(); },
   holdpick: b => { if (b.dataset.context === 'cam') camColor = b.dataset.color; else glColor = b.dataset.color; closeAll(); render(); },
   shoot: () => {
@@ -1991,11 +2004,12 @@ const actions = {
     if (!filming) { if (camGym === null || !camColor || !camGrade) return; filming = true; recS = 0; render(); recT = setInterval(() => { recS++; const t = $('recT'); if (t) t.textContent = mmss(recS); }, 1000); return; }
     filming = false; if (!nextRoll()) { render(); return; } camStep = 'review'; render();
   },
+  camres: b => { camRes = b.dataset.k; render(); },
   camretake: () => { filming = false; camStep = 'frame'; render(); },
   camreview: () => { camStep = 'review'; render(); },
   camroute: () => { camStep = 'route'; render(); },
   camselect: b => { camRoute = +b.dataset.i; render(); },
-  camsave: () => { const v = nextRoll(); if (!v || camGym === null || !camColor || !camGrade) return; const colors = {Green:'#2E9E62',Orange:'#F08A24',Blue:'#3F82CA',Red:'#D74D48',Yellow:'#E3C43A',Purple:'#8F69B8',Pink:'#DE7DA5',White:'#EEEEEE',Black:'#303030'}; let ri = ROUTES.findIndex(r => (r.gymId ?? 0) === camGym && r.color === camColor && r.grade === camGrade); if (ri < 0) { ri = ROUTES.push({gymId:camGym,color:camColor,hex:colors[camColor],grade:camGrade,wall:camGrade.startsWith('V') ? 'Boulder' : 'Rope wall',img:v.img,ok:true}) - 1; } addClip(v.i, { ago:0, ri, gy:camGym }); camStep = 'frame'; camRoute = null; camGym = null; camColor = ''; camGrade = ''; cTab = 'why'; go('videos'); toast('Climb saved'); },
+  camsave: () => { const v = nextRoll(); if (!v || camGym === null || !camColor || !camGrade || !camRes) return; const colors = {Green:'#2E9E62',Orange:'#F08A24',Blue:'#3F82CA',Red:'#D74D48',Yellow:'#E3C43A',Purple:'#8F69B8',Pink:'#DE7DA5',White:'#EEEEEE',Black:'#303030'}; let ri = ROUTES.findIndex(r => (r.gymId ?? 0) === camGym && r.color === camColor && r.grade === camGrade); if (ri < 0) { ri = ROUTES.push({gymId:camGym,color:camColor,hex:colors[camColor],grade:camGrade,wall:camGrade.startsWith('V') ? 'Boulder' : 'Rope wall',img:v.img,ok:true}) - 1; } addClip(v.i, { ago:0, ri, gy:camGym, res:camRes }); camStep = 'frame'; camRoute = null; camGym = null; camColor = ''; camGrade = ''; camRes = null; cTab = 'why'; go('videos'); toast('Climb saved'); },
   startanalysis: b => { const c = byId(b.dataset.i); if (c && c.an === 'idle') { analyse(c); render(); } },
   // a video's page
   ctab: b => { cTab = b.dataset.v; setTimeout(() => $('main').dispatchEvent(new Event('tabchange'))); document.querySelectorAll('.ctabs button').forEach(x => x.setAttribute('aria-pressed', x.dataset.v === cTab)); document.querySelectorAll('.pn').forEach(p => { p.hidden = p.dataset.pn !== cTab; }); },
