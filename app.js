@@ -316,17 +316,21 @@ const heroes = {
       <div class="hs-go"><button class="b-lime" type="button" data-act="film">${ic.rec}Film a try</button><button class="b-ghost" type="button" data-act="upload">Import videos</button></div>`,
   back: () => '' };
 // your album: the box with everything (photos fanned out), two pinned moments, then one binder per gym
+let albumFilter = 'all';
 function album() {
   const hn = vlogged(), tops = vtops(), newest = newestClips(), nogym = clips.filter(c => c.gy == null).length, here = newest.filter(c => c.gy === 0);
   if (!clips.length && !hn) return '';
   // the album is just your videos: a grid by day, newest first. Each tile says the route and whether you topped it.
-  const days = [...new Set([...newest.map(agoOf), ...glogs.map(x => x.ago), ...logs.filter(l => l.tries || l.sent).map(l => l.ago)])].sort((a, b) => a - b);
+  const showVideos = albumFilter !== 'manual', showManual = albumFilter !== 'videos';
+  const days = [...new Set([...(showVideos ? newest.map(agoOf) : []), ...(showManual ? glogs.map(x => x.ago) : []), ...(showManual ? logs.filter(l => l.tries || l.sent).map(l => l.ago) : [])])].sort((a, b) => a - b);
   const tile = c => `<button class="al-t" type="button" data-act="to" data-to="clip/${c.id}" aria-label="${rname(ROUTES[c.ri])}, try ${tryOf(c)}${topOf(c) ? ', topped' : ''}">
-      <img src="img/${c.img}.jpg" alt="" loading="lazy">${c.gy == null ? '<span class="al-ng">No gym</span>' : ''}${topOf(c) ? `<span class="al-ok" aria-hidden="true">${ic.check}</span>` : ''}
-      <span class="al-r">${sw(ROUTES[c.ri])}<b>${ROUTES[c.ri].grade}</b><i>Try ${tryOf(c)}</i></span></button>`;
-  const handTile = (x, i) => `<button class="al-t al-manual" type="button" data-act="glrecord" data-i="${i}" aria-label="${x.g}, ${x.k}, ${gyms[x.gy].name}"><span class="al-manual-icon">✦</span><span class="al-manual-body"><strong>${x.g}</strong><span>${x.ty}</span><b>${x.k}</b></span></button>`;
-  const routeTile = l => `<button class="al-t al-manual" type="button" data-act="to" data-to="route/${l.ri}" aria-label="${rname(ROUTES[l.ri])}, logged by hand"><span class="al-manual-icon">✦</span><span class="al-manual-body"><strong>${ROUTES[l.ri].grade}</strong><span>${rname(ROUTES[l.ri])}</span><b>${l.sent ? (l.style || 'Topped') : n(l.tries, 'attempt', 'attempts')}</b></span></button>`;
-  const box = `<div class="al">${days.map(d => `<div class="al-d"><h3><button type="button" class="day-open" data-act="to" data-to="day/${d}">${dayLabel(d)} <span>View day →</span></button></h3><div class="al-g">${glogs.map((x,i) => [x,i]).filter(([x]) => x.ago === d).reverse().map(([x,i]) => handTile(x,i)).join('')}${logs.filter(l => l.ago === d && (l.tries || l.sent)).map(routeTile).join('')}${newest.filter(c => agoOf(c) === d).map(tile).join('')}</div></div>`).join('')}</div>`;
+      <img src="img/${c.img}.jpg" alt="" loading="lazy"><span class="al-kind">Video · Try ${tryOf(c)}</span>${c.gy == null ? '<span class="al-ng">No gym</span>' : ''}${topOf(c) ? `<span class="al-ok" aria-hidden="true">${ic.check}</span>` : ''}
+      <span class="al-r">${sw(ROUTES[c.ri])}<b>${ROUTES[c.ri].grade}</b></span></button>`;
+  const handTile = (x, i) => `<button class="al-t al-manual" type="button" data-act="glrecord" data-i="${i}" aria-label="${x.g}, ${x.k}, ${gyms[x.gy].name}"><span class="al-manual-header"><span>By hand</span><i>✦</i></span><span class="al-manual-rock"><strong>${x.g}</strong></span><span class="al-manual-body"><span>${x.color ? `<i style="--hold:${HOLD_COLORS[x.color]}"></i>${x.color} · ` : ''}${x.ty}</span><b>${x.k} · ${n(x.attempts || 1, 'try', 'tries')}</b><small>${gyms[x.gy].name}</small></span></button>`;
+  const routeTile = l => `<button class="al-t al-manual" type="button" data-act="to" data-to="route/${l.ri}" aria-label="${rname(ROUTES[l.ri])}, logged by hand"><span class="al-manual-header"><span>By hand</span><i>✦</i></span><span class="al-manual-rock"><strong>${ROUTES[l.ri].grade}</strong></span><span class="al-manual-body"><span>${rname(ROUTES[l.ri])}</span><b>${l.sent ? (l.style || 'Topped') : n(l.tries, 'attempt', 'attempts')}</b></span></button>`;
+  const box = `<div class="al">${days.map(d => `<div class="al-d"><h3><button type="button" class="day-open" data-act="to" data-to="day/${d}">${dayLabel(d)} <span>View day →</span></button></h3><div class="al-g">${showManual ? glogs.map((x,i) => [x,i]).filter(([x]) => x.ago === d).reverse().map(([x,i]) => handTile(x,i)).join('') : ''}${showManual ? logs.filter(l => l.ago === d && (l.tries || l.sent)).map(routeTile).join('') : ''}${showVideos ? newest.filter(c => agoOf(c) === d).map(tile).join('') : ''}</div></div>`).join('')}</div>`;
+  const filteredCount = (showVideos ? clips.length : 0) + (showManual ? hn : 0);
+  const visibleBox = days.length ? box : `<div class="album-empty"><strong>No ${albumFilter === 'videos' ? 'video' : 'manual'} records yet</strong><span>Try another filter to see your climbs.</span><button type="button" data-act="albumfilterset" data-value="all">Show all records</button></div>`;
   const sent = clips.filter(topOf), best = [...sent].sort((p, q) => GR.indexOf(ROUTES[q.ri].grade) - GR.indexOf(ROUTES[p.ri].grade) || agoOf(p) - agoOf(q))[0];
   const pins = best ? `<div class="sec"><h2>Pinned</h2></div><div class="rgrid pin">
       <button class="vc" type="button" data-act="to" data-to="clip/${best.id}" aria-label="Hardest send: ${rname(ROUTES[best.ri])}, try ${tryOf(best)}"><span class="vc-i rc"><img src="img/${best.img}.jpg" alt=""><span class="vc-t g">Hardest send</span>${gymTag(best)}</span>
@@ -338,7 +342,7 @@ function album() {
         <span class="bnd-s">${[0, 1, 2, 3].map(k => here[k] ? `<img src="img/${here[k].img}.jpg" alt="">` : '<i></i>').join('')}</span>
         <span class="vc-b"><span class="vc-r">${gym.name}</span><b>${n(here.length, 'video', 'videos')}</b>
         <span class="vc-d">${tops ? `<span class="stg on">${tops} of ${ROUTES.length} routes topped</span>` : `${ROUTES.length} routes`}</span></span></button></div>`;
-  return `<div class="sec al-h"><h2>All records <span class="num">${clips.length + hn}</span></h2>${sent.length ? `<button class="al-reel" type="button" data-act="reel">${ic.play}Play reel</button>` : ''}</div>${box}${binder}`;
+  return `<div class="sec al-h"><h2>${albumFilter === 'videos' ? 'Videos' : albumFilter === 'manual' ? 'By hand' : 'All records'} <span class="num">${filteredCount}</span></h2><button class="al-filter${albumFilter !== 'all' ? ' active' : ''}" type="button" data-act="albumfilter" aria-label="Filter records"><svg aria-hidden="true" viewBox="0 0 20 20"><path d="M3 5h14M6 10h8M8 15h4"/></svg>${albumFilter === 'all' ? 'Filter' : 'Filtered'}</button></div>${visibleBox}${binder}`;
 }
 function viewVideos() {
   const sc = sceneOf();
@@ -920,7 +924,12 @@ const SAY = {
   'wayup-p5-green': ['Lowered off before the top. Working on it', 13, [['Leo', 'Trust your feet in the middle, there are good holds low', 55]]],
   'wayup-p5-orange': ['Any tips for the middle section?', 7, [['Noor', 'Hips close to the wall, it’s less steep than it looks']]] };
 const others = V.filter(x => x.who !== 'You').map(x => { const [note, likes, comments] = SAY[x.vid]; return { who: x.who, v: x.i, ago: x.ago, note, likes, comments }; });
-const feedAll = () => [...clips.filter(c => !c.hidden).map(c => ({ who: 'You', v: c.v, c, ago: agoOf(c), note: '', likes: c.likes, comments: c.cm })), ...others].sort((p, q) => p.ago - q.ago);
+const feedAll = () => {
+  const remaining = [...clips.filter(c => !c.hidden).map(c => ({ who: 'You', v: c.v, c, ago: agoOf(c), note: '', likes: c.likes, comments: c.cm })), ...others].sort((p, q) => p.ago - q.ago);
+  const ordered = []; let last = null;
+  while (remaining.length) { let i = remaining.findIndex(p => p.who !== last); if (i < 0) i = 0; const [post] = remaining.splice(i,1); ordered.push(post); last = post.who; }
+  return ordered;
+};
 const liked = new Set(), likeKey = p => `${p.who}/${V[p.v].vid}`;
 const tokIc = {
   heart: '<svg viewBox="0 0 48 48" fill="none" aria-hidden="true"><path d="M5 19 15 6 29 5 42 15 43 29 34 41 19 43 6 34 3 26Z" fill="currentColor" stroke="currentColor" stroke-width="4" stroke-linejoin="round"/><path d="m11 21 7-8 11 1 7 7M10 30l8 5 13-2" stroke="#454545" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" opacity=".7"/></svg>',
@@ -933,7 +942,7 @@ function feedPost(p, i) {
   return `<article class="ts" data-i="${i}">
     <div class="ts-v fv" data-act="fvtap"><video src="video/${x.vid}.mp4" poster="img/${x.img}.jpg" muted playsinline loop preload="none" data-a="0" data-b="${x.D}" data-r="1"></video><span class="ed-p fv-p">${ic.play.replace('#111111', '#FFFFFF')}</span><span class="ts-big">${tokIc.heart}</span></div>
     <span class="ts-sh"></span>
-    <div class="ts-rail"><span class="ts-av"><button class="ts-face" type="button" data-act="to" data-to="${me ? 'profile' : `person/${p.who}`}" aria-label="${me ? 'Your profile' : `${p.who}’s page`}">${avatar(p.who)}</button></span>
+    <div class="ts-rail"><span class="ts-av"><button class="ts-face" type="button" data-act="to" data-to="${me ? 'profile' : `person/${p.who}`}" aria-label="${me ? 'Your profile' : `${p.who}’s page`}">${avatar(p.who)}</button><span class="ts-author">${esc(p.who)}</span></span>
       <button class="ts-nice" type="button" data-act="flike" data-i="${i}" aria-pressed="${on}" aria-label="Like">${tokIc.heart}<span class="ts-like-label">${on ? 'NICE!' : 'NICE'}</span></button>
       <button type="button" data-act="fcm" data-i="${i}" aria-label="Comment">${tokIc.talk}<span class="ts-action-label">Chat</span></button><button type="button" data-act="fmore" data-i="${i}" aria-label="Video options"><span class="ts-more-icon" aria-hidden="true">•••</span><span>More</span></button></div>
     <div class="ts-c"><div class="ts-info"><span class="ts-gym">${ic.pin.replace(/#2B2D2E|#111111/g, '#FFFFFF')}${esc(p.c ? gymName(p.c) : gym.name)}</span></div>${p.note ? `<p>${esc(p.note)}</p>` : ''}<div class="ts-tools"><span class="ts-route"><i class="ts-route-color" style="background:${r.hex}" aria-hidden="true"></i>${esc(r.color)} · ${esc(r.grade)}</span>${vs}<button type="button" data-act="fbeta" data-r="${p.c ? p.c.ri : x.ri}" aria-label="See route beta"><span class="ts-action-icon ts-beta-icon" aria-hidden="true">B</span></button></div></div>
@@ -1050,9 +1059,11 @@ function feedWire() {
 }
 function viewFriends(a) {
   if (a === 'plan') return viewFriendsPlan();
-  const top = `<div class="tok-top"><span class="tok-add-sp" aria-hidden="true"></span>${comTabs(false)}
-    <button class="av sm" type="button" data-act="to" data-to="profile" aria-label="Your profile">${avatar('You')}</button></div>`;
-  return { dark: true, tok: true, after: feedWire, html: `${top}<div class="tok" id="tok" tabindex="0"><div class="tok-in" id="tokin">${feedAll().map(feedPost).join('')}</div></div>` };
+  const mode = a === 'following' || a === 'friends' ? a : 'all';
+  const entries = feedAll().map((post,i) => ({post,i})).filter(({post}) => mode === 'all' || (mode === 'following' ? follows.has(post.who) : invitedFriends.includes(post.who)));
+  const top = `<div class="tok-top"><button class="feed-plans" type="button" data-act="to" data-to="friends/plan" aria-label="Climbing plans">${ic.pin}</button>${feedTabs(mode)}<button class="av sm" type="button" data-act="to" data-to="profile" aria-label="Your profile">${avatar('You')}</button></div>`;
+  const empty = `<div class="feed-empty"><strong>${mode === 'friends' ? 'No friend videos yet' : 'No videos from people you follow'}</strong><p>${mode === 'friends' ? 'Connect with a friend to see their videos here.' : 'Follow climbers to see their videos here.'}</p><button type="button" data-act="to" data-to="${mode === 'friends' ? 'friends/plan' : 'friends'}">${mode === 'friends' ? 'Find friends' : 'Explore videos'}</button></div>`;
+  return { dark: true, tok: true, after: entries.length ? feedWire : undefined, html: `${top}${entries.length ? `<div class="tok" id="tok" tabindex="0"><div class="tok-in" id="tokin">${entries.map(({post,i}) => feedPost(post,i)).join('')}</div></div>` : empty}` };
 }
 
 /* ---------- Someone else's page ---------- */
@@ -1072,7 +1083,7 @@ function viewPerson(who) {
     <div class="rows">${both.map(x => `<button class="row" type="button" data-act="to" data-to="vs/${lastOn(x.ri).id}-${x.i}"><span class="row-t"><strong>${sw(ROUTES[x.ri])}${rname(ROUTES[x.ri])}</strong><span>Your try ${tryOf(lastOn(x.ri))} and ${who}’s</span></span>${ic.arr('#111111')}</button>`).join('')}</div>` : ''}
     <div class="hl2 dk2"><h2>Videos</h2><span class="hint2">${n(vs.length, 'video', 'videos')}</span></div>
     <div class="vg">${vs.map(tile).join('')}</div>
-    <p class="hint">Sample person: the name and words are made up. The videos are real.</p>` };
+    ` };
 }
 
 /* ---------- Profile: how you're getting on, from your own videos ---------- */
@@ -1095,7 +1106,7 @@ function viewProfile() {
       <div class="ph-cv ph-shape-container" id="profile-shapes" role="img" aria-label="${picks.size ? `Your climbing styles: ${STYLES.filter(style => picks.has(style[0])).map(style => style[1]).join(', ')}` : 'Choose your climbing style to fill this space'}">${picks.size ? STYLES.filter(style => picks.has(style[0])).map(([k, label, shape]) => `<span class="ph-shape pk-${shape}" aria-hidden="true"><span>${label}</span></span>`).join('') : ''}</div>
       <div class="ph-me"><span class="ph-av">${avatar('You')}</span>
         <button class="ph-st" type="button" data-act="to" data-to="pick/edit">${styleLine() || (picks.has('all') ? 'All of it' : 'Pick your style')}</button></div>
-      <h2 class="ph-n">You</h2><p class="ph-g">${ic.pin}${gym.name}${follows.size ? ` · ${n(follows.size, 'friend', 'friends')}` : ''}</p>
+      <h2 class="ph-n">You</h2><p class="ph-g">${ic.pin}${gym.name}${invitedFriends.length ? ` · ${n(invitedFriends.length, 'friend', 'friends')}` : ''}</p>
       <div class="ph-s${clips.length ? '' : ' ph-s-e'}">
         <span><b class="num">${top ? ROUTES[top.ri].grade : '—'}</b><i>hardest send</i></span>
         <span><b class="num">${clips.length || '—'}</b><i>on video</i></span>
@@ -1197,7 +1208,7 @@ function viewGymsTab() {
       <div class="gt-lw" id="gtlw"><p class="cap gt-empty" id="gtempty" hidden>No gyms found.</p>${list.length ? `<div class="gt-l">${list.map(row).join('')}</div>` : `<p class="cap">No gyms in ${gArea} yet.</p>`}
       <p class="cap">Gyms no one has filmed at show only what the gym publishes.</p></div></section>`, after: () => gtWire(list) };
 }
-const gtSnaps = () => { const H = $('camx').clientHeight; return { full: 112, half: Math.round(H * .5), peek: H - 294 }; };
+const gtSnaps = () => { const H = $('camx').clientHeight; return { full: 112, half: Math.round(H * .5), peek: H - 274 }; };
 const gtTop = () => parseFloat($('gtsheet')?.style.top) || gtSnaps()[gtSnap];
 function gtSet(s, anim = true) {
   const sh = $('gtsheet'); if (!sh) return;
@@ -1399,12 +1410,12 @@ function viewScan() {
       <text x="${st.pos[0].toFixed(0)}" y="${(st.pos[1] + 8).toFixed(0)}" text-anchor="middle" font-size="22" font-weight="700" fill="#111111">${bstep || 'S'}</text>
     </svg>`;
   const feet = st.feet.map(q => fn[q.k]);
-  const title = bstep ? `${hn[st.hand]} to hold ${bstep}` : 'Start: both hands on';
-  const how = !bstep ? 'Hands on the first holds, feet low. The numbers go up the wall in the order Leo used them.'
+  const title = bstep ? `${hn[st.hand]} · position ${bstep}` : 'Start: both hands on';
+  const how = !bstep ? 'Hands on the first holds, feet low. The marks show estimated hand positions from Leo’s video; holds are not verified.'
     : feet.length ? `First move your ${feet.join(', then your ')} (the white ${feet.length > 1 ? 'squares' : 'square'}). Then reach.` : 'Feet stay where they are. Just reach.';
   const hands = N, foots = B.feet;
   return { html: `
-    ${bar(`Beta · ${rname(r)}`)}
+    ${bar(`Movement reference · ${rname(r)}`)}<p class="beta-caveat">Based on an existing video’s estimated body positions. These marks are not verified holds or a confirmed route.</p>
     <div class="cam sc9">
       <img src="img/${r.img}.jpg" alt="${rname(r)} with its beta drawn on">${svg}
       <span class="pk-tag scan-tag">${sw(r)}${rname(r)} · ${n(hands, 'hand move', 'hand moves')}</span>
@@ -1712,7 +1723,8 @@ function exportLog() {
 /* ---------- Friends: who you follow, sessions you plan together, who's free ---------- */
 const invitedFriends = JSON.parse(localStorage.getItem('spotter-invited-friends') || '[]');
 invitedFriends.forEach(name => { if (!PEOPLE.includes(name)) PEOPLE.push(name); });
-const follows = new Set([...(user === 'regular' ? ['Noor', 'Leo'] : []), ...invitedFriends]);
+let savedFollows = null; try { const f = JSON.parse(localStorage.getItem('spotter-following')); if (Array.isArray(f)) savedFollows = f; } catch (_) {}
+const follows = new Set(savedFollows || [...(user === 'regular' ? ['Noor', 'Leo'] : []), ...invitedFriends]);
 // sample: the days each person is free, counted from today, and how long they've climbed
 const FREE = { Noor: [1, 3], Leo: [1, 4], Sam: [2, 5], Kai: [0, 6], Mia: [3] };
 const YRS = { Noor: '5–10 years', Sam: 'over 10 years', Leo: '1–2 years', Kai: 'over 10 years', Mia: '2–5 years' };
@@ -1725,9 +1737,10 @@ const plans = user === 'regular' ? [{ by: 'Noor', g: 0, d: 1, h: 18, who: ['Noor
   if (sc === 'plan') plans.unshift({ by: 'You', g: 0, d: 0, h: Math.min(h + 2, 21), who: ['You', 'Noor', 'Leo'] }); }
 const dayName = d => d === 0 ? 'Today' : d === 1 ? 'Tomorrow' : ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][(new Date().getDay() + d) % 7];
 const names = ws => ws.length < 3 ? ws.join(' and ') : `${ws.slice(0, -1).join(', ')} and ${ws[ws.length - 1]}`;
-const comTabs = plan => `<nav class="tok-tabs"><button type="button" data-act="to" data-to="friends"${plan ? '' : ' aria-current="page"'}>For you</button><button type="button" data-act="to" data-to="friends/plan"${plan ? ' aria-current="page"' : ''}>Friends</button></nav>`;
+const feedTabs = mode => `<nav class="tok-tabs feed-tabs" aria-label="Video feed">${[['all','For you','friends'],['following','Following','friends/following'],['friends','Friends','friends/friends']].map(([key,label,to]) => `<button type="button" data-act="feedmode" data-to="${to}"${mode === key ? ' aria-current="page"' : ''}>${label}</button>`).join('')}</nav>`;
+const comTabs = () => `<nav class="tok-tabs"><button type="button" data-act="to" data-to="friends">Videos</button><button type="button" aria-current="page">Plans</button></nav>`;
 function viewFriendsPlan() {
-  const fr = [...follows];
+  const fr = [...invitedFriends];
   const row = `<div class="fr-row">${fr.map(w => `<button type="button" data-act="to" data-to="person/${w}"><span class="fr-f">${avatar(w)}</span><span>${w}</span></button>`).join('')}
       <button type="button" data-act="fadd"><span class="fr-f fr-add">${ic.plus}</span><span>Add</span></button></div>`;
   const ps = plans.filter(p => p.by === 'You' || fr.includes(p.by));
@@ -1906,12 +1919,12 @@ const moreActions = {
   inviteshare: () => showInvite(),
   invitescan: () => scanInvite(),
   invitecopy: async () => { const input = $('invite-share-link'); try { await navigator.clipboard.writeText(input.value); toast('Invite link copied'); } catch (_) { input.focus(); input.select(); toast('Select and copy the link'); } },
-  inviteaccept: () => { const id = params.get('invite'); let name = 'Climber ' + id.slice(0, 4).toUpperCase(); const saved = JSON.parse(localStorage.getItem('spotter-invited-friends') || '[]'); if (!saved.includes(name)) saved.push(name); localStorage.setItem('spotter-invited-friends', JSON.stringify(saved)); if (!PEOPLE.includes(name)) PEOPLE.push(name); follows.add(name); clearInviteUrl(); closeAll(); go('friends/plan'); toast('Friend added'); },
+  inviteaccept: () => { const id = params.get('invite'); let name = 'Climber ' + id.slice(0, 4).toUpperCase(); const saved = JSON.parse(localStorage.getItem('spotter-invited-friends') || '[]'); if (!saved.includes(name)) saved.push(name); localStorage.setItem('spotter-invited-friends', JSON.stringify(saved)); if (!PEOPLE.includes(name)) PEOPLE.push(name); follows.add(name); if (!invitedFriends.includes(name)) invitedFriends.push(name); try { localStorage.setItem('spotter-following', JSON.stringify([...follows])); } catch (_) {} clearInviteUrl(); closeAll(); go('friends/plan'); toast('Friend added'); },
   invitereject: () => { clearInviteUrl(); closeAll(); },
   pldetail: b => planDetails(+b.dataset.i),
   pljoindetail: b => { moreActions.pljoin(b); planDetails(+b.dataset.i); },
   plcanceldetail: b => { moreActions.plx(b); closeAll(); },
-  pfollow: b => { const w = b.dataset.w; follows.has(w) ? follows.delete(w) : follows.add(w); render(); toast(follows.has(w) ? `Following ${w}` : `Unfollowed ${w}`); },
+  pfollow: b => { const w = b.dataset.w; follows.has(w) ? follows.delete(w) : follows.add(w); try { localStorage.setItem('spotter-following', JSON.stringify([...follows])); } catch (_) {} render(); toast(follows.has(w) ? `Following ${w}` : `Unfollowed ${w}`); },
   plan: b => openPlan(+(b.dataset.g || 0)),
   plg: b => { pd.g = +b.dataset.v; drawPlan(); },
   pld: b => { pd.d = +b.dataset.v; drawPlan(); },
@@ -1987,9 +2000,12 @@ function watchPane(x) {
 
 const actions = {
   to: b => go(b.dataset.to),
+  albumfilter: () => pane(`<div class="album-filter-sheet"><h2>Filter records</h2><p>Choose what you want to see.</p>${[['all','All records'],['videos','Videos'],['manual','By hand']].map(([value,label]) => `<button type="button" data-act="albumfilterset" data-value="${value}" aria-pressed="${albumFilter === value}"><span>${label}</span>${albumFilter === value ? '<b>✓</b>' : ''}</button>`).join('')}</div>`),
+  albumfilterset: b => { albumFilter = b.dataset.value; closeAll(); render(); },
   vtab: b => { vTab = b.dataset.t; render(); },
   back: () => history.length > 1 ? history.back() : go('videos'),
   close: () => closeAll(),
+  feedmode: b => { feedAt = 0; go(b.dataset.to); },
   // add
   film: () => { closeAll(); filming = false; camStep = 'frame'; camRoute = null; camGym = todayGym(); camColor = ''; camGrade = ''; camRes = null; go('cam'); },
   upload: () => { if (page === 'setup') { history.replaceState(null, '', '#/videos'); readHash(); render(); } openUpload(); },
