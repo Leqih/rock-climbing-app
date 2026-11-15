@@ -326,8 +326,21 @@ function album() {
   const tile = c => `<button class="al-t" type="button" data-act="to" data-to="clip/${c.id}" aria-label="${rname(ROUTES[c.ri])}, try ${tryOf(c)}${topOf(c) ? ', topped' : ''}">
       <img src="img/${c.img}.jpg" alt="" loading="lazy"><span class="al-kind">Video · Try ${tryOf(c)}</span>${c.gy == null ? '<span class="al-ng">No gym</span>' : ''}${topOf(c) ? `<span class="al-ok" aria-hidden="true">${ic.check}</span>` : ''}
       <span class="al-r">${sw(ROUTES[c.ri])}<b>${ROUTES[c.ri].grade}</b></span></button>`;
-  const handTile = (x, i) => `<button class="al-t al-manual" type="button" data-act="glrecord" data-i="${i}" aria-label="${x.g}, ${x.k}, ${gyms[x.gy].name}"><span class="al-manual-header"><span>By hand</span><i>✦</i></span><span class="al-manual-rock"><strong>${x.g}</strong></span><span class="al-manual-body"><span>${x.color ? `<i style="--hold:${HOLD_COLORS[x.color]}"></i>${x.color} · ` : ''}${x.ty}</span><b>${x.k} · ${n(x.attempts || 1, 'try', 'tries')}</b><small>${gyms[x.gy].name}</small></span></button>`;
-  const routeTile = l => `<button class="al-t al-manual" type="button" data-act="to" data-to="route/${l.ri}" aria-label="${rname(ROUTES[l.ri])}, logged by hand"><span class="al-manual-header"><span>By hand</span><i>✦</i></span><span class="al-manual-rock"><strong>${ROUTES[l.ri].grade}</strong></span><span class="al-manual-body"><span>${rname(ROUTES[l.ri])}</span><b>${l.sent ? (l.style || 'Topped') : n(l.tries, 'attempt', 'attempts')}</b></span></button>`;
+  // a climb logged by hand has no video, but it has a wall: the route's (or the gym's) photo in black and white, washed in the hold
+  // colour, the grade set huge across it, and one bar per try with the send lit lime. Full like a video tile, never mistaken for one
+  const handCard = ({ act, img, hex, grade, name, where, tries, res, sent, label }) => {
+    const k = Math.min(tries, 8), bars = Array.from({ length: k }, (_, b) => `<i${sent && b === k - 1 ? ' class="ok"' : ''}></i>`).join('') + (tries > 8 ? `<small>+${tries - 8}</small>` : '');
+    return `<button class="al-t al-hand" type="button" ${act} style="--hold:${hex}" aria-label="${label}">
+      <img src="img/${img}.jpg" alt="" loading="lazy"><span class="alh-wash" aria-hidden="true"></span>
+      <span class="alh-top"><span class="alh-pill">By hand</span><span class="alh-pill${sent ? ' on' : ''}">${res}</span></span>
+      <strong class="alh-g">${grade}</strong>
+      <span class="alh-b"><span class="alh-tally" aria-hidden="true">${bars}</span><b>${name}</b><em>${where} · ${n(tries, 'try', 'tries')}</em></span></button>`; };
+  const handTile = (x, i) => handCard({ act: `data-act="glrecord" data-i="${i}"`, img: gyms[x.gy].img, hex: HOLD_COLORS[x.color] || '#8A8F98',
+    grade: x.g, name: `${x.color ? x.color + ' · ' : ''}${x.ty}`, where: gyms[x.gy].name, tries: x.attempts || 1, res: KL[x.k], sent: x.k !== 'Project',
+    label: `${x.g}, ${x.k}, ${gyms[x.gy].name}, logged by hand` });
+  const routeTile = l => { const r = ROUTES[l.ri];
+    return handCard({ act: `data-act="to" data-to="route/${l.ri}"`, img: r.img, hex: r.hex, grade: r.grade, name: `${r.color} · ${r.wall}`, where: gym.name,
+      tries: l.tries || 1, res: l.sent ? (l.style || 'Topped') : 'Not yet', sent: l.sent, label: `${rname(r)}, logged by hand` }); };
   const box = `<div class="al">${days.map(d => `<div class="al-d"><h3><button type="button" class="day-open" data-act="to" data-to="day/${d}">${dayLabel(d)} <span>View day →</span></button></h3><div class="al-g">${showManual ? glogs.map((x,i) => [x,i]).filter(([x]) => x.ago === d).reverse().map(([x,i]) => handTile(x,i)).join('') : ''}${showManual ? logs.filter(l => l.ago === d && (l.tries || l.sent)).map(routeTile).join('') : ''}${showVideos ? newest.filter(c => agoOf(c) === d).map(tile).join('') : ''}</div></div>`).join('')}</div>`;
   const filteredCount = (showVideos ? clips.length : 0) + (showManual ? hn : 0);
   const visibleBox = days.length ? box : `<div class="album-empty"><strong>No ${albumFilter === 'videos' ? 'video' : 'manual'} records yet</strong><span>Try another filter to see your climbs.</span><button type="button" data-act="albumfilterset" data-value="all">Show all records</button></div>`;
