@@ -2533,3 +2533,4 @@ textarea.note:focus { outline: 2px solid var(--ink); outline-offset: 0; backgrou
 
 /* Style picker: the back button and title stay put while the shapes scroll under them */
 .pk-top { position: sticky; top: -44px; z-index: 20; }
+.phone.scrolled:has(.pk-top) .status { background: #e7e7e5; backdrop-filter: none; -webkit-backdrop-filter: none; }
