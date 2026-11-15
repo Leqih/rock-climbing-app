@@ -323,9 +323,12 @@ function album() {
   // the album is just your videos: a grid by day, newest first. Each tile says the route and whether you topped it.
   const showVideos = albumFilter !== 'manual', showManual = albumFilter !== 'videos';
   const days = [...new Set([...(showVideos ? newest.map(agoOf) : []), ...(showManual ? glogs.map(x => x.ago) : []), ...(showManual ? logs.filter(l => l.tries || l.sent).map(l => l.ago) : [])])].sort((a, b) => a - b);
-  const tile = c => `<button class="al-t" type="button" data-act="to" data-to="clip/${c.id}" aria-label="${rname(ROUTES[c.ri])}, try ${tryOf(c)}${topOf(c) ? ', topped' : ''}">
+  // which gyms a day's records are from: one gym goes in the day's header, several go on each video tile
+  const dayGyms = d => [...new Set([...(showVideos ? newest.filter(c => agoOf(c) === d && c.gy != null).map(c => c.gy) : []),
+    ...(showManual ? glogs.filter(x => x.ago === d).map(x => x.gy) : []), ...(showManual && logs.some(l => l.ago === d && (l.tries || l.sent)) ? [0] : [])])];
+  const tile = (c, many) => `<button class="al-t" type="button" data-act="to" data-to="clip/${c.id}" aria-label="${rname(ROUTES[c.ri])}, try ${tryOf(c)}${topOf(c) ? ', topped' : ''}">
       <img src="img/${c.img}.jpg" alt="" loading="lazy"><span class="al-kind">Video · Try ${tryOf(c)}</span>${c.gy == null ? '<span class="al-ng">No gym</span>' : ''}${topOf(c) ? `<span class="al-ok" aria-hidden="true">${ic.check}</span>` : ''}
-      <span class="al-r">${sw(ROUTES[c.ri])}<b>${ROUTES[c.ri].grade}</b></span></button>`;
+      <span class="al-r">${sw(ROUTES[c.ri])}<b>${ROUTES[c.ri].grade}</b>${many && c.gy != null ? `<small class="al-gy">${gyms[c.gy].name}</small>` : ''}</span></button>`;
   // a climb logged by hand has no video and no photo, so it gets one drawn hold: big, in the route's colour, cropped by the
   // corner of the tile with its bolt in the middle. The type leads; the hold only says which colour you climbed. Same record, same hold
   const holdArt = seed => {
@@ -346,7 +349,7 @@ function album() {
   const routeTile = l => { const r = ROUTES[l.ri];
     return handCard({ act: `data-act="to" data-to="route/${l.ri}"`, seed: `r${l.ri}${l.ago}${l.tries}`, hex: r.hex, grade: r.grade, name: `${r.color} · ${r.wall}`, where: gym.name,
       tries: l.tries || 1, res: l.sent ? (l.style || 'Topped') : 'Not yet', sent: l.sent, label: `${rname(r)}, logged by hand` }); };
-  const box = `<div class="al">${days.map(d => `<div class="al-d"><h3><button type="button" class="day-open" data-act="to" data-to="day/${d}">${dayLabel(d)} <span>View day →</span></button></h3><div class="al-g">${showManual ? glogs.map((x,i) => [x,i]).filter(([x]) => x.ago === d).reverse().map(([x,i]) => handTile(x,i)).join('') : ''}${showManual ? logs.filter(l => l.ago === d && (l.tries || l.sent)).map(routeTile).join('') : ''}${showVideos ? newest.filter(c => agoOf(c) === d).map(tile).join('') : ''}</div></div>`).join('')}</div>`;
+  const box = `<div class="al">${days.map(d => { const dg = dayGyms(d), many = dg.length > 1; return `<div class="al-d"><h3><button type="button" class="day-open" data-act="to" data-to="day/${d}"><em class="al-dl">${dayLabel(d)}${dg.length ? `<small class="al-dg">${ic.pin}${many ? n(dg.length, 'gym', 'gyms') : gyms[dg[0]].name}</small>` : ''}</em> <span>View day →</span></button></h3><div class="al-g">${showManual ? glogs.map((x,i) => [x,i]).filter(([x]) => x.ago === d).reverse().map(([x,i]) => handTile(x,i)).join('') : ''}${showManual ? logs.filter(l => l.ago === d && (l.tries || l.sent)).map(routeTile).join('') : ''}${showVideos ? newest.filter(c => agoOf(c) === d).map(c => tile(c, many)).join('') : ''}</div></div>`; }).join('')}</div>`;
   const filteredCount = (showVideos ? clips.length : 0) + (showManual ? hn : 0);
   const visibleBox = days.length ? box : `<div class="album-empty"><strong>No ${albumFilter === 'videos' ? 'video' : 'manual'} records yet</strong><span>Try another filter to see your climbs.</span><button type="button" data-act="albumfilterset" data-value="all">Show all records</button></div>`;
   const sent = clips.filter(topOf), best = [...sent].sort((p, q) => GR.indexOf(ROUTES[q.ri].grade) - GR.indexOf(ROUTES[p.ri].grade) || agoOf(p) - agoOf(q))[0];
