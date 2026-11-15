@@ -2500,3 +2500,33 @@ textarea.note:focus { outline: 2px solid var(--ink); outline-offset: 0; backgrou
 .bsx-you { margin: 10px 0 0; padding: 8px 12px; border-radius: 12px; background: #EEF8C9; font-size: 13px; font-weight: 600; line-height: 1.35; }
 .bsx-rows { margin-top: 12px; }
 
+/* Profile: your styles fill the card and pile on its floor, the first one in lime, the rest ink; labels stay level */
+#profile-shapes { background: #E7E7E5; touch-action: pan-y; }
+#profile-shapes .ph-shape { background: var(--ink); color: #fff; cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none; }
+#profile-shapes .ph-shape:first-child { background: #C4F52A; color: var(--ink); }
+#profile-shapes .ph-shape.held { cursor: grabbing; z-index: 2; filter: drop-shadow(0 10px 14px rgba(17, 17, 17, .25)); }
+#profile-shapes .ph-shape > span { max-width: 82%; font-size: 14px; font-weight: 800; letter-spacing: -.01em; line-height: 1.05; transform: rotate(var(--a, 0deg)); }
+#profile-shapes .pk-tri > span { margin-top: 34%; font-size: 13px; }
+#profile-shapes .pk-burst > span { font-size: 13px; }
+.ph-st.ph-ed { display: inline-flex; align-items: center; gap: 5px; height: 32px; padding: 0 12px 0 10px; background: #fff; color: var(--ink); font-size: 13px; font-weight: 700; box-shadow: 0 0 0 1px rgba(17, 17, 17, .08); }
+.ph-ed svg { width: 15px; height: 15px; }
+
+/* Profile: home gym on the left, your status as a tag beside it */
+.ph-g { flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.ph-hg { display: inline-flex; align-items: center; gap: 4px; min-height: 28px; font-size: 13px; font-weight: 700; color: var(--ink); }
+.ph-hg svg { width: 14px; height: 14px; }
+.ph-hg em { margin-left: 2px; font-style: normal; font-weight: 500; color: #8a8a87; }
+.ph-hg em::before { content: "·"; margin-right: 6px; }
+.ph-stt, .stt-o { display: inline-flex; align-items: center; gap: 6px; }
+.ph-stt { height: 28px; padding: 0 11px 0 9px; border-radius: 999px; background: #fff; box-shadow: 0 0 0 1px rgba(17, 17, 17, .08); font-size: 12px; font-weight: 700; color: var(--ink); }
+.ph-stt i, .stt-o i { flex: none; width: 8px; height: 8px; border-radius: 50%; background: #b9b9b6; }
+.is-climbing i { background: #8BC400; box-shadow: 0 0 0 3px rgba(196, 245, 42, .45); }
+.is-training i { background: var(--ink); }
+.is-partner i { background: #3E8EDE; }
+.is-recover i { background: #F08A24; }
+.stt-l { display: grid; gap: 6px; margin-top: 14px; }
+.stt-o { width: 100%; min-height: 50px; padding: 0 16px; border-radius: 16px; background: #F2F2F0; font-size: 15px; font-weight: 600; text-align: left; }
+.stt-o[aria-pressed="true"] { background: #EEF8C9; font-weight: 800; }
+.stt-o svg { width: 18px; height: 18px; margin-left: auto; }
+
+.stt-o:not([class*="is-"]) i { display: none; }

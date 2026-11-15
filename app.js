@@ -183,6 +183,10 @@ const STAGE_H = 880;
 let savedStyles;
 try { savedStyles = JSON.parse(localStorage.getItem('spotter-styles') || '[]'); } catch (_) { savedStyles = []; }
 const picks = new Set(Array.isArray(savedStyles) ? savedStyles.filter(k => STYLES.some(style => style[0] === k)) : []);
+// what you're up to, shown next to your home gym; you pick it from a short list
+const STATUS = [['climbing', 'Climbing now'], ['training', 'In training'], ['resting', 'Resting'], ['recover', 'Recovering'], ['partner', 'Looking for a partner'], ['', 'No status']];
+let myStatus; try { myStatus = localStorage.getItem('spotter-status') ?? 'climbing'; } catch (_) { myStatus = 'climbing'; }
+if (!STATUS.some(s => s[0] === myStatus)) myStatus = 'climbing';
 const styleLine = () => picks.has('all') || !picks.size ? '' : STYLES.filter(x => picks.has(x[0])).slice(0, 3).map(x => x[1].toLowerCase()).join(' · ');
 function viewPick(a) {
   return { bare: true, fit: true, after: fitStylePicker, cta: `<button class="b-glass pk-done" type="button" data-act="pkdone" data-from="${a || ''}">${picks.size ? 'Done' : 'Skip for now'}</button>`, html: `
@@ -211,30 +215,59 @@ function animateProfileShapes() {
   if (!box) return;
   const elements = [...box.querySelectorAll('.ph-shape')];
   if (!elements.length) return;
+  // your styles drop into the whole card and pile up on its floor; only the corner under your photo is kept clear.
+  // Bodies collide as boxes (what you see), labels stay level, and you can pick one up and throw it
   const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const width = box.clientWidth, height = box.clientHeight;
-  const size = Math.min(86, Math.max(60, (width - 108) / Math.max(2, Math.ceil(elements.length / 2))));
-  const left = 100;
-  const bodies = elements.map((el, i) => ({ el, x: left + size / 2 + (i % 3) * Math.max(0, (width - left - size) / 2), y: reduced ? height - size / 2 - 4 - Math.floor(i / 3) * size : size / 2 + Math.floor(i / 3) * size, vx: (i % 2 ? -1 : 1) * .35, vy: 0, angle: (i % 3 - 1) * 8 }));
-  elements.forEach(el => { el.style.width = `${size}px`; el.style.height = `${size}px`; });
-  let last = 0;
+  const W = box.clientWidth, H = box.clientHeight;
+  const size = Math.round(Math.min(100, Math.max(58, Math.sqrt(W * H * .38 / elements.length))));
+  const R = size / 2, AV = { x0: 0, x1: 118, y0: H - 54, y1: H };
+  const tilt = [-6, 5, -3, 7, -8, 4, -5, 6, -2, 8, -7, 3];
+  const bodies = elements.map((el, i) => ({ el, x: R + 4 + (elements.length > 1 ? (i % 2 ? elements.length - 1 - (i >> 1) : i >> 1) / (elements.length - 1) : .5) * (W - size - 8), y: -R - i * size * .55, vx: 0, vy: 0, a: tilt[i % tilt.length], base: tilt[i % tilt.length] }));
+  elements.forEach(el => { el.style.width = el.style.height = `${size}px`; });
+  let drag = null, raf = 0, still = 0;
+  const step = dt => {
+    bodies.forEach(b => {
+      if (b === drag?.b) return;
+      b.vy += .32 * dt; b.vx *= .995; b.x += b.vx * dt; b.y += b.vy * dt;
+      if (b.x < R) { b.x = R; b.vx = Math.abs(b.vx) * .5; } if (b.x > W - R) { b.x = W - R; b.vx = -Math.abs(b.vx) * .5; }
+      if (b.y > H - R) { b.y = H - R; b.vy = Math.abs(b.vy) > 1.2 ? -b.vy * .3 : 0; b.vx *= .86; }
+      // the photo's corner is a block like the others
+      const ox = Math.min(b.x + R - AV.x0, AV.x1 - (b.x - R)), oy = Math.min(b.y + R - AV.y0, AV.y1 - (b.y - R));
+      if (ox > 0 && oy > 0) { if (oy < ox) { b.y = AV.y0 - R; if (b.vy > 0) b.vy = b.vy > 1.2 ? -b.vy * .3 : 0; b.vx *= .86; } else { b.x = AV.x1 + R; b.vx = Math.abs(b.vx) * .5; } }
+      b.a += (b.base + Math.max(-14, Math.min(14, b.vx * 2)) - b.a) * .2;
+    });
+    for (let k = 0; k < 3; k++) for (let i = 0; i < bodies.length; i++) for (let j = i + 1; j < bodies.length; j++) {
+      const p = bodies[i], q = bodies[j], dx = q.x - p.x, dy = q.y - p.y, ox = size - Math.abs(dx), oy = size - Math.abs(dy);
+      if (ox <= 0 || oy <= 0) continue;
+      const wp = p === drag?.b ? 0 : q === drag?.b ? 1 : .5, wq = 1 - wp;
+      if (oy < ox) { const s = Math.sign(dy) || 1; p.y -= s * oy * wp; q.y += s * oy * wq; const top = s > 0 ? p : q, bot = s > 0 ? q : p; if (top.vy > bot.vy) { const v = (top.vy + bot.vy) / 2; top.vy = v * .3; top.vx *= .9; } }
+      else { const s = Math.sign(dx) || 1; p.x -= s * ox * wp; q.x += s * ox * wq; const v = (p.vx + q.vx) / 2; p.vx = q.vx = v; }
+    }
+  };
+  const draw = () => bodies.forEach(b => { b.el.style.transform = `translate(${b.x - R}px, ${b.y - R}px) rotate(${b.a}deg)`; b.el.style.setProperty('--a', `${-b.a}deg`); });
   const frame = now => {
     if (!box.isConnected) return;
-    const dt = Math.min((now - (last || now)) / 16.67, 2); last = now;
-    bodies.forEach(b => {
-      if (!reduced) { b.vy += .18 * dt; b.x += b.vx * dt; b.y += b.vy * dt; }
-      const radius = size / 2;
-      if (b.x < left + radius || b.x > width - radius) { b.x = Math.max(left + radius, Math.min(width - radius, b.x)); b.vx *= -.65; }
-      if (b.y > height - radius) { b.y = height - radius; b.vy *= -.45; b.vx *= .98; if (Math.abs(b.vy) < .15) b.vy = 0; }
-    });
-    if (!reduced) for (let i = 0; i < bodies.length; i++) for (let j = i + 1; j < bodies.length; j++) {
-      const a = bodies[i], b = bodies[j], dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy) || 1;
-      if (d < size) { const nx = dx / d, ny = dy / d, overlap = (size - d) / 2; a.x -= nx * overlap; a.y -= ny * overlap; b.x += nx * overlap; b.y += ny * overlap; const impulse = ((b.vx - a.vx) * nx + (b.vy - a.vy) * ny) * .6; if (impulse < 0) { a.vx += impulse * nx; a.vy += impulse * ny; b.vx -= impulse * nx; b.vy -= impulse * ny; } }
-    }
-    bodies.forEach(b => { b.el.style.transform = `translate(${b.x - size / 2}px, ${b.y - size / 2}px) rotate(${b.angle}deg)`; });
-    if (!reduced) requestAnimationFrame(frame);
+    const dt = Math.min((now - (frame.t || now)) / 16.67, 2) || 1; frame.t = now;
+    step(dt); draw();
+    const moving = drag || bodies.some(b => Math.abs(b.vx) > .05 || Math.abs(b.vy) > .05 || b.y < -R + 1);
+    still = moving ? 0 : still + 1;
+    raf = still > 20 ? 0 : requestAnimationFrame(frame);
   };
-  requestAnimationFrame(frame);
+  const wake = () => { still = 0; if (!raf) { frame.t = 0; raf = requestAnimationFrame(frame); } };
+  if (reduced) { for (let t = 0; t < 600; t++) step(1); bodies.forEach(b => { b.a = b.base; }); draw(); }
+  else { draw(); wake(); }
+  const at = e => { const r = box.getBoundingClientRect(), k = r.width / W || 1; return [(e.clientX - r.left) / k, (e.clientY - r.top) / k]; };
+  elements.forEach((el, i) => el.addEventListener('pointerdown', e => {
+    const b = bodies[i], [x, y] = at(e); el.setPointerCapture(e.pointerId);
+    drag = { b, dx: b.x - x, dy: b.y - y, lx: x, ly: y }; b.vx = b.vy = 0; el.classList.add('held'); wake();
+  }));
+  box.addEventListener('pointermove', e => {
+    if (!drag) return; const [x, y] = at(e), b = drag.b;
+    b.x = Math.max(R, Math.min(W - R, x + drag.dx)); b.y = Math.max(R, Math.min(H - R, y + drag.dy));
+    b.vx = (x - drag.lx) * .8; b.vy = (y - drag.ly) * .8; drag.lx = x; drag.ly = y;
+  });
+  const drop = () => { if (!drag) return; drag.b.el.classList.remove('held'); drag.b.vx = Math.max(-18, Math.min(18, drag.b.vx)); drag.b.vy = Math.max(-18, Math.min(18, drag.b.vy)); drag = null; wake(); };
+  box.addEventListener('pointerup', drop); box.addEventListener('pointercancel', drop); box.addEventListener('lostpointercapture', drop);
 }
 /* ---------- Videos: your tries, by route ---------- */
 const vtile = c => {
@@ -1126,8 +1159,10 @@ function viewProfile() {
       return `<section class="ph" aria-label="Your profile">
       <div class="ph-cv ph-shape-container" id="profile-shapes" role="img" aria-label="${picks.size ? `Your climbing styles: ${STYLES.filter(style => picks.has(style[0])).map(style => style[1]).join(', ')}` : 'Choose your climbing style to fill this space'}">${picks.size ? STYLES.filter(style => picks.has(style[0])).map(([k, label, shape]) => `<span class="ph-shape pk-${shape}" aria-hidden="true"><span>${label}</span></span>`).join('') : ''}</div>
       <div class="ph-me"><span class="ph-av">${avatar('You')}</span>
-        <button class="ph-st" type="button" data-act="to" data-to="pick/edit">${styleLine() || (picks.has('all') ? 'All of it' : 'Pick your style')}</button></div>
-      <h2 class="ph-n">You</h2><p class="ph-g">${ic.pin}${gym.name}${invitedFriends.length ? ` · ${n(invitedFriends.length, 'friend', 'friends')}` : ''}</p>
+        <button class="ph-st ph-ed" type="button" data-act="to" data-to="pick/edit">${picks.size ? `${ic.pen}Edit styles` : 'Pick your style'}</button></div>
+      <h2 class="ph-n">You</h2>
+      <div class="ph-g"><button class="ph-hg" type="button" data-act="to" data-to="gym/0">${ic.pin}<span>${gym.name}</span></button>
+        <button class="ph-stt${myStatus ? ` is-${myStatus}` : ''}" type="button" data-act="status" aria-label="Your status: ${STATUS.find(s => s[0] === myStatus)[1]}. Change it"><i></i>${myStatus ? STATUS.find(s => s[0] === myStatus)[1] : 'Set a status'}</button></div>
       <div class="ph-s${clips.length ? '' : ' ph-s-e'}">
         <span><b class="num">${top ? ROUTES[top.ri].grade : '—'}</b><i>hardest send</i></span>
         <span><b class="num">${clips.length || '—'}</b><i>on video</i></span>
@@ -2104,6 +2139,9 @@ function watchPane(x) {
 }
 
 const actions = {
+  status: () => pane(`<h2>Your status</h2><span class="sub">Friends see it on your profile, next to your home gym.</span>
+    <div class="stt-l">${STATUS.map(([k, l]) => `<button type="button" class="stt-o${k ? ` is-${k}` : ''}" data-act="setstatus" data-s="${k}" aria-pressed="${k === myStatus}"><i></i>${l}${k === myStatus ? ic.check : ''}</button>`).join('')}</div>`),
+  setstatus: b => { myStatus = b.dataset.s; try { localStorage.setItem('spotter-status', myStatus); } catch (_) {} closeAll(); render(); },
   to: b => go(b.dataset.to),
   albumfilter: () => pane(`<div class="album-filter-sheet"><h2>Filter records</h2><p>Choose what you want to see.</p>${[['all','All records'],['videos','Videos'],['manual','By hand']].map(([value,label]) => `<button type="button" data-act="albumfilterset" data-value="${value}" aria-pressed="${albumFilter === value}"><span>${label}</span>${albumFilter === value ? '<b>✓</b>' : ''}</button>`).join('')}</div>`),
   albumfilterset: b => { albumFilter = b.dataset.value; closeAll(); render(); },
