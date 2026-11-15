@@ -326,33 +326,20 @@ function album() {
   const tile = c => `<button class="al-t" type="button" data-act="to" data-to="clip/${c.id}" aria-label="${rname(ROUTES[c.ri])}, try ${tryOf(c)}${topOf(c) ? ', topped' : ''}">
       <img src="img/${c.img}.jpg" alt="" loading="lazy"><span class="al-kind">Video · Try ${tryOf(c)}</span>${c.gy == null ? '<span class="al-ng">No gym</span>' : ''}${topOf(c) ? `<span class="al-ok" aria-hidden="true">${ic.check}</span>` : ''}
       <span class="al-r">${sw(ROUTES[c.ri])}<b>${ROUTES[c.ri].grade}</b></span></button>`;
-  // a climb logged by hand has no video and no photo, so it gets a drawing: a grey wall like the style picker's, its route drawn as
-  // holds in the hold colour climbing up it (the top one ringed in lime when you sent it), stray grey holds around, the grade set huge
-  // and one bar per try. The same record always draws the same wall
-  const wallArt = (seed, hex, sent) => {
+  // a climb logged by hand has no video and no photo, so it gets one drawn hold: big, in the route's colour, cropped by the
+  // corner of the tile with its bolt in the middle. The type leads; the hold only says which colour you climbed. Same record, same hold
+  const holdArt = seed => {
     let s = [...seed].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7);
-    const R = () => (s = (s * 1664525 + 1013904223) >>> 0) / 4294967296, f = v => v.toFixed(1);
-    const blob = (x, y, r) => { const k = 7, p = Array.from({ length: k }, (_, q) => { const t = q / k * Math.PI * 2 + R() * .5, d = r * (.7 + R() * .45); return [x + Math.cos(t) * d, y + Math.sin(t) * d * .82]; });
-      const m = q => [(p[q % k][0] + p[(q + 1) % k][0]) / 2, (p[q % k][1] + p[(q + 1) % k][1]) / 2];
-      return `M${f(m(0)[0])} ${f(m(0)[1])}` + p.map((_, q) => ` Q${f(p[(q + 1) % k][0])} ${f(p[(q + 1) % k][1])} ${f(m(q + 1)[0])} ${f(m(q + 1)[1])}`).join('') + 'Z'; };
-    const line = Array.from({ length: 6 }, (_, q) => [126 + (q % 2 ? 1 : -1) * (8 + R() * 12), 106 - q * 15 + (R() - .5) * 4, 5.5 + R() * 3]);
-    const free = [];
-    for (let q = 0; q < 60 && free.length < 20; q++) { const x = 6 + R() * 208, y = 6 + R() * 113;
-      if (line.every(([u, v]) => Math.hypot(u - x, v - y) > 15) && free.every(([u, v]) => Math.hypot(u - x, v - y) > 13)) free.push([x, y, 3 + R() * 3.5]); }
-    const hold = (x, y, r, fill) => { const d = blob(x, y, r); return `<path d="${d}" transform="translate(1.2 1.8)" fill="rgba(17,17,17,.13)"/><path d="${d}" fill="${fill}"/>`; };
-    const [tx, ty] = line[5];
-    return `<svg class="alh-art" viewBox="0 0 220 125" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-      <path d="M55 0V125M110 0V125M165 0V125M0 62.5H220" stroke="rgba(17,17,17,.06)" stroke-width=".8"/>
-      ${free.map(([x, y, r]) => hold(x, y, r, '#D2D2CF')).join('')}
-      <path d="M${line.map(([x, y]) => `${f(x)} ${f(y)}`).join(' L')}" fill="none" stroke="rgba(17,17,17,.22)" stroke-width="1" stroke-dasharray="2.5 3"/>
-      ${line.map(([x, y, r]) => hold(x, y, r, hex)).join('')}
-      ${sent ? `<circle cx="${f(tx)}" cy="${f(ty)}" r="12.5" fill="none" stroke="#C4F52A" stroke-width="3"/>` : ''}</svg>`; };
+    const R = () => (s = (s * 1664525 + 1013904223) >>> 0) / 4294967296, f = v => v.toFixed(1), k = 8;
+    const p = Array.from({ length: k }, (_, q) => { const t = q / k * Math.PI * 2 + R() * .35, d = 40 * (.82 + R() * .22); return [50 + Math.cos(t) * d, 50 + Math.sin(t) * d * .88]; });
+    const m = q => [(p[q % k][0] + p[(q + 1) % k][0]) / 2, (p[q % k][1] + p[(q + 1) % k][1]) / 2];
+    const d = `M${f(m(0)[0])} ${f(m(0)[1])}` + p.map((_, q) => ` Q${f(p[(q + 1) % k][0])} ${f(p[(q + 1) % k][1])} ${f(m(q + 1)[0])} ${f(m(q + 1)[1])}`).join('') + 'Z';
+    return `<svg class="alh-art" viewBox="0 0 100 100" aria-hidden="true"><path d="${d}" fill="var(--hold)"/><circle cx="50" cy="48" r="3.2" fill="#E7E7E5"/></svg>`; };
   const handCard = ({ act, hex, grade, name, where, tries, res, sent, label, seed }) => {
-    const k = Math.min(tries, 8), bars = Array.from({ length: k }, (_, b) => `<i${sent && b === k - 1 ? ' class="ok"' : ''}></i>`).join('') + (tries > 8 ? `<small>+${tries - 8}</small>` : '');
-    return `<button class="al-t al-hand" type="button" ${act} aria-label="${label}">${wallArt(seed, hex, sent)}
+    const k = Math.min(tries, 8), bars = Array.from({ length: k }, (_, b) => `<i${sent && b === k - 1 ? ' class="ok"' : ''}></i>`).join('') + (tries > 8 ? `<small>+${tries - 8}</small>` : '') + `<small>${n(tries, 'try', 'tries')}</small>`;
+    return `<button class="al-t al-hand" type="button" ${act} style="--hold:${hex}" aria-label="${label}">
       <span class="alh-top"><span class="alh-pill">By hand</span><span class="alh-pill${sent ? ' on' : ''}">${res}</span></span>
-      <strong class="alh-g">${grade}</strong>
-      <span class="alh-b"><span class="alh-tally" aria-hidden="true">${bars}</span><b>${name}</b><em>${where} · ${n(tries, 'try', 'tries')}</em></span></button>`; };
+      <span class="alh-b"><span class="alh-row"><strong class="alh-g">${grade}</strong>${holdArt(seed)}</span><span class="alh-tally" aria-hidden="true">${bars}</span><b>${name}</b><em>${where}</em></span></button>`; };
   const handTile = (x, i) => handCard({ act: `data-act="glrecord" data-i="${i}"`, seed: `g${i}${x.g}${x.ago}`, hex: HOLD_COLORS[x.color] || '#8A8F98',
     grade: x.g, name: `${x.color ? x.color + ' · ' : ''}${x.ty}`, where: gyms[x.gy].name, tries: x.attempts || 1, res: KL[x.k], sent: x.k !== 'Project',
     label: `${x.g}, ${x.k}, ${gyms[x.gy].name}, logged by hand` });

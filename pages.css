@@ -2442,23 +2442,27 @@ textarea.note:focus { outline: 2px solid var(--ink); outline-offset: 0; backgrou
 /* Beta: where your own try went another way */
 .bst-you { margin-top: 8px; padding: 8px 12px; border-radius: 12px; background: var(--lime-wash); color: var(--ink); font-weight: 600; }
 
-/* A climb logged by hand: a drawn wall in the app's greys (the style picker's), its route in the hold colour, the grade huge */
-.al-t.al-hand { container-type: inline-size; display: block; padding: 0; color: var(--ink); text-align: left;
-  background: radial-gradient(circle, rgba(17, 17, 17, .14) 1px, transparent 1.6px) 6px 6px / 14px 14px, #E7E7E5; }
-.al-t.al-hand::after { display: block; inset: 0; background: linear-gradient(180deg, transparent 52%, rgba(231, 231, 229, .92) 80%); }
-.alh-art { position: absolute; inset: 0; width: 100%; height: 100%; }
+/* A climb logged by hand: the grade and one flat drawn hold in the route's colour share a row, the hold on the right, centred on it */
+.al-t.al-hand { container-type: inline-size; display: block; padding: 0; color: var(--ink); text-align: left; background: #E7E7E5; }
+.al-t.al-hand::after { display: none; }
 .alh-top { position: absolute; z-index: 2; top: 10px; left: 10px; right: 10px; display: flex; justify-content: space-between; gap: 6px; }
-.alh-pill { display: inline-flex; align-items: center; height: 24px; padding: 0 9px; border-radius: 999px; background: rgba(255, 255, 255, .85); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); box-shadow: 0 1px 4px rgba(17, 17, 17, .06); font-size: 11px; font-weight: 800; white-space: nowrap; }
+.alh-pill { display: inline-flex; align-items: center; height: 24px; padding: 0 9px; border-radius: 999px; background: #fff; font-size: 11px; font-weight: 800; white-space: nowrap; }
 .alh-pill.on { background: #C4F52A; }
-.alh-g { position: absolute; z-index: 1; left: 10px; top: 42px; font-size: min(30cqw, 96px); font-weight: 900; letter-spacing: -.07em; line-height: .85; }
-.alh-b { position: absolute; z-index: 2; left: 12px; right: 12px; bottom: 12px; display: grid; gap: 2px; }
+.alh-b { position: absolute; z-index: 2; left: 12px; right: 12px; bottom: 12px; display: grid; gap: 2px; min-width: 0; }
+.alh-row { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 6px; }
+.alh-g { margin-left: -2px; font-size: min(34cqw, 88px); font-weight: 900; letter-spacing: -.07em; line-height: .82; white-space: nowrap; }
+.alh-art { flex: none; width: min(44cqw, 110px); margin: -8px -6px -8px 0; height: auto; transform: rotate(-8deg); }
 .alh-b b { font-size: 13px; font-weight: 800; letter-spacing: -.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .alh-b em { font-size: 11px; font-style: normal; color: var(--g700); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.alh-tally { display: flex; align-items: center; gap: 3px; margin-bottom: 7px; }
-.alh-tally i { width: 18px; height: 5px; border-radius: 3px; background: rgba(17, 17, 17, .22); }
-.alh-tally i.ok { width: 28px; background: #C4F52A; box-shadow: inset 0 0 0 1px rgba(17, 17, 17, .18); }
-.alh-tally small { margin-left: 3px; font-size: 10px; font-weight: 800; color: var(--g700); }
-/* alone on its day the tile goes wide: the drawn route sits in the middle, the grade on the right */
-.al-g > .al-hand:only-child .alh-g { left: auto; right: 16px; top: 50%; transform: translateY(-50%); font-size: min(22cqw, 110px); }
-.al-g > .al-hand:only-child .alh-b { right: 50%; }
+.alh-tally { display: flex; align-items: center; gap: 3px; margin-bottom: 5px; }
+.alh-tally i { width: 14px; height: 5px; border-radius: 3px; background: rgba(17, 17, 17, .2); }
+.alh-tally i.ok { width: 24px; background: #C4F52A; box-shadow: inset 0 0 0 1px rgba(17, 17, 17, .15); }
+.alh-tally small { white-space: nowrap; margin-left: 5px; font-size: 10px; font-weight: 800; color: var(--g700); }
+/* alone on its day the tile goes wide: the type stays bottom left, a huge hold on the right running off the edges */
+.al-g > .al-hand:only-child { aspect-ratio: 1.75 / 1; }
+.al-g > .al-hand:only-child .alh-b { top: 40px; align-content: end; }
+.al-g > .al-hand:only-child .alh-b > :not(.alh-row) { max-width: 46cqw; }
+.al-g > .al-hand:only-child .alh-g { font-size: min(15cqw, 58px); }
+/* the hold, huge: it runs off the right and bottom edges, like a photo cropped by the frame */
+.al-g > .al-hand:only-child .alh-art { position: absolute; right: -32cqw; top: calc(50% + 30px); width: 86cqw; margin: 0; transform: translateY(-50%) rotate(-8deg); }
 
