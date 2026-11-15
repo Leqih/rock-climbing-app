@@ -2467,8 +2467,8 @@ textarea.note:focus { outline: 2px solid var(--ink); outline-offset: 0; backgrou
 .al-g > .al-hand:only-child .alh-art { position: absolute; right: -32cqw; top: calc(50% + 30px); width: 86cqw; margin: 0; transform: translateY(-50%) rotate(-8deg); }
 
 /* Records by day: the gym goes in the day's header when there was one; on a day at several gyms each video says where */
-.al-dl { display: inline-flex; align-items: center; gap: 8px; font-style: normal; min-width: 0; line-height: 16px; }
-.al-dg { display: inline-flex; align-items: center; gap: 3px; height: 16px; line-height: 16px; font-size: 13px; font-weight: 600; color: #4e4e4c; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.al-dl { display: inline-flex; align-items: center; gap: 6px; font-style: normal; min-width: 0; line-height: 16px; }
+.al-dg { display: inline-flex; align-items: center; gap: 3px; height: 16px; line-height: 16px; font-size: 13px; font-weight: 500; color: #8a8a87; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .al-dg svg { display: block; width: 12px; height: 12px; flex: none; }
 /* one size and one colour across the day header; only the weight steps down after the date */
 .al-d .day-open { font-size: 13px; color: #4e4e4c; }
@@ -2476,3 +2476,6 @@ textarea.note:focus { outline: 2px solid var(--ink); outline-offset: 0; backgrou
 .al-r { flex-wrap: wrap; row-gap: 1px; }
 .al-gy { flex-basis: 100%; font-size: 11px; font-weight: 600; color: rgba(255, 255, 255, .85); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
+
+/* the gym reads as the rest of the date line, "Friday · ARC Climbing Wall": no icon, a dot, a lighter grey */
+.al-dg::before { content: "·"; margin-right: 6px; }
