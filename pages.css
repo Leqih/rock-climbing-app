@@ -2479,3 +2479,6 @@ textarea.note:focus { outline: 2px solid var(--ink); outline-offset: 0; backgrou
 
 /* the gym reads as the rest of the date line, "Friday · ARC Climbing Wall": no icon, a dot, a lighter grey */
 .al-dg::before { content: "·"; margin-right: 6px; }
+
+/* Gyms map: the area picker and the open-now count are one pair of pills: same height, white, shadow */
+.gt-top .gt-n { box-sizing: border-box; height: 34px; padding: 0 12px; background: var(--white); box-shadow: 0 2px 10px rgba(17, 17, 17, .14); font-size: 13px; }
