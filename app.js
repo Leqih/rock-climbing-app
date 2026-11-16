@@ -1991,34 +1991,34 @@ const gyms = [gym,
     hours: [[10, 20], [10, 22], [10, 22], [10, 22], [10, 22], [10, 22], [10, 22]], pass: '$22 · $16 college students', has: ['Bouldering', 'Shoe rental $4', 'New climbs every week', 'Tension Board 2', 'Showers and sauna', 'Study space'], src: 'climbhorizon.com' },
   { name: 'Upper Limits Bloomington', city: 'Bloomington', ll: [40.47841, -89.01283], addr: '1304 W Washington St, Bloomington', img: 'gym-upperlimits-1', pics: ['gym-upperlimits-2', 'gym-upperlimits-3'],
     hours: [[10, 18], [12, 22], [16, 22], [16, 22], [16, 22], [12, 22], [10, 18]], pass: '$21 · $17 kids 10 and under', has: ['Bouldering', 'Top rope and auto belays', 'Outdoor silo wall', 'Fitness area'], src: 'upperlimits.com' },
-  { name: 'First Ascent Peoria', city: 'Peoria', ll: [40.68424, -89.59934], addr: '927 SW Washington St, Peoria', hours: [[10, 18], [12, 21], [12, 21], [12, 21], [12, 21], [12, 21], [10, 18]], has: ['Bouldering', 'Top rope', 'Lead', 'Auto belay', 'Yoga', 'Fitness'], src: 'faclimbing.com/peoria' },
+  { name: 'First Ascent Peoria', city: 'Peoria', img: 'gym-fa-peoria-1', ll: [40.68424, -89.59934], addr: '927 SW Washington St, Peoria', hours: [[10, 18], [12, 21], [12, 21], [12, 21], [12, 21], [12, 21], [10, 18]], has: ['Bouldering', 'Top rope', 'Lead', 'Auto belay', 'Yoga', 'Fitness'], src: 'faclimbing.com/peoria' },
   // Chicago
-  { name: 'First Ascent Avondale', city: 'Chicago', ll: [41.94512, -87.71038], addr: '3516 N Spaulding Ave, Chicago', hours: wk([6, 23], [9, 20]), has: ['Bouldering', 'Top rope', 'Lead'], src: 'faclimbing.com/chicago' },
-  { name: 'First Ascent Uptown', city: 'Chicago', ll: [41.96761, -87.65922], addr: '4718 N Broadway, Chicago', hours: wk([6, 23], [10, 20]), has: ['Bouldering', 'Top rope', 'Lead'], src: 'faclimbing.com/chicago/uptown' },
-  { name: 'First Ascent Humboldt Park', city: 'Chicago', ll: [41.89647, -87.70155], addr: '2950 W Grand Ave, Chicago', hours: wk([6, 23], [10, 20]), has: [], src: 'faclimbing.com/chicago/humboldt-park' },
-  { name: 'First Ascent Block 37', city: 'Chicago', ll: [41.88404, -87.62877], addr: '108 N State St, Chicago', hours: wk([6, 23], [10, 20]), has: ['Bouldering only', '200+ problems'], src: 'faclimbing.com/chicago/block-37' },
-  { name: 'First Ascent West Loop', city: 'Chicago', ll: [41.88013, -87.65237], addr: '100 S Morgan St, Chicago', hours: wk([6, 23], [10, 20]), has: ['Bouldering', 'Top rope', 'Lead'], src: 'faclimbing.com/chicago/west-loop' },
-  { name: 'Movement Lincoln Park', city: 'Chicago', ll: [41.90799, -87.64958], addr: '1460 N Dayton St, Chicago', hours: MV, has: ['Bouldering', 'Top rope', 'Lead', 'Kilter Board', 'Yoga', 'Sauna'], src: 'movementgyms.com/lincoln-park' },
-  { name: 'Movement Wrigleyville', city: 'Chicago', ll: [41.94702, -87.65767], addr: '1115 W Addison St, Chicago', hours: MV, has: ['Bouldering', 'Yoga', 'Fitness'], src: 'movementgyms.com/wrigleyville' },
+  { name: 'First Ascent Avondale', city: 'Chicago', img: 'gym-fa-avondale-1', ll: [41.94512, -87.71038], addr: '3516 N Spaulding Ave, Chicago', hours: wk([6, 23], [9, 20]), has: ['Bouldering', 'Top rope', 'Lead'], src: 'faclimbing.com/chicago' },
+  { name: 'First Ascent Uptown', city: 'Chicago', img: 'gym-fa-uptown-1', ll: [41.96761, -87.65922], addr: '4718 N Broadway, Chicago', hours: wk([6, 23], [10, 20]), has: ['Bouldering', 'Top rope', 'Lead'], src: 'faclimbing.com/chicago/uptown' },
+  { name: 'First Ascent Humboldt Park', city: 'Chicago', img: 'gym-fa-humboldt-1', ll: [41.89647, -87.70155], addr: '2950 W Grand Ave, Chicago', hours: wk([6, 23], [10, 20]), has: [], src: 'faclimbing.com/chicago/humboldt-park' },
+  { name: 'First Ascent Block 37', city: 'Chicago', img: 'gym-fa-block37-1', ll: [41.88404, -87.62877], addr: '108 N State St, Chicago', hours: wk([6, 23], [10, 20]), has: ['Bouldering only', '200+ problems'], src: 'faclimbing.com/chicago/block-37' },
+  { name: 'First Ascent West Loop', city: 'Chicago', img: 'gym-fa-westloop-1', ll: [41.88013, -87.65237], addr: '100 S Morgan St, Chicago', hours: wk([6, 23], [10, 20]), has: ['Bouldering', 'Top rope', 'Lead'], src: 'faclimbing.com/chicago/west-loop' },
+  { name: 'Movement Lincoln Park', city: 'Chicago', img: 'gym-mv-lincolnpark-1', ll: [41.90799, -87.64958], addr: '1460 N Dayton St, Chicago', hours: MV, has: ['Bouldering', 'Top rope', 'Lead', 'Kilter Board', 'Yoga', 'Sauna'], src: 'movementgyms.com/lincoln-park' },
+  { name: 'Movement Wrigleyville', city: 'Chicago', img: 'gym-mv-wrigleyville-1', ll: [41.94702, -87.65767], addr: '1115 W Addison St, Chicago', hours: MV, has: ['Bouldering', 'Yoga', 'Fitness'], src: 'movementgyms.com/wrigleyville' },
   // San Francisco Bay Area
-  { name: 'Mission Cliffs', city: 'Bay Area', ll: [37.76068, -122.41241], addr: '2295 Harrison St, San Francisco', hours: wk([6, 22], [8, 19]), pass: TSP, has: ['Bouldering', 'Top rope', 'Lead'], src: 'touchstoneclimbing.com/mission-cliffs' },
+  { name: 'Mission Cliffs', city: 'Bay Area', img: 'gym-ts-missioncliffs-1', ll: [37.76068, -122.41241], addr: '2295 Harrison St, San Francisco', hours: wk([6, 22], [8, 19]), pass: TSP, has: ['Bouldering', 'Top rope', 'Lead'], src: 'touchstoneclimbing.com/mission-cliffs' },
   { name: 'Dogpatch Boulders', city: 'Bay Area', ll: [37.75663, -122.38777], addr: '2573 3rd St, San Francisco', hours: [[10, 19], [7, 22], [11, 23], [7, 22], [11, 23], [7, 22], [10, 19]], pass: TSP, has: ['Bouldering only'], src: 'touchstoneclimbing.com/dogpatch-boulders' },
-  { name: 'Movement San Francisco', city: 'Bay Area', ll: [37.80436, -122.46837], addr: '924 Mason St, San Francisco', hours: MV, has: ['Bouldering', 'Top rope', 'Lead'], src: 'movementgyms.com/san-francisco' },
-  { name: 'Benchmark Climbing SF', city: 'Bay Area', ll: [37.78889, -122.42177], addr: '1414 Van Ness Ave, San Francisco', hours: wk([11, 22], [10, 19]), has: [], src: 'benchmarkclimbing.com' },
-  { name: 'Berkeley Ironworks', city: 'Bay Area', ll: [37.85083, -122.29252], addr: '800 Potter St, Berkeley', hours: wk([6, 22], [10, 19]), pass: TSP, has: ['Bouldering', 'Top rope', 'Lead'], src: 'touchstoneclimbing.com/ironworks' },
-  { name: 'The Oaks', city: 'Bay Area', ll: [37.89159, -122.27799], addr: '1875 Solano Ave, Berkeley', hours: wk([8, 22], [10, 17]), pass: TSP, has: ['Bouldering only'], src: 'touchstoneclimbing.com/the-oaks' },
+  { name: 'Movement San Francisco', city: 'Bay Area', img: 'gym-mv-sf-1', ll: [37.80436, -122.46837], addr: '924 Mason St, San Francisco', hours: MV, has: ['Bouldering', 'Top rope', 'Lead'], src: 'movementgyms.com/san-francisco' },
+  { name: 'Benchmark Climbing SF', city: 'Bay Area', img: 'gym-benchmark-sf-1', ll: [37.78889, -122.42177], addr: '1414 Van Ness Ave, San Francisco', hours: wk([11, 22], [10, 19]), has: [], src: 'benchmarkclimbing.com' },
+  { name: 'Berkeley Ironworks', city: 'Bay Area', img: 'gym-ts-ironworks-1', ll: [37.85083, -122.29252], addr: '800 Potter St, Berkeley', hours: wk([6, 22], [10, 19]), pass: TSP, has: ['Bouldering', 'Top rope', 'Lead'], src: 'touchstoneclimbing.com/ironworks' },
+  { name: 'The Oaks', city: 'Bay Area', img: 'gym-ts-oaks-1', ll: [37.89159, -122.27799], addr: '1875 Solano Ave, Berkeley', hours: wk([8, 22], [10, 17]), pass: TSP, has: ['Bouldering only'], src: 'touchstoneclimbing.com/the-oaks' },
   { name: 'Benchmark Climbing Berkeley', city: 'Bay Area', ll: [37.87809, -122.26872], addr: '1607 Shattuck Ave, Berkeley', hours: wk([7, 22], [10, 19]), has: [], src: 'benchmarkclimbing.com' },
   { name: 'Mosaic Boulders', city: 'Bay Area', ll: [37.86745, -122.25877], addr: '2369 Telegraph Ave, Berkeley', hours: null, has: ['Bouldering'], src: 'mosaicboulders.com' },
   { name: 'Great Western Power Co.', city: 'Bay Area', ll: [37.80996, -122.27013], addr: '520 Thomas L. Berkley Way, Oakland', hours: wk([6, 22], [9, 16]), pass: TSP, has: ['Bouldering', 'Top rope', 'Lead'], src: 'touchstoneclimbing.com/gwpower-co' },
-  { name: 'Pacific Pipe', city: 'Bay Area', ll: [37.81598, -122.28875], addr: '2140 Mandela Pkwy, Oakland', hours: [[10, 19], [7, 22], [7, 23], [7, 22], [7, 23], [7, 22], [10, 19]], pass: TSP, has: ['Bouldering', 'Top rope', '55 ft lead wall'], src: 'touchstoneclimbing.com/pacific-pipe' },
-  { name: 'Bridges Rock Gym', city: 'Bay Area', ll: [37.90013, -122.30743], addr: '5635 San Diego St, El Cerrito', hours: wk([8, 22], [8.75, 20]), has: [], src: 'bridgesrockgym.com' },
-  { name: 'Movement Belmont', city: 'Bay Area', ll: [37.52896, -122.28757], addr: '100 El Camino Real, Belmont', hours: MV, has: ['Bouldering', 'Top rope', 'Lead'], src: 'movementgyms.com/belmont' },
+  { name: 'Pacific Pipe', city: 'Bay Area', img: 'gym-ts-pacificpipe-1', ll: [37.81598, -122.28875], addr: '2140 Mandela Pkwy, Oakland', hours: [[10, 19], [7, 22], [7, 23], [7, 22], [7, 23], [7, 22], [10, 19]], pass: TSP, has: ['Bouldering', 'Top rope', '55 ft lead wall'], src: 'touchstoneclimbing.com/pacific-pipe' },
+  { name: 'Bridges Rock Gym', city: 'Bay Area', img: 'gym-bridges-1', ll: [37.90013, -122.30743], addr: '5635 San Diego St, El Cerrito', hours: wk([8, 22], [8.75, 20]), has: [], src: 'bridgesrockgym.com' },
+  { name: 'Movement Belmont', city: 'Bay Area', img: 'gym-mv-belmont-1', ll: [37.52896, -122.28757], addr: '100 El Camino Real, Belmont', hours: MV, has: ['Bouldering', 'Top rope', 'Lead'], src: 'movementgyms.com/belmont' },
   { name: 'Hyperion', city: 'Bay Area', ll: [37.48408, -122.21465], addr: '801 Willow St, Redwood City', hours: wk([10, 22], [10, 18]), pass: TSP, has: ['Bouldering only', '250+ problems'], src: 'touchstoneclimbing.com/hyperion' },
-  { name: 'Movement Mountain View', city: 'Bay Area', ll: [37.40278, -122.11375], addr: '630 San Antonio Rd, Mountain View', hours: MV, has: [], src: 'movementgyms.com/mountain-view' },
-  { name: 'Movement Sunnyvale', city: 'Bay Area', ll: [37.38442, -122.01056], addr: '815 Stewart Dr, Sunnyvale', hours: MV, has: ['Bouldering', 'Top rope'], src: 'movementgyms.com/sunnyvale' },
-  { name: 'Movement Santa Clara', city: 'Bay Area', ll: [37.36678, -121.94796], addr: '801 Martin Ave, Santa Clara', hours: MV, has: ['Bouldering', 'Top rope', 'Lead'], src: 'movementgyms.com/santa-clara' },
+  { name: 'Movement Mountain View', city: 'Bay Area', img: 'gym-mv-mountainview-1', ll: [37.40278, -122.11375], addr: '630 San Antonio Rd, Mountain View', hours: MV, has: [], src: 'movementgyms.com/mountain-view' },
+  { name: 'Movement Sunnyvale', city: 'Bay Area', img: 'gym-mv-sunnyvale-1', ll: [37.38442, -122.01056], addr: '815 Stewart Dr, Sunnyvale', hours: MV, has: ['Bouldering', 'Top rope'], src: 'movementgyms.com/sunnyvale' },
+  { name: 'Movement Santa Clara', city: 'Bay Area', img: 'gym-mv-santaclara-1', ll: [37.36678, -121.94796], addr: '801 Martin Ave, Santa Clara', hours: MV, has: ['Bouldering', 'Top rope', 'Lead'], src: 'movementgyms.com/santa-clara' },
   { name: 'The Studio', city: 'Bay Area', ll: [37.33031, -121.8858], addr: '396 S 1st St, San Jose', hours: wk([10, 22], [10, 17]), has: [], src: 'touchstoneclimbing.com/the-studio' },
-  { name: 'The Peak of Fremont', city: 'Bay Area', ll: [37.5105, -121.95096], addr: 'Fremont', hours: wk([10, 22], [10, 18]), has: [], src: 'thepeakoffremont.com' }];
+  { name: 'The Peak of Fremont', city: 'Bay Area', img: 'gym-peak-fremont-1', ll: [37.5105, -121.95096], addr: 'Fremont', hours: wk([10, 22], [10, 18]), has: [], src: 'thepeakoffremont.com' }];
 gyms.forEach(g => { g.pics = g.pics || []; g.lean = NOLEAN; });
 // where you are: the UIUC Main Quad until the phone says otherwise. Every distance is measured from here
 const QUAD = [40.1075, -88.2272];
@@ -2279,7 +2279,7 @@ function viewOtherGym(i) {
       <div class="gy-sh">Hours</div>${weekHours(g)}
       ${g.pass ? `<div class="gy-sh">Day pass</div><div class="gy-l gy-l1"><b>${g.pass}</b></div>` : ''}
       ${g.has.length ? `<div class="gy-sh">Here</div><div class="gy-has">${g.has.map(h => `<span>${h}</span>`).join('')}</div>` : ''}
-      <p class="cap">${g.img ? `From ${g.src}, Nov 2026.` : `From ${g.src} and OpenStreetMap, Nov 2026. Check with the gym before you go.`}</p></div>
+      <p class="cap">${i < 5 ? `From ${g.src}, Nov 2026.` : `From ${g.src} and OpenStreetMap, Nov 2026. Check with the gym before you go.`}</p></div>
     ${gymGrading(g)}
     <div class="rows"><div class="row"><span class="row-t"><strong>No videos from here yet</strong><span>Spotter’s routes and side by sides are at ${gym.name} for now.</span></span></div></div>
     <a class="b-lime gy-cta" href="https://${g.src}" target="_blank" rel="noopener">${price ? `Buy a day pass · ${price}` : 'Buy a day pass'} <span aria-hidden="true">↗</span></a>
