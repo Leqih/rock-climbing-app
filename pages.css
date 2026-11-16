@@ -3067,3 +3067,17 @@ textarea.note:focus { outline: 2px solid var(--ink); outline-offset: 0; backgrou
 .al-one { align-self: flex-start; margin: 0 12px 12px; font-size: 12px; font-weight: 800; color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
 .alg-h { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .alg-h .al-filter { flex: none; }
+
+/* while selecting: a stack's videos open in a row under its day */
+.al-one { display: inline-flex; align-items: center; gap: 4px; text-decoration: none; padding: 6px 10px; margin: 0 10px 10px; border-radius: 999px; background: #ececea; }
+.al-one[aria-expanded="true"] { background: var(--ink); color: #fff; }
+.al-strip { margin-top: 12px; padding: 12px 0 2px; border-top: 1px solid rgba(17,17,17,.08); }
+.al-strip p { display: flex; align-items: baseline; gap: 8px; margin: 0 2px 9px; font-size: 14px; font-weight: 800; }
+.al-strip p span { font-size: 12px; font-weight: 600; color: #8a8a87; }
+.al-row { display: flex; gap: 9px; overflow-x: auto; scroll-snap-type: x mandatory; margin: 0 -14px; padding: 0 14px 4px; scrollbar-width: none; }
+.al-row::-webkit-scrollbar { display: none; }
+.al-row .al-t { flex: none; width: 122px; scroll-snap-align: start; }
+.al-row .al-kind { font-size: 10px; }
+/* the row scrolls inside its day; the day never grows wider than the album */
+.al > .al-d { min-width: 0; }
+.al-strip { min-width: 0; }

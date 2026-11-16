@@ -407,7 +407,7 @@ const heroes = {
 // your album: the box with everything (photos fanned out), two pinned moments, then one binder per gym
 let albumFilter = 'all', alSel = null;
 // the album's other filters: when (all, this week, this month, or one day 'd:N'), which gym (-1 = no gym) and, inside it, which route
-let alTime = 'all', alGym = null, alRoute = null;
+let alTime = 'all', alGym = null, alRoute = null, alOpen = null;   // alOpen: the stack opened under its day while selecting ('day_gym')
 const alTimeOk = d => alTime === 'all' ? true : alTime === 'week' ? d < 7 : alTime === 'month' ? dateOf(d).getMonth() === dateOf(0).getMonth() && dateOf(d).getFullYear() === dateOf(0).getFullYear() : d === +alTime.slice(2);
 const alTimeName = () => alTime === 'week' ? 'This week' : alTime === 'month' ? 'This month' : alTime.startsWith('d:') ? dayLabel(+alTime.slice(2)) : 'All time';
 const alFiltered = () => albumFilter !== 'all' || alTime !== 'all' || alGym != null;
@@ -480,15 +480,20 @@ function album(only) {
       <button class="al-stp" type="button" data-act="alstack" data-ids="${ids.join(',')}" aria-pressed="${!!ids.length && on === ids.length}"${ids.length ? '' : ' disabled'} aria-label="${gname(g.gy)}: select ${n(ids.length, 'video', 'videos')}">
         <span class="al-pile">${pile}<span class="al-ck" aria-hidden="true"></span><b class="al-cnt">${on ? `${on}/${ids.length}` : ids.length}</b></span>
         <span class="al-sb"><b>${gname(g.gy)}</b><small>${ids.length ? n(ids.length, 'video', 'videos') : 'No videos'}</small></span></button>
-      ${ids.length > 1 ? `<button class="al-one" type="button" data-act="to" data-to="algym/${d}_${g.gy}">Pick videos →</button>` : ''}</div>`;
+      ${ids.length > 1 ? `<button class="al-one" type="button" data-act="alopen" data-k="${d}_${g.gy}" aria-expanded="${alOpen === `${d}_${g.gy}`}">${alOpen === `${d}_${g.gy}` ? 'Close' : 'Pick some'}<span aria-hidden="true">${alOpen === `${d}_${g.gy}` ? '↑' : '↓'}</span></button>` : ''}</div>`;
     return `<button class="al-st${g.gy < 0 ? ' ng' : ''}" type="button" data-act="to" data-to="algym/${d}_${g.gy}" aria-label="${gname(g.gy)}, ${n(k, 'record', 'records')}">
       <span class="al-pile">${pile}<b class="al-cnt">${k}</b></span>
       <span class="al-sb"><b>${gname(g.gy)}</b><small>${n(g.routes.length, 'route', 'routes')}${top ? ` · ${top} topped` : ''}</small>
       <span class="al-sw">${g.routes.slice(0, 6).map(r => `<i style="background:${r.ri != null ? ROUTES[r.ri].hex : r.hex || '#d5d5d2'}"></i>`).join('')}</span></span></button>`; };
+  // while selecting: the opened stack's videos in one row under its day, to pick one by one
+  const strip = d => { if (!alSel || !alOpen || !alOpen.startsWith(`${d}_`)) return '';
+    const g = dayItems(d).find(q => `${d}_${q.gy}` === alOpen); if (!g) return '';
+    const vs = g.routes.flatMap(r => r.items).filter(x => x.id != null);
+    return `<div class="al-strip"><p>${gname(g.gy)}<span>${n(vs.length, 'video', 'videos')}</span></p><div class="al-row">${vs.map(x => x.html).join('')}</div></div>`; };
   const box = alRoute ? `<div class="al${alSel ? ' sel' : ''}">${days.map(d => `<div class="al-d"><h3><button type="button" class="day-open" data-act="to" data-to="day/${d}"><em class="al-dl">${dayLabel(d)}</em> <span>View day →</span></button></h3>
     <div class="al-g">${dayItems(d).flatMap(g => g.routes.flatMap(r => r.items)).map(x => x.html).join('')}</div></div>`).join('')}</div>`
     : `<div class="al${alSel ? ' sel' : ''}">${days.map(d => `<div class="al-d"><h3><button type="button" class="day-open" data-act="to" data-to="day/${d}"><em class="al-dl">${dayLabel(d)}</em> <span>View day →</span></button></h3>
-    <div class="al-gg">${dayItems(d).map(g => stack(d, g)).join('')}</div></div>`).join('')}</div>`;
+    <div class="al-gg">${dayItems(d).map(g => stack(d, g)).join('')}</div>${strip(d)}</div>`).join('')}</div>`;
   const filteredCount = days.reduce((k, d) => k + dayItems(d).reduce((m, g) => m + g.routes.reduce((q, r) => q + r.items.length, 0), 0), 0);
   // the filters in use, each one a chip you can take off
   const rsel = alRoute ? album({ index: true }).routes.find(r => r.key === alRoute) : null;
@@ -3117,10 +3122,13 @@ const actions = {
         <button class="row del" type="button" data-act="vdel" data-i="${c.id}"><span class="row-t"><strong>Delete video</strong><span>It stays in your camera roll</span></span></button></div>`); },
   cvis: b => { const c = byId(b.dataset.i), me = b.dataset.v === 'me'; closeAll(); if (!!c.hidden === me) return; c.hidden = me; render(); toast(me ? 'Only you · removed from Community' : 'Public · in Community'); },
   fpull: b => { const c = byId(b.dataset.i); c.hidden = true; closeAll(); render(); toast('Removed from Community · still in your videos'); },
-  alsel: () => { alSel = alSel ? null : new Set(); render(); },
+  alsel: () => { alSel = alSel ? null : new Set(); alOpen = null; render(); },
+  alopen: b => { alOpen = alOpen === b.dataset.k ? null : b.dataset.k; render();
+    if (alOpen) requestAnimationFrame(() => document.querySelector('.al-strip')?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' })); },
   alstack: b => { const ids = b.dataset.ids.split(',').filter(Boolean), all = ids.every(i => alSel.has(i)); ids.forEach(i => all ? alSel.delete(i) : alSel.add(i)); render(); },
   alpick: b => { const id = b.dataset.i; alSel.has(id) ? alSel.delete(id) : alSel.add(id); b.setAttribute('aria-pressed', alSel.has(id));
-    $('cta').innerHTML = alCta(); const h = $('alcount'); if (h) h.textContent = alSel.size ? `${alSel.size} selected` : 'Select videos'; },
+    $('cta').innerHTML = alCta(); const h = $('alcount'); if (h) h.textContent = alSel.size ? `${alSel.size} selected` : 'Select videos';
+    if (b.closest('.al-strip')) { const x = $('main').querySelector('.al-row')?.scrollLeft || 0; render(); const r = $('main').querySelector('.al-row'); if (r) r.scrollLeft = x; } },
   alvis: b => { const me = b.dataset.v === 'me', k = alSel.size; alSel.forEach(id => { const c = byId(id); if (c) c.hidden = me; }); alSel = null; render();
     toast(`${n(k, 'video', 'videos')} · ${me ? 'only you' : 'public'}`); },
   aldel: () => { const k = alSel.size; if (!k) return;
