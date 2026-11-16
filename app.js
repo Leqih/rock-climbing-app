@@ -1360,6 +1360,8 @@ function viewVs(a) {
         ${vsRow('Moving', `${A.moving}%`, `${B.moving}%`)}</div>
       <p class="an-n"><span>Counted by Spotter from both videos, from the first move to the last.</span>${notes.map(s => ` <span>${s}</span>`).join('')}</p>` : ''}
     </div></div>
+    ${(() => { const mine = newestClips().filter(m => m.ri === c.ri); return mine.length > 1 ? `<div class="hl2 dk2"><h2>Your try</h2></div>
+      <div class="fchips">${mine.map(m => `<button type="button" data-act="to" data-to="vs/${m.id}-${x.i}" aria-pressed="${m === c}">Try ${tryOf(m)}${topOf(m) ? ' · topped' : ''}</button>`).join('')}</div>` : ''; })()}
     ${peers.length > 1 ? `<div class="hl2 dk2"><h2>Compare with someone else</h2></div>
       <div class="fchips">${peers.map(p => `<button type="button" data-act="to" data-to="vs/${c.id}-${p.i}" aria-pressed="${p === x}">${p.who}</button>`).join('')}</div>` : ''}
     </div>` };
@@ -1523,12 +1525,14 @@ function chooseComparison(i) {
       ${mine && theirs.length ? `<div class="compare-list">${theirs.map(it).join('')}</div>` : '<p class="cap">Nobody else has posted a video of this route yet. Once someone does, you can play theirs next to yours.</p>'}`);
     return;
   }
+  // their video against yours, straight away: your best try on the route (the newest one you topped, else the newest).
+  // The other tries are one tap away on the compare page
   const candidates = newestClips().filter(c => c.ri === route && c.v !== video.i);
-  if (candidates.length === 1) { closeAll(); go(`vs/${candidates[0].id}-${video.i}`); return; }
+  if (candidates.length) { const best = candidates.find(c => topOf(c)) || candidates[0]; closeAll(); go(`vs/${best.id}-${video.i}`); return; }
   const others = newestClips().filter(c => c.ri !== route);
   const item = (c, disabled = false) => `<button class="compare-choice" type="button" ${disabled ? 'disabled' : `data-act="fchoosepick" data-c="${c.id}" data-v="${video.i}"`}><img src="${pic(esc(c.img))}" alt=""><span><strong>${esc(rname(ROUTES[c.ri]))} · Try ${tryOf(c)}</strong><small>${esc(dayLabel(agoOf(c)))} · ${esc(gymName(c))}</small><small>${disabled ? 'Different route' : topOf(c) ? 'Topped' : 'Not topped'}</small></span>${disabled ? '' : ic.arr('#111111')}</button>`;
-  pane(`<h2>Choose your video</h2><span class="sub">Compare with ${esc(post.who)} on ${esc(rname(ROUTES[route]))}</span>
-    ${video.who === 'You' ? '<p class="cap">Open another climber’s video to compare it with one of your tries.</p>' : candidates.length ? `<div class="compare-list">${candidates.map(c => item(c)).join('')}</div>` : '<p class="cap">You don’t have another video on this route yet. Import or film a try to compare.</p><button class="b-lime compare-import" type="button" data-act="upload">Import a video</button>'}
+  pane(`<h2>Compare with ${esc(post.who)}</h2><span class="sub">On ${esc(rname(ROUTES[route]))}</span>
+    ${video.who === 'You' ? '<p class="cap">Open another climber’s video to compare it with one of your tries.</p>' : candidates.length ? `<div class="compare-list">${candidates.map(c => item(c)).join('')}</div>` : '<p class="cap">You haven’t climbed this route on video yet. Film or import a try, and it opens next to theirs.</p><button class="b-lime compare-import" type="button" data-act="upload">Import a video</button>'}
     ${video.who !== 'You' && others.length ? `<h3 class="compare-heading">Other routes</h3><p class="cap">Choose a video on the same route to compare.</p><div class="compare-list">${others.map(c => item(c, true)).join('')}</div>` : ''}`);
 }
 function feedOptions(i) {
