@@ -286,10 +286,11 @@
     await load();
     const v = document.createElement('video');
     Object.assign(v, { muted: true, playsInline: true, preload: 'auto', src });
-    v.style.cssText = 'position:fixed;left:0;top:0;width:2px;height:2px;opacity:0;pointer-events:none';   // on the page, or phones won't decode it
+    v.style.cssText = 'position:fixed;left:0;top:0;width:2px;height:2px;opacity:.01;pointer-events:none';   // on the page, or phones won't decode it
     document.body.appendChild(v);
     try {
-      await new Promise((ok, no) => { v.addEventListener('loadeddata', ok, { once: true }); v.addEventListener('error', no, { once: true }); });
+      if (window.openVideo) await window.openVideo(v, 20000);
+      else await new Promise((ok, no) => { v.addEventListener('loadeddata', ok, { once: true }); v.addEventListener('error', no, { once: true }); });
       const W = v.videoWidth, H = v.videoHeight, D = v.duration, n = Math.floor(D * HZ), st = { ...fresh(), seed: seed || undefined }, S = [];
       let was = null, here = [1, 0, 0, 0];
       for (let i = 0; i < n; i++) {
@@ -310,6 +311,7 @@
   const kept = async src => { if (seenBefore[src]) return seenBefore[src];
     try { const k = JSON.parse(localStorage.getItem(KEEP + src)); if (k) return k; } catch {}
     // the sample videos ship with their scan (the same scan, run once ahead), so nobody waits a minute in a demo
+    if (!src.endsWith('.mp4')) return null;   // a video from your phone has no scan shipped with it
     try { const r = await fetch(src.replace('.mp4', '.track.json')); if (r.ok) return seenBefore[src] = await r.json(); } catch {}
     return null; };
   window.__scan = src => scan(src); window.__results = T => results(T.S, T.moves, T.D, T.W, T.H); window.__moves = T => findMoves(T.S, T.W, T.H); window.__chance = async T => Array.from(netChance(await loadNet(), T.S, T.W, T.H));   // to bake the sample videos again
@@ -326,8 +328,10 @@
   const stills = {}; let still = null, line = Promise.resolve();
   const onEvent = (el, name, ms) => new Promise((ok, no) => { const t = setTimeout(() => no(new Error(name)), ms); el.addEventListener(name, () => { clearTimeout(t); ok(); }, { once: true }); });
   async function frameAt(src, t) {
-    if (!still) { still = document.createElement('video'); still.muted = true; still.playsInline = true; still.preload = 'auto'; }
-    if (still.getAttribute('src') !== src) { still.setAttribute('src', src); await onEvent(still, 'loadeddata', 8000); }
+    // on the page and played once, or an iPhone never loads it
+    if (!still) { still = document.createElement('video'); still.muted = true; still.playsInline = true; still.preload = 'auto';
+      still.style.cssText = 'position:fixed;left:0;top:0;width:2px;height:2px;opacity:.01;pointer-events:none'; document.body.appendChild(still); }
+    if (still.getAttribute('src') !== src) { still.setAttribute('src', src); if (window.openVideo) await window.openVideo(still, 8000); else await onEvent(still, 'loadeddata', 8000); }
     const seek = onEvent(still, 'seeked', 5000); still.currentTime = t + .001; await seek;
   }
   async function grab(src, T, s, mark, tone) {
@@ -692,7 +696,7 @@
   function drawLive(ctx, f, t, T) {
     const W = T.W, H = T.H, px = toScreen(ctx, T);
     const G = window.poseGate || {}, L0 = window.poseLayers || { pose: true };
-    const L = { ...L0, lock: L0.lock && G.arms !== false, angles: L0.angles && G.angles !== false, balance: L0.balance && G.balance !== false };
+    const L = { ...L0, lock: L0.lock && (G.lock ?? G.arms) !== false, angles: L0.angles && G.angles !== false, balance: L0.balance && G.balance !== false };
     const info = { state: '', tag: '' };
     if (!f) return info;
     const p = f.pts, u = 1 / px, held = holding(T, t), seen = i => p[i] && p[i].v >= .3;

@@ -456,14 +456,27 @@ function drawRoll() {
     : `<p class="hint">All videos are already in your album.</p><button class="btn-l" type="button" data-act="close">Done</button>`}`);
 }
 // a video from your phone: read its length, shape and first frame, then it's a try like any other, waiting to be analysed
+// some phones and Windows give a video no type, so the name decides too
+const isVideo = f => !!f && (f.type.startsWith('video/') || (!f.type && /\.(mp4|m4v|mov|webm|3gp|mkv|avi)$/i.test(f.name)));
+// a video on the page that isn't playing: phones (iPhone above all) don't load it until it is played once, so play it muted and
+// pause at once. Then its length: some recordings only know it after a seek to the end
+async function openVideo(v, ms = 15000) {
+  await new Promise((ok, no) => { const t = setTimeout(() => no(new Error('slow')), ms);
+    v.addEventListener('loadeddata', () => { clearTimeout(t); ok(); }, { once: true });
+    v.addEventListener('error', () => { clearTimeout(t); no(new Error(v.error?.code === 4 ? 'codec' : 'read')); }, { once: true });
+    v.load(); v.play?.().then(() => v.pause()).catch(() => {}); });
+  if (!isFinite(v.duration)) await new Promise(ok => { const t = setTimeout(ok, 3000); v.addEventListener('durationchange', () => { if (isFinite(v.duration)) { clearTimeout(t); ok(); } }); v.currentTime = 1e7; });
+  v.pause();
+}
+window.openVideo = openVideo;
 async function importFile(f) {
-  if (!f || !f.type.startsWith('video/')) { toast('That isn’t a video'); return; }
+  if (!isVideo(f)) { toast('That isn’t a video'); return; }
   const src = URL.createObjectURL(f), v = document.createElement('video');
   Object.assign(v, { muted: true, playsInline: true, preload: 'auto', src });
-  v.style.cssText = 'position:fixed;left:0;top:0;width:2px;height:2px;opacity:0;pointer-events:none'; document.body.appendChild(v);
+  v.style.cssText = 'position:fixed;left:0;top:0;width:2px;height:2px;opacity:.01;pointer-events:none'; document.body.appendChild(v);
   toast('Opening your video…');
   try {
-    await new Promise((ok, no) => { v.addEventListener('loadeddata', ok, { once: true }); v.addEventListener('error', no, { once: true }); setTimeout(() => no(new Error('slow')), 15000); });
+    await openVideo(v);
     const D = v.duration;
     if (!isFinite(D) || D < 2) throw new Error('short');
     await new Promise(ok => { v.addEventListener('seeked', ok, { once: true }); v.currentTime = Math.min(.5, D / 2); });
@@ -475,7 +488,7 @@ async function importFile(f) {
     const c = addClip(V.length - 1, { gy: null, id: mineN++ });
     closeAll(); cTab = 'why'; go(`clip/${c.id}`);
     if (D > 240) toast('A long video takes a while to analyse. Trim it to the climb first if you can');
-  } catch (e) { URL.revokeObjectURL(src); toast(e.message === 'short' ? 'That video is too short' : 'Couldn’t open that video. Try an MP4 or MOV'); }
+  } catch (e) { URL.revokeObjectURL(src); toast(e.message === 'short' ? 'That video is too short' : e.message === 'codec' ? 'This browser can’t play that video format. Save it as an H.264 MP4 and try again' : 'Couldn’t open that video. Try an MP4'); }
   finally { v.remove(); }
 }
 // your imported videos stay on this phone between visits: the file itself, its picture, and the try with its analysis, in
@@ -651,12 +664,12 @@ function stripWire(v, T) {
   const cvs = [...row.querySelectorAll('canvas')];
   // frames come from a second, hidden copy of the video, one seek at a time
   const s = document.createElement('video'); s.muted = true; s.playsInline = true; s.preload = 'auto'; s.src = v.currentSrc || v.src;
-  s.style.cssText = 'position:fixed;left:0;top:0;width:2px;height:2px;opacity:0;pointer-events:none'; document.body.appendChild(s);
+  s.style.cssText = 'position:fixed;left:0;top:0;width:2px;height:2px;opacity:.01;pointer-events:none'; document.body.appendChild(s);
   let i = 0; const next = () => { if (i >= N || !box.isConnected) { s.remove(); return; } s.currentTime = Math.min(D - .05, (i + .5) / N * D); };
   s.addEventListener('seeked', () => { const cv = cvs[i], g = cv.getContext('2d'), ar = s.videoWidth / s.videoHeight, w = cv.width, h = cv.height;
     const sw = ar > w / h ? s.videoHeight * w / h : s.videoWidth, sh = ar > w / h ? s.videoHeight : s.videoWidth * h / w;
     g.drawImage(s, (s.videoWidth - sw) / 2, (s.videoHeight - sh) / 2, sw, sh, 0, 0, w, h); i++; next(); });
-  s.addEventListener('loadeddata', next, { once: true }); s.addEventListener('error', () => s.remove(), { once: true });
+  openVideo(s, 10000).then(next, () => s.remove());
   const seek = e => { const r = box.getBoundingClientRect(); v.currentTime = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)) * (v.duration || D); };
   let drag = false;
   box.addEventListener('pointerdown', e => { e.stopPropagation(); drag = true; v.pause(); box.setPointerCapture(e.pointerId); seek(e); });
@@ -912,8 +925,11 @@ function quality(T) {
   let jumps = 0, pairs = 0;
   for (let i = 1; i < S.length; i++) { if (!S[i].p || !S[i - 1].p) continue; pairs++; const a = tor(S[i - 1]), b = tor(S[i]); if (Math.hypot(a.hx - b.hx, a.hy - b.hy) > Math.max(a.l, b.l)) jumps++; }
   const m = { seen: seen.length / (S.length || 1), size: med(seen.map(s => tor(s).l / T.H)), feet: seen.filter(s => s.p[11][2] > .5 && s.p[12][2] > .5).length / (seen.length || 1),
-    arms: (T.stats?.armRead ?? 0) / 100, jumps: jumps / (pairs || 1) };
-  const ok = { arms: m.arms >= .3, balance: m.feet >= .7 && m.seen >= .5, angles: m.arms >= .3 && m.size >= .06, tags: m.size >= .05 && m.seen >= .5 };
+    arms: (T.stats?.armRead ?? 0) / 100, jumps: jumps / (pairs || 1),
+    armSecs: S.filter(s => s.p && (s.el != null || s.er != null)).length / (T.hz || 10) };
+  // arm lock is drawn frame by frame, only where an arm is really read, so a few clear seconds are enough to turn it on.
+  // On The Way Up's far-off videos that's 3-20 s, while the share stays under 30%. Percentages and arm angles keep the 30%
+  const ok = { arms: m.arms >= .3, lock: m.armSecs >= 3, balance: m.feet >= .7 && m.seen >= .5, angles: m.arms >= .3 && m.size >= .06, tags: m.size >= .05 && m.seen >= .5 };
   const level = m.seen < .5 || m.size < .04 || m.jumps > .03 ? 'poor' : !ok.arms || !ok.balance || m.size < .06 || m.seen < .7 ? 'fair' : 'good';
   // what's off, why, and how to film it next time
   const issues = [];
@@ -921,12 +937,12 @@ function quality(T) {
   if (m.seen < .5) issues.push([`We saw you in ${Math.round(m.seen * 100)}% of the video`, 'Keep your whole body in the picture, from start to top.']);
   else if (m.seen < .7) issues.push([`We saw you in ${Math.round(m.seen * 100)}% of the video`, 'Parts of the climb were out of the picture.']);
   if (m.size < .06) issues.push(['You’re small in the picture', 'Film a little closer, or zoom in once, so you fill more of the screen.']);
-  if (!ok.arms) issues.push(['Your arms were hard to read', 'So arm lock and arm angles are off for this video.']);
+  if (!ok.arms) issues.push(['Your arms were hard to read', ok.lock ? 'So arm angles are off. Arm lock shows only where your arms can be seen.' : 'So arm lock and arm angles are off for this video.']);
   if (m.feet < .7) issues.push(['Your feet were often hidden', 'So balance and centre of mass are off for this video.']);
   const q = { ...m, ok, level, issues };
   QCACHE.set(T, q); return q;
 }
-const OFFWHY = { lock: 'arms', angles: 'angles', balance: 'balance' };
+const OFFWHY = { lock: 'lock', angles: 'angles', balance: 'balance' };
 const offWhy = k => k === 'angles' ? 'Your arms were too small or hidden to read their angles in this video' : k === 'lock' ? 'Your arms were hard to read in this video, so arm lock is off' : 'Your feet were often hidden in this video, so balance is off';
 // at the top of Summary: how clear the video is. One line when it's clear; what's off and how to film it when it isn't
 function qualityCard(q) {
