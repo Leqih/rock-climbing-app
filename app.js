@@ -1408,7 +1408,7 @@ function vsWire(c, x) {
   // each video follows its own climber, zoomed in; where the scan can't see them, it stays where they were last seen
   [[a, $('pc0'), TA], [b, $('pc1'), TB]].forEach(([v, cv, Tr]) => {
     // the box is taller than the video is wide: the video covers it, and the camera keeps the climber in the middle
-    let cx = .5, cy = .6; const Z = 1.35, box = v.parentElement;
+    let cx = .5, cy = .6; const Z = 1.6, box = v.parentElement;
     const step = () => { if (!v.isConnected) return; const p = window.poseBox?.(Tr, v.currentTime);
       if (p) { cx += ((p.x0 + p.x1) / 2 - cx) * .12; cy += ((p.y0 + p.y1) / 2 - cy) * .12; }
       const w = box.clientWidth, h = box.clientHeight, ar = v.videoWidth ? v.videoWidth / v.videoHeight : (Tr.W && Tr.H ? Tr.W / Tr.H : .5625);
@@ -1956,7 +1956,8 @@ function viewOtherGym(i) {
       <div class="gy-sh">Here</div><div class="gy-has">${g.has.map(h => `<span>${h}</span>`).join('')}</div>
       <p class="cap">From ${g.src}, Nov 2026.</p></div>
     <div class="rows"><div class="row"><span class="row-t"><strong>No videos from here yet</strong><span>Spotter’s routes and side by sides are at ${gym.name} for now.</span></span></div></div>
-    <button class="b-lime gy-cta" type="button" data-act="plan" data-g="${i}">Plan a session here</button>`, after: carWire };
+    <a class="b-lime gy-cta" href="https://${g.src}" target="_blank" rel="noopener">Buy a day pass · ${g.pass.split(' · ')[0]} <span aria-hidden="true">↗</span></a>
+    <p class="gy-cta-n">On ${g.src.replace(/\/.*$/, '')}, the gym’s own site</p>`, after: carWire };
 }
 function carWire() {
   const car = $('gycar'), dots = $('gydots'); if (!car || !dots) return;
