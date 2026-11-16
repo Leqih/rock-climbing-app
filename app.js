@@ -749,11 +749,16 @@ function stickWire(box, full) {
   const fit = () => {
     if (!box.isConnected) { scr.removeEventListener('scroll', fit); m.removeEventListener('tabchange', onTab); return; }
     const y = scr.scrollTop, k = Math.min(1, Math.max(0, (y - start) / (D - start))), h = full - (full - MIN) * k;
-    const bw = `min(100%, ${Math.round(h * ar)}px)`, top = Math.round(gap / 2 * (1 - k));
-    box.style.width = bw; if (strip) strip.style.width = `min(100%, ${Math.max(300, Math.round(h * ar))}px)`;   // small video: the strip stays wide enough to drag along w.style.paddingTop = `${top}px`;
+    const vw = Math.min(w.clientWidth, Math.round(h * ar)), top = Math.round(gap / 2 * (1 - k));
+    box.style.width = `${vw}px`; w.style.paddingTop = `${top}px`;
     w.style.setProperty('--bh', `${top * 2 + h + STRIP + 8}px`);
-    // the layer buttons: on the video's right edge while it fills the screen, beside it in the space either side once it's small
-    w.style.setProperty('--vc', `${top + h / 2}px`); w.style.setProperty('--vh', `${h}px`);
+    // the layer buttons: on the video's right edge while it fills the screen. Pulled up, the video and the buttons are one
+    // group, side by side and centred together, the buttons as tall as the video; the strip under them is as wide as both
+    const lyr = w.querySelector(':scope > .lyr'), up = k >= .5, lw = lyr ? lyr.offsetWidth : 0, shift = up && lyr ? (lw + 8) / 2 : 0;
+    box.style.left = `${-shift}px`;
+    if (lyr) { const right = (w.clientWidth + vw) / 2 - shift;
+      lyr.style.left = `${up ? right + 8 : right - lw - 6}px`; lyr.style.top = `${top + h / 2}px`; lyr.style.maxHeight = `${up ? h : h - 16}px`; }
+    if (strip) strip.style.width = `${Math.min(w.clientWidth, Math.max(up ? vw + 8 + lw : vw, 260))}px`;
     w.classList.toggle('stuck', y > 4); tabs.classList.toggle('stuck', k >= 1);
     // the header's background fades in as the sheet comes up, in step with the video, instead of switching on
     phone?.style.setProperty('--sk', k.toFixed(3)); phone?.classList.toggle('onvid', k < .5); if (anSheet) anSheet.k = k;

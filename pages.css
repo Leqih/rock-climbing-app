@@ -2664,8 +2664,10 @@ textarea.note:focus { outline: 2px solid var(--ink); outline-offset: 0; backgrou
 .al-an.ask { background: var(--orange); color: var(--ink); }
 @media (prefers-reduced-motion: reduce) { .al-an::before { transition: none; } }
 
-/* the layer buttons sit beside the video, not in it: on its right edge while it fills the screen, in the space to its right
-   once the sheet is up and the video is small */
-.lv-w.two > .lyr { top: var(--vc, 50%); max-height: calc(var(--vh, 100%) - 16px); right: 6px; }
-.phone:not(.onvid) .lv-w.two > .lyr { right: 0; max-height: calc(var(--vh, 100%) + 8px); }
+/* the layer buttons sit beside the video, not in it (placed by stickWire): on its right edge while it fills the screen,
+   next to it once the sheet is up, as tall as the video, with the icons packed tighter */
+.lv-w.two > .lyr { right: auto; }
+.lv-w.two > .clip { position: relative; }
+.phone:not(.onvid) .lv-w.two > .lyr { gap: 0; padding: 3px; border-radius: 12px; }
+.phone:not(.onvid) .screen.snap .lv-w.two > .lyr button { width: 32px; padding: 3px 0; }
 .lv-sp { display: block; }
