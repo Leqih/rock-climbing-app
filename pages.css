@@ -2712,3 +2712,30 @@ textarea.note:focus { outline: 2px solid var(--ink); outline-offset: 0; backgrou
 .cam-err div { display: flex; gap: 8px; justify-content: center; margin-top: 10px; }
 .cam-err button { min-height: 44px; padding: 0 18px; border-radius: 999px; background: #373c38; color: #fff; font-weight: 800; }
 .cam-err button:last-child { background: #c4f52a; color: #111; }
+
+/* camera: the live picture edge to edge, dark fades top and bottom so the controls read over any wall */
+.camx:not(.mapx)::before, .camx:not(.mapx)::after { content: ''; position: absolute; left: 0; right: 0; z-index: 1; pointer-events: none; }
+.camx:not(.mapx)::before { top: 0; height: 170px; background: linear-gradient(rgba(0,0,0,.55), transparent); }
+.camx:not(.mapx)::after { bottom: 0; height: 230px; background: linear-gradient(transparent, rgba(0,0,0,.6)); }
+.camx:not(.mapx) > :not(video) { z-index: 2; }
+.cam-top.rec { justify-content: center; }
+.cam-top [hidden] { display: none; }
+.cam-top .cam-recording { position: static; margin: 0; height: 30px; padding: 0 12px; border-radius: 999px; font-size: 13px; }
+.cam-chip.todo { background: rgba(20,24,22,.55); color: #fff; box-shadow: inset 0 0 0 1.5px rgba(255,255,255,.75); }
+.cam-chip.todo .cam-chevron { stroke: #fff; }
+/* four corner marks: where the route should sit */
+.camx:not(.mapx) .cam-fr { border: 0; top: calc(var(--sb) + 104px); bottom: 200px; left: 24px; right: 24px; }
+.cam-fr i { position: absolute; width: 26px; height: 26px; border: 3px solid rgba(255,255,255,.9); }
+.cam-fr i:nth-child(1) { top: 0; left: 0; border-width: 3px 0 0 3px; border-top-left-radius: 8px; }
+.cam-fr i:nth-child(2) { top: 0; right: 0; border-width: 3px 3px 0 0; border-top-right-radius: 8px; }
+.cam-fr i:nth-child(3) { bottom: 0; left: 0; border-width: 0 0 3px 3px; border-bottom-left-radius: 8px; }
+.cam-fr i:nth-child(4) { bottom: 0; right: 0; border-width: 0 3px 3px 0; border-bottom-right-radius: 8px; }
+.cam-guide { display: block; left: 50%; right: auto; bottom: 156px; transform: translateX(-50%); max-width: calc(100% - 48px); margin: 0; padding: 7px 14px; border-radius: 999px; background: rgba(20,24,22,.72); font-size: 12px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-shadow: none; }
+.cam-bot { bottom: 48px; }
+.cam-imp { justify-self: start; display: grid; justify-items: center; gap: 4px; width: 56px; color: #fff; font-size: 11px; font-weight: 700; }
+.cam-imp svg { width: 44px; height: 44px; padding: 10px; border-radius: 14px; background: rgba(255,255,255,.16); fill: none; stroke: #fff; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.cam-imp:active svg { background: rgba(255,255,255,.3); }
+.shut { transition: transform .12s; }
+.shut:active { transform: scale(.94); }
+.shut.ask i { background: rgba(255,255,255,.28); }
+.cam-shutter-label { bottom: 26px; }
