@@ -31,7 +31,8 @@ h1, h2, p { margin: 0; }
 .hw.side { right: -3px; top: 262px; height: 96px; border-radius: 0 2px 2px 0; }
 .hw.cc { right: -2px; top: 528px; width: 2px; height: 66px; border-radius: 0 2px 2px 0; background: #8F897F; }
 /* clip, not hidden: a hidden box can still be scrolled by focus or scrollIntoView, which pushed the clock off and lifted the sheets */
-.screen { position: relative; height: 100%; overflow-y: auto; scrollbar-width: none; padding: 54px 0 120px; }
+.phone { --sb: 54px; }   /* the status bar's height: the drawn one in the frame; on a real phone, the phone's own */
+.screen { position: relative; height: 100%; overflow-y: auto; scrollbar-width: none; padding: var(--sb) 0 120px; }
 .screen::-webkit-scrollbar { display: none; }
 .screen.fit { overflow: hidden; padding-bottom: 0; }
 /* blurred photo behind the top half; render() sets its height to end where "Your gym today" starts */
@@ -134,6 +135,10 @@ h1, h2, p { margin: 0; }
   .device { width: 100%; padding: 0; border-radius: 0; background: none; box-shadow: none; zoom: 1; }
   .phone { width: 100%; height: 100vh; height: 100dvh; border-radius: 0; border: 0; }
   .hw { display: none; }
+  /* a real phone has its own status bar and camera: don't draw a second one. Content starts under the phone's own bar */
+  .phone { --sb: max(8px, env(safe-area-inset-top, 0px)); }
+  .status, .island:not(.live) { display: none; }
+  .island.live { top: calc(var(--sb) + 6px); }
 }
 @media (prefers-reduced-motion: reduce) {
   * { animation: none !important; transition: none !important; }

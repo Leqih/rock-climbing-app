@@ -709,6 +709,8 @@ function followWire(box) {
 // with your finger; let go between the two and it goes on to the nearer one. Tap the handle to switch. Once it's up, the
 // sheet's content scrolls on under the video, which stays the same size
 let anSheet = null;
+// the status bar's height: 54 in the drawn phone, the phone's own on a real one (styles.css --sb)
+const sbH = () => parseFloat(getComputedStyle(document.querySelector('.screen')).paddingTop) || 0;
 function stickWire(box, full) {
   const scr = document.querySelector('.screen'), w = box.parentElement, m = w.parentElement, tabs = m.querySelector('.ctabs');
   const ar = box.offsetWidth / box.offsetHeight, phone = scr.closest('.phone');
@@ -718,9 +720,9 @@ function stickWire(box, full) {
   // how far the page scrolls before the sheet's top meets the video: there the video has shrunk all the way. Measured in
   // the page's own pixels (the phone frame is scaled on screen). The video starts shrinking once it reaches the top
   const start = w.offsetTop, D = Math.max(start + 1, Math.round(tabs.offsetTop - MIN - 8));
-  tabs.style.top = `calc(${MIN + 8}px + var(--sk, 0) * 54px)`;   // pulled up, the video sits under the status bar, not behind it
+  tabs.style.top = `calc(${MIN + 8}px + var(--sk, 0) * var(--sb))`;   // pulled up, the video sits under the status bar, not behind it
   const pad = () => {   // enough page under the open tab for the sheet to go all the way up
-    const free = m.offsetHeight - (parseFloat(m.style.paddingBottom) || 0) + 54 + 120 - scr.clientHeight;
+    const free = m.offsetHeight - (parseFloat(m.style.paddingBottom) || 0) + sbH() + 120 - scr.clientHeight;
     const want = `${Math.max(0, Math.ceil(D - free))}px`;
     if (m.style.paddingBottom !== want) m.style.paddingBottom = want; };
   let last = 0, dir = 0, t = null, anim = null;
@@ -2421,7 +2423,7 @@ function render() {
   const bd = document.querySelector('.backdrop'), fold = $('main').querySelector('.fold');
   bd.style.display = fold ? '' : 'none';
   if (v.photo) bd.querySelector('img').src = `${pic(v.photo)}`;
-  if (fold) bd.style.height = `${54 + fold.offsetTop + 40}px`;
+  if (fold) bd.style.height = `${sbH() + fold.offsetTop + 40}px`;
   $('cta').innerHTML = v.cta || '';
   $('camx').hidden = !v.overlay;
   $('camx').innerHTML = v.overlay || '';

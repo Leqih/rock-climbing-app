@@ -752,6 +752,10 @@
     if (steadies.has(T)) return steadies.get(T);
     const S = T.S, n = S.length, J = IDX.length, GAP = Math.max(2, Math.round(1.2 * T.hz)), OK = .3, W = T.W, H = T.H;
     const out = S.map(x => x.p ? x.p.map(q => [...q]) : null);
+    // a hand the model is unsure of: facing the wall, a hand in front of the chest or over the head scores low even where its
+    // place is right (on The Way Up, half the wrists score under .3). With its elbow clearly seen, keep the guess; the length
+    // and jump checks below still throw out the ones that don't fit the arm
+    out.forEach(q => { if (q) [[3, 5], [4, 6]].forEach(([e, w]) => { if (q[w][2] < OK && q[w][2] >= .05 && q[e][2] >= .5) q[w][2] = OK; }); });
     const d = (q, i, r, j) => Math.hypot((q[i][0] - r[j][0]) * W, (q[i][1] - r[j][1]) * H);
     // the torso, shoulders to hips, from the frames that show it; held to near its usual size so one bad frame can't
     // stretch every limb check
@@ -786,12 +790,15 @@
     for (let j = 0; j < J; j++) { const src = out.map((q, k) => good(k, j));
       for (let k = 0; k < n; k++) { if (!out[k] || src[k]) continue;
         let a = k - 1; while (a >= 0 && !src[a]) a--; let b = k + 1; while (b < n && !src[b]) b++;
-        if (a >= 0 && b < n && b - a - 1 <= GAP) { const u = (k - a) / (b - a); out[k][j] = [out[a][j][0] + (out[b][j][0] - out[a][j][0]) * u, out[a][j][1] + (out[b][j][1] - out[a][j][1]) * u, .45]; }
+        // a hand on a hold stays put: back in the same place after a longer gap, it was on that hold all along
+        const held = (j === 5 || j === 6) && a >= 0 && b < n && d(out[a], j, out[b], j) < .3 * tor(k);
+        if (a >= 0 && b < n && (b - a - 1 <= GAP || held)) { const u = (k - a) / (b - a); out[k][j] = [out[a][j][0] + (out[b][j][0] - out[a][j][0]) * u, out[a][j][1] + (out[b][j][1] - out[a][j][1]) * u, .45]; }
         else if (a >= 0 && k - a <= 2) out[k][j] = [out[a][j][0], out[a][j][1], .45]; } }
     // smoothing over five samples (1 2 3 2 1), joint by joint, where they're seen: the model's guess wobbles frame to frame
-    const wt = [1, 2, 3, 2, 1];
-    const sm = out.map((q, k) => q && q.map((o, j) => { if (o[2] < OK) return o; let x = 0, y = 0, w = 0;
-      for (let z = -2; z <= 2; z++) { const r = out[k + z]; if (!r || r[j][2] < OK) continue; x += r[j][0] * wt[z + 2]; y += r[j][1] * wt[z + 2]; w += wt[z + 2]; }
+    // hands move fastest, so they take only the samples either side (0 1 2 1 0): wider, they trail a quick reach
+    const wt = [1, 2, 3, 2, 1], wtHand = [0, 1, 2, 1, 0];
+    const sm = out.map((q, k) => q && q.map((o, j) => { if (o[2] < OK) return o; let x = 0, y = 0, w = 0; const ws = j === 5 || j === 6 ? wtHand : wt;
+      for (let z = -2; z <= 2; z++) { const r = out[k + z]; if (!r || r[j][2] < OK || !ws[z + 2]) continue; x += r[j][0] * ws[z + 2]; y += r[j][1] * ws[z + 2]; w += ws[z + 2]; }
       return [x / w, y / w, o[2]]; }));
     // last: each part of a limb kept within a body's proportions, in the direction it points, so filling and smoothing
     // can't stretch an arm or fold it to nothing
