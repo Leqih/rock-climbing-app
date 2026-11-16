@@ -1341,7 +1341,7 @@ function vsTip(a, b, who, top) {
   if (top && a.t - b.t >= 10) return `${who} climbed it in ${mmss(b.t)}, you in ${mmss(a.t)}. Watch where they go straight on and where you go back.`;
   return `Your numbers are close to ${who}’s. Watch the two side by side, slowed down, and look at where each foot goes.`;
 }
-let pv = null;
+let pv = null, pvRate = 1, vsLay = 'lr';
 function viewVs(a) {
   const [id, k] = String(a).split('-').map(Number), c = byId(id), x = V[k];
   if (!c || !x || x.ri !== c.ri || x.who === 'You') return lostClip();
@@ -1351,12 +1351,16 @@ function viewVs(a) {
   const cmpTop = topOf(c) && x.top;
   const notes = [!x.top && `${x.who}’s video ends before the top, so their time is for less of the route.`, !topOf(c) && 'Your video ends before the top, so your time is for less of the route.'].filter(Boolean);
   return { after: () => { vsFit(); if (ready) vsWire(c, x); else if (!T) setTimeout(() => { if (page === 'vs' && arg === a) render(); }, 800); }, html: `
-    <div class="vs-hero" id="vshero">${bar(`You and ${x.who}`)}
+    <div class="vs-hero${vsLay === 'tb' ? ' tb' : ''}" id="vshero">${bar(`You and ${x.who}`)}
       <span class="an-c">${sw(r)}${rname(r)} · ${gymName(c)}</span>
-      <div class="pv"><figure><span class="pv-b" style="aspect-ratio:${vidOf(c).ar}"><video id="pv0" src="${vsrc(vidOf(c).vid)}" poster="${pic(c.img, 0)}" muted playsinline preload="auto"></video><canvas id="pc0"></canvas></span><figcaption><i class="you"></i>You · try ${tryOf(c)}${topOf(c) ? ' · topped' : ''}</figcaption></figure>
-        <figure><span class="pv-b" style="aspect-ratio:${x.ar}"><video id="pv1" src="${vsrc(x.vid)}" poster="${pic(x.img, 0)}" muted playsinline preload="auto"></video><canvas id="pc1"></canvas></span><figcaption><i class="them"></i>${x.who}${x.top ? ' · topped' : ''}</figcaption></figure></div>
+      <div class="pv"><figure><span class="pv-b" style="aspect-ratio:${vidOf(c).ar}"><video id="pv0" src="${vsrc(vidOf(c).vid)}" poster="${pic(c.img, 0)}" muted playsinline preload="auto"></video><canvas id="pc0"></canvas></span><figcaption><i class="you"></i>You · try ${tryOf(c)}${topOf(c) ? ' · topped' : ''}</figcaption><label class="pv-off"><span>Your start</span><input type="range" data-k="a" min="0" max="1" step="1" aria-label="Where your video starts"></label></figure>
+        <figure><span class="pv-b" style="aspect-ratio:${x.ar}"><video id="pv1" src="${vsrc(x.vid)}" poster="${pic(x.img, 0)}" muted playsinline preload="auto"></video><canvas id="pc1"></canvas></span><figcaption><i class="them"></i>${x.who}${x.top ? ' · topped' : ''}</figcaption><label class="pv-off"><span>${x.who}’s start</span><input type="range" data-k="b" min="0" max="1" step="1" aria-label="Where ${x.who}’s video starts"></label></figure></div>
+      <div class="pv-tl"><input type="range" id="pvr" min="0" max="1000" value="0" aria-label="Both videos, from the start"${ready ? '' : ' disabled'}><span class="num" id="pvtt">0:00</span></div>
+      <p class="pv-sy">Drag each video to the moment its climber leaves the ground. Both then play from there.</p>
       <div class="pv-ctl"><button class="b-lime pv-go" type="button" id="pvg" data-act="pvplay"${ready ? '' : ' disabled'}>${ic.play}${ready ? 'Play side by side' : T ? 'Loading…' : 'Waiting for your analysis…'}</button>
-        <button class="pv-x" type="button" id="pvs" data-act="pvslow" aria-pressed="false">0.5×</button></div>
+        <button class="pv-x" type="button" id="pvs" data-act="pvslow" aria-pressed="${pvRate < 1}">${pvRate < 1 ? '0.5× on' : '0.5×'}</button>
+        <button class="pv-x pv-lu" type="button" data-act="pvsync" aria-pressed="false"${ready ? '' : ' disabled'}>Line up</button>
+        <button class="pv-x" type="button" data-act="pvlay" aria-label="${vsLay === 'lr' ? 'Stack the videos' : 'Put the videos side by side'}">${layIc()}</button></div>
       ${ready ? '<p class="vs-more">Scroll down for what was different</p>' : ''}</div>
     <div class="vsp"><div class="stack"><div class="lt">
       ${ready ? `<div class="pv-t"><b>Try next time</b><span>${vsTip(A, B, x.who, cmpTop)}</span></div>
@@ -1376,6 +1380,9 @@ function viewVs(a) {
     </div>` };
 }
 // the first screen is the two videos: as tall as the phone, under the header
+// the switch shows the layout it changes to
+const layIc = () => vsLay === 'lr' ? '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="3" width="16" height="8" rx="2"/><rect x="4" y="13" width="16" height="8" rx="2"/></svg>'
+  : '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="8" height="16" rx="2"/><rect x="13" y="4" width="8" height="16" rx="2"/></svg>';
 function vsFit() {
   const h = $('vshero'), sc = document.querySelector('.screen'); if (!h || !sc) return;
   h.style.height = `${Math.max(480, sc.clientHeight - (h.getBoundingClientRect().top - sc.getBoundingClientRect().top + sc.scrollTop))}px`;
@@ -1385,6 +1392,13 @@ function vsWire(c, x) {
   const TA = c.track, TB = TRK[x.vid], a0 = Math.max(0, span(TA)[0] - .5), b0 = Math.max(0, span(TB)[0] - .5);
   pv = { a, b, a0, b0, la: climbS(TA) + 1, lb: climbS(TB) + 1, on: false };
   window.posePlay(a, $('pc0'), TA, 'none'); window.posePlay(b, $('pc1'), TB, 'none');
+  const L = () => Math.max(pv.la, pv.lb), rg = $('pvr'), tt = $('pvtt');
+  pv.sync = () => { if (!rg) return; const t = Math.max(0, a.currentTime - pv.a0, b.currentTime - pv.b0); rg.value = Math.round(Math.min(1, t / L()) * 1000); tt.textContent = mmss(t); };
+  if (rg) rg.oninput = () => { if (pv.on) pvPlay(); const t = rg.value / 1000 * L(); a.currentTime = Math.min(pv.a0 + t, a.duration || 1e9); b.currentTime = Math.min(pv.b0 + t, b.duration || 1e9); tt.textContent = mmss(t); };
+  document.querySelectorAll('.pv-off input').forEach(r => { const v = r.dataset.k === 'a' ? a : b, k = `${r.dataset.k}0`;
+    const setMax = () => { r.max = Math.max(1, Math.round((v.duration || 0) * 10)); r.value = Math.round(pv[k] * 10); };
+    if (v.readyState) setMax(); else v.addEventListener('loadedmetadata', setMax, { once: true });
+    r.oninput = () => { if (pv.on) pvPlay(); pv[k] = r.value / 10; v.currentTime = pv[k]; }; });
   const home = (v, t) => { if (v.readyState) v.currentTime = t; else v.addEventListener('loadedmetadata', () => { v.currentTime = t; }, { once: true }); }; home(a, a0); home(b, b0);
   // each video follows its own climber, zoomed in; where the scan can't see them, it stays where they were last seen
   [[a, $('pc0'), TA], [b, $('pc1'), TB]].forEach(([v, cv, Tr]) => {
@@ -1401,11 +1415,11 @@ function vsWire(c, x) {
 }
 function pvPlay() {
   if (!pv) return; const { a, b, a0, b0, la, lb } = pv, label = t => { const g = $('pvg'); if (g) g.innerHTML = `${ic.play}${t}`; };
-  const done = (v, end) => v.ended || v.currentTime >= end - .1, over = () => done(a, a0 + la) && done(b, b0 + lb);
+  const done = (v, end) => v.currentTime >= Math.min(end, v.duration || end) - .15, over = () => done(a, a0 + la) && done(b, b0 + lb);
   if (pv.on) { a.pause(); b.pause(); pv.on = false; label('Play side by side'); return; }
   if (over()) { a.currentTime = a0; b.currentTime = b0; }
-  pv.on = true; label('Pause both'); if (!done(a, a0 + la)) a.play().catch(() => {}); if (!done(b, b0 + lb)) b.play().catch(() => {});
-  const tick = () => { if (!pv?.on || !a.isConnected) return; if (done(a, a0 + la)) a.pause(); if (done(b, b0 + lb)) b.pause(); if (over()) { pv.on = false; label('Watch again'); return; } requestAnimationFrame(tick); }; tick();
+  a.playbackRate = b.playbackRate = pvRate; pv.on = true; label('Pause both'); if (!done(a, a0 + la)) a.play().catch(() => {}); if (!done(b, b0 + lb)) b.play().catch(() => {});
+  const tick = () => { if (!pv?.on || !a.isConnected) return; pv.sync?.(); if (done(a, a0 + la)) a.pause(); if (done(b, b0 + lb)) b.pause(); if (over()) { pv.on = false; label('Watch again'); return; } requestAnimationFrame(tick); }; tick();
 }
 
 /* ---------- A route: your tries and everyone else's ---------- */
@@ -2869,7 +2883,11 @@ const actions = {
   aldelyes: () => { const k = alSel.size; alSel.forEach(id => { const c = byId(id); if (!c) return; clips.splice(clips.indexOf(c), 1); V[c.v].added = false; }); alSel = null; closeAll(); render(); toast(`${n(k, 'video', 'videos')} deleted`); },
   // side by side
   pvplay: () => pvPlay(),
-  pvslow: b => { const on = b.getAttribute('aria-pressed') !== 'true'; b.setAttribute('aria-pressed', on); ['pv0', 'pv1'].forEach(id => { const v = $(id); if (v) v.playbackRate = on ? .5 : 1; }); },
+  pvslow: b => { pvRate = pvRate === 1 ? .5 : 1; b.setAttribute('aria-pressed', pvRate < 1); b.textContent = pvRate < 1 ? '0.5× on' : '0.5×';
+    ['pv0', 'pv1'].forEach(id => { const v = $(id); if (v) v.playbackRate = pvRate; }); if (pv && !pv.on) pvPlay(); },
+  pvsync: b => { const h = $('vshero'), on = !h.classList.contains('sync'); h.classList.toggle('sync', on); b.setAttribute('aria-pressed', on); b.textContent = on ? 'Done' : 'Line up';
+    if (on && pv?.on) pvPlay(); if (!on && pv) { pv.a.currentTime = pv.a0; pv.b.currentTime = pv.b0; pv.sync?.(); } },
+  pvlay: b => { vsLay = vsLay === 'lr' ? 'tb' : 'lr'; $('vshero')?.classList.toggle('tb', vsLay === 'tb'); b.innerHTML = layIc(); b.setAttribute('aria-label', vsLay === 'lr' ? 'Stack the videos' : 'Put the videos side by side'); },
   fwatch: b => watchPane(V[+b.dataset.v]),
   // gym
   gycopy: () => { navigator.clipboard?.writeText(gym.addr).then(() => toast('Address copied'), () => toast(gym.addr)); },
