@@ -564,11 +564,69 @@ async function camStart() {
   camAsk = false;
   if (page !== 'cam' || camStep !== 'frame') camStop(); else render();
 }
-function camStop() { camStream?.getTracks().forEach(t => t.stop()); camStream = null; }
+function camStop() { camStream?.getTracks().forEach(t => t.stop()); camStream = null; clearInterval(camLook); camLook = null; camSeen = { k: 'wait', n: 0, shown: 'wait' }; }
 function camDrop() { if (camRec && camRec.state !== 'inactive') { camRec.onstop = null; camRec.stop(); } camRec = null; filming = false; clearInterval(recT); if (camURL) URL.revokeObjectURL(camURL); camURL = null; camBlob = null; }
 // after each draw of the camera page: the live picture goes back on, or the camera is asked for
 const camAttach = () => { if (camStep !== 'frame') return; const v = $('camv'); if (!camStream) { if (!camErr) camStart(); return; }
-  if (v && v.srcObject !== camStream) { v.srcObject = camStream; v.play().catch(() => {}); } };
+  if (v && v.srcObject !== camStream) { v.srcObject = camStream; v.play().catch(() => {}); }
+  camWatch(); camSay(); };
+// framing, live: a few times a second the picture is read for a body. The note above the shutter says the one thing to fix
+// (or that it's right), and the body we see is drawn over the picture. It has to hold for two reads before the note changes
+let camLook = null, camSeen = { k: 'wait', n: 0, shown: 'wait', since: 0 }, camLast = null;
+const CAM_SAY = {
+  wait: ['', 'Checking the framing…'],
+  none: ['', 'No one in frame yet: stand at the route’s start'],
+  lost: ['bad', 'Can’t see you: keep your whole body in frame'],
+  head: ['bad', 'Head cut off: step back or tilt the phone up'],
+  feet: ['bad', 'Feet cut off: step back or tilt the phone down'],
+  side: ['bad', 'At the edge: move the phone so you’re centred'],
+  big: ['warn', 'Step back: the route above you must fit too'],
+  small: ['warn', 'Too small: move the phone a little closer'],
+  ok: ['ok', 'Whole body in. Check the route’s top fits too'],
+  okRec: ['ok', 'Whole body in frame'],
+};
+function camJudge(f) {
+  if (!f) return 'wait';
+  if (!f.seen) return filming ? 'lost' : 'none';
+  if (!f.head) return 'head'; if (!f.feet) return 'feet'; if (!f.sides) return 'side';
+  if (!filming && f.h > .5) return 'big';
+  if (f.h < .1) return 'small';
+  return filming ? 'okRec' : 'ok';
+}
+function camSay() {
+  const el = $('camfb'); if (!el) return; const [tone, txt] = CAM_SAY[camSeen.shown];
+  el.className = `cam-fb ${tone}`; el.querySelector('span').textContent = txt;
+}
+function camDraw(f) {
+  const cv = $('camov'), v = $('camv'); if (!cv || !v) return;
+  const r = v.getBoundingClientRect(), d = devicePixelRatio || 1;
+  if (cv.width !== Math.round(r.width * d)) { cv.width = Math.round(r.width * d); cv.height = Math.round(r.height * d); }
+  const g = cv.getContext('2d'); g.clearRect(0, 0, cv.width, cv.height); if (!f?.seen) return;
+  // the video fills the screen (object-fit: cover): the same scale and crop here
+  const sc = Math.max(r.width / f.W, r.height / f.H), ox = (r.width - f.W * sc) / 2, oy = (r.height - f.H * sc) / 2;
+  const at = q => [(ox + q.x * f.W * sc) * d, (oy + q.y * f.H * sc) * d];
+  const good = camSeen.shown === 'ok' || camSeen.shown === 'okRec';
+  g.strokeStyle = good ? 'rgba(196,245,42,.9)' : 'rgba(255,190,60,.9)'; g.fillStyle = g.strokeStyle; g.lineWidth = 3 * d; g.lineCap = 'round';
+  [[11, 12], [11, 13], [13, 15], [12, 14], [14, 16], [11, 23], [12, 24], [23, 24], [23, 25], [25, 27], [24, 26], [26, 28]].forEach(([a, b]) => {
+    g.beginPath(); g.moveTo(...at(f.pts[a])); g.lineTo(...at(f.pts[b])); g.stroke(); });
+  const [hx, hy] = at(f.pts[0]); g.beginPath(); g.arc(hx, hy, 9 * d, 0, 7); g.stroke();
+}
+function camWatch() {
+  if (camLook || !window.poseFrame) return;
+  let busy = false;
+  camLook = setInterval(async () => {
+    if (page !== 'cam' || camStep !== 'frame' || !camStream) { clearInterval(camLook); camLook = null; camDraw(null); return; }
+    if (busy || document.hidden) return; busy = true;
+    try {
+      const f = await window.poseFrame($('camv')), k = camJudge(f);
+      camSeen.n = k === camSeen.k ? camSeen.n + 1 : 1; camSeen.k = k;
+      // a climber can be hidden for a moment (a volume, a turn): only after a second and a half does "can't see you" show
+      const need = k === 'lost' ? 6 : 2;
+      if (camSeen.n >= need && camSeen.shown !== k) { camSeen.shown = k; camSay(); }
+      camLast = f; camDraw(f);
+    } finally { busy = false; }
+  }, 250);
+}
 const nextRoll = () => V.find(v => !v.added);
 const HOLD_COLORS = { Green:'#2E9E62', Orange:'#F08A24', Blue:'#3F82CA', Red:'#D74D48', Yellow:'#E3C43A', Purple:'#8F69B8', Pink:'#DE7DA5', White:'#EEEEEE', Black:'#303030' };
 // a video's gym, grade and colour, as you've set them on its page. A video you imported starts with none of them
@@ -605,10 +663,10 @@ function viewCam() {
   const ready = !!camStream, ask = camGym === null || !camColor || !camGrade;
   const why = camErr === 'denied' ? ['Camera access is off', 'Allow the camera for this site in your browser settings, then try again.'] : camErr ? ['No camera here', 'This browser or device can’t film. Import a video you filmed instead.'] : null;
   return { bare: true, dark: true, html: '', after: camAttach, overlay: `
-    <video id="camv" class="cam-live" muted playsinline autoplay aria-label="What your camera sees"></video>
+    <video id="camv" class="cam-live" muted playsinline autoplay aria-label="What your camera sees"></video><canvas id="camov" class="cam-ov" aria-hidden="true"></canvas>
     ${why ? `<div class="cam-err"><strong>${why[0]}</strong><span>${why[1]}</span><div><button type="button" data-act="camtry">Try again</button><button type="button" data-act="upload">Import a video</button></div></div>` : ''}
     <div class="cam-top${filming ? ' rec' : ''}"><button class="bk" type="button" data-act="back" aria-label="Back"${filming ? ' hidden' : ''}>${ic.back}</button><div class="cam-tags" aria-label="Climb details"${filming ? ' hidden' : ''}><button class="cam-chip cam-chip-gym${camGym === null ? ' todo' : ''}" type="button" data-act="campicker" data-kind="gym">${camGym === null ? 'Gym' : gyms[camGym].name}<svg aria-hidden="true" class="cam-chevron" viewBox="0 0 16 16"><path d="m4 6 4 4 4-4"/></svg></button><button class="cam-chip${camGrade ? '' : ' todo'}" type="button" data-act="campicker" data-kind="grade">${camGrade || 'Grade'}<svg aria-hidden="true" class="cam-chevron" viewBox="0 0 16 16"><path d="m4 6 4 4 4-4"/></svg></button><button class="cam-chip${camColor ? '' : ' todo'}" type="button" data-act="campicker" data-kind="color">${camColor ? `<i style="--hold:${HOLD_COLORS[camColor]}"></i>${camColor}` : 'Colour'}<svg aria-hidden="true" class="cam-chevron" viewBox="0 0 16 16"><path d="m4 6 4 4 4-4"/></svg></button></div>${filming ? `<span class="rec-on cam-recording"><i></i><span id="recT" class="num">${mmss(recS)}</span></span>` : ''}</div>
-    <span class="cam-fr" aria-hidden="true"><i></i><i></i><i></i><i></i></span>${why || filming ? '' : !ready ? '<p class="cam-guide">Starting the camera…</p>' : `<div class="cam-tips" role="note"><strong>For an accurate analysis</strong><ul><li>Your whole body in frame, head to feet, the whole way up</li><li>The whole route in frame, from the start holds to the top</li><li>Phone held still or propped up, 3–4 m from the wall</li></ul></div>`}
+    <span class="cam-fr" aria-hidden="true"><i></i><i></i><i></i><i></i></span>${why || filming ? '' : !ready ? '<p class="cam-guide">Starting the camera…</p>' : ''}${why || !ready ? '' : `<p class="cam-fb" id="camfb" role="status" aria-live="polite"><i></i><span></span></p>`}
     <div class="cam-bot">${filming ? '<span></span>' : `<button class="cam-imp" type="button" data-act="upload"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="m3 16 5-5 4 4 3-3 6 6"/><circle cx="16" cy="9" r="1.6"/></svg><span>Import</span></button>`}<button class="shut${filming ? ' on' : ''}${ask && !filming ? ' ask' : ''}" type="button" data-act="shoot" aria-label="${filming ? 'Stop recording' : ask ? 'Set the route first' : 'Start recording'}"${!ready ? ' disabled' : ''}><i></i></button><span></span></div><div class="cam-shutter-label">${filming ? 'Stop' : ask ? 'Set route' : 'Record'}</div>` };
 }
 

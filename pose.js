@@ -308,6 +308,32 @@
     if (q !== null) { if (q) localStorage.setItem('spotter.server', q); else localStorage.removeItem('spotter.server'); }
     s = localStorage.getItem('spotter.server') || CLOUD;
   } catch {} return s === 'off' ? '' : s.replace(/\/+$/, ''); })();
+  // the camera, live: is a whole body in the picture, and where. A few reads a second, one body
+  let live = null;
+  const loadLive = () => live || (live = (async () => {
+    const { FilesetResolver, PoseLandmarker } = await import(`${VIS}/vision_bundle.mjs`);
+    const files = await FilesetResolver.forVisionTasks(`${VIS}/wasm`);
+    const o = delegate => ({ baseOptions: { modelAssetPath: MODEL, delegate }, runningMode: 'VIDEO', numPoses: 1, minPoseDetectionConfidence: .5, minPosePresenceConfidence: .5, minTrackingConfidence: .5 });
+    try { return await PoseLandmarker.createFromOptions(files, o('GPU')); } catch { return PoseLandmarker.createFromOptions(files, o('CPU')); }
+  })());
+  let liveT = 0;
+  window.poseFrame = async v => {
+    const m = await loadLive(); if (!v || !v.videoWidth || v.readyState < 2) return null;
+    liveT = Math.max(liveT + 1, performance.now());
+    let r = null; try { r = m.detectForVideo(v, liveT); } catch { return null; }
+    const k = r?.landmarks?.[0]; if (!k) return { seen: false };
+    const on = i => (k[i].visibility ?? 1) > .5, In = (x, lo = .01, hi = .99) => x > lo && x < hi;
+    const pts = [0, 11, 12, 15, 16, 23, 24, 27, 28].map(i => k[i]);
+    const ys = pts.map(q => q.y), xs = pts.map(q => q.x);
+    const top = Math.min(...ys), bot = Math.max(...ys);
+    return {
+      seen: true, pts: k, W: v.videoWidth, H: v.videoHeight,
+      head: on(0) && In(k[0].y, .03) && top > .005,          // the head, with a little room above it
+      feet: [27, 28].some(on) && [27, 28, 29, 30].every(i => k[i].y < .985),
+      sides: xs.every(x => In(x, .015, .985)),
+      h: bot - top,                                           // how much of the picture's height the body takes
+    };
+  };
   window.poseServer = SERVER;
   async function onServer(src, seed, onP) {
     const blob = await (await fetch(src)).blob();

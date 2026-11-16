@@ -2747,3 +2747,13 @@ textarea.note:focus { outline: 2px solid var(--ink); outline-offset: 0; backgrou
 .cam-tips li { position: relative; padding-left: 20px; font-size: 12px; line-height: 1.35; color: #e9ece9; }
 .cam-tips li::before { content: ''; position: absolute; left: 2px; top: 3px; width: 10px; height: 6px; border: solid #c4f52a; border-width: 0 0 2px 2px; transform: rotate(-45deg); }
 .camx:not(.mapx):has(.cam-tips) .cam-fr { bottom: 274px; }
+
+/* framing, live: the body we see, and one note on what to fix */
+.camx > .cam-ov { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; }
+.cam-fb { position: absolute; left: 50%; bottom: 152px; transform: translateX(-50%); z-index: 2; display: flex; align-items: center; gap: 8px; width: max-content; max-width: calc(100% - 40px); margin: 0; padding: 9px 14px; border-radius: 14px; background: rgba(20,24,22,.8); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); color: #fff; font-size: 13px; font-weight: 700; line-height: 1.3; transition: background .2s; }
+.cam-fb i { flex: none; width: 9px; height: 9px; border-radius: 50%; background: #9aa39c; }
+.cam-fb.ok i { background: #c4f52a; }
+.cam-fb.warn i { background: #ffbe3c; }
+.cam-fb.bad { background: rgba(160,32,24,.86); }
+.cam-fb.bad i { background: #fff; }
+.camx.filming .cam-fb { bottom: 152px; }
