@@ -2997,3 +2997,16 @@ textarea.note:focus { outline: 2px solid var(--ink); outline-offset: 0; backgrou
 .ce-res > span:first-child { min-width: 0; }
 .ce-seg button { flex: none; white-space: nowrap; height: 32px; padding: 0 10px; border-radius: 999px; background: rgba(17,17,17,.06); font-size: 13px; font-weight: 700; color: var(--ink, #111); }
 .ce-seg button[aria-pressed="true"] { background: #111; color: #fff; }
+
+/* the album by day, then gym, then route: a gym is a small heading with a pin, a route a line with its colour and whether you topped it */
+.al-gs + .al-gs { margin-top: 16px; padding-top: 14px; border-top: 1px solid rgba(17,17,17,.08); }
+.al-gh { display: flex; align-items: center; gap: 6px; margin: 0 2px 10px; font-size: 15px; font-weight: 800; color: var(--ink); }
+.al-gh svg { width: 15px; height: 15px; flex: none; }
+.al-gh-n { flex-wrap: wrap; color: #b4561a; }
+.al-gh-n span { font-size: 12px; font-weight: 500; color: #8a8a87; }
+.al-rt + .al-rt { margin-top: 12px; }
+.al-rh { display: flex; align-items: center; gap: 7px; margin: 0 2px 8px; font-size: 13px; color: var(--ink); }
+.al-rh .sw { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+.al-rh b { font-weight: 800; }
+.al-rh > span:last-child { margin-left: auto; font-size: 12px; font-weight: 600; color: #8a8a87; }
+.al-rh > span.on { color: #3f7d10; }

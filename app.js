@@ -418,8 +418,8 @@ function album() {
   const dayGyms = d => [...new Set([...(showVideos ? newest.filter(c => agoOf(c) === d && c.gy != null).map(c => c.gy) : []),
     ...(showManual ? glogs.filter(x => x.ago === d).map(x => x.gy) : []), ...(showManual && logs.some(l => l.ago === d && (l.tries || l.sent)) ? [0] : [])])];
   const tile = (c, many) => `<button class="al-t" type="button" ${alSel ? `data-act="alpick" data-i="${c.id}" aria-pressed="${alSel.has(c.id)}"` : `data-act="to" data-to="clip/${c.id}"`} aria-label="${rname(ROUTES[c.ri])}, try ${tryOf(c)}${topOf(c) ? ', topped' : ''}${c.hidden ? ', only you' : ''}">${alSel ? '<span class="al-ck" aria-hidden="true"></span>' : c.hidden ? `<span class="al-lock" title="Only you">${LOCK}</span>` : ''}
-      <img src="${pic(c.img)}" alt="" loading="lazy"><span class="al-kind">Video · Try ${tryOf(c)}</span>${c.gy == null ? '<span class="al-ng">No gym</span>' : ''}${pgTag(c) || (topOf(c) ? `<span class="al-ok" aria-hidden="true">${ic.check}</span>` : '')}
-      <span class="al-r">${c.need ? '<b>New climb</b>' : `${sw(ROUTES[c.ri])}<b>${ROUTES[c.ri].grade}</b>`}${many && c.gy != null ? `<small class="al-gy">${gyms[c.gy].name}</small>` : ''}</span></button>`;
+      <img src="${pic(c.img)}" alt="" loading="lazy"><span class="al-kind">Video · Try ${tryOf(c)}</span>${pgTag(c) || (topOf(c) ? `<span class="al-ok" aria-hidden="true">${ic.check}</span>` : '')}
+    </button>`;
   // a climb logged by hand has no video and no photo, so it gets one drawn hold: big, in the route's colour, cropped by the
   // corner of the tile with its bolt in the middle. The type leads; the hold only says which colour you climbed. Same record, same hold
   const holdArt = seed => {
@@ -440,7 +440,22 @@ function album() {
   const routeTile = l => { const r = ROUTES[l.ri];
     return handCard({ act: `data-act="to" data-to="route/${l.ri}"`, seed: `r${l.ri}${l.ago}${l.tries}`, hex: r.hex, grade: r.grade, name: `${r.color} · ${r.wall}`, where: gym.name,
       tries: l.tries || 1, res: l.sent ? (l.style || 'Topped') : 'Not yet', sent: l.sent, label: `${rname(r)}, logged by hand` }); };
-  const box = `<div class="al${alSel ? ' sel' : ''}">${days.map(d => { const dg = dayGyms(d), many = dg.length > 1; return `<div class="al-d"><h3><button type="button" class="day-open" data-act="to" data-to="day/${d}"><em class="al-dl">${dayLabel(d)}${dg.length ? `<small class="al-dg">${many ? n(dg.length, 'gym', 'gyms') : gyms[dg[0]].name}</small>` : ''}</em> <span>View day →</span></button></h3><div class="al-g">${showManual ? glogs.map((x,i) => [x,i]).filter(([x]) => x.ago === d).reverse().map(([x,i]) => handTile(x,i)).join('') : ''}${showManual ? logs.filter(l => l.ago === d && (l.tries || l.sent)).map(routeTile).join('') : ''}${showVideos ? newest.filter(c => agoOf(c) === d).map(c => tile(c, many)).join('') : ''}</div></div>`; }).join('')}</div>`;
+  // a day, then the gyms you climbed at that day, then the routes at each: everything on one route sits together, newest try first
+  const dayItems = d => {
+    const it = [];
+    if (showManual) glogs.forEach((x, i) => { if (x.ago === d) it.push({ gy: x.gy, key: `g:${x.color}|${x.g}`, hex: HOLD_COLORS[x.color] || '#8A8F98', name: `${x.color || ''} ${x.g}`.trim(), sent: x.k !== 'Project', html: handTile(x, i) }); });
+    if (showManual) logs.forEach(l => { if (l.ago === d && (l.tries || l.sent)) it.push({ gy: 0, key: `r:${l.ri}`, ri: l.ri, sent: l.sent, html: routeTile(l) }); });
+    if (showVideos) newest.filter(c => agoOf(c) === d).sort((p, q) => tryOf(q) - tryOf(p)).forEach(c => it.push({ gy: c.gy ?? -1, key: c.need ? `n:${c.id}` : `r:${c.ri}`, ri: c.need ? null : c.ri, sent: topOf(c), html: tile(c) }));
+    const groups = [];
+    it.forEach(x => { let g = groups.find(q => q.gy === x.gy); if (!g) groups.push(g = { gy: x.gy, routes: [] });
+      let r = g.routes.find(q => q.key === x.key); if (!r) g.routes.push(r = { key: x.key, ri: x.ri, hex: x.hex, name: x.name, items: [] }); r.items.push(x); });
+    return groups.sort((p, q) => (p.gy < 0) - (q.gy < 0));   // no gym yet goes last
+  };
+  const routeHead = r => { const R = r.ri != null ? ROUTES[r.ri] : null, top = r.items.some(x => x.sent);
+    return `<p class="al-rh">${R ? `${sw(R)}<b>${rname(R)}</b>` : r.key.startsWith('n:') ? '<b>New climb</b>' : `<span class="sw" style="background:${r.hex}"></span><b>${r.name}</b>`}<span class="${top ? 'on' : ''}">${top ? 'Topped' : 'Not topped yet'}</span></p>`; };
+  const gymHead = g => g.gy < 0 ? `<h4 class="al-gh al-gh-n">No gym yet<span>Open a video to add its gym</span></h4>` : `<h4 class="al-gh">${ic.pin}<span>${gyms[g.gy].name}</span></h4>`;
+  const box = `<div class="al${alSel ? ' sel' : ''}">${days.map(d => `<div class="al-d"><h3><button type="button" class="day-open" data-act="to" data-to="day/${d}"><em class="al-dl">${dayLabel(d)}</em> <span>View day →</span></button></h3>
+    ${dayItems(d).map(g => `<section class="al-gs">${gymHead(g)}${g.routes.map(r => `<div class="al-rt">${routeHead(r)}<div class="al-g">${r.items.map(x => x.html).join('')}</div></div>`).join('')}</section>`).join('')}</div>`).join('')}</div>`;
   const filteredCount = (showVideos ? clips.length : 0) + (showManual ? hn : 0);
   const visibleBox = days.length ? box : `<div class="album-empty"><strong>No ${albumFilter === 'videos' ? 'video' : 'manual'} records yet</strong><span>Try another filter to see your climbs.</span><button type="button" data-act="albumfilterset" data-value="all">Show all records</button></div>`;
   const sent = clips.filter(topOf), best = [...sent].sort((p, q) => GR.indexOf(ROUTES[q.ri].grade) - GR.indexOf(ROUTES[p.ri].grade) || agoOf(p) - agoOf(q))[0];
