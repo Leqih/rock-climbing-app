@@ -3101,3 +3101,12 @@ textarea.note:focus { outline: 2px solid var(--ink); outline-offset: 0; backgrou
 .al-stp { padding-bottom: 12px; }
 .al-all { margin-left: auto; height: 28px; padding: 0 12px; border-radius: 999px; background: var(--ink); color: #fff; font-size: 12px; font-weight: 800; white-space: nowrap; }
 .al-all + .al-tx { margin-left: 0; }
+/* on a real phone (and installed to the home screen): the phone draws its own home bar, so we don't; the tab bar, the
+   buttons and the sheets keep clear of it */
+@media (max-width: 480px) {
+  .home-ind { display: none; }
+  .dock, .cta { bottom: max(22px, calc(env(safe-area-inset-bottom, 0px) + 8px)); }
+  .toast { bottom: calc(112px + env(safe-area-inset-bottom, 0px)); }
+  .sheet { padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px)); }
+  .screen { padding-bottom: calc(120px + env(safe-area-inset-bottom, 0px)); }
+}
