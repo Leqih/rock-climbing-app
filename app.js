@@ -305,7 +305,7 @@ let vTab = 'all';
 const vcard = c => { const st = c.an === 'idle' || !c.an ? 'Not analysed' : c.an === 'ask' ? 'Check this' : c.an !== 'done' ? 'Analysing' : topOf(c) ? 'Topped' : 'Not topped', r = ROUTES[c.ri];
   return `<button class="vc${c.hidden ? ' hid' : ''}" type="button" data-act="to" data-to="clip/${c.id}" aria-label="${rname(r)}, try ${tryOf(c)}, ${dayLabel(agoOf(c))}">
     <span class="vc-i"><img src="${pic(c.img)}" alt=""><span class="vc-t">Try ${tryOf(c)}</span>${gymTag(c)}${c.hidden ? `<span class="vc-h">${ic.eyeOff}</span>` : ''}</span>
-    <span class="vc-b"><span class="vc-r">${sw(r)}${rname(r)}</span><b class="${st === 'Topped' ? 'on' : c.an === 'ask' ? 'ask' : ''}">${st}${st === 'Analysing' ? ` <span class="num" data-pg="${c.id}"><b>${pgOf(c) ?? 0}%</b></span>` : ''}</b><span class="vc-d">${dayLabel(agoOf(c))}</span></span></button>`; };
+    <span class="vc-b"><span class="vc-r">${c.need ? 'New climb' : `${sw(r)}${rname(r)}`}</span><b class="${st === 'Topped' ? 'on' : c.an === 'ask' ? 'ask' : ''}">${st}${st === 'Analysing' ? ` <span class="num" data-pg="${c.id}"><b>${pgOf(c) ?? 0}%</b></span>` : ''}</b><span class="vc-d">${dayLabel(agoOf(c))}</span></span></button>`; };
 const vhand = l => { const r = ROUTES[l.ri];
   return `<button class="vc vc-p" type="button" data-act="to" data-to="${l.ago === 0 ? 'session' : `route/${l.ri}`}" aria-label="${rname(r)}, logged by hand, ${dayLabel(l.ago)}">
     <span class="vc-i">${ic.pen}<span class="vc-t g">By hand</span></span>
@@ -371,7 +371,7 @@ function album() {
     ...(showManual ? glogs.filter(x => x.ago === d).map(x => x.gy) : []), ...(showManual && logs.some(l => l.ago === d && (l.tries || l.sent)) ? [0] : [])])];
   const tile = (c, many) => `<button class="al-t" type="button" data-act="to" data-to="clip/${c.id}" aria-label="${rname(ROUTES[c.ri])}, try ${tryOf(c)}${topOf(c) ? ', topped' : ''}">
       <img src="${pic(c.img)}" alt="" loading="lazy"><span class="al-kind">Video · Try ${tryOf(c)}</span>${c.gy == null ? '<span class="al-ng">No gym</span>' : ''}${pgTag(c) || (topOf(c) ? `<span class="al-ok" aria-hidden="true">${ic.check}</span>` : '')}
-      <span class="al-r">${sw(ROUTES[c.ri])}<b>${ROUTES[c.ri].grade}</b>${many && c.gy != null ? `<small class="al-gy">${gyms[c.gy].name}</small>` : ''}</span></button>`;
+      <span class="al-r">${c.need ? '<b>New climb</b>' : `${sw(ROUTES[c.ri])}<b>${ROUTES[c.ri].grade}</b>`}${many && c.gy != null ? `<small class="al-gy">${gyms[c.gy].name}</small>` : ''}</span></button>`;
   // a climb logged by hand has no video and no photo, so it gets one drawn hold: big, in the route's colour, cropped by the
   // corner of the tile with its bolt in the middle. The type leads; the hold only says which colour you climbed. Same record, same hold
   const holdArt = seed => {
