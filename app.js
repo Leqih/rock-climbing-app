@@ -1512,7 +1512,19 @@ function chooseComparison(i) {
   const post = feedAll()[i];
   if (!post) return;
   const video = V[post.v], route = post.c ? post.c.ri : video.ri;
+  // your own post: compare it with someone else's video on the same route. Theirs: with one of your tries on it.
+  // With only one to choose, the two videos open side by side straight away
+  if (video.who === 'You') {
+    const mine = post.c || newestClips().find(c => c.v === video.i);
+    const theirs = V.filter(x => x.who !== 'You' && x.ri === route && x.vid && !x.mine);
+    if (mine && theirs.length === 1) { closeAll(); go(`vs/${mine.id}-${theirs[0].i}`); return; }
+    const it = x => `<button class="compare-choice" type="button" data-act="fvsother" data-c="${mine?.id}" data-v="${x.i}"><img src="${pic(esc(x.img))}" alt=""><span><strong>${esc(x.who)}</strong><small>${esc(dayLabel(x.ago))}${x.top ? ' · Topped' : ''}</small></span>${ic.arr('#111111')}</button>`;
+    pane(`<h2>Compare with a climber</h2><span class="sub">Your try on ${esc(rname(ROUTES[route]))}</span>
+      ${mine && theirs.length ? `<div class="compare-list">${theirs.map(it).join('')}</div>` : '<p class="cap">Nobody else has posted a video of this route yet. Once someone does, you can play theirs next to yours.</p>'}`);
+    return;
+  }
   const candidates = newestClips().filter(c => c.ri === route && c.v !== video.i);
+  if (candidates.length === 1) { closeAll(); go(`vs/${candidates[0].id}-${video.i}`); return; }
   const others = newestClips().filter(c => c.ri !== route);
   const item = (c, disabled = false) => `<button class="compare-choice" type="button" ${disabled ? 'disabled' : `data-act="fchoosepick" data-c="${c.id}" data-v="${video.i}"`}><img src="${pic(esc(c.img))}" alt=""><span><strong>${esc(rname(ROUTES[c.ri]))} · Try ${tryOf(c)}</strong><small>${esc(dayLabel(agoOf(c)))} · ${esc(gymName(c))}</small><small>${disabled ? 'Different route' : topOf(c) ? 'Topped' : 'Not topped'}</small></span>${disabled ? '' : ic.arr('#111111')}</button>`;
   pane(`<h2>Choose your video</h2><span class="sub">Compare with ${esc(post.who)} on ${esc(rname(ROUTES[route]))}</span>
@@ -2735,6 +2747,7 @@ const actions = {
   fshare: async b => { const post = feedAll()[+b.dataset.i], url = new URL(`${vsrc(V[post.v].vid)}`, location.href).href; if (navigator.share) { try { await navigator.share({ title: 'Climbing video', url }); } catch (e) { if (e.name !== 'AbortError') toast('Could not share. Copy the link instead.'); } } else { toast('Sharing is unavailable. Copy the link instead.'); } },
   fcopy: async b => { const input = ask.querySelector('.feed-share-url'); try { await navigator.clipboard.writeText(input.value); toast('Video link copied'); } catch (_) { input.focus(); input.select(); toast('Select and copy the link'); } },
   fchoose: b => chooseComparison(+b.dataset.i),
+  fvsother: b => { const c = byId(b.dataset.c), x = V[+b.dataset.v]; if (!c || !x) return; closeAll(); go(`vs/${c.id}-${x.i}`); },
   fchoosepick: b => { const c = byId(b.dataset.c), video = V[+b.dataset.v]; if (!c || !video || c.ri !== video.ri || c.v === video.i || video.who === 'You') return; closeAll(); go(`vs/${c.id}-${video.i}`); },
   fbeta: b => { closeAll(); moreActions.rbeta(b); },
   freport: b => reportVideo(+b.dataset.i),

@@ -2763,3 +2763,8 @@ textarea.note:focus { outline: 2px solid var(--ink); outline-offset: 0; backgrou
 .fr-first strong { font-size: 16px; }
 .fr-first p { margin: 0; font-size: 13px; line-height: 1.4; color: #5c6660; }
 .fr-first .b-lime { justify-self: start; margin-top: 6px; min-height: 40px; padding: 0 16px; border-radius: 999px; font-weight: 800; }
+
+/* the feed rail: a round face, its name under it (the name was a second grid row that stretched the face into an oval) */
+.ts-av { display: block; margin-bottom: 14px; }
+.ts-av > .ts-face { width: 100%; height: 100%; overflow: hidden; }
+.ts-av > .ts-author { position: absolute; top: calc(100% + 3px); left: 50%; transform: translateX(-50%); }
