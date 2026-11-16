@@ -2921,3 +2921,15 @@ textarea.note:focus { outline: 2px solid var(--ink); outline-offset: 0; backgrou
 .vs-hero.tb .pv figure:first-child .pv-off { bottom: 10px; }
 .vs-hero.sync .pv-b { box-shadow: none; }
 .vs-hero.sync .pv-off { box-shadow: inset 0 0 0 1.5px #c4f52a; }
+
+/* speed and zoom: − value + */
+.vs-step { display: inline-flex; align-items: center; height: 36px; border-radius: 999px; background: rgba(255,255,255,.12); color: #fff; }
+.vs-step button { width: 32px; height: 36px; font-size: 18px; font-weight: 700; color: #fff; }
+.vs-step button:active { opacity: .6; }
+.vs-step b { display: inline-flex; align-items: center; gap: 3px; min-width: 38px; justify-content: center; font-size: 13px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.vs-step b svg { width: 12px; height: 12px; }
+.vs-step b svg * { stroke: #fff; }
+.vs-opts { gap: 6px; }
+.vs-down { font-size: 12px; }
+.vs-opts .pv-x, .vs-step b { white-space: nowrap; }
+.vs-down { flex: none; display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; background: rgba(255,255,255,.12); color: #fff; }

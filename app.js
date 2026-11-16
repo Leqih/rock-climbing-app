@@ -1341,7 +1341,8 @@ function vsTip(a, b, who, top) {
   if (top && a.t - b.t >= 10) return `${who} climbed it in ${mmss(b.t)}, you in ${mmss(a.t)}. Watch where they go straight on and where you go back.`;
   return `Your numbers are close to ${who}’s. Watch the two side by side, slowed down, and look at where each foot goes.`;
 }
-let pv = null, pvRate = 1, vsLay = 'lr';
+let pv = null, pvRate = 1, vsLay = 'lr', vsZ = 1.6;
+const RATES = [.25, .5, 1, 1.5, 2], ZOOMS = [1, 1.3, 1.6, 2, 2.5];
 function viewVs(a) {
   const [id, k] = String(a).split('-').map(Number), c = byId(id), x = V[k];
   if (!c || !x || x.ri !== c.ri || x.who === 'You') return lostClip();
@@ -1362,8 +1363,9 @@ function viewVs(a) {
         <div class="pv-tl"><button class="pv-pp" type="button" id="pvg" data-act="pvplay" aria-label="Play both"${ready ? '' : ' disabled'}>${PLAY}</button>
           <input type="range" id="pvr" min="0" max="1000" value="0" aria-label="Both videos, from the start"${ready ? '' : ' disabled'}><span class="num" id="pvtt">${ready ? '0:00' : T ? 'Loading' : 'Analysing'}</span></div>
         <div class="vs-opts"><button class="pv-x pv-lu" type="button" data-act="pvsync" aria-pressed="false"${ready ? '' : ' disabled'}>Line up</button>
-          <button class="pv-x" type="button" id="pvs" data-act="pvslow" aria-pressed="${pvRate < 1}">Slow 0.5×</button>
-          ${ready ? '<button class="vs-down" type="button" data-act="vsdown">The numbers ↓</button>' : ''}</div></div></div>
+          <span class="vs-step" role="group" aria-label="Speed"><button type="button" data-act="vsrate" data-d="-1" aria-label="Slower">−</button><b id="pvs">${pvRate}×</b><button type="button" data-act="vsrate" data-d="1" aria-label="Faster">+</button></span>
+          <span class="vs-step" role="group" aria-label="Zoom"><button type="button" data-act="vszoom" data-d="-1" aria-label="Zoom out">−</button><b id="pvz">${ic.search}${vsZ}×</b><button type="button" data-act="vszoom" data-d="1" aria-label="Zoom in">+</button></span>
+          ${ready ? '<button class="vs-down" type="button" data-act="vsdown" aria-label="See the numbers"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M6 13l6 6 6-6"/></svg></button>' : ''}</div></div></div>
     <div class="vsp"><div class="stack"><div class="lt">
       ${ready ? `<div class="pv-t"><b>Try next time</b><span>${vsTip(A, B, x.who, cmpTop)}</span></div>
       <div class="pv-n"><div class="pv-nr vs-r vs-h"><span></span><b><i class="you"></i>You</b><b><i class="them"></i>${x.who}</b></div>
@@ -1408,10 +1410,10 @@ function vsWire(c, x) {
   // each video follows its own climber, zoomed in; where the scan can't see them, it stays where they were last seen
   [[a, $('pc0'), TA], [b, $('pc1'), TB]].forEach(([v, cv, Tr]) => {
     // the box is taller than the video is wide: the video covers it, and the camera keeps the climber in the middle
-    let cx = .5, cy = .6; const Z = 1.6, box = v.parentElement;
+    let cx = .5, cy = .6; const box = v.parentElement;
     const step = () => { if (!v.isConnected) return; const p = window.poseBox?.(Tr, v.currentTime);
       if (p) { cx += ((p.x0 + p.x1) / 2 - cx) * .12; cy += ((p.y0 + p.y1) / 2 - cy) * .12; }
-      const w = box.clientWidth, h = box.clientHeight, ar = v.videoWidth ? v.videoWidth / v.videoHeight : (Tr.W && Tr.H ? Tr.W / Tr.H : .5625);
+      const Z = vsZ, w = box.clientWidth, h = box.clientHeight, ar = v.videoWidth ? v.videoWidth / v.videoHeight : (Tr.W && Tr.H ? Tr.W / Tr.H : .5625);
       const vw = Math.max(w, h * ar), vh = vw / ar;
       const tx = Math.min(0, Math.max(w - Z * vw, w / 2 - Z * cx * vw)), ty = Math.min(0, Math.max(h - Z * vh, h / 2 - Z * cy * vh));
       [v, cv].forEach(el => { el.style.width = `${vw.toFixed(1)}px`; el.style.height = `${vh.toFixed(1)}px`; el.style.transformOrigin = '0 0'; el.style.transform = `translate(${tx.toFixed(1)}px, ${ty.toFixed(1)}px) scale(${Z})`; });
@@ -2889,6 +2891,9 @@ const actions = {
   aldelyes: () => { const k = alSel.size; alSel.forEach(id => { const c = byId(id); if (!c) return; clips.splice(clips.indexOf(c), 1); V[c.v].added = false; }); alSel = null; closeAll(); render(); toast(`${n(k, 'video', 'videos')} deleted`); },
   // side by side
   pvplay: () => pvPlay(),
+  vsrate: b => { const i = Math.max(0, Math.min(RATES.length - 1, RATES.indexOf(pvRate) + +b.dataset.d)); pvRate = RATES[i];
+    ['pv0', 'pv1'].forEach(id => { const v = $(id); if (v) v.playbackRate = pvRate; }); const t = $('pvs'); if (t) t.textContent = `${pvRate}×`; },
+  vszoom: b => { const i = Math.max(0, Math.min(ZOOMS.length - 1, ZOOMS.indexOf(vsZ) + +b.dataset.d)); vsZ = ZOOMS[i]; const t = $('pvz'); if (t) t.innerHTML = `${ic.search}${vsZ}×`; },
   pvslow: b => { pvRate = pvRate === 1 ? .5 : 1; b.setAttribute('aria-pressed', pvRate < 1); 
     ['pv0', 'pv1'].forEach(id => { const v = $(id); if (v) v.playbackRate = pvRate; }); if (pv && !pv.on) pvPlay(); },
   pvsync: b => { const h = $('vshero'), on = !h.classList.contains('sync'); h.classList.toggle('sync', on); b.setAttribute('aria-pressed', on); b.textContent = on ? 'Done' : 'Line up';
