@@ -420,9 +420,6 @@ function album(only) {
   const showVideos = albumFilter !== 'manual', showManual = albumFilter !== 'videos';
   const allDays = [...new Set([...(showVideos ? newest.map(agoOf) : []), ...(showManual ? glogs.map(x => x.ago) : []), ...(showManual ? logs.filter(l => l.tries || l.sent).map(l => l.ago) : [])])].sort((a, b) => a - b);
   let days = allDays;   // narrowed to the filters once the items are known (below)
-  // which gyms a day's records are from: one gym goes in the day's header, several go on each video tile
-  const dayGyms = d => [...new Set([...(showVideos ? newest.filter(c => agoOf(c) === d && c.gy != null).map(c => c.gy) : []),
-    ...(showManual ? glogs.filter(x => x.ago === d).map(x => x.gy) : []), ...(showManual && logs.some(l => l.ago === d && (l.tries || l.sent)) ? [0] : [])])];
   const tile = (c, many) => `<button class="al-t" type="button" ${alSel ? `data-act="alpick" data-i="${c.id}" aria-pressed="${alSel.has(String(c.id))}"` : `data-act="to" data-to="clip/${c.id}"`} aria-label="${rname(ROUTES[c.ri])}, try ${tryOf(c)}${topOf(c) ? ', topped' : ''}${c.hidden ? ', only you' : ''}">${alSel ? '<span class="al-ck" aria-hidden="true"></span>' : c.hidden ? `<span class="al-lock" title="Only you">${LOCK}</span>` : ''}
       <img src="${pic(c.img)}" alt="" loading="lazy"><span class="al-kind">Video · Try ${tryOf(c)}</span>${pgTag(c) || (topOf(c) ? `<span class="al-ok" aria-hidden="true">${ic.check}</span>` : '')}
       <span class="al-r">${c.need ? '<b>New climb</b>' : `${sw(ROUTES[c.ri])}<b>${ROUTES[c.ri].grade}</b>`}</span></button>`;
@@ -473,7 +470,7 @@ function album(only) {
   if (only && !only.tray) { const g = dayItems(only.d).find(q => q.gy === only.gy);
     return { name: gname(only.gy), n: g ? g.routes.reduce((k, r) => k + r.items.length, 0) : 0, html: g ? routesOf(g) : '' }; }
   // a day shows one stack per gym: its photos piled up, the gym, how many records and routes. Tap it to see inside
-  const stack = (d, g) => { const all = g.routes.flatMap(r => r.items), k = all.length, top = g.routes.filter(r => r.items.some(x => x.sent)).length;
+  const stack = (d, g) => { const all = g.routes.flatMap(r => r.items).sort((p, q) => !!q.img - !!p.img), k = all.length, top = g.routes.filter(r => r.items.some(x => x.sent)).length;
     const pile = all.slice(0, 3).reverse().map((x, q, a) => `<i class="al-p${a.length - 1 - q}${x.img ? '' : ' al-ph'}"${x.img ? '' : ` style="--hold:${x.col}"`}>${x.img ? `<img src="${pic(x.img)}" alt="" loading="lazy">` : `<span class="alh-pill">By hand</span><strong>${x.g}</strong>${holdArt(x.seed)}`}</i>`).join('');
     const ids = all.filter(x => x.id != null).map(x => String(x.id)), on = alSel ? ids.filter(i => alSel.has(i)).length : 0;
     if (alSel) return `<div class="al-st al-sts${g.gy < 0 ? ' ng' : ''}${ids.length ? '' : ' off'}${on && on < ids.length ? ' part' : ''}"${on && on === ids.length ? ' data-on' : ''}>
@@ -3009,14 +3006,14 @@ const actions = {
       <h3>Gym</h3><div class="alf-row">${ch('gym', '', 'All gyms', alGym == null)}${ix.gyms.map(g => ch('gym', g.gy, g.name, alGym === g.gy)).join('')}</div>
       ${alGym != null && ix.routes.length ? `<h3>Route</h3><div class="alf-row">${ch('route', '', 'All routes', !alRoute)}${ix.routes.map(r => ch('route', r.key, r.name, alRoute === r.key, r.hex)).join('')}</div>` : ''}
       <div class="alf-go"><button class="b-ghost" type="button" data-act="alfclear">Clear all</button><button class="b-lime" type="button" data-act="close">Show ${n(ix.n, 'record', 'records')}</button></div></div>`); },
-  alf: b => { const { k, v } = b.dataset;
+  alf: b => { const { k, v } = b.dataset; alOpen = null;
     if (k === 'type') { albumFilter = v || 'all'; alRoute = null; }
     if (k === 'time') alTime = v || 'all';
     if (k === 'gym') { alGym = v === '' ? null : +v; alRoute = null; }
     if (k === 'route') alRoute = v || null;
     render(); if (ask.classList.contains('show')) actions.albumfilter();
     if (b.dataset.top) document.querySelector('.al-h')?.scrollIntoView({ behavior: 'smooth' }); },
-  alfclear: () => { albumFilter = 'all'; alTime = 'all'; alGym = null; alRoute = null; render(); if (ask.classList.contains('show')) actions.albumfilter(); },
+  alfclear: () => { alOpen = null; albumFilter = 'all'; alTime = 'all'; alGym = null; alRoute = null; render(); if (ask.classList.contains('show')) actions.albumfilter(); },
   albumfilterset: b => { albumFilter = b.dataset.value; alRoute = null; closeAll(); render(); },
   vtab: b => { vTab = b.dataset.t; render(); },
   back: () => history.length > 1 ? history.back() : go('videos'),
@@ -3130,12 +3127,12 @@ const actions = {
   alpick: b => { const id = b.dataset.i; alSel.has(id) ? alSel.delete(id) : alSel.add(id); b.setAttribute('aria-pressed', alSel.has(id));
     $('cta').innerHTML = alCta(); const h = $('alcount'); if (h) h.textContent = alSel.size ? `${alSel.size} selected` : 'Select videos';
     if (b.closest('.al-tray')) { const x = $('cta').querySelector('.al-row')?.scrollLeft || 0; render(); const r = $('cta').querySelector('.al-row'); if (r) r.scrollLeft = x; } },
-  alvis: b => { const me = b.dataset.v === 'me', k = alSel.size; alSel.forEach(id => { const c = byId(id); if (c) c.hidden = me; }); alSel = null; render();
+  alvis: b => { const me = b.dataset.v === 'me', k = alSel.size; alSel.forEach(id => { const c = byId(id); if (c) c.hidden = me; }); alSel = null; alOpen = null; render();
     toast(`${n(k, 'video', 'videos')} · ${me ? 'only you' : 'public'}`); },
   aldel: () => { const k = alSel.size; if (!k) return;
     pane(`<h2>Delete ${n(k, 'video', 'videos')}?</h2><span class="sub">Their analysis and comments go too. The videos stay in your camera roll.</span>
       <div class="two"><button class="b-ghost" type="button" data-act="close">Keep</button><button class="b-lime" type="button" data-act="aldelyes">Delete ${k}</button></div>`); },
-  aldelyes: () => { const k = alSel.size; alSel.forEach(id => { const c = byId(id); if (!c) return; clips.splice(clips.indexOf(c), 1); V[c.v].added = false; }); alSel = null; closeAll(); render(); toast(`${n(k, 'video', 'videos')} deleted`); },
+  aldelyes: () => { const k = alSel.size; alSel.forEach(id => { const c = byId(id); if (!c) return; clips.splice(clips.indexOf(c), 1); V[c.v].added = false; }); alSel = null; alOpen = null; closeAll(); render(); toast(`${n(k, 'video', 'videos')} deleted`); },
   // side by side
   pvplay: () => pvPlay(),
   vsrate: b => { const i = Math.max(0, Math.min(RATES.length - 1, RATES.indexOf(pvRate) + +b.dataset.d)); pvRate = RATES[i];
