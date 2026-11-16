@@ -745,7 +745,7 @@ const lyrBar = (ok = {}) => `<div class="lyr" role="toolbar" aria-label="What to
     ${LAYERS.map(([k, l, d]) => { const off = OFFWHY[k] && ok[OFFWHY[k]] === false;
       return `<button type="button" data-act="lyr" data-k="${k}"${off ? ' class="off" aria-disabled="true"' : ''} aria-pressed="${!off && !!LAY[k]}">${lyrIcon(d)}<span>${l}</span></button>`; }).join('')}
     <button type="button" data-act="spd" class="lyr-sp num" aria-label="Playback speed">${speed}×</button></div>`;
-const lyrOver = () => `<span class="lvst" id="lvst" hidden></span><span class="lvtag" id="lvtag" hidden></span>`;
+const lyrOver = () => `<span class="lvst" id="lvst" hidden></span><span class="lvtag" id="lvtag" hidden></span><span class="lvla" id="lvla" hidden></span>`;
 // under the video, as wide as it: where you are, something to drag along, and how long the video is. While the video fills
 // the screen that's a strip of its frames; pulled up, with the video small, a slim bar with a node at every move
 const lyrStrip = (D, w) => `<div class="lvbar" id="lvbar" style="width:${w}"><span class="num" id="lvsa">0:00</span>
@@ -1054,6 +1054,21 @@ function legArm(T) {
   return { steps, share };
 }
 // the card: how much of the climbing up was legs, every step in order (tap one to watch it), and what to try
+// on the video, while you go up: a tag saying whether that step up is your legs pushing or your arms pulling.
+// It sits under the other tags, in the first free row
+function laWire(T, v) {
+  const tg = $('lvla'), r = legArm(T); if (!tg || !r) return;
+  const L = { leg: 'Leg push', arm: 'Arm pull', mixed: 'Legs and arms' };
+  const tick = () => { if (!tg.isConnected) return;
+    const t = v.currentTime, x = r.steps.find(z => z.kind !== 'unseen' && t >= z.t0 - .15 && t <= z.t1 + .35), k = x ? x.kind : '';
+    if (tg.dataset.k !== k) { tg.dataset.k = k; tg.textContent = k ? `${L[k]} ↑` : ''; }
+    // going up is not resting: while the tag shows, a "Resting" or "Pausing" state above it is hidden, and the tag takes the free row
+    const st = $('lvst'), quiet = !!k && /^(Resting|Pausing)$/.test(st?.dataset.s || ''); st?.classList.toggle('q', quiet);
+    const rows = (st && !st.hidden && !quiet ? 1 : 0) + ($('lvtag') && !$('lvtag').hidden ? 1 : 0);
+    tg.hidden = !k; tg.style.setProperty('--la', `${8 + Math.max(rows, $('lvtag')?.hidden ? rows : 2) * 28}px`);
+    requestAnimationFrame(tick); };
+  requestAnimationFrame(tick);
+}
 function legCard(T) {
   const r = legArm(T); if (!r || !r.steps.length) return '';
   const head = `<div class="hl2 dk2"><h2>Legs or arms</h2><span class="hint2">${n(r.steps.length, 'step up', 'steps up')}</span></div>`;
@@ -1350,7 +1365,7 @@ function viewClip(id) {
         if (over > 0) box.style.width = `${Math.round(Math.max(180, box.offsetHeight - over - 6) * lv.ar)}px`; }
       segClose(); anSheet = null; segStop = null; segT = T; v.addEventListener('play', () => $('cpv')?.pause());
       v.playbackRate = speed;
-      if (two) { window.poseGate = quality(T).ok; window.posePlay(v, $('lvc'), T); tlWire(); kfWire(T, v.currentSrc || v.src); stuckWire(T, c, v.currentSrc || v.src); stripWire(v, T); stickWire(box, vh); followWire(box); }
+      if (two) { window.poseGate = quality(T).ok; window.posePlay(v, $('lvc'), T); tlWire(); kfWire(T, v.currentSrc || v.src); stuckWire(T, c, v.currentSrc || v.src); laWire(T, v); stripWire(v, T); stickWire(box, vh); followWire(box); }
       if (state === 'ask' && c.auto) v.currentTime = c.auto.t;
       v.addEventListener('play', () => box.classList.add('playing'));
       ['pause', 'ended'].forEach(e => v.addEventListener(e, () => box.classList.remove('playing')));

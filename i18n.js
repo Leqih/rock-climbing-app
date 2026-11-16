@@ -3,6 +3,23 @@
    an exact match first, then a pattern ({} is any text, translated in turn; {1} picks a piece out of order),
    then piece by piece around " · ". Anything not found stays in English. */
 const ZH = {
+  // ---- legs or arms
+  "Move by move": "逐个动作", "How you held up": "体力撑得怎么样",
+  "Leg push ↑": "腿推 ↑", "Arm pull ↑": "手拉 ↑", "Legs and arms ↑": "手脚并用 ↑",
+  "Legs or arms": "腿还是手", "1 step up": "1 次上升", "{} steps up": "{} 次上升", "Can’t tell from this video": "这个视频看不出来",
+  "To tell a leg push from an arm pull we need to see your knees and your elbows while you move up. They were hidden on {} of {}. Film from a little further back, side-on if you can.": "要分清是腿推还是手拉，需要在你往上时同时看到膝盖和手肘。这次 {2}里有 {1} 步被挡住了。下次离远一点，尽量从侧面拍。",
+  "{} steps": "{} 步", "1 step": "1 步",
+  "There is only one step up in this video. We need at least two to say whether your legs or your arms did the work.": "这个视频里只有一次往上的动作。至少要两次，才能判断是腿还是手在出力。",
+  "There are only {} steps up in this video. We need at least two to say whether your legs or your arms did the work.": "这个视频里只有 {} 次往上的动作。至少要两次，才能判断是腿还是手在出力。",
+  "Mostly legs": "主要靠腿", "About half and half": "腿和手差不多各一半", "Mostly arms": "主要靠手", "of the climbing up came from your legs": "的上升来自你的腿",
+  "Legs {}%": "腿 {}%", "Arms {}%": "手 {}%", "Legs {}%, arms {}%": "腿 {}%，手 {}%", "Legs": "腿", "Both": "都有", "not seen": "没看清", "Step {} at {}: {}": "第 {} 步，{}：{}",
+  "Your legs did most of the lifting. That keeps your arms fresh for the top.": "大部分上升是腿完成的，手臂能把力气留到顶。",
+  "Legs and arms shared the work.": "腿和手一起分担了。",
+  "Your arms did most of the lifting. They tire much sooner than your legs.": "大部分上升靠手臂拉上去，而手臂比腿累得快得多。",
+  "On step {}, at {}, your arms did the most. Next try: put a foot on a higher hold first, stand up on it until the leg is straight, and only then reach. The arm just holds on.": "第 {} 步（{}）手出力最多。下次：先把脚放上更高的点，站起来直到腿伸直，再伸手。手只负责抓住。",
+  "Next try: before each reach, put a foot on a higher hold and stand up on it until the leg is straight. The arm just holds on.": "下次：每次伸手前，先把脚放上更高的点，站起来直到腿伸直。手只负责抓住。",
+  "Keep it up: stand up on your feet first, then reach.": "保持下去：先用脚站起来，再伸手。",
+  "Each time your hips went up, we compared how much your knees straightened with how much your elbows bent. Steps where we couldn’t see both are marked ?.": "每次髋部往上时，我们比较膝盖伸直了多少、手肘弯曲了多少。两者没能同时看到的步骤标为 ?。",
   // ---- pick your climbing style
   "Pick ✦": "Pick ✦", "your climbing style": "你的攀岩喜好", "🤔 What do you like to climb? (pick any)": "🤔 你喜欢爬什么呢？（可多选）", "Picked {}": "已选{}个",
   "Top rope": "顶绳", "Bouldering": "抱石", "Lead": "先锋", "Slab": "板墙", "Overhang": "仰角", "Training": "训练", "All of it": "都可以", "Skip for now": "先跳过", "Pick your style": "选你的喜好",

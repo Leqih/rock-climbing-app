@@ -2947,3 +2947,11 @@ textarea.note:focus { outline: 2px solid var(--ink); outline-offset: 0; backgrou
 .mvq-m.la-mixed { background: #fff; color: var(--ink); box-shadow: inset 0 0 0 1px rgba(17, 17, 17, .15); }
 .mvq-m.la-unseen { background: #ececea; color: #8a8a87; }
 .la-how { margin: 10px 0 0; font-size: 12px; line-height: 1.4; color: var(--g700); }
+
+/* on the video: leg push (lime), arm pull (orange), both (white), under the state and move tags */
+.lvla { position: absolute; left: 8px; top: var(--la, 64px); z-index: 4; display: inline-flex; align-items: center; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 800; line-height: 16px; pointer-events: none; background: #fff; color: #111; }
+.lvst.q { display: none; }
+.lvla[data-k="leg"] { background: #c4f52a; }
+.lvla[data-k="arm"] { background: #F08A24; }
+.lvla[hidden] { display: none; }
+.screen.snap .lvla { top: calc(var(--la, 64px) + (1 - var(--sk, 0)) * 96px); }
