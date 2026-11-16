@@ -2949,9 +2949,12 @@ textarea.note:focus { outline: 2px solid var(--ink); outline-offset: 0; backgrou
 .la-how { margin: 10px 0 0; font-size: 12px; line-height: 1.4; color: var(--g700); }
 
 /* on the video: leg push (lime), arm pull (orange), both (white), under the state and move tags */
-.lvla { position: absolute; left: 8px; top: var(--la, 64px); z-index: 4; display: inline-flex; align-items: center; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 800; line-height: 16px; pointer-events: none; background: #fff; color: #111; }
-.lvst.q { display: none; }
+.lvla { display: inline-flex; align-items: center; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 800; line-height: 16px; pointer-events: none; background: #fff; color: #111; }
 .lvla[data-k="leg"] { background: #c4f52a; }
 .lvla[data-k="arm"] { background: #F08A24; }
 .lvla[hidden] { display: none; }
-.screen.snap .lvla { top: calc(var(--la, 64px) + (1 - var(--sk, 0)) * 96px); }
+
+
+/* the tags on the video, one column: what you're doing, a move worth naming, legs or arms. Placed from app.js */
+.lvtags { position: absolute; left: 8px; top: 8px; z-index: 4; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; pointer-events: none; }
+.lvtags > span, .screen.snap .lvtags > span { position: static; top: auto; left: auto; height: 26px; padding: 0 11px; box-sizing: border-box; }

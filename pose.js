@@ -833,8 +833,9 @@
       ctx.lineCap = 'round'; ctx.lineWidth = 3 * u; ctx.strokeStyle = col; ctx.beginPath(); ctx.moveTo(c.x, c.y); ctx.lineTo(c.x, c.y + len); ctx.moveTo(c.x - 6 * u, c.y + len - 8 * u); ctx.lineTo(c.x, c.y + len); ctx.lineTo(c.x + 6 * u, c.y + len - 8 * u); ctx.stroke();
       ctx.beginPath(); ctx.arc(c.x, c.y, 8 * u, 0, 7); ctx.fillStyle = col; ctx.fill(); ctx.lineWidth = 2 * u; ctx.strokeStyle = INK; ctx.stroke(); }
     // what you're doing now, and a move worth naming
-    const rest = T.rests.find(r => t >= r.t0 && t < r.t1);
-    info.state = f.now ? 'Moving' : rest ? 'Resting' : 'Pausing';
+    // going up counts as moving, even with every hand and foot still on its hold (the app says when the hips are rising)
+    const up = window.poseRising?.(t), rest = !up && T.rests.find(r => t >= r.t0 && t < r.t1);
+    info.state = f.now || up ? 'Moving' : rest ? 'Resting' : 'Pausing';
     const hp = mid(p[P.lh], p[P.rh]), high = ['la', 'ra'].find(k => held.includes(k) && p[ON[k]].v >= .5 && p[ON[k]].y <= hp.y + torso * .3);
     const lock = G.arms !== false && ['lw', 'rw'].find(k => held.includes(k) && armA[k] != null && armA[k] >= 40 && armA[k] < 90) && ['lw', 'rw'].some(k => !held.includes(k));
     info.tag = G.tags === false ? '' : high ? 'High foot' : lock ? 'Lock-off' : rest && G.arms !== false && [f.el, f.er].some(a => a >= 150) ? 'Straight-arm rest' : '';

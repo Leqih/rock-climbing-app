@@ -745,7 +745,7 @@ const lyrBar = (ok = {}) => `<div class="lyr" role="toolbar" aria-label="What to
     ${LAYERS.map(([k, l, d]) => { const off = OFFWHY[k] && ok[OFFWHY[k]] === false;
       return `<button type="button" data-act="lyr" data-k="${k}"${off ? ' class="off" aria-disabled="true"' : ''} aria-pressed="${!off && !!LAY[k]}">${lyrIcon(d)}<span>${l}</span></button>`; }).join('')}
     <button type="button" data-act="spd" class="lyr-sp num" aria-label="Playback speed">${speed}×</button></div>`;
-const lyrOver = () => `<span class="lvst" id="lvst" hidden></span><span class="lvtag" id="lvtag" hidden></span><span class="lvla" id="lvla" hidden></span>`;
+const lyrOver = () => `<div class="lvtags" id="lvtags"><span class="lvst" id="lvst" hidden></span><span class="lvtag" id="lvtag" hidden></span><span class="lvla" id="lvla" hidden></span></div>`;
 // under the video, as wide as it: where you are, something to drag along, and how long the video is. While the video fills
 // the screen that's a strip of its frames; pulled up, with the video small, a slim bar with a node at every move
 const lyrStrip = (D, w) => `<div class="lvbar" id="lvbar" style="width:${w}"><span class="num" id="lvsa">0:00</span>
@@ -858,6 +858,12 @@ function stickWire(box, full) {
       // full size, its right edge lines up with the ⋯ button above it (and never past the video's edge); measured from the
       // right, so the panel's own width, which changes with the labels, can't push it off the screen
       const mb = document.querySelector('.bar-more'), wr = w.getBoundingClientRect(), s = wr.width / (w.offsetWidth || 1);
+      // the tags on the video: a column whose left edge is the back button's, under the header, while the video fills the
+      // screen (the layer panel does the same on the right with ⋯); in the video's corner once it's pulled up and small
+      const tags = $('lvtags'), bk = document.querySelector('.bar .bk');
+      if (tags) { const br = box.getBoundingClientRect(), kr = bk?.getBoundingClientRect();
+        const L = !up && kr ? Math.max(8, (kr.left - br.left) / s) : 8, Tp = !up && kr ? Math.max(8, (kr.bottom - br.top) / s + 12) : 8;
+        tags.style.left = `${Math.round(L)}px`; tags.style.top = `${Math.round(Tp)}px`; }
       const ins = mb ? (wr.right - mb.getBoundingClientRect().right) / s : 16;
       if (up) { lyr.style.right = 'auto'; lyr.style.left = `${right + 8}px`; }
       else { lyr.style.left = 'auto'; lyr.style.right = `${Math.max(w.clientWidth - right + 6, ins)}px`; } lyr.style.top = `${top + h / 2}px`; lyr.style.maxHeight = `${up ? h : h - 16}px`; }
@@ -1055,17 +1061,17 @@ function legArm(T) {
 }
 // the card: how much of the climbing up was legs, every step in order (tap one to watch it), and what to try
 // on the video, while you go up: a tag saying whether that step up is your legs pushing or your arms pulling.
-// It sits under the other tags, in the first free row
+// It sits under the other tags
 function laWire(T, v) {
   const tg = $('lvla'), r = legArm(T); if (!tg || !r) return;
   const L = { leg: 'Leg push', arm: 'Arm pull', mixed: 'Legs and arms' };
+  const at = t => r.steps.find(z => z.kind !== 'unseen' && t >= z.t0 - .15 && t <= z.t1 + .35);
+  window.poseRising = t => tg.isConnected && !!at(t);
   const tick = () => { if (!tg.isConnected) return;
-    const t = v.currentTime, x = r.steps.find(z => z.kind !== 'unseen' && t >= z.t0 - .15 && t <= z.t1 + .35), k = x ? x.kind : '';
+    const x = at(v.currentTime), k = x ? x.kind : '';
     if (tg.dataset.k !== k) { tg.dataset.k = k; tg.textContent = k ? `${L[k]} ↑` : ''; }
-    // going up is not resting: while the tag shows, a "Resting" or "Pausing" state above it is hidden, and the tag takes the free row
-    const st = $('lvst'), quiet = !!k && /^(Resting|Pausing)$/.test(st?.dataset.s || ''); st?.classList.toggle('q', quiet);
-    const rows = (st && !st.hidden && !quiet ? 1 : 0) + ($('lvtag') && !$('lvtag').hidden ? 1 : 0);
-    tg.hidden = !k; tg.style.setProperty('--la', `${8 + Math.max(rows, $('lvtag')?.hidden ? rows : 2) * 28}px`);
+    // the state above it reads Moving while you go up (pose.js asks poseRising); the tags stack in one column
+    tg.hidden = !k;
     requestAnimationFrame(tick); };
   requestAnimationFrame(tick);
 }
