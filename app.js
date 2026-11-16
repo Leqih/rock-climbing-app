@@ -1351,17 +1351,19 @@ function viewVs(a) {
   const cmpTop = topOf(c) && x.top;
   const notes = [!x.top && `${x.who}’s video ends before the top, so their time is for less of the route.`, !topOf(c) && 'Your video ends before the top, so your time is for less of the route.'].filter(Boolean);
   return { after: () => { vsFit(); if (ready) vsWire(c, x); else if (!T) setTimeout(() => { if (page === 'vs' && arg === a) render(); }, 800); }, html: `
-    <div class="vs-hero${vsLay === 'tb' ? ' tb' : ''}" id="vshero">${bar(`You and ${x.who}`)}
-      <span class="an-c">${sw(r)}${rname(r)} · ${gymName(c)}</span>
-      <div class="pv"><figure><span class="pv-b" style="aspect-ratio:${vidOf(c).ar}"><video id="pv0" src="${vsrc(vidOf(c).vid)}" poster="${pic(c.img, 0)}" muted playsinline preload="auto"></video><canvas id="pc0"></canvas></span><figcaption><i class="you"></i>You · try ${tryOf(c)}${topOf(c) ? ' · topped' : ''}</figcaption><label class="pv-off"><span>Your start</span><input type="range" data-k="a" min="0" max="1" step="1" aria-label="Where your video starts"></label></figure>
-        <figure><span class="pv-b" style="aspect-ratio:${x.ar}"><video id="pv1" src="${vsrc(x.vid)}" poster="${pic(x.img, 0)}" muted playsinline preload="auto"></video><canvas id="pc1"></canvas></span><figcaption><i class="them"></i>${x.who}${x.top ? ' · topped' : ''}</figcaption><label class="pv-off"><span>${x.who}’s start</span><input type="range" data-k="b" min="0" max="1" step="1" aria-label="Where ${x.who}’s video starts"></label></figure></div>
-      <div class="pv-tl"><input type="range" id="pvr" min="0" max="1000" value="0" aria-label="Both videos, from the start"${ready ? '' : ' disabled'}><span class="num" id="pvtt">0:00</span></div>
-      <p class="pv-sy">Drag each video to the moment its climber leaves the ground. Both then play from there.</p>
-      <div class="pv-ctl"><button class="b-lime pv-go" type="button" id="pvg" data-act="pvplay"${ready ? '' : ' disabled'}>${ic.play}${ready ? 'Play side by side' : T ? 'Loading…' : 'Waiting for your analysis…'}</button>
-        <button class="pv-x" type="button" id="pvs" data-act="pvslow" aria-pressed="${pvRate < 1}">${pvRate < 1 ? '0.5× on' : '0.5×'}</button>
-        <button class="pv-x pv-lu" type="button" data-act="pvsync" aria-pressed="false"${ready ? '' : ' disabled'}>Line up</button>
-        <button class="pv-x" type="button" data-act="pvlay" aria-label="${vsLay === 'lr' ? 'Stack the videos' : 'Put the videos side by side'}">${layIc()}</button></div>
-      ${ready ? '<p class="vs-more">Scroll down for what was different</p>' : ''}</div>
+    <div class="vs-hero${vsLay === 'tb' ? ' tb' : ''}" id="vshero">
+      <div class="vs-top"><button class="bk" type="button" data-act="back" aria-label="Back">${ic.back}</button>
+        <div class="vs-tt"><b>You and ${x.who}</b><span>${sw(r)}${rname(r)} · ${gymName(c)}</span></div>
+        <button class="vs-ic" type="button" data-act="pvlay" aria-label="${vsLay === 'lr' ? 'Stack the videos' : 'Put the videos side by side'}">${layIc()}</button></div>
+      <div class="pv"><figure><span class="pv-b"><video id="pv0" src="${vsrc(vidOf(c).vid)}" poster="${pic(c.img, 0)}" muted playsinline preload="auto"></video><canvas id="pc0"></canvas></span><figcaption><i class="you"></i>You · try ${tryOf(c)}${topOf(c) ? ' · topped' : ''}</figcaption><label class="pv-off"><span>Start</span><input type="range" data-k="a" min="0" max="1" step="1" aria-label="Where your video starts"></label></figure>
+        <figure><span class="pv-b"><video id="pv1" src="${vsrc(x.vid)}" poster="${pic(x.img, 0)}" muted playsinline preload="auto"></video><canvas id="pc1"></canvas></span><figcaption><i class="them"></i>${x.who}${x.top ? ' · topped' : ''}</figcaption><label class="pv-off"><span>Start</span><input type="range" data-k="b" min="0" max="1" step="1" aria-label="Where ${x.who}’s video starts"></label></figure></div>
+      <p class="pv-sy">Drag each Start bar to the moment that climber leaves the ground.</p>
+      <div class="vs-dock">
+        <div class="pv-tl"><button class="pv-pp" type="button" id="pvg" data-act="pvplay" aria-label="Play both"${ready ? '' : ' disabled'}>${PLAY}</button>
+          <input type="range" id="pvr" min="0" max="1000" value="0" aria-label="Both videos, from the start"${ready ? '' : ' disabled'}><span class="num" id="pvtt">${ready ? '0:00' : T ? 'Loading' : 'Analysing'}</span></div>
+        <div class="vs-opts"><button class="pv-x pv-lu" type="button" data-act="pvsync" aria-pressed="false"${ready ? '' : ' disabled'}>Line up</button>
+          <button class="pv-x" type="button" id="pvs" data-act="pvslow" aria-pressed="${pvRate < 1}">Slow 0.5×</button>
+          ${ready ? '<button class="vs-down" type="button" data-act="vsdown">The numbers ↓</button>' : ''}</div></div></div>
     <div class="vsp"><div class="stack"><div class="lt">
       ${ready ? `<div class="pv-t"><b>Try next time</b><span>${vsTip(A, B, x.who, cmpTop)}</span></div>
       <div class="pv-n"><div class="pv-nr vs-r vs-h"><span></span><b><i class="you"></i>You</b><b><i class="them"></i>${x.who}</b></div>
@@ -1381,6 +1383,8 @@ function viewVs(a) {
 }
 // the first screen is the two videos: as tall as the phone, under the header
 // the switch shows the layout it changes to
+const PLAY = '<svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true"><path d="M7 4.5v15l13-7.5z"/></svg>',
+  PAUSE = '<svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true"><rect x="6" y="4.5" width="4" height="15" rx="1"/><rect x="14" y="4.5" width="4" height="15" rx="1"/></svg>';
 const layIc = () => vsLay === 'lr' ? '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="3" width="16" height="8" rx="2"/><rect x="4" y="13" width="16" height="8" rx="2"/></svg>'
   : '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="8" height="16" rx="2"/><rect x="13" y="4" width="8" height="16" rx="2"/></svg>';
 function vsFit() {
@@ -1391,6 +1395,7 @@ function vsWire(c, x) {
   const a = $('pv0'), b = $('pv1'); if (!a || !b) return;
   const TA = c.track, TB = TRK[x.vid], a0 = Math.max(0, span(TA)[0] - .5), b0 = Math.max(0, span(TB)[0] - .5);
   pv = { a, b, a0, b0, la: climbS(TA) + 1, lb: climbS(TB) + 1, on: false };
+  window.poseView = { z: 1, ax: 0, ay: 0 };
   window.posePlay(a, $('pc0'), TA, 'none'); window.posePlay(b, $('pc1'), TB, 'none');
   const L = () => Math.max(pv.la, pv.lb), rg = $('pvr'), tt = $('pvtt');
   pv.sync = () => { if (!rg) return; const t = Math.max(0, a.currentTime - pv.a0, b.currentTime - pv.b0); rg.value = Math.round(Math.min(1, t / L()) * 1000); tt.textContent = mmss(t); };
@@ -1414,7 +1419,7 @@ function vsWire(c, x) {
     requestAnimationFrame(step); });
 }
 function pvPlay() {
-  if (!pv) return; const { a, b, a0, b0, la, lb } = pv, label = t => { const g = $('pvg'); if (g) g.innerHTML = `${ic.play}${t}`; };
+  if (!pv) return; const { a, b, a0, b0, la, lb } = pv, label = t => { const g = $('pvg'); if (g) { g.innerHTML = t === 'Pause both' ? PAUSE : PLAY; g.setAttribute('aria-label', t); } };
   const done = (v, end) => v.currentTime >= Math.min(end, v.duration || end) - .15, over = () => done(a, a0 + la) && done(b, b0 + lb);
   if (pv.on) { a.pause(); b.pause(); pv.on = false; label('Play side by side'); return; }
   if (over()) { a.currentTime = a0; b.currentTime = b0; }
@@ -2883,10 +2888,11 @@ const actions = {
   aldelyes: () => { const k = alSel.size; alSel.forEach(id => { const c = byId(id); if (!c) return; clips.splice(clips.indexOf(c), 1); V[c.v].added = false; }); alSel = null; closeAll(); render(); toast(`${n(k, 'video', 'videos')} deleted`); },
   // side by side
   pvplay: () => pvPlay(),
-  pvslow: b => { pvRate = pvRate === 1 ? .5 : 1; b.setAttribute('aria-pressed', pvRate < 1); b.textContent = pvRate < 1 ? '0.5× on' : '0.5×';
+  pvslow: b => { pvRate = pvRate === 1 ? .5 : 1; b.setAttribute('aria-pressed', pvRate < 1); 
     ['pv0', 'pv1'].forEach(id => { const v = $(id); if (v) v.playbackRate = pvRate; }); if (pv && !pv.on) pvPlay(); },
   pvsync: b => { const h = $('vshero'), on = !h.classList.contains('sync'); h.classList.toggle('sync', on); b.setAttribute('aria-pressed', on); b.textContent = on ? 'Done' : 'Line up';
     if (on && pv?.on) pvPlay(); if (!on && pv) { pv.a.currentTime = pv.a0; pv.b.currentTime = pv.b0; pv.sync?.(); } },
+  vsdown: () => { const sc = document.querySelector('.screen'), h = $('vshero'); sc.scrollTo({ top: h.offsetTop + h.offsetHeight - 8, behavior: 'smooth' }); },
   pvlay: b => { vsLay = vsLay === 'lr' ? 'tb' : 'lr'; $('vshero')?.classList.toggle('tb', vsLay === 'tb'); b.innerHTML = layIc(); b.setAttribute('aria-label', vsLay === 'lr' ? 'Stack the videos' : 'Put the videos side by side'); },
   fwatch: b => watchPane(V[+b.dataset.v]),
   // gym

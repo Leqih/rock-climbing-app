@@ -2869,3 +2869,35 @@ textarea.note:focus { outline: 2px solid var(--ink); outline-offset: 0; backgrou
 .vs-hero.sync .vs-more { display: none; }
 .pv-lu { min-width: 0; padding: 0 12px; }
 .vs-hero .pv-ctl .pv-x[aria-pressed="true"] { background: #c4f52a; color: #111; box-shadow: none; }
+
+/* side by side, laid out: a two-line header, the videos as large as they go, one player bar at the bottom */
+.vs-hero { padding: 0 12px 30px; }
+.vs-top { display: flex; align-items: center; gap: 10px; padding: 6px 0 2px; }
+.vs-top .bk { flex: none; width: 40px; height: 40px; border-radius: 50%; }
+.vs-tt { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.vs-tt b { font-size: 17px; font-weight: 800; color: #fff; }
+.vs-tt span { display: flex; align-items: center; gap: 6px; font-size: 12px; color: rgba(255,255,255,.6); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.vs-ic { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; background: rgba(255,255,255,.12); color: #fff; }
+.vs-hero .pv { margin-top: 12px; gap: 8px; }
+.vs-hero .pv-b { border-radius: 18px; }
+.vs-hero .pv figcaption { left: 10px; top: 10px; gap: 6px; padding: 5px 10px; font-size: 12px; -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
+.vs-hero .pv figcaption i { width: 8px; height: 8px; border-radius: 50%; }
+.vs-hero .pv .you { background: #c4f52a; }
+.vs-hero .pv .them { background: #f08a24; }
+.pv-off { left: 8px; right: 8px; bottom: 8px; padding: 6px 10px; display: none; align-items: center; gap: 8px; border-radius: 999px; font-size: 11px; }
+.vs-hero.sync .pv-off { display: flex; }
+.pv-off span { margin: 0; flex: none; }
+.pv-off input { flex: 1; min-width: 0; }
+.pv-sy { margin: 8px 2px 0; text-align: center; }
+.vs-dock { margin-top: 12px; display: grid; gap: 10px; }
+.vs-hero .pv-tl { margin: 0; gap: 12px; }
+.pv-pp { flex: none; display: grid; place-items: center; width: 48px; height: 48px; border-radius: 50%; background: #c4f52a; color: #111; }
+.pv-pp:disabled { opacity: .4; }
+.pv-pp:active { transform: scale(.94); }
+.vs-hero .pv-tl span { min-width: 40px; font-size: 13px; color: #fff; }
+.vs-opts { display: flex; align-items: center; gap: 8px; }
+.vs-opts .pv-x { min-height: 36px; padding: 0 14px; border-radius: 999px; font-size: 13px; font-weight: 700; }
+.vs-down { margin-left: auto; font-size: 13px; font-weight: 700; color: rgba(255,255,255,.7); }
+.vs-hero .pv-ctl, .vs-more { display: none; }
+.vs-hero .vs-opts .pv-x { background: rgba(255,255,255,.12); color: #fff; }
+.vs-hero .vs-opts .pv-x[aria-pressed="true"] { background: #c4f52a; color: #111; box-shadow: none; }
