@@ -2808,3 +2808,30 @@ textarea.note:focus { outline: 2px solid var(--ink); outline-offset: 0; backgrou
 .al-t[aria-pressed="true"] img { opacity: .78; }
 .al-t[aria-pressed="true"] .al-ck { background: var(--lime) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23111' stroke-width='3.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 12 4 4 8-8'/%3E%3C/svg%3E") center / 16px no-repeat; border-color: var(--lime); }
 .cta button[disabled] { opacity: .45; }
+
+/* Body: the track under the video, on a light card. Dark ink on white, so the lanes and their names read */
+.pn .tl { background: #fff; color: var(--ink); }
+.pn .tl-h, .pn .tl-r, .pn .tl-k, .pn .tl-sp { color: var(--ink); }
+.pn .tl-h b { color: var(--ink); font-weight: 700; }
+.pn .tl-r { grid-template-columns: 78px 1fr; font-weight: 600; }
+.pn .tl-r > div { height: 16px; background: #efefec; }
+.pn .tl-r .h { background: var(--ink); }
+.pn .tl-r .f { background: #a9aea9; }
+.pn .tl-g .rs, .pn .an-k .rs { background: #9cc61a; }
+.pn .tl-o { left: 78px; }
+.pn .tl-o i { background: #e2352b; box-shadow: none; width: 2px; }
+.pn .lv-s div { background: #fff; color: var(--ink); }
+.pn .lv-s span { color: #5d625e; }
+.mvq-m.on { box-shadow: 0 0 0 3px var(--lime); }
+/* side by side: the two videos are the first screen */
+.vs-hero { display: flex; flex-direction: column; margin: 0 -16px; padding: 0 12px 14px; background: #111; color: #fff; }
+.vs-hero .bar span { color: #fff; }
+.vs-hero .an-c { align-self: flex-start; margin-top: 2px; padding: 5px 10px; border-radius: 999px; background: rgba(255,255,255,.12); color: #fff; }
+.vs-hero .pv { flex: 1; min-height: 0; margin-top: 10px; gap: 6px; }
+.vs-hero .pv figure { position: relative; height: 100%; }
+.vs-hero .pv-b { aspect-ratio: auto !important; height: 100%; border-radius: 16px; }
+.vs-hero .pv-b video, .vs-hero .pv-b canvas { inset: auto; left: 0; top: 0; }
+.vs-hero .pv figcaption { position: absolute; z-index: 2; left: 8px; top: 8px; margin: 0; padding: 4px 9px; border-radius: 999px; background: rgba(17,17,17,.62); color: #fff; font-weight: 700; }
+.vs-hero .pv-x { background: rgba(255,255,255,.14); color: #fff; }
+.vs-more { margin: 10px 0 0; text-align: center; font-size: 12px; color: rgba(255,255,255,.6); }
+.vs-hero + .vsp { margin-top: 16px; }

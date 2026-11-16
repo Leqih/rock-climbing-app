@@ -1297,7 +1297,7 @@ function viewClip(id) {
   const nextUp = `<div class="hl2 dk2"><h2>Next</h2></div><div class="rows">
       ${betaRow(c.ri, T)}
       <button class="row" type="button" data-act="ctab" data-v="cmp"><span class="row-t"><strong>Watch it next to someone else</strong><span>${n(peers.length, 'other climber', 'other climbers')} on ${rname(r)}</span></span>${ic.arr('#111111')}</button></div>`;
-  const panels = two ? { why: (q => `${postCard}${qualityCard(q)}${q.level === 'poor' ? '' : `${stuckCard(T, c)}${measured(T)}${paceState(T)}`}${nextUp}`)(quality(T)), body: `<div class="hl2 dk2"><h2>As it plays</h2></div>${live}${timeline(T)}${moveSeq(T)}${climbPath(T, lv.img)}${bodyStats(T)}`, cmp, info } : {};
+  const panels = two ? { why: (q => `${postCard}${qualityCard(q)}${q.level === 'poor' ? '' : `${stuckCard(T, c)}${measured(T)}${paceState(T)}`}${nextUp}`)(quality(T)), body: `<div class="hl2 dk2"><h2>As it plays</h2></div>${live}${timeline(T)}${moveSeq(T)}${bodyStats(T)}`, cmp, info } : {};
   return { photo: c.img, fit: state === 'ask' || state === 'idle', cta: '', after: () => {
       tagWire(c);
       const v = $('lvv'), box = v.parentElement;
@@ -1350,14 +1350,15 @@ function viewVs(a) {
   const ready = T && P, A = ready && vsNums(T), B = ready && vsNums(P);
   const cmpTop = topOf(c) && x.top;
   const notes = [!x.top && `${x.who}’s video ends before the top, so their time is for less of the route.`, !topOf(c) && 'Your video ends before the top, so your time is for less of the route.'].filter(Boolean);
-  return { after: () => { if (ready) vsWire(c, x); else if (!T) setTimeout(() => { if (page === 'vs' && arg === a) render(); }, 800); }, html: `
-    ${bar(`You and ${x.who}`)}
-    <div class="vsp"><div class="stack"><div class="lt">
+  return { after: () => { vsFit(); if (ready) vsWire(c, x); else if (!T) setTimeout(() => { if (page === 'vs' && arg === a) render(); }, 800); }, html: `
+    <div class="vs-hero" id="vshero">${bar(`You and ${x.who}`)}
       <span class="an-c">${sw(r)}${rname(r)} · ${gymName(c)}</span>
       <div class="pv"><figure><span class="pv-b" style="aspect-ratio:${vidOf(c).ar}"><video id="pv0" src="${vsrc(vidOf(c).vid)}" poster="${pic(c.img, 0)}" muted playsinline preload="auto"></video><canvas id="pc0"></canvas></span><figcaption><i class="you"></i>You · try ${tryOf(c)}${topOf(c) ? ' · topped' : ''}</figcaption></figure>
         <figure><span class="pv-b" style="aspect-ratio:${x.ar}"><video id="pv1" src="${vsrc(x.vid)}" poster="${pic(x.img, 0)}" muted playsinline preload="auto"></video><canvas id="pc1"></canvas></span><figcaption><i class="them"></i>${x.who}${x.top ? ' · topped' : ''}</figcaption></figure></div>
       <div class="pv-ctl"><button class="b-lime pv-go" type="button" id="pvg" data-act="pvplay"${ready ? '' : ' disabled'}>${ic.play}${ready ? 'Play side by side' : T ? 'Loading…' : 'Waiting for your analysis…'}</button>
         <button class="pv-x" type="button" id="pvs" data-act="pvslow" aria-pressed="false">0.5×</button></div>
+      ${ready ? '<p class="vs-more">Scroll down for what was different</p>' : ''}</div>
+    <div class="vsp"><div class="stack"><div class="lt">
       ${ready ? `<div class="pv-t"><b>Try next time</b><span>${vsTip(A, B, x.who, cmpTop)}</span></div>
       <div class="pv-n"><div class="pv-nr vs-r vs-h"><span></span><b><i class="you"></i>You</b><b><i class="them"></i>${x.who}</b></div>
         ${vsRow('Climbing time', mmss(A.t), mmss(B.t))}
@@ -1374,6 +1375,11 @@ function viewVs(a) {
       <div class="fchips">${peers.map(p => `<button type="button" data-act="to" data-to="vs/${c.id}-${p.i}" aria-pressed="${p === x}">${p.who}</button>`).join('')}</div>` : ''}
     </div>` };
 }
+// the first screen is the two videos: as tall as the phone, under the header
+function vsFit() {
+  const h = $('vshero'), sc = document.querySelector('.screen'); if (!h || !sc) return;
+  h.style.height = `${Math.max(480, sc.clientHeight - (h.getBoundingClientRect().top - sc.getBoundingClientRect().top + sc.scrollTop))}px`;
+}
 function vsWire(c, x) {
   const a = $('pv0'), b = $('pv1'); if (!a || !b) return;
   const TA = c.track, TB = TRK[x.vid], a0 = Math.max(0, span(TA)[0] - .5), b0 = Math.max(0, span(TB)[0] - .5);
@@ -1382,11 +1388,15 @@ function vsWire(c, x) {
   const home = (v, t) => { if (v.readyState) v.currentTime = t; else v.addEventListener('loadedmetadata', () => { v.currentTime = t; }, { once: true }); }; home(a, a0); home(b, b0);
   // each video follows its own climber, zoomed in; where the scan can't see them, it stays where they were last seen
   [[a, $('pc0'), TA], [b, $('pc1'), TB]].forEach(([v, cv, Tr]) => {
-    let cx = .5, cy = .6; const Z = 1.9, cl = q => Math.min(1 - .5 / Z, Math.max(.5 / Z, q));
+    // the box is taller than the video is wide: the video covers it, and the camera keeps the climber in the middle
+    let cx = .5, cy = .6; const Z = 1.35, box = v.parentElement;
     const step = () => { if (!v.isConnected) return; const p = window.poseBox?.(Tr, v.currentTime);
-      if (p) { cx += (cl((p.x0 + p.x1) / 2) - cx) * .12; cy += (cl((p.y0 + p.y1) / 2) - cy) * .12; }
-      const tf = `translate(${(50 - Z * cx * 100).toFixed(2)}%, ${(50 - Z * cy * 100).toFixed(2)}%) scale(${Z})`;
-      v.style.transformOrigin = cv.style.transformOrigin = '0 0'; v.style.transform = cv.style.transform = tf; requestAnimationFrame(step); };
+      if (p) { cx += ((p.x0 + p.x1) / 2 - cx) * .12; cy += ((p.y0 + p.y1) / 2 - cy) * .12; }
+      const w = box.clientWidth, h = box.clientHeight, ar = v.videoWidth ? v.videoWidth / v.videoHeight : (Tr.W && Tr.H ? Tr.W / Tr.H : .5625);
+      const vw = Math.max(w, h * ar), vh = vw / ar;
+      const tx = Math.min(0, Math.max(w - Z * vw, w / 2 - Z * cx * vw)), ty = Math.min(0, Math.max(h - Z * vh, h / 2 - Z * cy * vh));
+      [v, cv].forEach(el => { el.style.width = `${vw.toFixed(1)}px`; el.style.height = `${vh.toFixed(1)}px`; el.style.transformOrigin = '0 0'; el.style.transform = `translate(${tx.toFixed(1)}px, ${ty.toFixed(1)}px) scale(${Z})`; });
+      requestAnimationFrame(step); };
     requestAnimationFrame(step); });
 }
 function pvPlay() {
@@ -2736,7 +2746,8 @@ function watchPane(x) {
 }
 
 const actions = {
-  lvseek: b => { const v = $('lvv'); if (!v) return; v.currentTime = +b.dataset.t; v.play().catch(() => {}); document.querySelector('.screen').scrollTo({ top: 0, behavior: 'smooth' }); },
+  lvseek: b => { const v = $('lvv'); if (!v) return; v.currentTime = +b.dataset.t; v.play().catch(() => {});
+    document.querySelectorAll('.mvq-m.on').forEach(x => x.classList.remove('on')); b.classList.add('on'); },
   status: () => pane(`<h2>Your status</h2><span class="sub">Friends see it on your profile, next to your home gym.</span>
     <div class="stt-l">${STATUS.map(([k, l]) => `<button type="button" class="stt-o${k ? ` is-${k}` : ''}" data-act="setstatus" data-s="${k}" aria-pressed="${k === myStatus}"><i></i>${l}${k === myStatus ? ic.check : ''}</button>`).join('')}</div>`),
   setstatus: b => { myStatus = b.dataset.s; try { localStorage.setItem('spotter-status', myStatus); } catch (_) {} closeAll(); render(); },
