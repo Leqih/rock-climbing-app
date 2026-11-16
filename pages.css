@@ -3179,3 +3179,6 @@ textarea.note:focus { outline: 2px solid var(--ink); outline-offset: 0; backgrou
 .gy-noimg svg { width: 22px; height: 22px; margin-bottom: 6px; }
 .gy-noimg b { font-size: 20px; font-weight: 900; letter-spacing: -.01em; }
 .gy-noimg span { font-size: 13px; color: #6f6f6c; }
+
+/* the city picker: towns under their state */
+.gt-rg { margin: 18px 4px 8px; font-size: 13px; font-weight: 800; color: #8a8a87; letter-spacing: .02em; }
