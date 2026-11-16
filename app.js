@@ -1496,8 +1496,8 @@ function viewClip(id) {
         ${ready && (c.res === 'Flash' || c.res === 'Send') ? `<div class="ce-row ce-res"><span>Grade felt <i>Optional</i></span><span class="ce-seg" role="group" aria-label="How the grade felt">${FEELS.map(([k, l]) => `<button type="button" data-act="feel" data-ri="${c.ri}" data-k="${k}" aria-pressed="${myFeel[c.ri] === k}">${l}</button>`).join('')}</span></div>` : ''}</div>
       ${c.hidden ? `<button class="ce-tg" type="button" role="switch" data-act="clpa" data-i="${c.id}" aria-checked="${!!c.postAfter}"><span class="ce-tt"><strong>Also post to Community</strong><span>${pk.gy != null && gyms[pk.gy] ? `Climbers at ${gyms[pk.gy].name} see the video. Your analysis stays private.` : 'Climbers at the gym see the video. Your analysis stays private.'}</span></span><i aria-hidden="true"></i></button>`
         : '<p class="ce-n ce-in">In Community already. Your analysis stays private.</p>'}
-      <div class="ce-act one"><button class="b-lime" type="button" data-act="startanalysis" data-i="${c.id}"${ready ? '' : ' disabled'}>Analyse</button></div>
-      ${ready ? '' : '<p class="ce-n">Choose the gym, grade and colour first.</p>'}</div>`;
+      <div class="ce-act"><button class="b-ghost" type="button" data-act="clsave" data-i="${c.id}"${ready ? '' : ' disabled'}>Save for now</button><button class="b-lime" type="button" data-act="startanalysis" data-i="${c.id}"${ready ? '' : ' disabled'}>Analyse</button></div>
+      <p class="ce-n">${ready ? 'Not analysing now? Save it and analyse it any time from its page. To post several videos at once, tap Select on Videos.' : 'Choose the gym, grade and colour first.'}</p></div>`;
   // analysed and not posted yet: post it from here. The analysis stays yours
   const postCard = c.hidden ? `<div class="ce-post"><span class="row-t"><strong>Only you can see this</strong><span>Post the video to Community. Your analysis stays private.</span></span><button class="b-ghost" type="button" data-act="clpost" data-i="${c.id}">Post</button></div>` : '';
   // analysed: the video fills the screen, edge to edge, with the top of the analysis sheet showing under it to pull up
@@ -3132,6 +3132,9 @@ const actions = {
   clres: b => { const c = byId(b.dataset.c); if (!c) return; c.res = c.res === b.dataset.k ? undefined : b.dataset.k; if (!c.res) delete c.res; saveSoon(); render(); },
   startanalysis: b => { const c = byId(b.dataset.i); if (!c || c.an !== 'idle' || !pickDone(c)) return;
     if (c.postAfter && c.hidden) { c.hidden = false; toast('Posted to Community. Analysing…'); } delete c.postAfter; saveSoon(); analyse(c); render(); },
+  // keep it without analysing: the post switch still counts. You land on Videos, where Select posts several at once
+  clsave: b => { const c = byId(b.dataset.i); if (!c || !pickDone(c)) return; const post = c.postAfter && c.hidden; if (post) c.hidden = false; delete c.postAfter; saveSoon();
+    go('videos'); toast(post ? 'Saved and posted to Community' : 'Saved, only for you. To post several at once, tap Select'); },
   clpa: b => { const c = byId(b.dataset.i); if (!c) return; c.postAfter = !c.postAfter; b.setAttribute('aria-checked', c.postAfter); },
   // the cut: keep what's between the handles, or all of it. Change it later from About this climb
   trimok: b => { const c = byId(b.dataset.i); if (!c) return; const D = vidOf(c).D, [a, e] = trimNow || [0, D];
