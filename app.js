@@ -21,7 +21,7 @@ const mmss = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2
 // the gym, from campusrec.illinois.edu (checked Nov 11, 2026). hours: [open, close] in 24 h for Sun..Sat
 const gym = { name: 'ARC Climbing Wall', addr: '201 E Peabody Dr, Champaign (UIUC)', dist: '0.6 mi from the Quad', img: 'gym-arc-1', pics: ['gym-arc-2', 'gym-arc-3'],
   hours: [[9, 22], [6, 23], [6, 23], [6, 23], [6, 23], [6, 22], [9, 22]], has: ['35.5 ft rope wall', 'Top rope', 'Bouldering Cave with a Kilter Board', 'Hangboards', 'Shoe rental'],
-  src: 'campusrec.illinois.edu', note: 'Closed Nov 21–29 for Fall Break.', lean: [1, 39] };
+  src: 'campusrec.illinois.edu', note: 'Closed Nov 21–29 for Fall Break.' };
 // the two routes on the rope wall, named by hold colour. Grades are sample
 const ROUTES = [
   { color: 'Green', hex: '#2E9E62', grade: '5.8', wall: 'Rope wall', img: 'wayup-p3-green', ok: true, votes: [6, 11, 4] },
@@ -64,16 +64,18 @@ function votesOf(ri) {
   const n = v[0] + v[1] + v[2], lean = n ? (v[2] - v[0]) / n : 0;
   return { v, n, h: n >= 3 ? (lean > .2 ? 1 : lean < -.2 ? -1 : 0) : 0 };
 }
-const gymLean = g => g?.lean?.[0] ?? 0;
+const gymLean = g => g?.lean && g.lean.n >= ENOUGH ? g.lean.h : 0;
 const leanWords = h => h >= 2 ? 'About a grade hard' : h === 1 ? 'About half a grade hard' : h <= -2 ? 'About a grade soft' : h === -1 ? 'About half a grade soft' : 'Graded about average';
 // the gym page's block: where it sits from soft to hard, how many climbers that comes from, an example
 function gymGrading(g) {
   if (!g?.lean) return '';
-  const [h, n] = g.lean, ex = g.has.some(x => /rope/i.test(x)) ? '5.10' : 'V4', to = shiftG(ex, h);
+  const { b, n: cn, se } = g.lean, h = gymLean(g), ex = g.has.some(x => /rope/i.test(x)) ? '5.10' : 'V4', to = shiftG(ex, h);
+  if (cn < ENOUGH) return `<div class="gy-ab gy-gr"><div class="gy-sh">Grading here</div><p class="gr-w"><b>Not enough climbers yet</b></p>
+      <p class="cap">${cn ? `Only ${n(cn, 'climber', 'climbers')} here also climbs at other gyms. ` : ''}We show how this gym grades once ${ENOUGH} do.</p></div>`;
   return `<div class="gy-ab gy-gr"><div class="gy-sh">Grading here</div>
-      <div class="gr-sc" role="img" aria-label="${leanWords(h)}"><span>Soft</span><i><b style="left:${50 + h * 20}%"></b></i><span>Hard</span></div>
+      <div class="gr-sc" role="img" aria-label="${leanWords(h)}"><span>Soft</span><i><b style="left:${Math.max(6, Math.min(94, 50 + b * 20))}%"></b><em style="left:${Math.max(0, 50 + (b - 2 * se) * 20)}%;right:${Math.max(0, 50 - (b + 2 * se) * 20)}%"></em></i><span>Hard</span></div>
       <p class="gr-w"><b>${leanWords(h)}</b> compared with other gyms</p>
-      <p class="cap">${h ? `A ${ex} here is about a ${to} at the average gym. ` : `A ${ex} here is about a ${ex} anywhere. `}From ${n} climbers who also climb at other gyms.</p></div>`;
+      <p class="cap">${h ? `A ${ex} here is about a ${to} at the average gym. ` : `A ${ex} here is about a ${ex} anywhere. `}From ${cn} climbers who also climb at other gyms.</p></div>`;
 }
 // the route page's block: the gym's grade, what the climbers who topped it say, your vote, and the grade at the average gym
 function gradeBlock(i, topped) {
@@ -1817,7 +1819,9 @@ function viewProfile() {
         <span><b class="num">${tops ? `${tops}<small>/${ROUTES.length}</small>` : '—'}</b><i>topped</i></span></div>
       ${follows.size ? '' : `<button class="ph-fr" type="button" data-act="to" data-to="friends">Find friends</button>`}
       <button class="ph-plans" type="button" data-act="to" data-to="friends/friends">My climbing plans ${ic.arr('#111111')}</button>
-      </section>`; })()}
+      </section>${top ? (() => { const g0 = gyms[top.gy ?? 0] || gym, vh = votesOf(top.ri).h, said = shiftG(ROUTES[top.ri].grade, vh), avg = shiftG(ROUTES[top.ri].grade, vh + gymLean(g0));
+        return `<div class="rows pf-lv"><button class="row" type="button" data-act="to" data-to="route/${top.ri}"><span class="row-t"><strong>Your level ≈ ${avg} at the average gym</strong>
+          <span>Your hardest send, ${rname(ROUTES[top.ri])}, is a ${said} by climbers’ votes. ${g0.name} grades ${leanWords(gymLean(g0)).toLowerCase().replace('graded ', '')}.</span></span>${ic.arr('#111111')}</button></div>`; })() : ''}`; })()}
     ${session === 'live' ? `<section class="recap solid"><span class="sub">Climbing now · ${gym.name}</span><b class="num" id="prclk">${clk(sesSecs())}</b><span class="sub">${n(dayLog(0).reduce((s, e) => s + e.tries, 0) + gday(0).length, 'try', 'tries')} · ${n(dayLog(0).filter(e => e.sent).length + gday(0).filter(gsent).length, 'send', 'sends')} today</span><button class="pr-end" type="button" data-act="lgend">End session</button></section>` : ''}
     <div class="fold"></div>
     ${prog ? `<div class="sec"><h2>Your routes</h2></div><div class="rgrid">${ROUTES.map((r, i) => i).filter(i => mineOn(i).length).map(rcard).join('')}</div>` : ''}
@@ -1847,13 +1851,56 @@ function viewProfile() {
 Object.assign(gym, { mi: 0.6, deg: 229, pass: null });
 const gyms = [gym,
   { name: 'Boneyard Boulders', dist: '1.0 mi', mi: 1.0, deg: 310, addr: '119 E University Ave, Champaign', img: 'gym-boneyard-1', pics: ['gym-boneyard-2'],
-    hours: Array(7).fill([12, 22]), lean: [-1, 64], pass: '$20 · $18 if 20 or under', has: ['Bouldering', 'Shoe rental $4', 'Free fitness classes', 'Same pass works at Urbana Boulders'], src: 'urbanaboulders.com' },
+    hours: Array(7).fill([12, 22]), pass: '$20 · $18 if 20 or under', has: ['Bouldering', 'Shoe rental $4', 'Free fitness classes', 'Same pass works at Urbana Boulders'], src: 'urbanaboulders.com' },
   { name: 'Urbana Boulders', dist: '2.0 mi', mi: 2.0, deg: 48, addr: '1502 N Cunningham Ave, Urbana', img: 'gym-urbana-1', pics: ['gym-urbana-2'],
-    hours: [[10, 21], [15, 22], [15, 22], [15, 22], [15, 22], [12, 22], [10, 21]], lean: [-1, 58], pass: '$20 · $18 if 20 or under', has: ['Bouldering', 'Shoe rental $4', '200+ problems across both gyms', 'Same pass works at Boneyard Boulders'], src: 'urbanaboulders.com' },
+    hours: [[10, 21], [15, 22], [15, 22], [15, 22], [15, 22], [12, 22], [10, 21]], pass: '$20 · $18 if 20 or under', has: ['Bouldering', 'Shoe rental $4', '200+ problems across both gyms', 'Same pass works at Boneyard Boulders'], src: 'urbanaboulders.com' },
   { name: 'Horizon Climbing', dist: '2.8 mi', mi: 2.8, deg: 278, addr: '1914 Round Barn Rd, Champaign', img: 'gym-horizon-1', pics: ['gym-horizon-2', 'gym-horizon-3', 'gym-horizon-4'],
-    hours: [[10, 20], [10, 22], [10, 22], [10, 22], [10, 22], [10, 22], [10, 22]], lean: [1, 47], pass: '$22 · $16 college students', has: ['Bouldering', 'Shoe rental $4', 'New climbs every week', 'Tension Board 2', 'Showers and sauna', 'Study space'], src: 'climbhorizon.com' },
+    hours: [[10, 20], [10, 22], [10, 22], [10, 22], [10, 22], [10, 22], [10, 22]], pass: '$22 · $16 college students', has: ['Bouldering', 'Shoe rental $4', 'New climbs every week', 'Tension Board 2', 'Showers and sauna', 'Study space'], src: 'climbhorizon.com' },
   { name: 'Upper Limits Bloomington', dist: '49 mi', mi: 49, deg: 302, addr: '1304 W Washington St, Bloomington', img: 'gym-upperlimits-1', pics: ['gym-upperlimits-2', 'gym-upperlimits-3'],
-    hours: [[10, 18], [12, 22], [16, 22], [16, 22], [16, 22], [12, 22], [10, 18]], lean: [0, 22], pass: '$21 · $17 kids 10 and under', has: ['Bouldering', 'Top rope and auto belays', 'Outdoor silo wall', 'Fitness area'], src: 'upperlimits.com' }];
+    hours: [[10, 18], [12, 22], [16, 22], [16, 22], [16, 22], [12, 22], [10, 18]], pass: '$21 · $17 kids 10 and under', has: ['Bouldering', 'Top rope and auto belays', 'Outdoor silo wall', 'Fitness area'], src: 'upperlimits.com' }];
+
+
+/* ---------- How hard each gym grades, worked out from climbers who climb at more than one ----------
+   Every climber has a level at each gym they climb at: the hardest grade they topped there at least 3 times in the last
+   3 months, counted only after 5 sessions there (a gym you barely know reads harder than it is). In half grades
+   (V4 = 8, V4+ = 9). That level is the climber's ability, less how hard the gym grades:
+       level(climber, gym) = ability(climber) - hard(gym)
+   Someone who climbs at one gym can't tell those two apart; someone at two can (V5 at A, V4 at B: B is a grade
+   harder than A). Solved by taking turns: abilities from the gyms, the gyms from the abilities, until it settles.
+   The average gym is 0. A board (Kilter, Tension) grades the same everywhere, so a climber's board grade counts as one
+   more place: it ties in climbers who only ever climb at one gym. Bouldering only; rope grades use the same lean.
+   The sends below are a sample world: 180 climbers, each gym's real grading hidden in TRUE, which the calculation never reads. */
+function sampleSends() {
+  let x = 20261116; const rnd = () => { x = (x * 1664525 + 1013904223) % 4294967296; return x / 4294967296; };
+  const gauss = () => { let u = 0; for (let k = 0; k < 6; k++) u += rnd(); return u - 3; };
+  const TRUE = [1, -1, -.5, 1.5, 0, 0], HOME = [.3, .2, .2, .2, .1], BOARD = 5;   // places 0-4 are the gyms, 5 is a board
+  const pickGym = (not = []) => { for (;;) { let r = rnd(), g = 0; while (r > HOME[g]) { r -= HOME[g]; g++; } if (!not.includes(g)) return g; } };
+  const out = [];
+  for (let c = 0; c < 180; c++) {
+    const ability = 4 + Math.floor(rnd() * 11), at = [pickGym()];
+    if (rnd() < .4) at.push(at[0] === 1 && rnd() < .6 ? 2 : at[0] === 2 && rnd() < .6 ? 1 : pickGym(at));   // the two Urbana Boulders gyms share a pass
+    if (rnd() < .1) at.push(pickGym(at));
+    if (rnd() < .25) at.push(BOARD);
+    at.forEach((g, k) => { if (k && g !== BOARD && rnd() < .2) return;   // under 5 sessions there: not counted
+      out.push({ c, g, level: Math.round(ability - TRUE[g] + gauss() * .7) }); });
+  }
+  return out;
+}
+function gymLeans(sends, places = 6, gymsN = 5) {
+  const by = new Map(); sends.forEach(x => by.set(x.c, [...(by.get(x.c) || []), x]));
+  const cross = [...by.values()].filter(xs => xs.length > 1).flat();   // only climbers seen in two places say anything
+  const hard = Array(places).fill(0), ab = new Map();
+  for (let it = 0; it < 60; it++) {
+    by.forEach((xs, c) => ab.set(c, xs.reduce((n, x) => n + x.level + hard[x.g], 0) / xs.length));
+    for (let g = 0; g < places; g++) { const xs = cross.filter(x => x.g === g); if (xs.length) hard[g] = xs.reduce((n, x) => n + ab.get(x.c) - x.level, 0) / xs.length; }
+    const m = hard.slice(0, gymsN).reduce((n, v) => n + v, 0) / gymsN; for (let g = 0; g < places; g++) hard[g] -= m;
+  }
+  return hard.slice(0, gymsN).map((b, g) => { const xs = cross.filter(x => x.g === g), r = xs.map(x => ab.get(x.c) - x.level - b);
+    const sd = Math.sqrt(r.reduce((n, v) => n + v * v, 0) / Math.max(1, r.length - 1));
+    return { b, h: Math.round(b), n: new Set(xs.map(x => x.c)).size, se: sd / Math.sqrt(Math.max(1, xs.length)) }; });
+}
+gymLeans(sampleSends()).forEach((l, g) => { gyms[g].lean = l; });
+const ENOUGH = 15;   // fewer climbers who also climb elsewhere than this, and a gym's lean isn't shown as a number
 
 /* ---------- Gyms tab: where you climb, then the others near you. Map, and one page per gym ---------- */
 const atGym = i => i === 0 ? { videos: clips.length, last: clips.length ? Math.min(...clips.map(agoOf)) : null } : { videos: 0, last: null };

@@ -2984,3 +2984,8 @@ textarea.note:focus { outline: 2px solid var(--ink); outline-offset: 0; backgrou
 /* the camera review: how the grade felt, under the result */
 .cam-res .cam-fq { margin-top: 8px; font-size: 14px; }
 .cam-fq i { font-style: normal; font-weight: 500; opacity: .55; margin-left: 4px; font-size: 12px; }
+
+/* the gym's lean: the dot, and a faint band for how sure we are */
+.gr-sc i em { position: absolute; top: -3px; bottom: -3px; border-radius: 999px; background: rgba(17,17,17,.14); }
+.gr-sc i b { z-index: 1; }
+.pf-lv { margin-top: 12px; }
