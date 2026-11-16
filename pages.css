@@ -3110,3 +3110,36 @@ textarea.note:focus { outline: 2px solid var(--ink); outline-offset: 0; backgrou
   .sheet { padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px)); }
   .screen { padding-bottom: calc(120px + env(safe-area-inset-bottom, 0px)); }
 }
+
+/* joining: the welcome's example fills the top, one button below; a step's dots in the bar; Skip on the right */
+.ob-skip { margin-left: auto; padding: 8px 2px; font-size: 13px; font-weight: 700; color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
+.ob-dots { display: inline-flex; gap: 5px; }
+.ob-dots i { width: 22px; height: 5px; border-radius: 999px; background: #d5d5d2; }
+.ob-dots i.on { background: var(--ink); }
+.ob-hero { position: relative; margin: 6px 0 18px; aspect-ratio: 4 / 5; max-height: 54vh; max-height: 54dvh; width: 100%; border-radius: 26px; overflow: hidden; background: var(--ink); }
+.ob-hero img { width: 100%; height: 100%; object-fit: cover; object-position: center 30%; display: block; }
+.ob-hero .ob-k { position: absolute; top: 12px; left: 12px; padding: 4px 10px; border-radius: 999px; background: #fff; font-size: 12px; font-weight: 800; }
+.ob-st { position: absolute; left: 0; right: 0; bottom: 0; display: grid; gap: 2px; padding: 40px 16px 14px; color: #fff; background: linear-gradient(transparent, rgba(0,0,0,.62)); }
+.ob-st strong { font-size: 20px; font-weight: 900; letter-spacing: -.02em; }
+.ob-st span { font-size: 13px; opacity: .85; }
+.ob-h { text-wrap: balance; margin-top: 4px; }
+.ob-s { text-wrap: pretty; }
+.ob-gyms { display: grid; gap: 8px; margin-top: 4px; }
+.ob-g { display: flex; align-items: center; gap: 12px; padding: 8px 14px 8px 8px; border-radius: 20px; background: #fff; text-align: left; color: var(--ink); }
+.ob-g img { width: 56px; height: 56px; border-radius: 14px; object-fit: cover; flex: none; }
+.ob-g span { display: grid; gap: 2px; min-width: 0; }
+.ob-g strong { font-size: 15px; font-weight: 800; }
+.ob-g em { font-style: normal; font-size: 12px; color: #8a8a87; }
+.ob-g i { margin-left: auto; flex: none; width: 22px; height: 22px; border-radius: 50%; box-shadow: inset 0 0 0 2px #cfcfcc; }
+.ob-g[aria-checked="true"] { box-shadow: inset 0 0 0 2px var(--ink); }
+.ob-g[aria-checked="true"] i { box-shadow: inset 0 0 0 7px var(--ink); }
+.ob-tips { display: grid; gap: 10px; margin: 6px 0 14px; padding: 0; list-style: none; }
+.ob-tips li { display: flex; gap: 14px; align-items: flex-start; padding: 16px; border-radius: 22px; background: #fff; }
+.ob-tips b { flex: none; display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; background: var(--lime); font-size: 16px; font-weight: 900; }
+.ob-tips span { display: grid; gap: 3px; font-size: 13px; color: #6f6f6c; line-height: 1.4; }
+.ob-tips strong { font-size: 16px; font-weight: 800; color: var(--ink); }
+.av-me { display: grid; place-items: center; width: 100%; height: 100%; border-radius: 50%; background: var(--lime); }
+.av-me .masc { display: block; width: 70%; height: auto; margin: 0; }
+/* the style page clears the button pinned under it */
+.pk-panel:has(.pk-stage) { height: calc(var(--stage-height, 570px) + 170px); }
+.ob-gi { flex: none; display: grid; place-items: center; width: 56px; height: 56px; border-radius: 14px; background: #dededc; font-size: 22px; font-weight: 900; color: #8a8a87; }

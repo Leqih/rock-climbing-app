@@ -17,7 +17,15 @@ const ZH = {
   "We show how this gym grades once {} do.": "等到 {} 位岩友也在其他馆爬时，再显示这个馆的松紧。",
   "Your level ≈ {} at the average gym": "你的水平 ≈ 平均水平岩馆的 {}",
   "Your hardest send, {}, is a {} by climbers’ votes. {} grades {}.": "你完攀过最难的是 {}，按完攀者投票是 {}。{} 的定级{}。",
-  "How did the grade feel?": "难度感觉如何？", "{} · {} of {}": "{} · 已选 {}/{}", "{}: pick videos": "{}：挑选视频", "Select all": "全选", "Filter": "筛选", "Your climbs": "我的攀爬", "All records": "全部记录", "View day →": "查看当天 →", "Deselect all": "取消全选", "Pick videos →": "逐个选择 →", "No videos": "没有视频", "{}: select {}": "{}：选择 {}", "Filter records": "筛选记录", "Type": "类型", "Time": "时间", "All time": "全部时间", "This week": "本周", "This month": "本月", "All gyms": "全部岩馆", "All routes": "全部线路", "Clear all": "全部清除", "Show {}": "查看 {}", "Filtered": "已筛选", "No records match": "没有符合的记录", "Take a filter off to see more of your climbs.": "去掉一个筛选条件，就能看到更多记录。", "Clear filters": "清除筛选", "Remove filter: {}": "去掉筛选：{}", "Show only {}": "只看 {}", "1 record": "1 条记录", "{} records": "{} 条记录", "1 route": "1 条线路", "{} topped": "{} 条登顶", "Nothing here any more.": "这里已经没有记录了。", "Not topped yet": "还没登顶", "About this climb": "关于这次攀爬", "In Community ✓": "已在社区 ✓",
+  "How did the grade feel?": "难度感觉如何？", "Get started": "开始", "40 hand and foot moves": "手脚移动 40 次", "found in Leo’s climb of Green 5.8": "来自 Leo 爬绿线 5.8 的视频",
+  "Film a try with your phone on the floor. Spotter follows your hands, feet and hips, and shows you how others climbed the same route.": "把手机放在地上拍一条。Spotter 会追踪你的手、脚和髋部，再给你看别人怎么爬同一条线。",
+  "Step {} of 3": "第 {} 步，共 3 步", "Skip": "跳过", "Later": "以后再说",
+  "Where do you climb most?": "你最常去哪个岩馆？", "We start you there: its routes, and the climbers on them. You can film at any gym.": "我们先从那里开始：那里的线路，和在那里爬的岩友。在哪个馆都可以拍。", "Film your first try": "拍下你的第一条", "Three things, and Spotter can see every move.": "做到这三点，Spotter 就能看清每个动作。",
+  "Phone on the floor": "手机放在地上", "A few steps back from the wall, propped on your bag or a shoe.": "离墙退后几步，靠在包或鞋上立住。",
+  "Upright, all of you in frame": "竖着拍，全身入镜", "Your whole body and the whole route, from the first hold to the top.": "整个人和整条线都要拍进去，从第一个点到顶。",
+  "Record, climb, stop": "开录，爬，停", "Start before you leave the ground, stop once you’re back down.": "离地前开始录，落地后再停。",
+  "Filmed some already? Import them from your camera roll.": "已经拍过了？从相册导入就行。",
+  "Film your first try and it shows up here, with every move Spotter found.": "拍下第一条后，它会出现在这里，还有 Spotter 找到的每个动作。", "{} · {} of {}": "{} · 已选 {}/{}", "{}: pick videos": "{}：挑选视频", "Select all": "全选", "Filter": "筛选", "Your climbs": "我的攀爬", "All records": "全部记录", "View day →": "查看当天 →", "Deselect all": "取消全选", "Pick videos →": "逐个选择 →", "No videos": "没有视频", "{}: select {}": "{}：选择 {}", "Filter records": "筛选记录", "Type": "类型", "Time": "时间", "All time": "全部时间", "This week": "本周", "This month": "本月", "All gyms": "全部岩馆", "All routes": "全部线路", "Clear all": "全部清除", "Show {}": "查看 {}", "Filtered": "已筛选", "No records match": "没有符合的记录", "Take a filter off to see more of your climbs.": "去掉一个筛选条件，就能看到更多记录。", "Clear filters": "清除筛选", "Remove filter: {}": "去掉筛选：{}", "Show only {}": "只看 {}", "1 record": "1 条记录", "{} records": "{} 条记录", "1 route": "1 条线路", "{} topped": "{} 条登顶", "Nothing here any more.": "这里已经没有记录了。", "Not topped yet": "还没登顶", "About this climb": "关于这次攀爬", "In Community ✓": "已在社区 ✓",
   "The analysis is only for you. Posting shares the video, now or after you analyse it.": "分析结果只有你能看到。发布会把视频分享到社区，现在发或分析完再发都可以。", "Grade felt": "难度感觉", "How the grade felt": "难度感觉", "hardest send": "最难完攀", "on video": "条视频", "Optional": "可选", "How it felt": "难度感觉",
   // ---- legs or arms
   "Move by move": "逐个动作", "How you held up": "体力撑得怎么样",
@@ -37,7 +45,7 @@ const ZH = {
   "Keep it up: stand up on your feet first, then reach.": "保持下去：先用脚站起来，再伸手。",
   "Each time your hips went up, we compared how much your knees straightened with how much your elbows bent. Steps where we couldn’t see both are marked ?.": "每次髋部往上时，我们比较膝盖伸直了多少、手肘弯曲了多少。两者没能同时看到的步骤标为 ?。",
   // ---- pick your climbing style
-  "Pick ✦": "Pick ✦", "your climbing style": "你的攀岩喜好", "🤔 What do you like to climb? (pick any)": "🤔 你喜欢爬什么呢？（可多选）", "Picked {}": "已选{}个",
+  "Pick ✦": "选 ✦", "your climbing style": "你的攀岩喜好", "🤔 What do you like to climb? (pick any)": "🤔 你喜欢爬什么呢？（可多选）", "Picked {}": "已选{}个",
   "Top rope": "顶绳", "Bouldering": "抱石", "Lead": "先锋", "Slab": "板墙", "Overhang": "仰角", "Training": "训练", "All of it": "都可以", "Skip for now": "先跳过", "Pick your style": "选你的喜好",
   "Add a try ✦": "添加一次尝试 ✦", "Best": "推荐", "New": "新",
   // ---- video detail: speed, tabs, confirming

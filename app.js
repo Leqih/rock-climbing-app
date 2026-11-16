@@ -163,7 +163,7 @@ const ic = {
 // sample people get a real portrait from Unsplash (img/av-name.jpg: stock models, not these names); you are img/woman2.jpg; anyone else a flat drawn face
 const AV = new Set(['noor', 'sam', 'leo', 'kai', 'mia']);
 function avatar(w) {
-  if (w === 'You') return '<img src="img/woman2.jpg" alt="">';
+  if (w === 'You') return user === 'new' ? `<span class="av-me">${MASC}</span>` : '<img src="img/woman2.jpg" alt="">';
   if (AV.has(w.toLowerCase())) return `<img src="img/av-${w.toLowerCase()}.jpg" alt="">`;
   const h = [...w].reduce((t, ch) => (t * 31 + ch.charCodeAt(0)) >>> 0, 7), pick = (xs, k) => xs[Math.floor(h / k) % xs.length];
   const bg = pick(['#C9D8F2', '#F2D6C9', '#D2EBC8', '#E6D3F2', '#F2E7B8', '#CDEBE6', '#F2CDD8'], 1);
@@ -203,19 +203,40 @@ function weekHours(g) {
 }
 
 /* ---------- First open: what Spotter does, then straight in ---------- */
+// joining: welcome, then where you climb, what you like to climb, how to film. Done once; a returning climber opens on Videos
+let homeGy; try { homeGy = JSON.parse(localStorage.getItem('spotter-home') ?? 'null'); } catch (_) { homeGy = null; }
+const obDone = () => { try { return localStorage.getItem('spotter-ob') === '1'; } catch (_) { return false; } };
+const obFinish = () => { try { localStorage.setItem('spotter-ob', '1'); } catch (_) {} };
+const obDots = k => `<span class="ob-dots" role="img" aria-label="Step ${k} of 3">${[1, 2, 3].map(i => `<i${i <= k ? ' class="on"' : ''}></i>`).join('')}</span>`;
 function viewSetup() {
   return { photo: 'wayup-p3-green', html: `
-    <div class="bar"><span class="brand">Spotter</span></div>
-    <h1 class="hl">See what your body did on the wall</h1>
-    <p class="sub-w">Film a try with your phone on the floor. Spotter follows your hands, feet and hips, then shows you the same route climbed by others at ${gym.name}.</p>
-    <div class="fold"></div>
-    <div class="ob-ex"><img id="obex" src="img/wayup-p3-green.jpg" alt="A climber on the rope wall, with the body Spotter found drawn on">
-      <div class="ob-t"><span class="ob-k">Example</span><strong>40 hand and foot moves</strong><span>found in Leo’s climb of Green 5.8, with how long each rest was and where the hips were</span></div></div>
-    <p class="cap">Your videos are public at first: climbers at ${gym.name} can watch them and comment. Hide any video, anytime.</p>
-    <button class="link dk" type="button" data-act="to" data-to="pick/new">Look around first</button>`,
-    cta: `<button class="b-ghost" type="button" data-act="film">Film a try</button><button class="b-lime" type="button" data-act="upload">Import videos</button>`,
+    <div class="bar"><span class="brand">Spotter</span><button class="ob-skip" type="button" data-act="obskip">Look around first</button></div>
+    <div class="ob-hero"><img id="obex" src="img/wayup-p3-green.jpg" alt="A climber on the rope wall, with the body Spotter found drawn on">
+      <span class="ob-k">Example</span><span class="ob-st"><strong>40 hand and foot moves</strong><span>found in Leo’s climb of Green 5.8</span></span></div>
+    <h1 class="hl ob-h">See what your body did on the wall</h1>
+    <p class="sub-w ob-s">Film a try with your phone on the floor. Spotter follows your hands, feet and hips, and shows you how others climbed the same route.</p>`,
+    cta: `<button class="b-lime" type="button" data-act="to" data-to="ob/gym">Get started</button>`,
     after: () => fetch('video/wayup-p3-green.track.json').then(x => x.json()).then(T => { const s = T.S.find(q => q.p && q.t >= 20); return s && window.poseStill?.('video/wayup-p3-green.mp4', T, s, 'none', 'good'); })
       .then(u => { const im = $('obex'); if (u && im) im.src = u; }).catch(() => {}) };
+}
+// step 1: your gym; step 3: how to film so Spotter sees every move (step 2 is the style page)
+function viewOb(a) {
+  if (a === 'film') return { after: obFinish,
+    cta: `<button class="b-ghost" type="button" data-act="upload">Import videos</button><button class="b-lime" type="button" data-act="film">${ic.rec}Film a try</button>`, html: `
+    ${bar(obDots(3), '<button class="ob-skip" type="button" data-act="obskip">Later</button>')}
+    <h1 class="hl ob-h">Film your first try</h1>
+    <p class="sub-w ob-s">Three things, and Spotter can see every move.</p>
+    <ol class="ob-tips">
+      <li><b>1</b><span><strong>Phone on the floor</strong>A few steps back from the wall, propped on your bag or a shoe.</span></li>
+      <li><b>2</b><span><strong>Upright, all of you in frame</strong>Your whole body and the whole route, from the first hold to the top.</span></li>
+      <li><b>3</b><span><strong>Record, climb, stop</strong>Start before you leave the ground, stop once you’re back down.</span></li></ol>
+    <p class="cap">Filmed some already? Import them from your camera roll.</p>` };
+  return { cta: `<button class="b-lime" type="button" data-act="to" data-to="pick/ob"${homeGy == null ? ' disabled' : ''}>Continue</button>`, html: `
+    ${bar(obDots(1), '<button class="ob-skip" type="button" data-act="to" data-to="pick/ob">Skip</button>')}
+    <h1 class="hl ob-h">Where do you climb most?</h1>
+    <p class="sub-w ob-s">We start you there: its routes, and the climbers on them. You can film at any gym.</p>
+    <div class="ob-gyms" role="radiogroup" aria-label="Your gym">${gyms.map((g, i) => `<button class="ob-g" type="button" role="radio" data-act="obpick" data-i="${i}" aria-checked="${homeGy === i}">
+      ${g.img ? `<img src="${pic(g.img)}" alt="">` : `<b class="ob-gi" aria-hidden="true">${g.name[0]}</b>`}<span><strong>${g.name}</strong><em>${g.dist}</em></span><i aria-hidden="true"></i></button>`).join('')}</div>` };
 }
 
 /* ---------- Pick your climbing style: a page of shapes you tap, after the "Pick" pages in the team's references ----------
@@ -401,7 +422,7 @@ const heroes = {
   new: () => `<div class="sec"><h2>Your album</h2></div>
       <div class="ae" role="group" aria-label="Your album is empty">
         <span class="ae-g" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
-        <span class="ae-t"><b>No climbs yet</b><span>Videos and climbs you log by hand will show up here.</span></span></div>
+        <span class="ae-t"><b>No climbs yet</b><span>Film your first try and it shows up here, with every move Spotter found.</span></span></div>
       <div class="hs-go"><button class="b-lime" type="button" data-act="film">${ic.rec}Film a try</button><button class="b-ghost" type="button" data-act="upload">Import videos</button></div>`,
   back: () => '' };
 // your album: the box with everything (photos fanned out), two pinned moments, then one binder per gym
@@ -2929,7 +2950,7 @@ const moreActions = {
 };
 
 /* ---------- shell: routing, render, sheets ---------- */
-const views = { pick: viewPick, setup: viewSetup, videos: viewVideos, day: viewDay, algym: viewAlGym, shelf: viewShelf, clip: viewClip, vs: viewVs, route: viewRoute, walls: viewGymsTab, gyms: viewGyms, gym: viewGym, friends: viewFriends, person: viewPerson, profile: viewProfile, cam: viewCam, session: viewSession, logc: viewSession, scan: viewScan, summary: viewSummary, watch: viewWatch };
+const views = { pick: viewPick, setup: viewSetup, videos: viewVideos, day: viewDay, algym: viewAlGym, ob: viewOb, shelf: viewShelf, clip: viewClip, vs: viewVs, route: viewRoute, walls: viewGymsTab, gyms: viewGyms, gym: viewGym, friends: viewFriends, person: viewPerson, profile: viewProfile, cam: viewCam, session: viewSession, logc: viewSession, scan: viewScan, summary: viewSummary, watch: viewWatch };
 const tabOf = { videos: 'videos', shelf: 'videos', clip: 'videos', vs: 'videos', cam: 'videos', route: 'walls', walls: 'walls', gyms: 'walls', gym: 'walls', session: 'videos', logc: 'videos', scan: 'walls', summary: 'profile', watch: 'profile', friends: 'friends', person: 'friends', profile: 'profile' };
 const tabs = ['videos', 'walls', 'friends', 'profile'];
 const dock = document.querySelector('.dock');
@@ -3097,7 +3118,9 @@ const actions = {
     else { picks.delete('all'); picks.has(k) ? picks.delete(k) : picks.add(k); }
     localStorage.setItem('spotter-styles', JSON.stringify([...picks]));
     render(); },
-  pkdone: b => go(b.dataset.from === 'new' ? 'videos' : 'profile'),
+  pkdone: b => go(b.dataset.from === 'ob' ? 'ob/film' : b.dataset.from === 'new' ? 'videos' : 'profile'),
+  obpick: b => { homeGy = +b.dataset.i; try { localStorage.setItem('spotter-home', JSON.stringify(homeGy)); } catch (_) {} render(); },
+  obskip: () => { obFinish(); go('videos'); },
   cgym: b => { const c = byId(b.dataset.i);
     pane(`<h2>Which gym was this?</h2><span class="sub">${rname(ROUTES[c.ri])} · try ${tryOf(c)} · ${dayLabel(agoOf(c))}</span>
       <div class="rows">${gyms.map((g, i) => `<button class="row" type="button" data-act="cgset" data-c="${c.id}" data-i="${i}"><span class="row-t"><strong>${g.name}</strong><span>${g.dist}</span></span>${c.gy === i ? ic.check : ''}</button>`).join('')}</div>`); },
@@ -3239,7 +3262,7 @@ window.addEventListener('hashchange', () => { readHash(); if (page !== 'cam') { 
 const scr = document.querySelector('.screen');
 scr.addEventListener('scroll', () => document.querySelector('.phone').classList.toggle('scrolled', scr.scrollTop > 8), { passive: true });
 // first open: a new climber starts on the intro; ?view=regular opens Videos
-if (!location.hash) history.replaceState(null, '', '#/' + (user === 'regular' ? 'videos' : 'setup'));
+if (!location.hash) history.replaceState(null, '', '#/' + (user === 'regular' || obDone() ? 'videos' : 'setup'));
 readHash();
 // your imported videos first, so a reload on one of them opens it again
 restoreMine().catch(() => {}).finally(() => { readHash(); render(); });
