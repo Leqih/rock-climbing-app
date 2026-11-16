@@ -2989,3 +2989,11 @@ textarea.note:focus { outline: 2px solid var(--ink); outline-offset: 0; backgrou
 .gr-sc i em { position: absolute; top: -3px; bottom: -3px; border-radius: 999px; background: rgba(17,17,17,.14); }
 .gr-sc i b { z-index: 1; }
 .pf-lv { margin-top: 12px; }
+
+/* About this climb: the result and how the grade felt, as small pills inside the list */
+.ce-res { cursor: default; flex-wrap: wrap; padding-top: 8px; padding-bottom: 8px; }
+.ce-res > span:first-child i { font-style: normal; font-weight: 500; font-size: 12px; opacity: .6; margin-left: 4px; }
+.ce-seg { display: inline-flex; gap: 4px; flex: none; }
+.ce-res > span:first-child { min-width: 0; }
+.ce-seg button { flex: none; white-space: nowrap; height: 32px; padding: 0 10px; border-radius: 999px; background: rgba(17,17,17,.06); font-size: 13px; font-weight: 700; color: var(--ink, #111); }
+.ce-seg button[aria-pressed="true"] { background: #111; color: #fff; }

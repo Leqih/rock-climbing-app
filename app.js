@@ -1369,7 +1369,9 @@ function viewClip(id) {
   const pk = clipPick(c), ready = pickDone(c);
   const field = (k, label, val, dot = '') => `<button class="ce-row" type="button" data-act="clpick" data-c="${c.id}" data-k="${k}"><span>${label}</span><b class="${val ? '' : 'empty'}">${dot}${val || 'Choose'}</b><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m6 3.5 4.5 4.5L6 12.5"/></svg></button>`;
   const editCard = `<div class="clip-edit"><h2>About this climb</h2>
-      <div class="ce-rows">${field('gy', 'Gym', pk.gy != null ? gyms[pk.gy]?.name : '')}${field('grade', 'Grade', pk.grade)}${field('color', 'Colour', pk.color, pk.color ? `<i style="--hold:${HOLD_COLORS[pk.color]}"></i>` : '')}</div>
+      <div class="ce-rows">${field('gy', 'Gym', pk.gy != null ? gyms[pk.gy]?.name : '')}${field('grade', 'Grade', pk.grade)}${field('color', 'Colour', pk.color, pk.color ? `<i style="--hold:${HOLD_COLORS[pk.color]}"></i>` : '')}
+        <div class="ce-row ce-res"><span>How did it go?</span><span class="ce-seg" role="group" aria-label="How did it go?">${['Flash', 'Send', 'Project'].map(k => `<button type="button" data-act="clres" data-c="${c.id}" data-k="${k}" aria-pressed="${c.res === k}">${KL[k]}</button>`).join('')}</span></div>
+        ${ready && (c.res === 'Flash' || c.res === 'Send') ? `<div class="ce-row ce-res"><span>Grade felt <i>Optional</i></span><span class="ce-seg" role="group" aria-label="How the grade felt">${FEELS.map(([k, l]) => `<button type="button" data-act="feel" data-ri="${c.ri}" data-k="${k}" aria-pressed="${myFeel[c.ri] === k}">${l}</button>`).join('')}</span></div>` : ''}</div>
       <div class="ce-act"><button class="b-ghost" type="button" data-act="clpost" data-i="${c.id}"${ready || !c.hidden ? '' : ' disabled'}>${c.hidden ? 'Post to Community' : 'In Community ✓'}</button><button class="b-lime" type="button" data-act="startanalysis" data-i="${c.id}"${ready ? '' : ' disabled'}>Analyse</button></div>
       <p class="ce-n">${ready ? 'The analysis is only for you. Posting shares the video, now or after you analyse it.' : 'Choose the gym, grade and colour first.'}</p></div>`;
   // analysed and not posted yet: post it from here. The analysis stays yours
@@ -2986,6 +2988,7 @@ const actions = {
   clpost: b => { const c = byId(b.dataset.i); if (!c) return; if (!c.hidden) { feedAt = Math.max(0, feedAll().findIndex(p => p.c === c)); go('friends'); return; }
     if (!pickDone(c)) { toast('Choose the gym, grade and colour first'); return; }
     c.hidden = false; saveSoon(); render(); toast('Posted to Community'); },
+  clres: b => { const c = byId(b.dataset.c); if (!c) return; c.res = c.res === b.dataset.k ? undefined : b.dataset.k; if (!c.res) delete c.res; saveSoon(); render(); },
   startanalysis: b => { const c = byId(b.dataset.i); if (c && c.an === 'idle') { analyse(c); render(); } },
   // a video's page
   ctab: b => { cTab = b.dataset.v; setTimeout(() => $('main').dispatchEvent(new Event('tabchange'))); document.querySelectorAll('.ctabs button').forEach(x => x.setAttribute('aria-pressed', x.dataset.v === cTab)); document.querySelectorAll('.pn').forEach(p => { p.hidden = p.dataset.pn !== cTab; }); },

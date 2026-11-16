@@ -17,7 +17,8 @@ const ZH = {
   "We show how this gym grades once {} do.": "等到 {} 位岩友也在其他馆爬时，再显示这个馆的松紧。",
   "Your level ≈ {} at the average gym": "你的水平 ≈ 平均水平岩馆的 {}",
   "Your hardest send, {}, is a {} by climbers’ votes. {} grades {}.": "你完攀过最难的是 {}，按完攀者投票是 {}。{} 的定级{}。",
-  "How did the grade feel?": "难度感觉如何？", "hardest send": "最难完攀", "on video": "条视频", "Optional": "可选", "How it felt": "难度感觉",
+  "How did the grade feel?": "难度感觉如何？", "About this climb": "关于这次攀爬", "In Community ✓": "已在社区 ✓",
+  "The analysis is only for you. Posting shares the video, now or after you analyse it.": "分析结果只有你能看到。发布会把视频分享到社区，现在发或分析完再发都可以。", "Grade felt": "难度感觉", "How the grade felt": "难度感觉", "hardest send": "最难完攀", "on video": "条视频", "Optional": "可选", "How it felt": "难度感觉",
   // ---- legs or arms
   "Move by move": "逐个动作", "How you held up": "体力撑得怎么样",
   "Leg push ↑": "腿推 ↑", "Arm pull ↑": "手拉 ↑", "Legs and arms ↑": "手脚并用 ↑",
