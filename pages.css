@@ -3055,3 +3055,15 @@ textarea.note:focus { outline: 2px solid var(--ink); outline-offset: 0; backgrou
 .alf-on button { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 8px 0 12px; border-radius: 999px; background: var(--ink); color: #fff; font-size: 12px; font-weight: 700; }
 .alf-on button b { display: grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; background: rgba(255,255,255,.18); font-size: 13px; line-height: 1; }
 .alf-on .alf-clr { padding: 0 12px; background: transparent; color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
+
+/* selecting in the album: a stack is one tap (all its videos), with a link inside to pick some of them */
+.al-sts { display: flex; flex-direction: column; gap: 0; padding: 0; }
+.al-stp { display: flex; flex-direction: column; gap: 10px; width: 100%; padding: 10px 10px 8px; text-align: left; color: var(--ink); border-radius: 20px; }
+.al-sts[data-on] { box-shadow: inset 0 0 0 3px var(--lime); }
+.al-sts .al-ck { z-index: 3; top: 4px; right: 4px; }
+.al-stp[aria-pressed="true"] .al-ck { background: var(--lime) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23111' stroke-width='3.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5'/%3E%3C/svg%3E") center / 14px no-repeat; border-color: var(--lime); }
+.al-sts.part .al-ck { background: var(--lime) linear-gradient(#111, #111) center / 10px 3px no-repeat; border-color: var(--lime); }
+.al-sts.off { opacity: .4; }
+.al-one { align-self: flex-start; margin: 0 12px 12px; font-size: 12px; font-weight: 800; color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
+.alg-h { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.alg-h .al-filter { flex: none; }
