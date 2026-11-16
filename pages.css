@@ -2671,3 +2671,23 @@ textarea.note:focus { outline: 2px solid var(--ink); outline-offset: 0; backgrou
 .phone:not(.onvid) .lv-w.two > .lyr { gap: 0; padding: 3px; border-radius: 12px; }
 .phone:not(.onvid) .screen.snap .lv-w.two > .lyr button { width: 32px; padding: 3px 0; }
 .lv-sp { display: block; }
+
+/* a video not analysed yet: where and which route, then post it or analyse it */
+.clip-edit { margin: 16px 0 24px; padding: 16px; border-radius: 22px; background: var(--g100, #f2f2f0); }
+.clip-edit h2 { margin: 0 0 10px; font-size: 18px; }
+.ce-rows { display: grid; border-radius: 16px; background: #fff; overflow: hidden; }
+.ce-row { display: flex; align-items: center; gap: 10px; min-height: 50px; padding: 0 14px; border: 0; background: none; font: inherit; color: var(--ink, #111); text-align: left; cursor: pointer; }
+.ce-row + .ce-row { box-shadow: inset 0 1px 0 rgba(17,17,17,.08); }
+.ce-row > span { flex: 1; font-size: 14px; font-weight: 600; color: var(--g700, #555); }
+.ce-row b { display: inline-flex; align-items: center; gap: 6px; font-size: 15px; font-weight: 800; }
+.ce-row b.empty { color: rgba(17,17,17,.38); font-weight: 700; }
+.ce-row b i { width: 12px; height: 12px; border-radius: 50%; background: var(--hold); box-shadow: 0 0 0 1px rgba(17,17,17,.15); }
+.ce-row svg { flex: none; width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; opacity: .35; }
+.ce-row:active { background: rgba(17,17,17,.04); }
+.ce-act { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 14px; }
+.ce-act button { min-height: 48px; border-radius: 999px; font-weight: 800; }
+.ce-act button:disabled { opacity: .35; pointer-events: none; }
+.ce-n { margin: 10px 2px 0; font-size: 12px; color: var(--g700, #666); }
+.ce-post { display: flex; align-items: center; gap: 12px; margin: 4px 16px 14px; padding: 14px 16px; border-radius: 16px; background: var(--g100, #f2f2f2); }
+.ce-post .row-t { flex: 1; }
+.ce-post button { flex: none; min-height: 40px; padding: 0 18px; border-radius: 999px; font-weight: 800; }
