@@ -2768,3 +2768,14 @@ textarea.note:focus { outline: 2px solid var(--ink); outline-offset: 0; backgrou
 .ts-av { display: block; margin-bottom: 14px; }
 .ts-av > .ts-face { width: 100%; height: 100%; overflow: hidden; }
 .ts-av > .ts-author { position: absolute; top: calc(100% + 3px); left: 50%; transform: translateX(-50%); }
+
+/* Find beta with the camera: the photo you took, holds of your route ringed, one panel at the bottom */
+.camx > .scan-photo { position: absolute; inset: 0; width: 100%; height: 100%; cursor: crosshair; }
+.scan-ttl { color: #fff; font-size: 16px; font-weight: 800; }
+.scan-res { position: absolute; left: 14px; right: 14px; bottom: 30px; z-index: 2; display: grid; gap: 4px; padding: 14px 16px 16px; border-radius: 20px; background: rgba(20,24,22,.86); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); color: #fff; }
+.scan-res strong { display: flex; align-items: center; gap: 8px; font-size: 17px; }
+.scan-res > span { font-size: 13px; line-height: 1.4; color: #d6dbd7; }
+.scan-acts { display: flex; gap: 8px; margin-top: 10px; }
+.scan-acts button { flex: 1; min-height: 46px; border-radius: 999px; font-weight: 800; }
+.scan-acts .b-ghost { background: #373c38; color: #fff; }
+.scan-pickb { display: inline-grid; place-items: center; min-height: 44px; padding: 0 18px; border-radius: 999px; background: #c4f52a; color: #111; font-weight: 800; cursor: pointer; }

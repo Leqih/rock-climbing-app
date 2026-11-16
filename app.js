@@ -2005,15 +2005,85 @@ function needHolds(img, color) {
   return []; }
 // the beta opened from a route or from your analysis: no camera, so no Retake
 let betaOnly = false, betaV = null;
+// Find beta, with the real camera: photograph the wall, tap a hold of your route. Its colour says which route it is, and every
+// hold of that colour lights up on your photo. Then the route's beta, as the climber who topped it climbed it
+let scanStream = null, scanAsk = false, scanErr = '', scanCv = null, scanURL = '', scanPick = null;
+async function scanStart() {
+  if (scanStream || scanAsk) return;
+  if (!navigator.mediaDevices?.getUserMedia) { scanErr = 'none'; render(); return; }
+  scanAsk = true;
+  try { scanStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } }, audio: false }); scanErr = ''; }
+  catch (e) { scanErr = e.name === 'NotAllowedError' || e.name === 'SecurityError' ? 'denied' : 'none'; }
+  scanAsk = false;
+  if (page !== 'scan' || scanShot || scanURL) scanStop(); else render();
+}
+function scanStop() { scanStream?.getTracks().forEach(t => t.stop()); scanStream = null; }
+// the photo, cropped to the 9:16 the beta is drawn in (540 × 960), so the holds, your taps and the beta share one frame
+function scanTake(src, w, h) {
+  const cv = document.createElement('canvas'); cv.width = 540; cv.height = 960; const g = cv.getContext('2d', { willReadFrequently: true });
+  const k = Math.max(540 / w, 960 / h); g.drawImage(src, (540 - w * k) / 2, (960 - h * k) / 2, w * k, h * k);
+  scanCv = cv; scanURL = cv.toDataURL('image/jpeg', .85); scanPick = null; scanStop(); render();
+}
+const betaRis = () => ROUTES.map((r, i) => i).filter(i => V.some(x => x.who === 'Leo' && x.ri === i));
+// the colour of the hold you tapped: the most colourful quarter of the pixels around the tap (a hold's middle, not its edge
+// or shadow), averaged round the colour wheel. Grey, white or the wall itself is no colour
+function scanColorAt(x, y) {
+  const R = 8, d = scanCv.getContext('2d', { willReadFrequently: true }).getImageData(Math.max(0, x - R), Math.max(0, y - R), R * 2, R * 2).data, px = [];
+  for (let i = 0; i < d.length; i += 4) { const r = d[i] / 255, g = d[i + 1] / 255, b = d[i + 2] / 255, mx = Math.max(r, g, b), c = mx - Math.min(r, g, b); if (!c) continue;
+    px.push({ h: (mx === r ? ((g - b) / c + 6) % 6 : mx === g ? (b - r) / c + 2 : (r - g) / c + 4) * 60, s: c / mx, v: mx }); }
+  px.sort((a, b) => b.s - a.s); const top = px.slice(0, Math.max(1, px.length >> 2));
+  if (!top.length || top[0].s < .25) return null;
+  const rad = Math.PI / 180, h = (Math.atan2(top.reduce((a, q) => a + Math.sin(q.h * rad), 0), top.reduce((a, q) => a + Math.cos(q.h * rad), 0)) / rad + 360) % 360;
+  const sat = top.reduce((a, q) => a + q.s, 0) / top.length, val = top.reduce((a, q) => a + q.v, 0) / top.length;
+  const fits = k => { const [h0, h1, s0, v0] = HUE[k], hh = h < h0 && h + 360 <= h1 ? h + 360 : h; return hh >= h0 && hh <= h1 && sat >= s0 * .8 && val >= v0 * .8; };
+  // the colours of routes with a beta are tried first: orange and red overlap, and the one we can help with wins
+  return [...new Set([...betaRis().map(i => ROUTES[i].color), ...Object.keys(HUE)])].find(fits) || null;
+}
+function scanTap(e) {
+  const svg = e.currentTarget, pt = svg.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY;
+  const q = pt.matrixTransform(svg.getScreenCTM().inverse()), x = Math.round(q.x), y = Math.round(q.y), color = scanColorAt(x, y);
+  if (!color) { toast('That looks like the wall. Tap a coloured hold'); return; }
+  scanPick = { x, y, color, holds: findHolds(scanCv, HUE[color]), ri: betaRis().find(i => ROUTES[i].color === color) ?? -1 }; render();
+}
+function scanFile(f) {
+  if (!f || !f.type.startsWith('image/')) { toast('That isn’t a photo'); return; }
+  const u = URL.createObjectURL(f), im = new Image();
+  im.onload = () => { scanTake(im, im.naturalWidth, im.naturalHeight); URL.revokeObjectURL(u); }; im.onerror = () => { URL.revokeObjectURL(u); toast('Couldn’t open that photo'); }; im.src = u;
+}
+const scanAfter = () => {
+  document.querySelectorAll('[data-scanfile]').forEach(inp => { inp.onchange = () => scanFile(inp.files[0]); });
+  const svg = $('scsvg'); if (svg) svg.onclick = scanTap;
+  if (scanURL) return; if (!scanStream) { if (!scanErr) scanStart(); return; }
+  const v = $('scv'); if (v && v.srcObject !== scanStream) { v.srcObject = scanStream; v.play().catch(() => {}); } };
+function viewScanCam() {
+  const photos = `<label class="cam-imp"><input type="file" accept="image/*" data-scanfile hidden><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="m3 16 5-5 4 4 3-3 6 6"/><circle cx="16" cy="9" r="1.6"/></svg><span>Photos</span></label>`;
+  const top = `<div class="cam-top"><button class="bk" type="button" data-act="${scanURL ? 'scanretake' : 'back'}" aria-label="${scanURL ? 'Retake' : 'Back'}">${ic.back}</button><strong class="scan-ttl">Find beta</strong></div>`;
+  if (!scanURL) {
+    const why = scanErr === 'denied' ? ['Camera access is off', 'Allow the camera for this site in your browser settings, or choose a photo of the wall.'] : scanErr ? ['No camera here', 'Choose a photo of the wall instead.'] : null;
+    return { bare: true, dark: true, html: '', after: scanAfter, overlay: `
+      <video id="scv" class="cam-live" muted playsinline autoplay aria-label="What your camera sees"></video>
+      ${why ? `<div class="cam-err"><strong>${why[0]}</strong><span>${why[1]}</span><div><button type="button" data-act="scantry">Try again</button><label class="scan-pickb"><input type="file" accept="image/*" data-scanfile hidden>Choose a photo</label></div></div>` : ''}
+      ${top}<span class="cam-fr" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+      ${why ? '' : `<p class="cam-guide">${scanStream ? 'Get your route in the picture, from the start holds to the top' : 'Starting the camera…'}</p>`}
+      <div class="cam-bot">${photos}<button class="shut" type="button" data-act="scansnap" aria-label="Take a photo"${scanStream ? '' : ' disabled'}><i></i></button><span></span></div><div class="cam-shutter-label">Photo</div>` };
+  }
+  const k = scanPick, r = k && k.ri >= 0 ? ROUTES[k.ri] : null, f = v => v.toFixed(0);
+  const marks = k ? `${k.holds.map(h => `<circle cx="${f(h.x)}" cy="${f(h.y)}" r="${f(Math.max(h.r * .6 + 5, 10))}" fill="none" stroke="#FFFFFF" stroke-width="2.5" stroke-dasharray="5 4"/>`).join('')}
+      <circle cx="${k.x}" cy="${k.y}" r="17" fill="none" stroke="#111111" stroke-width="7" opacity=".4"/><circle cx="${k.x}" cy="${k.y}" r="17" fill="none" stroke="#C2FF01" stroke-width="4"/>` : '';
+  const say = !k ? ['Tap a hold on your route', 'Its colour tells us which route it is.']
+    : r ? [`${sw(r)}${rname(r)}`, `${n(k.holds.length, 'hold', 'holds')} found in ${k.color.toLowerCase()}. Wrong route? Tap another hold.`]
+    : [`A ${k.color.toLowerCase()} route`, `Nobody has posted a climb of a ${k.color.toLowerCase()} route here yet, so there’s no beta for it. Tap another hold, or retake.`];
+  return { bare: true, dark: true, html: '', after: scanAfter, overlay: `
+    <svg id="scsvg" class="scan-photo" viewBox="0 0 540 960" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Your photo of the wall. Tap a hold"><image href="${scanURL}" width="540" height="960"/>${marks}</svg>
+    ${top}
+    <div class="scan-res" role="status"><strong>${say[0]}</strong><span>${say[1]}</span>
+      <div class="scan-acts"><button class="b-ghost" type="button" data-act="scanretake">Retake</button>${r ? `<button class="b-lime" type="button" data-act="scango">See the beta</button>` : ''}</div></div>` };
+}
 function viewScan() {
   needTracks(V.filter(q => q.ri === scanRi));
   const r = ROUTES[scanRi], B = betaOf(scanRi, betaV), corners = '<path d="M24 80V24h56M460 24h56v56M516 880v56h-56M80 936H24v-56" fill="none" stroke="#FFFFFF" stroke-width="3"/>';
   needTracks(V.filter(q => q.who === 'Leo'));
-  if (!scanShot) return { html: `${bar('Find beta')}
-    <div class="scan-start"><div class="scan-start-head"><span>EXPLORE A ROUTE</span><h1>Find your beta<span>✦</span></h1><p>Choose a route to see how another climber moved.</p></div>
-    <div class="scan-start-photo"><img src="${pic(r.img)}" alt=""><span class="scan-route-tag">${sw(r)}${rname(r)}</span><span class="scan-demo-label">Demo route preview</span></div>
-    <div class="scan-start-label"><strong>Choose a route</strong><span>Available beta</span></div><div class="scan-route-options">${ROUTES.map((q,i) => ({q,i})).filter(({i}) => V.some(x => x.who === 'Leo' && x.ri === i)).map(({q,i}) => `<button type="button" data-act="scanri" data-i="${i}" aria-pressed="${i === scanRi}">${sw(q)}<span><strong>${q.color}</strong><small>${q.grade}</small></span><b>${i === scanRi ? '✓' : ''}</b></button>`).join('')}</div>
-    <p class="scan-disclaimer">Choose a route to preview its recorded beta. Live wall scanning is not connected yet.</p></div>`, cta: '<button class="b-lime" type="button" data-act="snap">View beta</button>' };
+  if (!scanShot) return viewScanCam();
   if (!B) return { html: `${bar('Find beta')}<div class="scan-unavailable"><h1>Beta isn’t available yet</h1><p>We couldn’t load a recorded climb for this route.</p><button class="b-lime" type="button" data-act="rescan">Choose another route</button></div>` };
   const N = B.steps.length - 1, st = B.steps[bstep], prev = B.steps[Math.max(0, bstep - 1)], pt = q => `${q[0].toFixed(0)} ${q[1].toFixed(0)}`;
   const hn = { lw: 'Left hand', rw: 'Right hand', B: 'Both hands' }, fn = { la: 'left foot', ra: 'right foot' };
@@ -2508,11 +2578,15 @@ const moreActions = {
   // logging and the session
   rtry: b => { const ri = +b.dataset.r; lgClock(); logOf(0, ri).tries++; render(); toast(`${rname(ROUTES[ri])} · attempt ${dayLog(0).find(e => e.ri === ri).tries} today`); },
   rsend: b => openSheet(+b.dataset.r),
-  scan: () => { closeAll(); betaOnly = false; betaV = null; scanShot = false; bstep = 0; scanRi = ROUTES.findIndex((r, i) => V.some(x => x.who === 'Leo' && x.ri === i) && !mineOn(i).some(topOf)); if (scanRi < 0) scanRi = 0; go('scan'); },
+  scan: () => { closeAll(); betaOnly = false; betaV = null; scanShot = false; bstep = 0; scanURL = ''; scanCv = null; scanPick = null; scanErr = ''; scanRi = ROUTES.findIndex((r, i) => V.some(x => x.who === 'Leo' && x.ri === i) && !mineOn(i).some(topOf)); if (scanRi < 0) scanRi = 0; go('scan'); },
   scanri: b => { scanRi = +b.dataset.i; render(); },
   rbeta: b => { betaOnly = true; betaV = b.dataset.v != null ? +b.dataset.v : null; scanRi = +b.dataset.r; scanShot = true; bstep = 0; go('scan'); },
   snap: () => { scanShot = true; bstep = 0; render(); },
   rescan: () => { scanShot = false; render(); },
+  scansnap: () => { const v = $('scv'); if (!v || !v.videoWidth) return; scanTake(v, v.videoWidth, v.videoHeight); },
+  scanretake: () => { scanURL = ''; scanCv = null; scanPick = null; render(); },
+  scantry: () => { scanErr = ''; scanStop(); render(); },
+  scango: () => { if (!scanPick || scanPick.ri < 0) return; scanRi = scanPick.ri; scanShot = true; bstep = 0; render(); },
   bgo: b => { const y = document.querySelector('.screen').scrollTop; bstep = +b.dataset.s; render(); document.querySelector('.screen').scrollTop = y; },
   bstep: b => { const B = betaOf(scanRi, betaV); if (!B) return; bstep = Math.max(0, Math.min(B.steps.length - 1, bstep + +b.dataset.d)); const y = document.querySelector('.screen').scrollTop; render(); document.querySelector('.screen').scrollTop = y; },
   glopen: () => { glOpen = !glOpen; render(); },
@@ -2829,7 +2903,7 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape' && scrim.clas
     const eat = x => { x.stopPropagation(); x.preventDefault(); }; el.addEventListener('click', eat, true); setTimeout(() => el.removeEventListener('click', eat, true), 60); };
   el.addEventListener('pointerup', end); el.addEventListener('pointercancel', end);
 });
-window.addEventListener('hashchange', () => { readHash(); if (page !== 'cam') { camDrop(); camStop(); camStep = 'frame'; } closeAll(); render(); document.querySelector('.screen').scrollTop = 0; });
+window.addEventListener('hashchange', () => { readHash(); if (page !== 'cam') { camDrop(); camStop(); camStep = 'frame'; } if (page !== 'scan') scanStop(); closeAll(); render(); document.querySelector('.screen').scrollTop = 0; });
 // frost the status bar once content scrolls under it
 const scr = document.querySelector('.screen');
 scr.addEventListener('scroll', () => document.querySelector('.phone').classList.toggle('scrolled', scr.scrollTop > 8), { passive: true });
