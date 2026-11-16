@@ -2931,3 +2931,19 @@ textarea.note:focus { outline: 2px solid var(--ink); outline-offset: 0; backgrou
 .vs-down { font-size: 12px; }
 .vs-opts .pv-x, .vs-step b { white-space: nowrap; }
 .vs-down { flex: none; display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; background: rgba(255,255,255,.12); color: #fff; }
+
+/* Legs or arms: the share as a big number, a two-colour bar (legs lime, arms orange), each step up as a chip */
+.la-top { display: flex; align-items: center; gap: 14px; }
+.la-top > b { font-size: 44px; font-weight: 800; letter-spacing: -.03em; line-height: 1; color: var(--ink); }
+.la-top span { display: grid; font-size: 13px; color: var(--g700); line-height: 1.3; }
+.la-top strong { font-size: 17px; color: var(--ink); }
+.la-bar { position: relative; height: 10px; margin: 14px 0 6px; border-radius: 999px; background: #F08A24; overflow: hidden; }
+.la-bar i { position: absolute; inset: 0 auto 0 0; background: #c4f52a; border-right: 2px solid #fff; }
+.la-n { display: flex; justify-content: space-between; margin: 0; font-size: 12px; font-weight: 700; color: var(--ink); }
+.la .tip-d { margin: 12px 0; }
+.la-l { margin-bottom: 4px; }
+.mvq-m.la-leg { background: #c4f52a; color: #111; }
+.mvq-m.la-arm { background: #F08A24; color: #111; }
+.mvq-m.la-mixed { background: #fff; color: var(--ink); box-shadow: inset 0 0 0 1px rgba(17, 17, 17, .15); }
+.mvq-m.la-unseen { background: #ececea; color: #8a8a87; }
+.la-how { margin: 10px 0 0; font-size: 12px; line-height: 1.4; color: var(--g700); }

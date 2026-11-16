@@ -1013,6 +1013,69 @@ function kfWire(T, src) {
   document.querySelectorAll('img[data-kf]').forEach(im => { const f = v.frames[+im.dataset.kf]; window.poseStill(src, T, f.s, f.mark, f.tone).then(u => { if (u) im.src = u; }); });
 }
 // what we measured, each one with the moment it comes from
+/* ---------- Legs or arms ---------- */
+function legArm(T) {
+  const W = T.W || 540, H = T.H || 960, a0 = T.moves[0]?.t0 ?? 0, b0 = T.moves[T.moves.length - 1]?.t ?? T.D;
+  const S = T.S.filter(s => s.p && s.t >= a0 && s.t <= b0 && s.p[7][2] > .5 && s.p[8][2] > .5);
+  if (S.length < 8) return null;
+  const pt = (s, i) => ({ x: s.p[i][0] * W, y: s.p[i][1] * H, v: s.p[i][2] });
+  const ang = (a, b, c) => { const ux = a.x - b.x, uy = a.y - b.y, vx = c.x - b.x, vy = c.y - b.y;
+    return Math.acos(Math.max(-1, Math.min(1, (ux * vx + uy * vy) / (Math.hypot(ux, uy) * Math.hypot(vx, vy) || 1)))) * 180 / Math.PI; };
+  const joint = (s, a, b, c) => [a, b, c].every(i => s.p[i][2] > .5) ? ang(pt(s, a), pt(s, b), pt(s, c)) : null;
+  const F = S.map(s => {
+    const hip = (s.p[7][1] + s.p[8][1]) / 2 * H, sh = (s.p[1][1] + s.p[2][1]) / 2 * H;
+    return { t: s.t, hip, tl: Math.abs(hip - sh) || 1,
+      k: [joint(s, 7, 9, 11), joint(s, 8, 10, 12)],          // left and right knee: hip, knee, ankle
+      e: [s.el ?? joint(s, 1, 3, 5), s.er ?? joint(s, 2, 4, 6)] };   // left and right elbow
+  });
+  // the hips, smoothed over three samples, and the body's size
+  const y = F.map((f, i) => { const w = F.slice(Math.max(0, i - 1), i + 2); return w.reduce((n, g) => n + g.hip, 0) / w.length; });
+  const tl = [...F.map(f => f.tl)].sort((p, q) => p - q)[F.length >> 1];
+  // rises: from a low point of the hips to the next high point (y goes down on screen when you go up)
+  const rises = []; let lo = 0;
+  for (let i = 1; i < y.length; i++) {
+    const up = y[i] < y[i - 1] - tl * .01;
+    if (!up) { if (y[lo] - y[i - 1] >= tl * .3 && i - 1 > lo) rises.push([lo, i - 1]); lo = i; }
+  }
+  if (y[lo] - y[y.length - 1] >= tl * .3 && y.length - 1 > lo) rises.push([lo, y.length - 1]);
+  // a joint's change over the rise: the angle near the start against the angle near the end, each the median of what was read
+  const near = (i, j, get) => { const r = []; for (let x = i; x <= j; x++) { const v = get(F[x]); if (v != null) r.push(v); } r.sort((p, q) => p - q); return r.length ? r[r.length >> 1] : null; };
+  const change = (a, b, get, sign) => { const s = near(a, Math.min(b, a + 1), get), e = near(Math.max(a, b - 1), b, get); return s == null || e == null ? null : (e - s) * sign; };
+  const steps = rises.map(([a, b]) => {
+    const kn = [0, 1].map(j => change(a, b, f => f.k[j], 1)).filter(v => v != null), el = [0, 1].map(j => change(a, b, f => f.e[j], -1)).filter(v => v != null);
+    const knee = kn.length ? Math.min(90, Math.max(0, ...kn)) : null, elbow = el.length ? Math.min(90, Math.max(0, ...el)) : null, rise = (y[a] - y[b]) / tl;
+    let kind = 'unseen';
+    if (knee != null && elbow != null) kind = knee < 15 && elbow < 15 ? 'mixed' : knee >= elbow * 1.3 ? 'leg' : elbow >= knee * 1.3 ? 'arm' : 'mixed';
+    return { t0: F[a].t, t1: F[b].t, rise, knee, elbow, kind };
+  });
+  const known = steps.filter(s => s.kind !== 'unseen'); if (known.length < 2 || known.length * 2 < steps.length) return { steps, share: null };
+  const w = s => s.kind === 'leg' ? 1 : s.kind === 'arm' ? 0 : (s.knee + 1) / (s.knee + s.elbow + 2);
+  const share = Math.round(known.reduce((n, s) => n + s.rise * w(s), 0) / known.reduce((n, s) => n + s.rise, 0) * 100);
+  return { steps, share };
+}
+// the card: how much of the climbing up was legs, every step in order (tap one to watch it), and what to try
+function legCard(T) {
+  const r = legArm(T); if (!r || !r.steps.length) return '';
+  const head = `<div class="hl2 dk2"><h2>Legs or arms</h2><span class="hint2">${n(r.steps.length, 'step up', 'steps up')}</span></div>`;
+  if (r.share == null) return `${head}<div class="stack"><div class="lt la"><span class="lt-h">Can’t tell from this video</span>
+    <p class="tip-d">${(h => h ? `To tell a leg push from an arm pull we need to see your knees and your elbows while you move up. They were hidden on ${h} of ${n(r.steps.length, 'step', 'steps')}. Film from a little further back, side-on if you can.`
+      : `There ${r.steps.length === 1 ? 'is only one step' : `are only ${r.steps.length} steps`} up in this video. We need at least two to say whether your legs or your arms did the work.`)(r.steps.filter(x => x.kind === 'unseen').length)}</p></div></div>`;
+  const W = { leg: 'Legs', arm: 'Arms', mixed: 'Both', unseen: '?' }, sh = r.share;
+  // the step to work on: the one where the arms did the most, beyond the legs
+  const arm1 = r.steps.filter(x => x.kind === 'arm' || x.kind === 'mixed' && x.elbow > x.knee).sort((p, q) => (q.elbow - q.knee) - (p.elbow - p.knee))[0], ai = arm1 ? r.steps.indexOf(arm1) + 1 : 0;
+  const say = sh >= 65 ? ['Mostly legs', 'Your legs did most of the lifting. That keeps your arms fresh for the top.']
+    : sh >= 40 ? ['About half and half', 'Legs and arms shared the work.']
+    : ['Mostly arms', 'Your arms did most of the lifting. They tire much sooner than your legs.'];
+  const next = arm1 && (sh < 65 || arm1.kind === 'arm') ? `On step ${ai}, at ${mmss(arm1.t0)}, your arms did the most. Next try: put a foot on a higher hold first, stand up on it until the leg is straight, and only then reach. The arm just holds on.`
+    : sh < 65 ? 'Next try: before each reach, put a foot on a higher hold and stand up on it until the leg is straight. The arm just holds on.' : 'Keep it up: stand up on your feet first, then reach.';
+  return `${head}<div class="stack"><div class="lt la"><div class="la-top"><b class="num">${sh}%</b><span><strong>${say[0]}</strong>of the climbing up came from your legs</span></div>
+    <div class="la-bar" role="img" aria-label="Legs ${sh}%, arms ${100 - sh}%"><i style="width:${sh}%"></i></div>
+    <p class="la-n"><span>Legs ${sh}%</span><span>Arms ${100 - sh}%</span></p>
+    <p class="tip-d">${say[1]}</p>
+    <div class="mvq-l la-l">${r.steps.map((x, i) => `<button type="button" class="mvq-m la-${x.kind}" data-act="lvseek" data-t="${Math.max(0, x.t0 - .3).toFixed(2)}" aria-label="Step ${i + 1} at ${mmss(x.t0)}: ${x.kind === 'unseen' ? 'not seen' : W[x.kind]}"><b>${i + 1}</b>${W[x.kind]}</button>`).join('')}</div>
+    <p class="an-nx">${next}</p>
+    <p class="la-how">Each time your hips went up, we compared how much your knees straightened with how much your elbows bent. Steps where we couldn’t see both are marked ?.</p></div></div>`;
+}
 function measured(T) {
   const s = T.stats, row = (big, small, t, clip = clipNear(t, T.D)) => `<button class="row" type="button" ${clip}><span class="row-t"><strong>${big}</strong><span>${small}</span></span><span class="tl-go num">${mmss(t)} ›</span></button>`;
   const m = takeaway(T);
@@ -1278,7 +1341,7 @@ function viewClip(id) {
   const nextUp = `<div class="hl2 dk2"><h2>Next</h2></div><div class="rows">
       ${betaRow(c.ri, T)}
       <button class="row" type="button" data-act="ctab" data-v="cmp"><span class="row-t"><strong>Watch it next to someone else</strong><span>${n(peers.length, 'other climber', 'other climbers')} on ${rname(r)}</span></span>${ic.arr('#111111')}</button></div>`;
-  const panels = two ? { why: (q => `${postCard}${qualityCard(q)}${q.level === 'poor' ? '' : `${stuckCard(T, c)}${measured(T)}${paceState(T)}`}${nextUp}`)(quality(T)), body: `<div class="hl2 dk2"><h2>As it plays</h2></div>${live}${timeline(T)}${moveSeq(T)}${bodyStats(T)}`, cmp, info } : {};
+  const panels = two ? { why: (q => `${postCard}${qualityCard(q)}${q.level === 'poor' ? '' : `${stuckCard(T, c)}${measured(T)}${legCard(T)}${paceState(T)}`}${nextUp}`)(quality(T)), body: `<div class="hl2 dk2"><h2>As it plays</h2></div>${live}${timeline(T)}${moveSeq(T)}${bodyStats(T)}`, cmp, info } : {};
   return { photo: c.img, fit: state === 'ask' || state === 'idle', cta: '', after: () => {
       tagWire(c);
       const v = $('lvv'), box = v.parentElement;
