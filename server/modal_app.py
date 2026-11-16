@@ -6,7 +6,7 @@ can call from the gym. The same API as spotter_server.py (POST /jobs, GET /jobs/
 import os, tempfile, time
 import modal
 
-MODEL, IMGSZ, GPU = 'yolo11x-pose.pt', 1280, 'L4'
+MODEL, IMGSZ, GPU = 'yolo11x-pose.pt', 1280, ['L4', 'A10G', 'T4']   # whichever is free first
 here = os.path.dirname(os.path.abspath(__file__))
 
 image = (modal.Image.debian_slim(python_version='3.11')
@@ -58,7 +58,7 @@ def web():
     api.add_middleware(CORSMiddleware, allow_origins=['*'], allow_methods=['GET', 'POST', 'OPTIONS'], allow_headers=['*'])
 
     @api.get('/health')
-    def health(): return {'ok': True, 'model': MODEL, 'imgsz': IMGSZ, 'gpu': GPU}
+    def health(): return {'ok': True, 'model': MODEL, 'imgsz': IMGSZ, 'gpu': '|'.join(GPU)}
 
     @api.post('/jobs')
     async def add(request: Request, seed: str = None):

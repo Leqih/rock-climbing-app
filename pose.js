@@ -321,11 +321,14 @@
       x.onerror = () => no(new Error('no connection')); x.ontimeout = () => no(new Error('upload timed out'));
       x.send(blob);
     });
+    const sent = Date.now(); let j0 = null;
     for (let miss = 0; ;) {
       await new Promise(r => setTimeout(r, 1000));
+      // no GPU free after 2 minutes (a cold start takes ~20 s): the phone reads it instead of you waiting on
+      if (j0?.state === 'queued' && Date.now() - sent > 120e3) throw new Error('no GPU free');
       let j; try { const r = await fetch(`${SERVER}/jobs/${job.id}`); if (!r.ok) throw new Error(`job ${r.status}`); j = await r.json(); miss = 0; }
       catch (e) { if (++miss > 30) throw e; continue; }   // a moment without signal is fine
-      if (j.state === 'error') throw new Error(j.error || 'server failed');
+      j0 = j; if (j.state === 'error') throw new Error(j.error || 'server failed');
       onP?.(.3 + .7 * (j.pct || 0));
       if (j.state === 'done') { const r = j.result; return { ...await window.__trackFromFrames(r.frames, r.W, r.H, r.D), by: r.model }; }
     }
