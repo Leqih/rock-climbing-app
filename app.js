@@ -411,8 +411,8 @@ let alTime = 'all', alGym = null, alRoute = null, alOpen = null;   // alOpen: th
 const alTimeOk = d => alTime === 'all' ? true : alTime === 'week' ? d < 7 : alTime === 'month' ? dateOf(d).getMonth() === dateOf(0).getMonth() && dateOf(d).getFullYear() === dateOf(0).getFullYear() : d === +alTime.slice(2);
 const alTimeName = () => alTime === 'week' ? 'This week' : alTime === 'month' ? 'This month' : alTime.startsWith('d:') ? dayLabel(+alTime.slice(2)) : 'All time';
 const alFiltered = () => albumFilter !== 'all' || alTime !== 'all' || alGym != null;
-const alCta = () => { const k = alSel ? alSel.size : 0, d = k ? '' : ' disabled';
-  return alSel ? `<button class="b-ghost" type="button" data-act="alvis" data-v="me"${d}>Only you</button><button class="b-ghost" type="button" data-act="alvis" data-v="pub"${d}>Public</button><button class="b-lime" type="button" data-act="aldel"${d}>Delete${k ? ` ${k}` : ''}</button>` : ''; };
+const alCta = () => { const k = alSel ? alSel.size : 0, d = k ? '' : ' disabled', tray = alSel && alOpen && (page === 'videos') ? album({ tray: true }) || '' : '';
+  return alSel ? `${tray}<button class="b-ghost" type="button" data-act="alvis" data-v="me"${d}>Only you</button><button class="b-ghost" type="button" data-act="alvis" data-v="pub"${d}>Public</button><button class="b-lime" type="button" data-act="aldel"${d}>Delete${k ? ` ${k}` : ''}</button>` : ''; };
 function album(only) {
   const hn = vlogged(), tops = vtops(), newest = newestClips(), nogym = clips.filter(c => c.gy == null).length, here = newest.filter(c => c.gy === 0);
   if (!clips.length && !hn) return '';
@@ -453,7 +453,7 @@ function album(only) {
     if (showManual) logs.forEach(l => { if (l.ago === d && (l.tries || l.sent)) it.push({ gy: 0, key: `r:${l.ri}`, ri: l.ri, sent: l.sent, html: routeTile(l), col: ROUTES[l.ri].hex, g: ROUTES[l.ri].grade, seed: `r${l.ri}${l.ago}${l.tries}` }); });
     if (showVideos) newest.filter(c => agoOf(c) === d).sort((p, q) => tryOf(q) - tryOf(p)).forEach(c => it.push({ gy: c.gy ?? -1, key: c.need ? `n:${c.id}` : `r:${c.ri}`, ri: c.need ? null : c.ri, sent: topOf(c), html: tile(c), img: c.img, id: c.id }));
     return it; };
-  const keep = x => only && !only.index ? true : (alGym == null || x.gy === alGym) && (!alRoute || x.key === alRoute);
+  const keep = x => only && only.d != null ? true : (alGym == null || x.gy === alGym) && (!alRoute || x.key === alRoute);
   const dayItems = d => {
     const it = rawItems(d).filter(keep), groups = [];
     it.forEach(x => { let g = groups.find(q => q.gy === x.gy); if (!g) groups.push(g = { gy: x.gy, routes: [] });
@@ -470,7 +470,7 @@ function album(only) {
     const rs = []; all.filter(x => x.gy === alGym && !x.key.startsWith('n:')).forEach(x => { if (!rs.some(r => r.key === x.key)) rs.push({ key: x.key, hex: x.ri != null ? ROUTES[x.ri].hex : x.hex, name: x.ri != null ? rname(ROUTES[x.ri]) : x.name }); });
     return { gyms: gy.map(g => ({ gy: g, name: gname(g) })), routes: rs, days: allDays, n: days.reduce((k, d) => k + dayItems(d).reduce((m, g) => m + g.routes.reduce((q, r) => q + r.items.length, 0), 0), 0) }; }
   // inside one stack: that gym on that day, route by route
-  if (only) { const g = dayItems(only.d).find(q => q.gy === only.gy);
+  if (only && !only.tray) { const g = dayItems(only.d).find(q => q.gy === only.gy);
     return { name: gname(only.gy), n: g ? g.routes.reduce((k, r) => k + r.items.length, 0) : 0, html: g ? routesOf(g) : '' }; }
   // a day shows one stack per gym: its photos piled up, the gym, how many records and routes. Tap it to see inside
   const stack = (d, g) => { const all = g.routes.flatMap(r => r.items), k = all.length, top = g.routes.filter(r => r.items.some(x => x.sent)).length;
@@ -489,11 +489,13 @@ function album(only) {
   const strip = d => { if (!alSel || !alOpen || !alOpen.startsWith(`${d}_`)) return '';
     const g = dayItems(d).find(q => `${d}_${q.gy}` === alOpen); if (!g) return '';
     const vs = g.routes.flatMap(r => r.items).filter(x => x.id != null);
-    return `<div class="al-strip"><p>${gname(g.gy)}<span>${n(vs.length, 'video', 'videos')}</span></p><div class="al-row">${vs.map(x => x.html).join('')}</div></div>`; };
+    const on = vs.filter(x => alSel.has(String(x.id))).length;
+    return `<div class="al-tray" role="group" aria-label="${gname(g.gy)}: pick videos"><p><b>${gname(g.gy)}</b><span>${dayLabel(d)} · ${on} of ${vs.length}</span><button type="button" class="al-tx" data-act="alopen" data-k="${alOpen}" aria-label="Close">×</button></p><div class="al-row">${vs.map(x => x.html).join('')}</div></div>`; };
+  if (only?.tray) return alOpen ? strip(+alOpen.split('_')[0]) : '';
   const box = alRoute ? `<div class="al${alSel ? ' sel' : ''}">${days.map(d => `<div class="al-d"><h3><button type="button" class="day-open" data-act="to" data-to="day/${d}"><em class="al-dl">${dayLabel(d)}</em> <span>View day →</span></button></h3>
     <div class="al-g">${dayItems(d).flatMap(g => g.routes.flatMap(r => r.items)).map(x => x.html).join('')}</div></div>`).join('')}</div>`
-    : `<div class="al${alSel ? ' sel' : ''}">${days.map(d => `<div class="al-d"><h3><button type="button" class="day-open" data-act="to" data-to="day/${d}"><em class="al-dl">${dayLabel(d)}</em> <span>View day →</span></button></h3>
-    <div class="al-gg">${dayItems(d).map(g => stack(d, g)).join('')}</div>${strip(d)}</div>`).join('')}</div>`;
+    : `<div class="al${alSel ? ' sel' : ''}${alSel && alOpen ? ' tray' : ''}">${days.map(d => `<div class="al-d"><h3><button type="button" class="day-open" data-act="to" data-to="day/${d}"><em class="al-dl">${dayLabel(d)}</em> <span>View day →</span></button></h3>
+    <div class="al-gg">${dayItems(d).map(g => stack(d, g)).join('')}</div></div>`).join('')}</div>`;
   const filteredCount = days.reduce((k, d) => k + dayItems(d).reduce((m, g) => m + g.routes.reduce((q, r) => q + r.items.length, 0), 0), 0);
   // the filters in use, each one a chip you can take off
   const rsel = alRoute ? album({ index: true }).routes.find(r => r.key === alRoute) : null;
@@ -3123,12 +3125,11 @@ const actions = {
   cvis: b => { const c = byId(b.dataset.i), me = b.dataset.v === 'me'; closeAll(); if (!!c.hidden === me) return; c.hidden = me; render(); toast(me ? 'Only you · removed from Community' : 'Public · in Community'); },
   fpull: b => { const c = byId(b.dataset.i); c.hidden = true; closeAll(); render(); toast('Removed from Community · still in your videos'); },
   alsel: () => { alSel = alSel ? null : new Set(); alOpen = null; render(); },
-  alopen: b => { alOpen = alOpen === b.dataset.k ? null : b.dataset.k; render();
-    if (alOpen) requestAnimationFrame(() => document.querySelector('.al-strip')?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' })); },
+  alopen: b => { alOpen = alOpen === b.dataset.k ? null : b.dataset.k; render(); },
   alstack: b => { const ids = b.dataset.ids.split(',').filter(Boolean), all = ids.every(i => alSel.has(i)); ids.forEach(i => all ? alSel.delete(i) : alSel.add(i)); render(); },
   alpick: b => { const id = b.dataset.i; alSel.has(id) ? alSel.delete(id) : alSel.add(id); b.setAttribute('aria-pressed', alSel.has(id));
     $('cta').innerHTML = alCta(); const h = $('alcount'); if (h) h.textContent = alSel.size ? `${alSel.size} selected` : 'Select videos';
-    if (b.closest('.al-strip')) { const x = $('main').querySelector('.al-row')?.scrollLeft || 0; render(); const r = $('main').querySelector('.al-row'); if (r) r.scrollLeft = x; } },
+    if (b.closest('.al-tray')) { const x = $('cta').querySelector('.al-row')?.scrollLeft || 0; render(); const r = $('cta').querySelector('.al-row'); if (r) r.scrollLeft = x; } },
   alvis: b => { const me = b.dataset.v === 'me', k = alSel.size; alSel.forEach(id => { const c = byId(id); if (c) c.hidden = me; }); alSel = null; render();
     toast(`${n(k, 'video', 'videos')} · ${me ? 'only you' : 'public'}`); },
   aldel: () => { const k = alSel.size; if (!k) return;

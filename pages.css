@@ -3081,3 +3081,15 @@ textarea.note:focus { outline: 2px solid var(--ink); outline-offset: 0; backgrou
 /* the row scrolls inside its day; the day never grows wider than the album */
 .al > .al-d { min-width: 0; }
 .al-strip { min-width: 0; }
+
+/* the tray: fixed over the action buttons like they are, its videos scroll sideways */
+.al-tray { position: absolute; left: -6px; right: -6px; bottom: calc(100% + 10px); padding: 12px 0 12px; border-radius: 24px; background: #fff; box-shadow: 0 10px 30px rgba(17,17,17,.18); }
+.al-tray p { display: flex; align-items: center; gap: 8px; margin: 0 12px 10px 16px; font-size: 14px; }
+.al-tray p b { font-weight: 800; }
+.al-tray p span { font-size: 12px; font-weight: 600; color: #8a8a87; }
+.al-tx { margin-left: auto; display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: #ececea; color: var(--ink); font-size: 17px; line-height: 1; }
+.al-tray .al-row { margin: 0; padding: 0 12px; scroll-padding: 0 12px; }
+.al-tray .al-t { width: 104px; border-radius: 14px; }
+.al-tray .al-kind { font-size: 10px; }
+.al-tray .al-ck { top: 7px; right: 7px; width: 22px; height: 22px; }
+.al.sel.tray { padding-bottom: 210px; }
