@@ -60,7 +60,7 @@ function needTracks(vs) {
 }
 
 /* ---------- Your videos ---------- */
-// videos you bring in from your phone: they never leave it. The file plays from a blob URL and its first frame is the picture
+// videos you bring in from your phone: kept on it (the analysis server reads a copy and deletes it). The file plays from a blob URL and its first frame is the picture
 const MINE = {};
 const pic = (name, f) => MINE[name]?.pic || `img/${name}${f === 0 ? '0' : ''}.jpg`;
 const vsrc = vid => MINE[vid]?.src || `video/${vid}.mp4`;
@@ -305,7 +305,7 @@ let vTab = 'all';
 const vcard = c => { const st = c.an === 'idle' || !c.an ? 'Not analysed' : c.an === 'ask' ? 'Check this' : c.an !== 'done' ? 'Analysing' : topOf(c) ? 'Topped' : 'Not topped', r = ROUTES[c.ri];
   return `<button class="vc${c.hidden ? ' hid' : ''}" type="button" data-act="to" data-to="clip/${c.id}" aria-label="${rname(r)}, try ${tryOf(c)}, ${dayLabel(agoOf(c))}">
     <span class="vc-i"><img src="${pic(c.img)}" alt=""><span class="vc-t">Try ${tryOf(c)}</span>${gymTag(c)}${c.hidden ? `<span class="vc-h">${ic.eyeOff}</span>` : ''}</span>
-    <span class="vc-b"><span class="vc-r">${sw(r)}${rname(r)}</span><b class="${st === 'Topped' ? 'on' : c.an === 'ask' ? 'ask' : ''}">${st}</b><span class="vc-d">${dayLabel(agoOf(c))}</span></span></button>`; };
+    <span class="vc-b"><span class="vc-r">${sw(r)}${rname(r)}</span><b class="${st === 'Topped' ? 'on' : c.an === 'ask' ? 'ask' : ''}">${st}${st === 'Analysing' ? ` <span class="num" data-pg="${c.id}"><b>${pgOf(c) ?? 0}%</b></span>` : ''}</b><span class="vc-d">${dayLabel(agoOf(c))}</span></span></button>`; };
 const vhand = l => { const r = ROUTES[l.ri];
   return `<button class="vc vc-p" type="button" data-act="to" data-to="${l.ago === 0 ? 'session' : `route/${l.ri}`}" aria-label="${rname(r)}, logged by hand, ${dayLabel(l.ago)}">
     <span class="vc-i">${ic.pen}<span class="vc-t g">By hand</span></span>
@@ -370,7 +370,7 @@ function album() {
   const dayGyms = d => [...new Set([...(showVideos ? newest.filter(c => agoOf(c) === d && c.gy != null).map(c => c.gy) : []),
     ...(showManual ? glogs.filter(x => x.ago === d).map(x => x.gy) : []), ...(showManual && logs.some(l => l.ago === d && (l.tries || l.sent)) ? [0] : [])])];
   const tile = (c, many) => `<button class="al-t" type="button" data-act="to" data-to="clip/${c.id}" aria-label="${rname(ROUTES[c.ri])}, try ${tryOf(c)}${topOf(c) ? ', topped' : ''}">
-      <img src="${pic(c.img)}" alt="" loading="lazy"><span class="al-kind">Video · Try ${tryOf(c)}</span>${c.gy == null ? '<span class="al-ng">No gym</span>' : ''}${topOf(c) ? `<span class="al-ok" aria-hidden="true">${ic.check}</span>` : ''}
+      <img src="${pic(c.img)}" alt="" loading="lazy"><span class="al-kind">Video · Try ${tryOf(c)}</span>${c.gy == null ? '<span class="al-ng">No gym</span>' : ''}${pgTag(c) || (topOf(c) ? `<span class="al-ok" aria-hidden="true">${ic.check}</span>` : '')}
       <span class="al-r">${sw(ROUTES[c.ri])}<b>${ROUTES[c.ri].grade}</b>${many && c.gy != null ? `<small class="al-gy">${gyms[c.gy].name}</small>` : ''}</span></button>`;
   // a climb logged by hand has no video and no photo, so it gets one drawn hold: big, in the route's colour, cropped by the
   // corner of the tile with its bolt in the middle. The type leads; the hold only says which colour you climbed. Same record, same hold
@@ -448,7 +448,7 @@ const upSel = new Set();
 function openUpload() { upSel.clear(); drawRoll(); }
 function drawRoll() {
   const left = V.filter(v => !v.added), k = upSel.size;
-  pane(`<h2>Import videos</h2><span class="sub">Analysed on your phone. Nothing is uploaded</span>
+  pane(`<h2>Import videos</h2><span class="sub">${window.poseServer ? 'Uploaded to our server for analysis, then deleted' : 'Analysed on your phone. Nothing is uploaded'}</span>
     <label class="up-own">${ic.rec}<span><b>Choose from your phone</b><em>A video of one climb, filmed from the ground</em></span><input type="file" accept="video/*" data-upfile hidden></label>
     ${left.length ? '<h3 class="up-h">Or try a sample video</h3>' : ''}
     ${left.length ? `<div class="roll">${left.map(v => `<button type="button" class="${upSel.has(v.i) ? 'on' : ''}" data-act="upick" data-i="${v.i}" aria-pressed="${upSel.has(v.i)}" aria-label="Video, ${rname(ROUTES[v.ri])}, ${v.len}"><img src="${pic(v.img)}" alt=""><span>${dayLabel(v.ago)} · ${v.len}</span>${upSel.has(v.i) ? `<em>${[...upSel].indexOf(v.i) + 1}</em>` : ''}</button>`).join('')}</div>
@@ -572,11 +572,17 @@ const TAGS = [['head', 'Head', 'Tap your head'], ['lh', 'Left hand', 'Tap your l
 const SAMPLE_BODY = { head: { x: .5, y: .3 }, lh: { x: .38, y: .2 }, rh: { x: .62, y: .24 }, lf: { x: .42, y: .72 }, rf: { x: .58, y: .78 }, t: 0 };   // photo clips have no video to read
 let tagS = { id: null, i: 0, pts: {} }, cTab = 'why', speed = 1;
 const wait = ms => new Promise(r => setTimeout(r, ms));
+// how far an analysis is, on a video's tile and card: drawn with the list, then kept current here without drawing the page again
+const pgOf = c => c.an === 'run' ? Math.round((c.pct || 0) * 100) : null;
+const pgTag = c => { const p = pgOf(c); return p == null ? (c.an === 'ask' ? '<span class="al-an ask">Check this</span>' : '') : `<span class="al-an" data-pg="${c.id}" style="--p:${p}%"><em>Analysing</em> <b class="num">${p}%</b></span>`; };
+const pgShow = c => { const p = Math.round((c.pct || 0) * 100);
+  document.querySelectorAll(`[data-pg="${c.id}"]`).forEach(e => { e.style.setProperty('--p', `${p}%`); const b = e.querySelector('b'); if (b) b.textContent = `${p}%`; }); };
 async function analyse(c, seed) {
   c.an = 'run'; c.pct = 0;
   const began = Date.now(), lv = vidOf(c), here = () => page === 'clip' && +arg === c.id;
   const track = lv && window.poseScan ? await window.poseScan(`${vsrc(lv.vid)}`, seed, p => {
-    c.pct = p; if (!here()) return null;
+    c.pct = p; pgShow(c);   // on the video in any list, so you can leave the page and watch it from there
+    if (!here()) return null;
     const n = $('anp'), b = $('anb'); if (n) n.textContent = `${Math.round(p * 100)}%`; if (b) b.style.width = `${p * 100}%`;
     return $('lvc'); }).catch(() => null) : null;
   if (track && lv.mine) { TRK[lv.vid] = track; saveSoon(); }
@@ -589,7 +595,7 @@ async function analyse(c, seed) {
     c.auto = track?.first || null;
     if (c.auto && c.track) { c.tags = c.auto; c.an = 'done'; } else c.an = 'ask';
   }
-  if (here() || ['videos', 'shelf', 'profile', 'route', 'vs', 'session'].includes(page)) render();
+  if (here() || ['videos', 'shelf', 'day', 'profile', 'route', 'vs', 'session'].includes(page)) render();
 }
 const anState = cs => cs.some(x => x.hold) ? 'hold' : cs.some(x => x.an === 'ask') ? 'ask' : cs.some(x => (x.r || vidOf(x)) && x.an !== 'done') ? 'run' : 'done';
 // the track of this video, under it: each hand and foot over time, and every rest. Tap anywhere to go to that moment
