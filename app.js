@@ -471,10 +471,17 @@ async function openVideo(v, ms = 15000) {
 window.openVideo = openVideo;
 async function importFile(f) {
   if (!isVideo(f)) { toast('That isn’t a video'); return; }
+  // you say where and which route, then post it or analyse it
+  const c = await addMine(f, { need: true, hidden: true }, 'Opening your video…'); if (!c) return;
+  closeAll(); cTab = 'why'; go(`clip/${c.id}`);
+  if (V[c.v].D > 240) toast('A long video takes a while to analyse. Trim it to the climb first if you can');
+}
+// a video file on this phone (imported, or just filmed) becomes one of your tries: its picture, its length, kept in IndexedDB
+async function addMine(f, o = {}, msg) {
   const src = URL.createObjectURL(f), v = document.createElement('video');
   Object.assign(v, { muted: true, playsInline: true, preload: 'auto', src });
   v.style.cssText = 'position:fixed;left:0;top:0;width:2px;height:2px;opacity:.01;pointer-events:none'; document.body.appendChild(v);
-  toast('Opening your video…');
+  if (msg) toast(msg);
   try {
     await openVideo(v);
     const D = v.duration;
@@ -484,11 +491,10 @@ async function importFile(f) {
     cv.width = Math.round(W * k); cv.height = Math.round(H * k); cv.getContext('2d').drawImage(v, 0, 0, cv.width, cv.height);
     const vid = `mine-${Date.now()}`; MINE[vid] = { src, pic: cv.toDataURL('image/jpeg', .82), name: f.name, at: Date.now() };
     try { await DB.put('files', vid, f); } catch (_) { toast('Your phone is out of space for videos here. It will be gone when you leave'); }
-    V.push({ i: V.length, vid, img: vid, who: 'You', ri: camRoute ?? lastRoute(), top: false, ago: 0, D, ar: W / H, len: mmss(D), t: [0, D], credit: `Your video · ${esc(f.name)}`, mine: true });
-    const c = addClip(V.length - 1, { gy: null, id: mineN++, need: true, hidden: true });   // you say where and which route, then post it or analyse it
-    closeAll(); cTab = 'why'; go(`clip/${c.id}`);
-    if (D > 240) toast('A long video takes a while to analyse. Trim it to the climb first if you can');
-  } catch (e) { URL.revokeObjectURL(src); toast(e.message === 'short' ? 'That video is too short' : e.message === 'codec' ? 'This browser can’t play that video format. Save it as an H.264 MP4 and try again' : 'Couldn’t open that video. Try an MP4'); }
+    V.push({ i: V.length, vid, img: vid, who: 'You', ri: o.ri ?? lastRoute(), top: false, ago: 0, D, ar: W / H, len: mmss(D), t: [0, D], credit: `Your video · ${esc(f.name)}`, mine: true });
+    const c = addClip(V.length - 1, { gy: null, id: mineN++, ...o });
+    saveSoon(); return c;
+  } catch (e) { URL.revokeObjectURL(src); toast(e.message === 'short' ? 'That video is too short' : e.message === 'codec' ? 'This browser can’t play that video format. Save it as an H.264 MP4 and try again' : 'Couldn’t open that video. Try an MP4'); return null; }
   finally { v.remove(); }
 }
 // your imported videos stay on this phone between visits: the file itself, its picture, and the try with its analysis, in
@@ -545,6 +551,24 @@ function importPicks(vs) {
 /* ---------- Film a try: the phone camera, full screen ---------- */
 // the camera reads the route from the holds in frame. In this prototype it films the next of your sample tries
 let filming = false, recS = 0, recT = null, camStep = 'frame', camRoute = null, camGym = null, camColor = '', camGrade = '', camRes = null;
+// the phone's back camera, filming for real: a live picture while you set up, a recording while you climb, then you watch it
+// back and save it as one of your videos. No sound (the analysis doesn't use it, and the file is smaller to send)
+let camStream = null, camAsk = false, camErr = '', camRec = null, camChunks = [], camBlob = null, camURL = null;
+const camMime = () => ['video/mp4;codecs=avc1', 'video/mp4', 'video/webm;codecs=vp9', 'video/webm'].find(t => window.MediaRecorder?.isTypeSupported?.(t)) || '';
+async function camStart() {
+  if (camStream || camAsk) return;
+  if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) { camErr = 'none'; render(); return; }
+  camAsk = true;
+  try { camStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } }, audio: false }); camErr = ''; }
+  catch (e) { camErr = e.name === 'NotAllowedError' || e.name === 'SecurityError' ? 'denied' : 'none'; }
+  camAsk = false;
+  if (page !== 'cam' || camStep !== 'frame') camStop(); else render();
+}
+function camStop() { camStream?.getTracks().forEach(t => t.stop()); camStream = null; }
+function camDrop() { if (camRec && camRec.state !== 'inactive') { camRec.onstop = null; camRec.stop(); } camRec = null; filming = false; clearInterval(recT); if (camURL) URL.revokeObjectURL(camURL); camURL = null; camBlob = null; }
+// after each draw of the camera page: the live picture goes back on, or the camera is asked for
+const camAttach = () => { if (camStep !== 'frame') return; const v = $('camv'); if (!camStream) { if (!camErr) camStart(); return; }
+  if (v && v.srcObject !== camStream) { v.srcObject = camStream; v.play().catch(() => {}); } };
 const nextRoll = () => V.find(v => !v.added);
 const HOLD_COLORS = { Green:'#2E9E62', Orange:'#F08A24', Blue:'#3F82CA', Red:'#D74D48', Yellow:'#E3C43A', Purple:'#8F69B8', Pink:'#DE7DA5', White:'#EEEEEE', Black:'#303030' };
 // a video's gym, grade and colour, as you've set them on its page. A video you imported starts with none of them
@@ -578,12 +602,15 @@ function openCameraPicker(kind) {
 
 function viewCam() {
   const v = nextRoll(), last = clips[clips.length - 1];
-  if (camStep === 'review' && v) return { bare: true, dark: true, html: '', overlay: `<div class="cam-review"><header><button class="bk" type="button" data-act="camretake" aria-label="Back">${ic.back}</button><strong>Preview your climb</strong></header><div class="cam-preview"><video src="${vsrc(v.vid)}" poster="${pic(v.img, 0)}" controls playsinline preload="metadata"></video></div><div class="cam-res"><strong>How did it go?</strong><div>${[['Flash', '✦'], ['Send', '✓'], ['Project', '↗']].map(([k, icon]) => `<button type="button" data-act="camres" data-k="${k}" aria-pressed="${camRes === k}"><span aria-hidden="true">${icon}</span>${KL[k]}</button>`).join('')}</div><small>${camRes === 'Flash' ? 'Finished on your first try' : camRes === 'Send' ? 'Finished after more than one try' : camRes === 'Project' ? 'Still working on it' : 'Pick one to save'}</small></div><div class="cam-review-actions"><button type="button" data-act="camretake">Retake</button><button type="button" data-act="camsave"${camRes ? '' : ' disabled'}>Save climb</button></div></div>` };
-  return { bare: true, dark: true, html: '', overlay: `
-    <img src="${pic(v ? `${v.img}0` : 'gym-arc-1')}" alt="">
+  if (camStep === 'review' && camURL) return { bare: true, dark: true, html: '', overlay: `<div class="cam-review"><header><button class="bk" type="button" data-act="camretake" aria-label="Back">${ic.back}</button><strong>Preview your climb</strong></header><div class="cam-preview"><video src="${camURL}" controls playsinline preload="metadata"></video></div><div class="cam-res"><strong>How did it go?</strong><div>${[['Flash', '✦'], ['Send', '✓'], ['Project', '↗']].map(([k, icon]) => `<button type="button" data-act="camres" data-k="${k}" aria-pressed="${camRes === k}"><span aria-hidden="true">${icon}</span>${KL[k]}</button>`).join('')}</div><small>${camRes === 'Flash' ? 'Finished on your first try' : camRes === 'Send' ? 'Finished after more than one try' : camRes === 'Project' ? 'Still working on it' : 'Pick one to save'}</small></div><div class="cam-review-actions"><button type="button" data-act="camretake">Retake</button><button type="button" data-act="camsave"${camRes ? '' : ' disabled'}>Save climb</button></div></div>` };
+  const ready = !!camStream, ask = camGym === null || !camColor || !camGrade;
+  const why = camErr === 'denied' ? ['Camera access is off', 'Allow the camera for this site in your browser settings, then try again.'] : camErr ? ['No camera here', 'This browser or device can’t film. Import a video you filmed instead.'] : null;
+  return { bare: true, dark: true, html: '', after: camAttach, overlay: `
+    <video id="camv" class="cam-live" muted playsinline autoplay aria-label="What your camera sees"></video>
+    ${why ? `<div class="cam-err"><strong>${why[0]}</strong><span>${why[1]}</span><div><button type="button" data-act="camtry">Try again</button><button type="button" data-act="upload">Import a video</button></div></div>` : ''}
     <div class="cam-top"><button class="bk" type="button" data-act="back" aria-label="Back">${ic.back}</button><div class="cam-tags" aria-label="Climb details"><button class="cam-chip cam-chip-gym" type="button" data-act="campicker" data-kind="gym"${filming ? ' disabled' : ''}>${camGym === null ? 'Gym' : gyms[camGym].name}<svg aria-hidden="true" class="cam-chevron" viewBox="0 0 16 16"><path d="m4 6 4 4 4-4"/></svg></button><button class="cam-chip" type="button" data-act="campicker" data-kind="grade"${filming ? ' disabled' : ''}>${camGrade || 'Grade'}<svg aria-hidden="true" class="cam-chevron" viewBox="0 0 16 16"><path d="m4 6 4 4 4-4"/></svg></button><button class="cam-chip" type="button" data-act="campicker" data-kind="color"${filming ? ' disabled' : ''}>${camColor ? `<i style="--hold:${HOLD_COLORS[camColor]}"></i>${camColor}` : 'Colour'}<svg aria-hidden="true" class="cam-chevron" viewBox="0 0 16 16"><path d="m4 6 4 4 4-4"/></svg></button></div></div>${filming ? `<span class="rec-on cam-recording"><i></i>REC <span id="recT" class="num">${mmss(recS)}</span></span>` : ''}
-    <span class="cam-fr" aria-hidden="true"></span><div class="cam-guide"><strong>${!v ? 'No videos available' : filming ? 'Recording preview' : 'Get the whole climb in frame'}</strong><span>${!v ? 'Import a video to add a climb.' : filming ? 'Tap stop when the climb is complete.' : camGym === null || !camColor || !camGrade ? 'Choose a gym, grade and colour to start.' : 'Set your phone down where it can see the whole wall.'}</span></div>
-    <div class="cam-bot">${last ? `<button class="cam-last" type="button" data-act="to" data-to="clip/${last.id}" aria-label="Your last video"><img src="${pic(last.img)}" alt=""></button>` : '<span></span>'}<button class="shut${filming ? ' on' : ''}" type="button" data-act="shoot" aria-label="${filming ? 'Stop recording' : 'Start recording'}"${!v || (!filming && (camGym === null || !camColor || !camGrade)) ? ' disabled' : ''}><i></i></button><span></span></div><div class="cam-shutter-label">${filming ? 'Stop' : 'Start'}</div>` };
+    <span class="cam-fr" aria-hidden="true"></span>${why ? '' : `<div class="cam-guide"><strong>${!ready ? 'Starting the camera…' : filming ? 'Recording' : 'Get the whole climb in frame'}</strong><span>${filming ? 'Tap stop when you’re down.' : ask ? 'Choose a gym, grade and colour to start.' : 'Set your phone down 3–4 m from the wall, where it sees the whole route.'}</span></div>`}
+    <div class="cam-bot">${last ? `<button class="cam-last" type="button" data-act="to" data-to="clip/${last.id}" aria-label="Your last video"><img src="${pic(last.img)}" alt=""></button>` : '<span></span>'}<button class="shut${filming ? ' on' : ''}" type="button" data-act="shoot" aria-label="${filming ? 'Stop recording' : 'Start recording'}"${!ready || (!filming && ask) ? ' disabled' : ''}><i></i></button><span></span></div><div class="cam-shutter-label">${filming ? 'Stop' : 'Start'}</div>` };
 }
 
 /* ---------- Analysis: what we saw in a video (from v8) ---------- */
@@ -660,9 +687,10 @@ const lyrBar = (ok = {}) => `<div class="lyr" role="toolbar" aria-label="What to
     <button type="button" data-act="spd" class="lyr-sp num" aria-label="Playback speed">${speed}×</button></div>`;
 const lyrOver = () => `<canvas id="lvd" class="lvd${penOn ? ' on' : ''}"></canvas>
     <span class="lvst" id="lvst" hidden></span><span class="lvtag" id="lvtag" hidden></span>`;
-// under the video, as wide as it: where you are, a progress bar to drag along, and how long the video is
+// under the video, as wide as it: where you are, something to drag along, and how long the video is. While the video fills
+// the screen that's a strip of its frames; pulled up, with the video small, a slim bar with a node at every move
 const lyrStrip = (D, w) => `<div class="lvbar" id="lvbar" style="width:${w}"><span class="num" id="lvsa">0:00</span>
-    <div class="lvstrip" id="lvstrip" role="slider" aria-label="Position in the video" tabindex="0"><i class="lvs-t"><i class="lvs-p" id="lvsp"></i></i><i class="lvs-h" id="lvsh"></i></div><span class="num">${mmss(D)}</span></div>`;
+    <div class="lvstrip" id="lvstrip" role="slider" aria-label="Position in the video" tabindex="0"><div class="lvs-f" id="lvsf"></div><i class="lvs-t"><i class="lvs-p" id="lvsp"></i></i><span class="lvs-ns" id="lvsn"></span><i class="lvs-h" id="lvsh"></i></div><span class="num">${mmss(D)}</span></div>`;
 function lyrSave() { window.poseLayers = LAY; try { localStorage.setItem('spotter-layers', JSON.stringify(LAY)); } catch {} }
 
 // the pen: draw on the video to plan a move. Drawing pauses it. Lines sit on the picture, so they zoom with it
@@ -685,18 +713,37 @@ function penWire(c, T) {
   cv.repaint = paint; paint();
 }
 
-// the progress bar under the video: drag along it to find a moment
+// under the video: drag along it to find a moment. Frames from the video while it's big, nodes at each move once it's small
 function stripWire(v, T) {
-  const box = $('lvstrip'), fill = $('lvsp'), head = $('lvsh'); if (!box || !T) return;
-  const D = T.D || v.duration || 1;
+  const box = $('lvstrip'), row = $('lvsf'), fill = $('lvsp'), head = $('lvsh'), nodes = $('lvsn'); if (!box || !T) return;
+  const N = 10, D = T.D || v.duration || 1;
+  row.innerHTML = Array.from({ length: N }, () => '<canvas width="48" height="64"></canvas>').join('');
+  const cvs = [...row.querySelectorAll('canvas')];
+  // frames come from a second, hidden copy of the video, one seek at a time
+  const s = document.createElement('video'); s.muted = true; s.playsInline = true; s.preload = 'auto'; s.src = v.currentSrc || v.src;
+  s.style.cssText = 'position:fixed;left:0;top:0;width:2px;height:2px;opacity:.01;pointer-events:none'; document.body.appendChild(s);
+  let i = 0; const next = () => { if (i >= N || !box.isConnected) { s.remove(); return; } s.currentTime = Math.min(D - .05, (i + .5) / N * D); };
+  s.addEventListener('seeked', () => { const cv = cvs[i], g = cv.getContext('2d'), ar = s.videoWidth / s.videoHeight, w = cv.width, h = cv.height;
+    const sw = ar > w / h ? s.videoHeight * w / h : s.videoWidth, sh = ar > w / h ? s.videoHeight : s.videoWidth * h / w;
+    g.drawImage(s, (s.videoWidth - sw) / 2, (s.videoHeight - sh) / 2, sw, sh, 0, 0, w, h); i++; next(); });
+  openVideo(s, 10000).then(next, () => s.remove());
+  // a node at each move, hands larger than feet; let go near one and the video lands on it
+  const moves = (T.moves || []).map(m => ({ t: m.t, hand: m.k === 'lw' || m.k === 'rw' })).sort((a, b) => a.t - b.t);
+  nodes.innerHTML = moves.map(m => `<i class="${m.hand ? 'h' : 'f'}" style="left:${(m.t / D * 100).toFixed(2)}%"></i>`).join('');
+  const nodeEls = [...nodes.children];
+  const snap = () => { if (document.querySelector('.phone.onvid') || !moves.length) return; const r = box.getBoundingClientRect(), x = v.currentTime / D * r.width;
+    const near = moves.reduce((b, m) => Math.abs(m.t / D * r.width - x) < Math.abs(b.t / D * r.width - x) ? m : b);
+    if (Math.abs(near.t / D * r.width - x) < 10) v.currentTime = near.t; };
   const seek = e => { const r = box.getBoundingClientRect(); v.currentTime = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)) * (v.duration || D); };
   let drag = false;
   box.addEventListener('pointerdown', e => { e.stopPropagation(); drag = true; v.pause(); box.setPointerCapture(e.pointerId); seek(e); });
   box.addEventListener('pointermove', e => { if (drag) seek(e); });
-  ['pointerup', 'pointercancel'].forEach(n => box.addEventListener(n, () => { drag = false; }));
+  box.addEventListener('pointerup', () => { if (drag) snap(); drag = false; });
+  box.addEventListener('pointercancel', () => { drag = false; });
   box.addEventListener('keydown', e => { const d = { ArrowLeft: -1, ArrowRight: 1 }[e.key]; if (!d) return; e.preventDefault(); v.currentTime = Math.max(0, Math.min(v.duration || D, v.currentTime + d)); });
   const at = $('lvsa'); let shown = -1;
-  const tick = () => { if (!box.isConnected) return; const pc = `${Math.min(100, v.currentTime / (v.duration || D) * 100)}%`; head.style.left = pc; fill.style.width = pc;
+  const tick = () => { if (!box.isConnected) return; const f = Math.min(1, v.currentTime / (v.duration || D)), pc = `${f * 100}%`; head.style.left = pc; fill.style.width = pc;
+    nodeEls.forEach((n, k) => n.classList.toggle('on', moves[k].t <= v.currentTime + .05));
     const sec = Math.floor(v.currentTime); if (at && sec !== shown) { shown = sec; at.textContent = mmss(sec); box.setAttribute('aria-valuetext', `${mmss(sec)} of ${mmss(D)}`); } requestAnimationFrame(tick); };
   requestAnimationFrame(tick);
 }
@@ -1129,8 +1176,6 @@ const peerLine = x => { const T = TRK[x.vid]; return `${x.top ? 'Topped' : 'Didn
 // the loop the app is for: see what to change, then go and try it. Every analysis and route page ends in the next try:
 // film it (or import it, once the sample camera roll is used up), or log it by hand if you're not filming.
 function nextTryCta(ri) {
-  // the sample camera roll can run out; then the next try is logged by hand rather than sent to an empty import sheet
-  if (!nextRoll()) return `<button class="b-lime" type="button" data-act="to" data-to="session">${ic.pen}Log your next try</button>`;
   return `<button class="b-ghost" type="button" data-act="to" data-to="session">Log by hand</button><button class="b-lime" type="button" data-act="film">${ic.rec}Film your next try</button>`;
 }
 function viewClip(id) {
@@ -2014,7 +2059,7 @@ function openAdd() {
   // one big tile for the way you'd most likely add a try (Film; Import once the sample tries are all filmed),
   // then three small tiles under it. A way you can't use right now sits in the small row, greyed, saying why.
   const opts = [
-    { act: 'data-act="film"', k: 'k-lime', icon: ic.rec, t: 'Film', d: v ? 'With the Spotter camera' : 'All videos added', tag: 'Best', off: !v },
+    { act: 'data-act="film"', k: 'k-lime', icon: ic.rec, t: 'Film', d: 'With your phone’s camera', tag: 'Best' },
     { act: 'data-act="upload"', k: 'k-orange', icon: ic.up, t: 'Import', d: 'A video from your camera roll' },
     { act: 'data-act="to" data-to="session"', k: 'k-white', icon: ic.pen, t: 'Log by hand', d: 'No video needed' },
     { act: 'data-act="scan"', k: 'k-ink', icon: ic.scan, t: 'Scan a wall', d: 'See a route\'s beta', tag: 'New' }];
@@ -2542,15 +2587,34 @@ const actions = {
   holdpick: b => { const cc = clipOf(b.dataset.context); if (cc) { setPick(cc, 'color', b.dataset.color); return; } if (b.dataset.context === 'cam') camColor = b.dataset.color; else glColor = b.dataset.color; closeAll(); render(); },
   shoot: () => {
     clearInterval(recT);
-    if (!filming) { if (camGym === null || !camColor || !camGrade) return; filming = true; recS = 0; render(); recT = setInterval(() => { recS++; const t = $('recT'); if (t) t.textContent = mmss(recS); }, 1000); return; }
-    filming = false; if (!nextRoll()) { render(); return; } camStep = 'review'; render();
+    if (!filming) {
+      if (!camStream || camGym === null || !camColor || !camGrade) return;
+      const type = camMime(); camChunks = [];
+      try { camRec = new MediaRecorder(camStream, { ...(type ? { mimeType: type } : {}), videoBitsPerSecond: 4e6 }); } catch (_) { toast('This browser can’t record video. Import a video instead'); return; }
+      camRec.ondataavailable = e => { if (e.data.size) camChunks.push(e.data); };
+      camRec.onstop = () => { camBlob = new Blob(camChunks, { type: camRec?.mimeType || type || 'video/mp4' }); camChunks = [];
+        if (camURL) URL.revokeObjectURL(camURL); camURL = URL.createObjectURL(camBlob); camStop(); camStep = 'review'; render(); };
+      camRec.start(1000); filming = true; recS = 0; render();
+      recT = setInterval(() => { recS++; const t = $('recT'); if (t) t.textContent = mmss(recS); }, 1000);
+      return;
+    }
+    filming = false; camRec?.stop();   // the review opens once the recording is complete
   },
   camres: b => { camRes = b.dataset.k; render(); },
-  camretake: () => { filming = false; camStep = 'frame'; render(); },
+  camretake: () => { camDrop(); camStep = 'frame'; render(); },
+  camtry: () => { camErr = ''; camStop(); render(); },
   camreview: () => { camStep = 'review'; render(); },
   camroute: () => { camStep = 'route'; render(); },
   camselect: b => { camRoute = +b.dataset.i; render(); },
-  camsave: () => { const v = nextRoll(); if (!v || camGym === null || !camColor || !camGrade || !camRes) return; const colors = {Green:'#2E9E62',Orange:'#F08A24',Blue:'#3F82CA',Red:'#D74D48',Yellow:'#E3C43A',Purple:'#8F69B8',Pink:'#DE7DA5',White:'#EEEEEE',Black:'#303030'}; let ri = ROUTES.findIndex(r => (r.gymId ?? 0) === camGym && r.color === camColor && r.grade === camGrade); if (ri < 0) { ri = ROUTES.push({gymId:camGym,color:camColor,hex:colors[camColor],grade:camGrade,wall:camGrade.startsWith('V') ? 'Boulder' : 'Rope wall',img:v.img,ok:true}) - 1; } addClip(v.i, { ago:0, ri, gy:camGym, res:camRes }); camStep = 'frame'; camRoute = null; camGym = null; camColor = ''; camGrade = ''; camRes = null; cTab = 'why'; go('videos'); toast('Climb saved'); },
+  camsave: async () => {
+    if (!camBlob || camGym === null || !camColor || !camGrade || !camRes) return;
+    const ext = camBlob.type.includes('webm') ? 'webm' : 'mp4', d = new Date();
+    const f = new File([camBlob], `climb-${d.toISOString().slice(0, 16).replace(/[:T]/g, '-')}.${ext}`, { type: camBlob.type });
+    // what you set before filming is the route; you post it or analyse it from its page
+    const ri = routeFor(camGym, camColor, camGrade, 'gym-arc-1');
+    const c = await addMine(f, { ri, gy: camGym, res: camRes, hidden: true }, 'Saving your climb…'); if (!c) return;
+    camDrop(); camStep = 'frame'; camRoute = null; camGym = null; camColor = ''; camGrade = ''; camRes = null; cTab = 'why'; go(`clip/${c.id}`); toast('Climb saved');
+  },
   clpick: b => { const c = byId(b.dataset.c), k = b.dataset.k; if (!c) return; if (k === 'gy') openGymPick(`clip:${c.id}`); else if (k === 'color') openHoldColors(`clip:${c.id}`); else openClipGrade(c); },
   clpgrade: b => { const c = byId(b.dataset.c); if (c) setPick(c, 'grade', b.dataset.grade); },
   // posting shares the video in Community; the analysis stays yours
@@ -2691,7 +2755,7 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape' && scrim.clas
     const eat = x => { x.stopPropagation(); x.preventDefault(); }; el.addEventListener('click', eat, true); setTimeout(() => el.removeEventListener('click', eat, true), 60); };
   el.addEventListener('pointerup', end); el.addEventListener('pointercancel', end);
 });
-window.addEventListener('hashchange', () => { readHash(); if (page !== 'cam') { filming = false; clearInterval(recT); } closeAll(); render(); document.querySelector('.screen').scrollTop = 0; });
+window.addEventListener('hashchange', () => { readHash(); if (page !== 'cam') { camDrop(); camStop(); camStep = 'frame'; } closeAll(); render(); document.querySelector('.screen').scrollTop = 0; });
 // frost the status bar once content scrolls under it
 const scr = document.querySelector('.screen');
 scr.addEventListener('scroll', () => document.querySelector('.phone').classList.toggle('scrolled', scr.scrollTop > 8), { passive: true });

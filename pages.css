@@ -2602,11 +2602,22 @@ textarea.note:focus { outline: 2px solid var(--ink); outline-offset: 0; backgrou
 .lvtag { top: 36px; background: #C2FF01; color: #111; }
 .lvst[hidden], .lvtag[hidden] { display: none; }
 /* under the video: the time now, the strip, the length. White on the black around the video, ink once the sheet is up */
-.lvbar { position: relative; z-index: 1; flex: none; display: flex; align-items: center; gap: 10px; height: 28px; padding: 0 4px; box-sizing: border-box; font-size: 12px; font-weight: 700;
+.lvbar { position: relative; z-index: 1; flex: none; display: flex; align-items: center; gap: 10px; height: 40px; padding: 0 4px; box-sizing: border-box; font-size: 12px; font-weight: 700;
   color: color-mix(in srgb, #111 calc(var(--sk, 0) * 100%), #fff); }
 .lvbar > span { flex: none; min-width: 30px; text-align: center; font-variant-numeric: tabular-nums; }
 /* a slim bar, with a tall enough place to grab it */
-.lvstrip { position: relative; flex: 1; min-width: 0; height: 28px; touch-action: none; cursor: ew-resize; }
+.lvstrip { position: relative; flex: 1; min-width: 0; height: 40px; touch-action: none; cursor: ew-resize; }
+/* the video big: a strip of its frames with a white line where you are */
+.lvs-f { position: absolute; inset: 0; display: flex; border-radius: 8px; overflow: hidden; background: rgba(255,255,255,.12); }
+.lv-w .lvs-f canvas { position: static; flex: 1; width: 0; height: 100%; object-fit: cover; opacity: .9; }
+.phone.onvid .lvs-t, .phone.onvid .lvs-ns { display: none; }
+.phone.onvid .lvs-h { top: 0; bottom: 0; width: 3px; height: auto; margin: 0 0 0 -1.5px; border-radius: 2px; box-shadow: 0 0 0 1px rgba(17,17,17,.5); }
+/* the video small: a slim bar, a node at each move (hands larger), filled once you've passed it */
+.phone:not(.onvid) .lvs-f { display: none; }
+.lvs-ns { position: absolute; left: 0; right: 0; top: 50%; pointer-events: none; }
+.lvs-ns i { position: absolute; top: 0; width: 6px; height: 6px; margin: -3px 0 0 -3px; border-radius: 50%; background: color-mix(in srgb, currentColor 30%, var(--hd, #e2e2de)); box-shadow: 0 0 0 1.5px var(--hd, #e2e2de); }
+.lvs-ns i.f { width: 4px; height: 4px; margin: -2px 0 0 -2px; }
+.lvs-ns i.on { background: #111; }
 .lvs-t { position: absolute; left: 0; right: 0; top: 50%; height: 4px; margin-top: -2px; border-radius: 2px; background: color-mix(in srgb, currentColor 28%, transparent); overflow: hidden; }
 .lvs-p { position: absolute; left: 0; top: 0; bottom: 0; width: 0; background: color-mix(in srgb, #111 calc(var(--sk, 0) * 100%), #C2FF01); }
 .lvs-h { position: absolute; top: 50%; width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%; background: #fff; box-shadow: 0 0 0 1px rgba(17,17,17,.25), 0 1px 3px rgba(0,0,0,.3); pointer-events: none; }
@@ -2692,3 +2703,12 @@ textarea.note:focus { outline: 2px solid var(--ink); outline-offset: 0; backgrou
 .ce-post { display: flex; align-items: center; gap: 12px; margin: 4px 16px 14px; padding: 14px 16px; border-radius: 16px; background: var(--g100, #f2f2f2); }
 .ce-post .row-t { flex: 1; }
 .ce-post button { flex: none; min-height: 40px; padding: 0 18px; border-radius: 999px; font-weight: 800; }
+
+/* the camera, live: the phone's own picture fills the screen under the controls */
+.camx > .cam-live { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; background: #000; }
+.cam-err { position: absolute; left: 24px; right: 24px; top: 40%; transform: translateY(-50%); z-index: 2; display: grid; gap: 8px; text-align: center; }
+.cam-err strong { font-size: 18px; }
+.cam-err > span { font-size: 14px; color: rgba(255,255,255,.72); }
+.cam-err div { display: flex; gap: 8px; justify-content: center; margin-top: 10px; }
+.cam-err button { min-height: 44px; padding: 0 18px; border-radius: 999px; background: #373c38; color: #fff; font-weight: 800; }
+.cam-err button:last-child { background: #c4f52a; color: #111; }

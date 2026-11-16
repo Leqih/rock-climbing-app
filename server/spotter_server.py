@@ -30,16 +30,21 @@ def read_body(model, path, imgsz, seed=None, on_pct=None):
     cap = cv2.VideoCapture(path)
     if not cap.isOpened(): raise ValueError("can't read that video")
     W, H = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)), int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    fps = cap.get(cv2.CAP_PROP_FPS) or 30
-    D = cap.get(cv2.CAP_PROP_FRAME_COUNT) / fps
+    fps, count = cap.get(cv2.CAP_PROP_FPS), cap.get(cv2.CAP_PROP_FRAME_COUNT)
+    D = count / fps if fps and 0 < fps < 241 and 0 < count < 1e7 else 0
+    if not D:   # a browser recording (webm) often says neither its length nor its rate: read it through once for its length
+        last = 0.0
+        while cap.grab(): last = cap.get(cv2.CAP_PROP_POS_MSEC) / 1000
+        cap.release(); cap = cv2.VideoCapture(path); D = last
     if not W or not D or D <= 0: raise ValueError("can't read that video")
     n = int(D * HZ) * (FHZ // HZ)       # the same frames the phone reads
-    frames, prev, idx, t0 = [], None, 0, time.time()
-    ok, img = cap.read()
+    frames, prev, t0 = [], None, time.time()
+    # each frame by its own time, not by counting: recordings from phones and browsers don't keep a steady rate
+    ok, img = cap.read(); at = cap.get(cv2.CAP_PROP_POS_MSEC) / 1000
     for f in range(n):
         want = f / FHZ
-        while ok and idx / fps + 1e-6 < want:
-            ok, img = cap.read(); idx += 1
+        while ok and at + 1e-3 < want:
+            ok, img = cap.read(); at = cap.get(cv2.CAP_PROP_POS_MSEC) / 1000
         if on_pct and f % 5 == 0: on_pct(f / n)
         if not ok: frames.append(None); continue
         r = model(img, imgsz=imgsz, verbose=False)[0]
