@@ -1431,8 +1431,8 @@ function viewClip(id) {
       <video id="lvv" src="${vsrc(lv.vid)}" poster="${pic(lv.img, 0)}" muted playsinline preload="auto"></video><canvas id="lvc"></canvas>${two ? lyrOver() : ''}
       <button class="play-b" type="button" data-act="lvplay" aria-label="Play the video">${ic.play}</button>
       <div class="tg" id="tg" hidden></div>
-      <span class="clip-l">${c.need ? '' : `<span class="pk-tag">${sw(r)}${rname(r)} · try ${tryOf(c)}</span>`}
-        <span>${c.need ? `${dayLabel(agoOf(c))} · ${c.len}` : `${dayLabel(agoOf(c))} · ${gymName(c)} · ${c.len} · ${topOf(c) ? 'topped' : 'not topped'}`}</span></span></div>${two ? lyrStrip(T.D, `min(100%, ${Math.round(vh * lv.ar)}px)`) + lyrBar(T ? quality(T).ok : {}) : ''}</div>
+      ${state === 'idle' ? '' : `<span class="clip-l">${c.need ? '' : `<span class="pk-tag">${sw(r)}${rname(r)} · try ${tryOf(c)}</span>`}
+        <span>${c.need ? `${dayLabel(agoOf(c))} · ${c.len}` : `${dayLabel(agoOf(c))} · ${gymName(c)} · ${c.len} · ${topOf(c) ? 'topped' : 'not topped'}`}</span></span>`}</div>${two ? lyrStrip(T.D, `min(100%, ${Math.round(vh * lv.ar)}px)`) + lyrBar(T ? quality(T).ok : {}) : ''}</div>
     <div class="fold"></div>
     ${state === 'idle' ? editCard : state === 'run' ? runCard : state === 'ask' ? askCard : `
       <div class="fchips ctabs">${tabs.map(([k, l]) => `<button type="button" data-act="ctab" data-v="${k}" aria-pressed="${k === tab}">${l}</button>`).join('')}</div>
