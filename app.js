@@ -527,6 +527,8 @@ async function restoreMine() {
     const ago = Math.max(0, Math.floor((Date.now() - (r.at || Date.now())) / 864e5));
     V.push({ i: V.length, vid: r.vid, img: r.vid, who: 'You', ri: r.c.ri ?? 0, top: false, ago, D: r.D, ar: r.ar, len: mmss(r.D), t: [0, r.D], credit: `Your video · ${esc(r.name || 'from your phone')}`, mine: true });
     const c = addClip(V.length - 1, { ...r.c, ago: r.c.ago ?? ago });
+    // analysed before the skeleton was read 15 times a second: analyse it again, so it gets the closer-following body
+    if (c.track && !c.track.F) { delete c.track; delete c.auto; c.an = 'idle'; }
     if (c.track) TRK[r.vid] = c.track;
     mineN = Math.max(mineN, c.id + 1);
   }

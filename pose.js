@@ -50,6 +50,16 @@
     if (st.seed && Math.abs(t - st.seed.t) < .6) { const s = st.seed, off = b => [[0, 'head'], [P.lw, 'lh'], [P.rw, 'rh'], [P.la, 'lf'], [P.ra, 'rf']].reduce((a, [i, k]) => a + dist(b[i], { x: s[k].x * W, y: s[k].y * H }), 0); return ok.sort((a, c) => off(a) - off(c))[0]; }
     return ok.sort((a, c) => Math.max(a[P.la].y, a[P.ra].y) - Math.max(c[P.la].y, c[P.ra].y))[0];
   }
+  // the frames read only for drawing: the body the analysis follows, with its left and right fixed the same way, and
+  // nothing in the analysis changed
+  const FHZ = 15;
+  function pickOnly(res, st, W, H, t) {
+    const bodies = (res.landmarks || []).map(l => l.map(p => ({ x: p.x * W, y: p.y * H, v: p.visibility ?? 1 })));
+    let b = pick(bodies, { ...st, seed: undefined }, W, H, t); if (!b) return null;
+    if (st.flipU || st.flipL) { const c = [...b], swap = pairs => pairs.forEach(([x, y]) => { c[x] = b[y]; c[y] = b[x]; });
+      if (st.flipU) swap([[P.ls, P.rs], [P.le, P.re], [P.lw, P.rw]]); if (st.flipL) swap([[P.lh, P.rh], [P.lk, P.rk], [P.la, P.ra]]); b = c; }
+    return b;
+  }
   function step(st, res, t, W, H) {
     const bodies = (res.landmarks || []).map(l => l.map(p => ({ x: p.x * W, y: p.y * H, v: p.visibility ?? 1 })));
     let b = pick(bodies, st, W, H, t);
@@ -292,29 +302,38 @@
       if (window.openVideo) await window.openVideo(v, 20000);
       else await new Promise((ok, no) => { v.addEventListener('loadeddata', ok, { once: true }); v.addEventListener('error', no, { once: true }); });
       const W = v.videoWidth, H = v.videoHeight, D = v.duration, n = Math.floor(D * HZ), st = { ...fresh(), seed: seed || undefined }, S = [];
+      // the body is read FHZ times a second, for drawing it: at 5 a quick reach is a straight line between two guesses and
+      // the skeleton trails the hand. Every third frame is also a sample of the analysis, exactly as before (the moves
+      // network and every number are tuned to 5 a second)
+      const per = FHZ / HZ, m = n * per, F = [];
       let was = null, here = [1, 0, 0, 0];
-      for (let i = 0; i < n; i++) {
-        const t = i / HZ; await seekTo(v, t);
-        let g = null; try { g = step(st, lm.detectForVideo(v, performance.now()), t, W, H); } catch { g = null; }
+      for (let f = 0; f < m; f++) {
+        const t = f / FHZ, i = f / per; await seekTo(v, t);
+        let res = null; try { res = lm.detectForVideo(v, performance.now()); } catch { res = null; }
+        if (f % per) {   // in between: only where the body is, the same body the analysis follows
+          const b = res && pickOnly(res, st, W, H, t); F.push(b ? IDX.map(j => [R3(b[j].x / W), R3(b[j].y / H), R3(b[j].v)]) : null);
+          onP?.((f + 1) / m); continue; }
+        let g = null; try { g = res && step(st, res, t, W, H); } catch { g = null; }
         const s = pack(g, t, W, H), now = grey(v, W, H), k = W / now.w;
+        F.push(s.p || null);
         if (was) { const boxes = [poseBox(S[i - 1], now.w, now.h), poseBox(s, now.w, now.h)].filter(Boolean), st = wallStep(was, now, boxes); here = chain(here, [st[0], st[1], st[2] * k, st[3] * k]); }
         was = now; s.w = here.map((a, j) => j < 2 ? Math.round(a * 1e4) / 1e4 : Math.round(a * 10) / 10);
         S.push(s);
-        const cv = onP?.((i + 1) / n);
+        const cv = onP?.((f + 1) / m);
         if (cv && i % 3 === 0) { if (cv.width !== W) { cv.width = W; cv.height = H; } const ctx = cv.getContext('2d'); ctx.clearRect(0, 0, W, H); ctx.drawImage(v, 0, 0, W, H); draw(ctx, g && g.seen ? g : null, W, H); ctx.globalCompositeOperation = 'source-over'; }
       }
-      return results(S, await findMoves(S, W, H), D, W, H);
+      return { ...results(S, await findMoves(S, W, H), D, W, H), F, fhz: FHZ };
     } finally { v.remove(); }
   }
   // one video at a time, and a video once: going back to it doesn't scan it again
-  const KEEP = 'chalk.track.v5.', seenBefore = {};
+  const KEEP = 'chalk.track.v6.', seenBefore = {};
   const kept = async src => { if (seenBefore[src]) return seenBefore[src];
     try { const k = JSON.parse(localStorage.getItem(KEEP + src)); if (k) return k; } catch {}
     // the sample videos ship with their scan (the same scan, run once ahead), so nobody waits a minute in a demo
     if (!src.endsWith('.mp4')) return null;   // a video from your phone has no scan shipped with it
     try { const r = await fetch(src.replace('.mp4', '.track.json')); if (r.ok) return seenBefore[src] = await r.json(); } catch {}
     return null; };
-  window.__scan = src => scan(src); window.__results = T => results(T.S, T.moves, T.D, T.W, T.H); window.__moves = T => findMoves(T.S, T.W, T.H); window.__chance = async T => Array.from(netChance(await loadNet(), T.S, T.W, T.H));   // to bake the sample videos again
+  window.__scan = src => scan(src); window.__results = T => ({ ...results(T.S, T.moves, T.D, T.W, T.H), F: T.F, fhz: T.fhz }); window.__moves = T => findMoves(T.S, T.W, T.H); window.__chance = async T => Array.from(netChance(await loadNet(), T.S, T.W, T.H));   // to bake the sample videos again
   let queue = Promise.resolve();
   window.poseScan = async (src, seed, onP) => {
     if (!seed) { const k = await kept(src); if (k) return k; }
@@ -748,9 +767,12 @@
   // each limb: its joints from the body out, and how long each part may be, as a share of the torso. Facing the wall the
   // limbs stay in the picture's plane, so a part far outside these is a misread, not a pose
   const BONELEN = [[1, 3, 5, [.3, 1.05], [.22, 1]], [2, 4, 6, [.3, 1.05], [.22, 1]], [7, 9, 11, [.4, 1.4], [.4, 1.4]], [8, 10, 12, [.4, 1.4], [.4, 1.4]]];
+  // the drawing frames as samples ({ t, p }), when the scan kept them (scans before them have only the 5-a-second samples)
+  const denses = new WeakMap();
+  const dense = T => { if (!T.F) return null; if (!denses.has(T)) denses.set(T, { S: T.F.map((p, i) => ({ t: i / T.fhz, p })), hz: T.fhz, W: T.W, H: T.H }); return denses.get(T); };
   function steady(T) {
     if (steadies.has(T)) return steadies.get(T);
-    const S = T.S, n = S.length, J = IDX.length, GAP = Math.max(2, Math.round(1.2 * T.hz)), OK = .3, W = T.W, H = T.H;
+    const S = T.S, n = S.length, OK = .3, W = T.W, H = T.H, J = IDX.length, GAP = Math.max(2, Math.round(1.2 * T.hz));
     const out = S.map(x => x.p ? x.p.map(q => [...q]) : null);
     // a hand the model is unsure of: facing the wall, a hand in front of the chest or over the head scores low even where its
     // place is right (on The Way Up, half the wrists score under .3). With its elbow clearly seen, keep the guess; the length
@@ -817,14 +839,24 @@
     const ctx = cv.getContext('2d'); cv.width = T.W; cv.height = T.H;
     let last = -1;
     const paint = t => {
-      const SP = steady(T), at = k => T.S[k] && { ...T.S[k], p: SP[k] };
-      const i = Math.min(T.S.length - 1, Math.floor(t * T.hz)), a = at(i), b = at(i + 1) || a, u = t * T.hz - i;
+      // where the body is: from the drawing frames when the scan has them, else the analysis samples. What it is doing
+      // (moving, hips) always comes from the analysis samples
+      const DT = dense(T), G = DT || T, SP = steady(G), at = k => G.S[k] && { ...G.S[k], p: SP[k] };
+      const i = Math.min(G.S.length - 1, Math.floor(t * G.hz)), a = at(i), b = at(i + 1) || a, u = t * G.hz - i;
+      const s5 = T.S[Math.min(T.S.length - 1, Math.floor(t * T.hz))] || {};
       let f = null;
       if (a.p) { const q = unpack(a, T.W, T.H), w = b.p ? unpack(b, T.W, T.H) : q, pts = [];
         q.forEach((p, k) => { if (p) pts[k] = { x: p.x + (w[k].x - p.x) * u, y: p.y + (w[k].y - p.y) * u, v: p.v }; });
-        const trail = { lw: [], rw: [] };
-        for (let k = Math.max(0, i - 4); k <= i; k++) if (SP[k]) { const o = unpack(at(k), T.W, T.H); trail.lw.push(o[P.lw]); trail.rw.push(o[P.rw]); }
-        f = { pts, now: a.now || T.moves.find(m => t >= m.t0 && t <= m.t)?.name || null, el: a.el, er: a.er, off: a.off, trail }; }
+        const trail = { lw: [], rw: [] }, back = Math.round(.8 * G.hz);
+        for (let k = Math.max(0, i - back); k <= i; k++) if (SP[k]) { const o = unpack(at(k), T.W, T.H); trail.lw.push(o[P.lw]); trail.rw.push(o[P.rw]); }
+        // the elbow angle from the body as drawn: the hand the skeleton shows is the hand the angle is read on. The steadied
+        // body already threw out arms of an impossible length; a forearm folded to almost nothing still reads as no angle
+        const elbow = (s0, e0, w0, was) => { const A = pts[s0], B = pts[e0], C = pts[w0];
+          if (!A || !B || !C || Math.min(A.v, B.v, C.v) < .3) return was ?? null;
+          const tor = Math.hypot((pts[P.ls].x + pts[P.rs].x - pts[P.lh].x - pts[P.rh].x) / 2, (pts[P.ls].y + pts[P.rs].y - pts[P.lh].y - pts[P.rh].y) / 2) || 1;
+          if (Math.hypot(C.x - B.x, C.y - B.y) / tor < .22) return was ?? null;
+          return Math.round(angleAt(A, B, C)); };
+        f = { pts, now: s5.now || T.moves.find(m => t >= m.t0 && t <= m.t)?.name || null, el: elbow(P.ls, P.le, P.lw, s5.el), er: elbow(P.rs, P.re, P.rw, s5.er), off: s5.off ?? a.off, trail }; }
       if (mark) { draw(ctx, f, T.W, T.H, mark); return; }
       const now = drawLive(ctx, f, t, T), st = document.getElementById('lvst'), tg = document.getElementById('lvtag');
       if (st) { if (st.dataset.s !== now.state) { st.dataset.s = now.state; st.textContent = now.state; } st.hidden = !now.state; }
