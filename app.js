@@ -2131,7 +2131,13 @@ function viewGymsTab() {
       <div class="gt-lw" id="gtlw"><p class="cap gt-empty" id="gtempty" hidden>No gyms found.</p>${list.length ? `<div class="gt-l">${list.map(row).join('')}</div>` : `<p class="cap">No gyms in ${gArea} yet.</p>`}
       <p class="cap">Gyms no one has filmed at show only what the gym publishes.</p></div></section>`, after: () => { gtWire(list); locate(); } };
 }
-const gtSnaps = () => { const H = $('camx').clientHeight; return { full: 112, half: Math.round(H * .5), peek: H - 274 }; };
+// peek: the row of gym cards sits 14px above the tab bar, measured, whatever the screen and card heights
+let gtPeekH = 0;
+const gtSnaps = () => { const cam = $('camx'), H = cam.clientHeight, sh = $('gtsheet'), dock = document.querySelector('nav.dock'), r = sh?.querySelector('.gt-r');
+  if (sh && r && sh.classList.contains('cards')) gtPeekH = $('gtsh').offsetHeight + 4 + r.offsetHeight;
+  let peek = H - 274;
+  if (dock && gtPeekH) { const c = cam.getBoundingClientRect(), k = c.height / H || 1; peek = Math.round((dock.getBoundingClientRect().top - c.top) / k - 14 - gtPeekH); }
+  return { full: 112, half: Math.round(H * .5), peek }; };
 const gtTop = () => parseFloat($('gtsheet')?.style.top) || gtSnaps()[gtSnap];
 function gtSet(s, anim = true) {
   const sh = $('gtsheet'); if (!sh) return;
