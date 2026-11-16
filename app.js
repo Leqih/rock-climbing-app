@@ -2046,23 +2046,29 @@ function scanTap(e) {
   scanPick = { x, y, color, holds: findHolds(scanCv, HUE[color]), ri: betaRis().find(i => ROUTES[i].color === color) ?? -1 }; render();
 }
 function scanFile(f) {
-  if (!f || !f.type.startsWith('image/')) { toast('That isn’t a photo'); return; }
-  const u = URL.createObjectURL(f), im = new Image();
-  im.onload = () => { scanTake(im, im.naturalWidth, im.naturalHeight); URL.revokeObjectURL(u); }; im.onerror = () => { URL.revokeObjectURL(u); toast('Couldn’t open that photo'); }; im.src = u;
+  if (!f) return; if (f.type && !f.type.startsWith('image/')) { toast('That isn’t a photo'); return; }
+  toast('Opening your photo…'); const u = URL.createObjectURL(f), im = new Image();
+  im.onload = () => { scanTake(im, im.naturalWidth, im.naturalHeight); URL.revokeObjectURL(u); }; im.onerror = () => { URL.revokeObjectURL(u); toast('Couldn’t open that photo. Try a JPEG or take one with the camera'); }; im.src = u;
+}
+let scanInp = null;
+function scanPhotos() {
+  if (!scanInp) { scanInp = document.createElement('input'); scanInp.type = 'file'; scanInp.accept = 'image/*'; scanInp.hidden = true; document.body.appendChild(scanInp);
+    const got = () => { const f = scanInp.files[0]; scanInp.value = ''; if (f) scanFile(f); };
+    scanInp.addEventListener('change', got); }
+  scanInp.click();
 }
 const scanAfter = () => {
-  document.querySelectorAll('[data-scanfile]').forEach(inp => { inp.onchange = () => scanFile(inp.files[0]); });
   const svg = $('scsvg'); if (svg) svg.onclick = scanTap;
   if (scanURL) return; if (!scanStream) { if (!scanErr) scanStart(); return; }
   const v = $('scv'); if (v && v.srcObject !== scanStream) { v.srcObject = scanStream; v.play().catch(() => {}); } };
 function viewScanCam() {
-  const photos = `<label class="cam-imp"><input type="file" accept="image/*" data-scanfile hidden><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="m3 16 5-5 4 4 3-3 6 6"/><circle cx="16" cy="9" r="1.6"/></svg><span>Photos</span></label>`;
+  const photos = `<button class="cam-imp" type="button" data-act="scanphotos"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="m3 16 5-5 4 4 3-3 6 6"/><circle cx="16" cy="9" r="1.6"/></svg><span>Photos</span></button>`;
   const top = `<div class="cam-top"><button class="bk" type="button" data-act="${scanURL ? 'scanretake' : 'back'}" aria-label="${scanURL ? 'Retake' : 'Back'}">${ic.back}</button><strong class="scan-ttl">Find beta</strong></div>`;
   if (!scanURL) {
     const why = scanErr === 'denied' ? ['Camera access is off', 'Allow the camera for this site in your browser settings, or choose a photo of the wall.'] : scanErr ? ['No camera here', 'Choose a photo of the wall instead.'] : null;
     return { bare: true, dark: true, html: '', after: scanAfter, overlay: `
       <video id="scv" class="cam-live" muted playsinline autoplay aria-label="What your camera sees"></video>
-      ${why ? `<div class="cam-err"><strong>${why[0]}</strong><span>${why[1]}</span><div><button type="button" data-act="scantry">Try again</button><label class="scan-pickb"><input type="file" accept="image/*" data-scanfile hidden>Choose a photo</label></div></div>` : ''}
+      ${why ? `<div class="cam-err"><strong>${why[0]}</strong><span>${why[1]}</span><div><button type="button" data-act="scantry">Try again</button><button type="button" data-act="scanphotos">Choose a photo</button></div></div>` : ''}
       ${top}<span class="cam-fr" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
       ${why ? '' : `<p class="cam-guide">${scanStream ? 'Get your route in the picture, from the start holds to the top' : 'Starting the camera…'}</p>`}
       <div class="cam-bot">${photos}<button class="shut" type="button" data-act="scansnap" aria-label="Take a photo"${scanStream ? '' : ' disabled'}><i></i></button><span></span></div><div class="cam-shutter-label">Photo</div>` };
@@ -2584,6 +2590,7 @@ const moreActions = {
   snap: () => { scanShot = true; bstep = 0; render(); },
   rescan: () => { scanShot = false; render(); },
   scansnap: () => { const v = $('scv'); if (!v || !v.videoWidth) return; scanTake(v, v.videoWidth, v.videoHeight); },
+  scanphotos: () => scanPhotos(),
   scanretake: () => { scanURL = ''; scanCv = null; scanPick = null; render(); },
   scantry: () => { scanErr = ''; scanStop(); render(); },
   scango: () => { if (!scanPick || scanPick.ri < 0) return; scanRi = scanPick.ri; scanShot = true; bstep = 0; render(); },
