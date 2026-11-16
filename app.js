@@ -110,7 +110,7 @@ const pic = (name, f) => MINE[name]?.pic || `img/${name}${f === 0 ? '0' : ''}.jp
 const vsrc = vid => MINE[vid]?.src || `video/${vid}.mp4`;
 // one clip = one try of yours. v = its video in V; ri = its route (you can change it); hidden = only you see it
 const clips = [];
-let cid = 0, newPublic = true;
+let cid = 0, newPublic = false;
 const vidOf = c => V[c.v];
 // a try filmed today is from today, whatever the sample video's own day
 const agoOf = c => c.ago ?? V[c.v].ago;
@@ -645,7 +645,7 @@ const DB = (() => {
     del: (s, k) => run(s, 'readwrite', o => o.delete(k)), all: s => run(s, 'readonly', o => o.getAll()), keys: s => run(s, 'readonly', o => o.getAllKeys()) };
 })();
 let mineN = 1000;
-const KEEPC = ['id', 'ri', 'gy', 'need', 'pick', 'hidden', 'an', 'track', 'tags', 'auto', 'likes', 'cm', 'res', 'style', 'trim', 'ago'];
+const KEEPC = ['id', 'ri', 'gy', 'need', 'pick', 'hidden', 'an', 'track', 'tags', 'auto', 'likes', 'cm', 'res', 'style', 'trim', 'cut', 'ago'];
 // after every change on screen, write down your imported tries as they are now; forget the ones you deleted
 let saveT = null;
 const saveSoon = () => { clearTimeout(saveT); saveT = setTimeout(saveMine, 400); };
@@ -882,19 +882,49 @@ const lyrStrip = (D, w) => `<div class="lvbar" id="lvbar" style="width:${w}"><sp
 function lyrSave() { window.poseLayers = LAY; try { localStorage.setItem('spotter-layers', JSON.stringify(LAY)); } catch {} }
 
 // under the video: drag along it to find a moment. Frames from the video while it's big, nodes at each move once it's small
+// frames along a video into canvases, from a second, hidden copy of it, one seek at a time; stops once `alive` leaves the page
+function drawFrames(src, D, cvs, alive) {
+  const s = document.createElement('video'); s.muted = true; s.playsInline = true; s.preload = 'auto'; s.src = src;
+  s.style.cssText = 'position:fixed;left:0;top:0;width:2px;height:2px;opacity:.01;pointer-events:none'; document.body.appendChild(s);
+  const N = cvs.length; let i = 0; const next = () => { if (i >= N || !alive.isConnected) { s.remove(); return; } s.currentTime = Math.min(D - .05, (i + .5) / N * D); };
+  s.addEventListener('seeked', () => { const cv = cvs[i], g = cv.getContext('2d'), ar = s.videoWidth / s.videoHeight, w = cv.width, h = cv.height;
+    const sw = ar > w / h ? s.videoHeight * w / h : s.videoWidth, sh = ar > w / h ? s.videoHeight : s.videoWidth * h / w;
+    g.drawImage(s, (s.videoWidth - sw) / 2, (s.videoHeight - sh) / 2, sw, sh, 0, 0, w, h); i++; next(); });
+  openVideo(s, 10000).then(next, () => s.remove());
+}
+// step one for a new video: cut it to the climb. Two handles on a strip of its frames; the video plays only what's between
+let trimNow = null;
+const climbWin = lv => { const m = TRK[lv.vid]?.moves; if (!m?.length) return null;
+  const a = Math.max(0, Math.min(...m.map(x => x.t0)) - 1), b = Math.min(lv.D, Math.max(...m.map(x => x.t)) + 1); return b - a >= 2 ? [a, b] : null; };
+function trimWire(lv, v) {
+  const box = $('tr'); if (!box) return; const D = lv.D, f = $('trf');
+  f.innerHTML = Array.from({ length: 8 }, () => '<canvas width="48" height="64"></canvas>').join('');
+  drawFrames(v.currentSrc || v.src, D, [...f.querySelectorAll('canvas')], box);
+  let a = +box.dataset.a, b = +box.dataset.b; trimNow = [a, b];
+  const hs = [...box.querySelectorAll('.tr-h')];
+  const show = () => { box.style.setProperty('--a', `${a / D * 100}%`); box.style.setProperty('--b', `${b / D * 100}%`);
+    $('tra').textContent = mmss(a); $('trb').textContent = mmss(b); $('trd').textContent = mmss(b - a); trimNow = [a, b];
+    [a, b].forEach((t, k) => { hs[k].setAttribute('aria-valuenow', t.toFixed(1)); hs[k].setAttribute('aria-valuetext', mmss(t)); }); };
+  const set = (k, t) => { if (k) b = Math.min(D, Math.max(t, a + 2)); else a = Math.max(0, Math.min(t, b - 2)); v.pause(); v.currentTime = k ? b : a; show(); };
+  hs.forEach((h, k) => {
+    h.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); h.setPointerCapture(e.pointerId); h.classList.add('on'); });
+    h.addEventListener('pointermove', e => { if (!h.hasPointerCapture(e.pointerId)) return; const r = box.getBoundingClientRect(); set(k, (e.clientX - r.left) / r.width * D); });
+    ['pointerup', 'pointercancel'].forEach(n => h.addEventListener(n, () => { h.classList.remove('on'); v.currentTime = a; }));
+    h.addEventListener('keydown', e => { const d = { ArrowLeft: -.5, ArrowRight: .5 }[e.key]; if (!d) return; e.preventDefault(); set(k, (k ? b : a) + d); });
+  });
+  // tap the strip: the video goes there, inside the cut
+  box.addEventListener('pointerdown', e => { if (e.target.closest('.tr-h')) return; const r = box.getBoundingClientRect(); v.currentTime = Math.max(a, Math.min(b, (e.clientX - r.left) / r.width * D)); });
+  v.addEventListener('timeupdate', () => { if (!v.paused && (v.currentTime >= b || v.currentTime < a - .3)) v.currentTime = a; });
+  const ph = $('trph'), tick = () => { if (!box.isConnected) return; ph.style.left = `${Math.min(1, v.currentTime / D) * 100}%`; requestAnimationFrame(tick); };
+  requestAnimationFrame(tick);
+  const go = () => { v.currentTime = a; }; if (v.readyState >= 1) go(); else v.addEventListener('loadedmetadata', go, { once: true });
+}
 function stripWire(v, T) {
   const box = $('lvstrip'), row = $('lvsf'), fill = $('lvsp'), head = $('lvsh'), nodes = $('lvsn'); if (!box || !T) return;
   const N = 10, D = T.D || v.duration || 1;
   row.innerHTML = Array.from({ length: N }, () => '<canvas width="48" height="64"></canvas>').join('');
   const cvs = [...row.querySelectorAll('canvas')];
-  // frames come from a second, hidden copy of the video, one seek at a time
-  const s = document.createElement('video'); s.muted = true; s.playsInline = true; s.preload = 'auto'; s.src = v.currentSrc || v.src;
-  s.style.cssText = 'position:fixed;left:0;top:0;width:2px;height:2px;opacity:.01;pointer-events:none'; document.body.appendChild(s);
-  let i = 0; const next = () => { if (i >= N || !box.isConnected) { s.remove(); return; } s.currentTime = Math.min(D - .05, (i + .5) / N * D); };
-  s.addEventListener('seeked', () => { const cv = cvs[i], g = cv.getContext('2d'), ar = s.videoWidth / s.videoHeight, w = cv.width, h = cv.height;
-    const sw = ar > w / h ? s.videoHeight * w / h : s.videoWidth, sh = ar > w / h ? s.videoHeight : s.videoWidth * h / w;
-    g.drawImage(s, (s.videoWidth - sw) / 2, (s.videoHeight - sh) / 2, sw, sh, 0, 0, w, h); i++; next(); });
-  openVideo(s, 10000).then(next, () => s.remove());
+  drawFrames(v.currentSrc || v.src, D, cvs, box);
   // a node at each move, hands larger than feet; let go near one and the video lands on it
   const moves = (T.moves || []).map(m => ({ t: m.t, hand: m.k === 'lw' || m.k === 'rw' })).sort((a, b) => a.t - b.t);
   nodes.innerHTML = moves.map(m => `<i class="${m.hand ? 'h' : 'f'}" style="left:${(m.t / D * 100).toFixed(2)}%"></i>`).join('');
@@ -1453,14 +1483,23 @@ function viewClip(id) {
   // not analysed yet: say where it was and which route, then post it to Community, analyse it, or both
   const pk = clipPick(c), ready = pickDone(c);
   const field = (k, label, val, dot = '') => `<button class="ce-row" type="button" data-act="clpick" data-c="${c.id}" data-k="${k}"><span>${label}</span><b class="${val ? '' : 'empty'}">${dot}${val || 'Choose'}</b><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m6 3.5 4.5 4.5L6 12.5"/></svg></button>`;
+  const win = c.trim || climbWin(lv), [ta, tb] = win || [0, lv.D], pc = t => `${(t / lv.D * 100).toFixed(2)}%`;
+  const handle = (k, t) => `<button class="tr-h ${k ? 'b' : 'a'}" type="button" role="slider" aria-label="${k ? 'End of the climb' : 'Start of the climb'}" aria-valuemin="0" aria-valuemax="${lv.D.toFixed(1)}" aria-valuenow="${t.toFixed(1)}" aria-valuetext="${mmss(t)}"></button>`;
+  const trimCard = `<div class="clip-edit tr-c"><h2>Cut to the climb</h2>
+      <p class="ce-n tr-n">${win && !c.trim ? 'Spotter found where you leave the ground and land. Drag the ends to change it.' : 'Drag the ends to where you leave the ground and where you land.'}</p>
+      <div class="tr" id="tr" data-a="${ta}" data-b="${tb}" style="--a:${pc(ta)};--b:${pc(tb)}"><div class="tr-f" id="trf"></div><i class="tr-dim l"></i><i class="tr-dim r"></i><i class="tr-win"></i><i class="tr-ph" id="trph"></i>${handle(0, ta)}${handle(1, tb)}</div>
+      <p class="tr-t num"><span id="tra">${mmss(ta)}</span><b id="trd">${mmss(tb - ta)}</b><span id="trb">${mmss(tb)}</span></p>
+      <div class="ce-act"><button class="b-ghost" type="button" data-act="trimall" data-i="${c.id}">Use whole video</button><button class="b-lime" type="button" data-act="trimok" data-i="${c.id}">Next</button></div></div>`;
   const editCard = `<div class="clip-edit"><h2>About this climb</h2>
-      <div class="ce-rows">${field('gy', 'Gym', pk.gy != null ? gyms[pk.gy]?.name : '')}${field('grade', 'Grade', pk.grade)}${field('color', 'Colour', pk.color, pk.color ? `<i style="--hold:${HOLD_COLORS[pk.color]}"></i>` : '')}
+      <div class="ce-rows"><button class="ce-row" type="button" data-act="trimedit" data-c="${c.id}"><span>Video</span><b>${c.trim ? `${mmss(c.trim[0])}–${mmss(c.trim[1])}` : 'Whole video'}</b><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m6 3.5 4.5 4.5L6 12.5"/></svg></button>${field('gy', 'Gym', pk.gy != null ? gyms[pk.gy]?.name : '')}${field('grade', 'Grade', pk.grade)}${field('color', 'Colour', pk.color, pk.color ? `<i style="--hold:${HOLD_COLORS[pk.color]}"></i>` : '')}
         <div class="ce-row ce-res"><span>How did it go?</span><span class="ce-seg" role="group" aria-label="How did it go?">${['Flash', 'Send', 'Project'].map(k => `<button type="button" data-act="clres" data-c="${c.id}" data-k="${k}" aria-pressed="${c.res === k}">${KL[k]}</button>`).join('')}</span></div>
         ${ready && (c.res === 'Flash' || c.res === 'Send') ? `<div class="ce-row ce-res"><span>Grade felt <i>Optional</i></span><span class="ce-seg" role="group" aria-label="How the grade felt">${FEELS.map(([k, l]) => `<button type="button" data-act="feel" data-ri="${c.ri}" data-k="${k}" aria-pressed="${myFeel[c.ri] === k}">${l}</button>`).join('')}</span></div>` : ''}</div>
-      <div class="ce-act"><button class="b-ghost" type="button" data-act="clpost" data-i="${c.id}"${ready || !c.hidden ? '' : ' disabled'}>${c.hidden ? 'Post to Community' : 'In Community ✓'}</button><button class="b-lime" type="button" data-act="startanalysis" data-i="${c.id}"${ready ? '' : ' disabled'}>Analyse</button></div>
-      <p class="ce-n">${ready ? 'The analysis is only for you. Posting shares the video, now or after you analyse it.' : 'Choose the gym, grade and colour first.'}</p></div>`;
+      ${c.hidden ? `<button class="ce-tg" type="button" role="switch" data-act="clpa" data-i="${c.id}" aria-checked="${!!c.postAfter}"><span class="ce-tt"><strong>Also post to Community</strong><span>${pk.gy != null && gyms[pk.gy] ? `Climbers at ${gyms[pk.gy].name} see the video. Your analysis stays private.` : 'Climbers at the gym see the video. Your analysis stays private.'}</span></span><i aria-hidden="true"></i></button>`
+        : '<p class="ce-n ce-in">In Community already. Your analysis stays private.</p>'}
+      <div class="ce-act one"><button class="b-lime" type="button" data-act="startanalysis" data-i="${c.id}"${ready ? '' : ' disabled'}>Analyse</button></div>
+      ${ready ? '' : '<p class="ce-n">Choose the gym, grade and colour first.</p>'}</div>`;
   // analysed and not posted yet: post it from here. The analysis stays yours
-  const postCard = c.hidden ? `<div class="ce-post"><span class="row-t"><strong>Share this climb</strong><span>Posts the video to Community. Your analysis stays private.</span></span><button class="b-ghost" type="button" data-act="clpost" data-i="${c.id}">Post</button></div>` : '';
+  const postCard = c.hidden ? `<div class="ce-post"><span class="row-t"><strong>Only you can see this</strong><span>Post the video to Community. Your analysis stays private.</span></span><button class="b-ghost" type="button" data-act="clpost" data-i="${c.id}">Post</button></div>` : '';
   // analysed: the video fills the screen, edge to edge, with the top of the analysis sheet showing under it to pull up
   const vh = two ? Math.round(Math.max(280, Math.min(room, (scrEl?.clientWidth || 402) / lv.ar))) : Math.max(280, Math.min(560, room));
   // what the video shows right now, as it plays: in Body, above the timeline
@@ -1501,6 +1540,7 @@ function viewClip(id) {
       if (state === 'idle') { const scr = document.querySelector('.screen'), over = scr.scrollHeight - scr.clientHeight;
         if (over > 0) box.style.width = `${Math.round(Math.max(180, box.offsetHeight - over - 6) * lv.ar)}px`; }
       segClose(); anSheet = null; segStop = null; segT = T; v.addEventListener('play', () => $('cpv')?.pause());
+      if (state === 'idle' && !c.cut) trimWire(lv, v);
       v.playbackRate = speed;
       if (two) { window.poseGate = quality(T).ok; window.posePlay(v, $('lvc'), T); tlWire(); kfWire(T, v.currentSrc || v.src); stuckWire(T, c, v.currentSrc || v.src); laWire(T, v); stripWire(v, T); stickWire(box, vh); followWire(box); }
       if (state === 'ask' && c.auto) v.currentTime = c.auto.t;
@@ -1519,7 +1559,7 @@ function viewClip(id) {
       ${state === 'idle' ? '' : `<span class="clip-l">${c.need ? '' : `<span class="pk-tag">${sw(r)}${rname(r)} · try ${tryOf(c)}</span>`}
         <span>${c.need ? `${dayLabel(agoOf(c))} · ${c.len}` : `${dayLabel(agoOf(c))} · ${gymName(c)} · ${c.len} · ${topOf(c) ? 'topped' : 'not topped'}`}</span></span>`}</div>${two ? lyrStrip(T.D, `min(100%, ${Math.round(vh * lv.ar)}px)`) + lyrBar(T ? quality(T).ok : {}) : ''}</div>
     <div class="fold"></div>
-    ${state === 'idle' ? editCard : state === 'run' ? runCard : state === 'ask' ? askCard : `
+    ${state === 'idle' ? (c.cut ? editCard : trimCard) : state === 'run' ? runCard : state === 'ask' ? askCard : `
       <div class="fchips ctabs">${tabs.map(([k, l]) => `<button type="button" data-act="ctab" data-v="${k}" aria-pressed="${k === tab}">${l}</button>`).join('')}</div>
       ${tabs.map(([k]) => `<div class="pn" data-pn="${k}"${k === tab ? '' : ' hidden'}>${panels[k]}</div>`).join('')}`}` };
 }
@@ -3090,7 +3130,14 @@ const actions = {
     if (!pickDone(c)) { toast('Choose the gym, grade and colour first'); return; }
     c.hidden = false; saveSoon(); render(); toast('Posted to Community'); },
   clres: b => { const c = byId(b.dataset.c); if (!c) return; c.res = c.res === b.dataset.k ? undefined : b.dataset.k; if (!c.res) delete c.res; saveSoon(); render(); },
-  startanalysis: b => { const c = byId(b.dataset.i); if (c && c.an === 'idle') { analyse(c); render(); } },
+  startanalysis: b => { const c = byId(b.dataset.i); if (!c || c.an !== 'idle' || !pickDone(c)) return;
+    if (c.postAfter && c.hidden) { c.hidden = false; toast('Posted to Community. Analysing…'); } delete c.postAfter; saveSoon(); analyse(c); render(); },
+  clpa: b => { const c = byId(b.dataset.i); if (!c) return; c.postAfter = !c.postAfter; b.setAttribute('aria-checked', c.postAfter); },
+  // the cut: keep what's between the handles, or all of it. Change it later from About this climb
+  trimok: b => { const c = byId(b.dataset.i); if (!c) return; const D = vidOf(c).D, [a, e] = trimNow || [0, D];
+    if (a < .3 && e > D - .3) delete c.trim; else c.trim = [Math.round(a * 10) / 10, Math.round(e * 10) / 10]; c.cut = true; saveSoon(); render(); },
+  trimall: b => { const c = byId(b.dataset.i); if (!c) return; delete c.trim; c.cut = true; saveSoon(); render(); },
+  trimedit: b => { const c = byId(b.dataset.c); if (!c) return; c.cut = false; render(); },
   // a video's page
   ctab: b => { cTab = b.dataset.v; setTimeout(() => $('main').dispatchEvent(new Event('tabchange'))); document.querySelectorAll('.ctabs button').forEach(x => x.setAttribute('aria-pressed', x.dataset.v === cTab)); document.querySelectorAll('.pn').forEach(p => { p.hidden = p.dataset.pn !== cTab; }); },
   spd: b => { speed = { 1: .5, .5: .25, .25: 1 }[speed] || 1; const v = $('lvv'); if (v) v.playbackRate = speed; b.textContent = `${speed}×`; },   // 1× → 0.5× → 0.25×

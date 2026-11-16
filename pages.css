@@ -3143,3 +3143,33 @@ textarea.note:focus { outline: 2px solid var(--ink); outline-offset: 0; backgrou
 /* the style page clears the button pinned under it */
 .pk-panel:has(.pk-stage) { height: calc(var(--stage-height, 570px) + 170px); }
 .ob-gi { flex: none; display: grid; place-items: center; width: 56px; height: 56px; border-radius: 14px; background: #dededc; font-size: 22px; font-weight: 900; color: #8a8a87; }
+
+/* the cut: a strip of the video's frames, the kept part framed in ink, a handle at each end */
+.tr-n { margin: -4px 2px 14px; }
+.tr { position: relative; height: 60px; margin: 0 12px; touch-action: none; user-select: none; -webkit-user-select: none; }
+.tr-f { position: absolute; inset: 0; display: flex; border-radius: 12px; overflow: hidden; background: #d9d9d6; }
+.tr-f canvas { flex: 1; min-width: 0; width: 100%; height: 100%; display: block; }
+.tr-dim { position: absolute; top: 0; bottom: 0; background: rgba(242,242,240,.8); pointer-events: none; }
+.tr-dim.l { left: 0; width: var(--a); border-radius: 12px 0 0 12px; }
+.tr-dim.r { left: var(--b); right: 0; border-radius: 0 12px 12px 0; }
+.tr-win { position: absolute; top: -3px; bottom: -3px; left: var(--a); right: calc(100% - var(--b)); border: 3px solid var(--ink); border-radius: 12px; pointer-events: none; }
+.tr-ph { position: absolute; top: 4px; bottom: 4px; width: 2px; margin-left: -1px; border-radius: 2px; background: #fff; box-shadow: 0 0 0 1px rgba(17,17,17,.35); pointer-events: none; }
+.tr-h { position: absolute; top: -6px; bottom: -6px; width: 24px; margin-left: -12px; padding: 0; border-radius: 9px; background: var(--ink); cursor: ew-resize; touch-action: none; }
+.tr-h::after { content: ''; position: absolute; left: 50%; top: 50%; width: 4px; height: 22px; margin: -11px 0 0 -2px; border-radius: 2px; background: var(--lime); }
+.tr-h.a { left: var(--a); } .tr-h.b { left: var(--b); }
+.tr-h.on, .tr-h:focus-visible { outline: 3px solid var(--lime); outline-offset: 1px; }
+.tr-h::before { content: ''; position: absolute; inset: -8px -10px; }
+.tr-t { display: flex; justify-content: space-between; align-items: baseline; margin: 12px 12px 0; font-size: 12px; color: #6f6f6c; }
+.tr-t b { font-size: 15px; font-weight: 800; color: var(--ink); }
+/* one Analyse button; posting is a switch above it, off unless you turn it on */
+.ce-act.one { grid-template-columns: 1fr; }
+.ce-tg { display: flex; align-items: center; gap: 12px; width: 100%; margin-top: 12px; padding: 12px 14px; border: 0; border-radius: 16px; background: #fff; font: inherit; color: var(--ink); text-align: left; cursor: pointer; }
+.ce-tt { flex: 1; display: grid; gap: 2px; min-width: 0; }
+.ce-tt strong { font-size: 15px; font-weight: 800; }
+.ce-tt span { font-size: 12px; line-height: 1.35; color: #6f6f6c; }
+.ce-tg i { position: relative; flex: none; width: 46px; height: 28px; border-radius: 999px; background: #d5d5d2; transition: background .2s; }
+.ce-tg i::after { content: ''; position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.2); transition: transform .22s cubic-bezier(.2,.8,.2,1); }
+.ce-tg[aria-checked="true"] i { background: var(--ink); }
+.ce-tg[aria-checked="true"] i::after { transform: translateX(18px); background: var(--lime); }
+.ce-in { margin-top: 12px; }
+@media (prefers-reduced-motion: reduce) { .ce-tg i, .ce-tg i::after { transition: none; } }
