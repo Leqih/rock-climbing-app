@@ -3,7 +3,7 @@
 // The climbing videos are The Way Up (Maschek & Schedl, CC BY 4.0): ten climbers on the same two routes, filmed from the floor.
 // You are one of them; five others with full scans are the community. Their names, likes and comments are sample data.
 // Every number about a climb is measured from its video (video/<vid>.track.json, or a live scan in the browser).
-// Routes: #/videos (tab) · #/shelf/all|gym (a binder) · #/clip/<id> · #/vs/<id>-<v> · #/route/<i> · #/walls (Gyms tab) · #/gyms (map) · #/gym/<i> · #/friends (tab) · #/friends/plan
+// Routes: #/videos (tab) · #/shelf/all|gym (a binder) · #/clip/<id> · #/vs/<id>-<v> · #/route/<i> · #/walls (Gyms tab) · #/gyms (map) · #/gym/<i> · #/friends (tab: For you) · #/friends/following · #/friends/friends (friends and plans; #/friends/plan opens it too)
 // · #/scan (photo a route, its beta drawn on) · #/person/<name> · #/profile (tab) · #/session (log by hand, the session clock) · #/summary · #/watch · #/cam · #/setup
 // Back from v8 (2026-11-12): other gyms and the map, logging by hand, the session clock, the watch, the highlight reel, the share poster,
 // CSV export, friends with plans and a who's-free week, following, and portraits for the sample people
@@ -1594,11 +1594,11 @@ function feedWire() {
   tok.onkeydown = e => { const k = { ArrowDown: 1, ArrowUp: -1 }[e.key]; if (k) { e.preventDefault(); goTo(feedAt + k); } };
 }
 function viewFriends(a) {
-  if (a === 'plan') return viewFriendsPlan();
-  const mode = a === 'following' || a === 'friends' ? a : 'all';
+  if (a === 'plan' || a === 'friends') return viewFriendsPlan();
+  const mode = a === 'following' ? a : 'all';
   const entries = feedAll().map((post,i) => ({post,i})).filter(({post}) => mode === 'all' || (mode === 'following' ? follows.has(post.who) : invitedFriends.includes(post.who)));
-  const top = `<div class="tok-top"><button class="feed-plans" type="button" data-act="to" data-to="friends/plan" aria-label="Climbing plans">${ic.pin}</button>${feedTabs(mode)}<button class="av sm" type="button" data-act="to" data-to="profile" aria-label="Your profile">${avatar('You')}</button></div>`;
-  const empty = `<div class="feed-empty"><strong>${mode === 'friends' ? 'No friend videos yet' : 'No videos from people you follow'}</strong><p>${mode === 'friends' ? 'Connect with a friend to see their videos here.' : 'Follow climbers to see their videos here.'}</p><button type="button" data-act="to" data-to="${mode === 'friends' ? 'friends/plan' : 'friends'}">${mode === 'friends' ? 'Find friends' : 'Explore videos'}</button></div>`;
+  const top = `<div class="tok-top"><span class="tok-add-sp" aria-hidden="true"></span>${feedTabs(mode)}<button class="av sm" type="button" data-act="to" data-to="profile" aria-label="Your profile">${avatar('You')}</button></div>`;
+  const empty = `<div class="feed-empty"><strong>No videos from people you follow</strong><p>Follow climbers to see their videos here.</p><button type="button" data-act="to" data-to="friends">Explore videos</button></div>`;
   return { dark: true, tok: true, after: entries.length ? feedWire : undefined, html: `${top}${entries.length ? `<div class="tok" id="tok" tabindex="0"><div class="tok-in" id="tokin">${entries.map(({post,i}) => feedPost(post,i)).join('')}</div></div>` : empty}` };
 }
 
@@ -1650,7 +1650,7 @@ function viewProfile() {
         <span><b class="num">${clips.length || '—'}</b><i>on video</i></span>
         <span><b class="num">${tops ? `${tops}<small>/${ROUTES.length}</small>` : '—'}</b><i>topped</i></span></div>
       ${follows.size ? '' : `<button class="ph-fr" type="button" data-act="to" data-to="friends">Find friends</button>`}
-      <button class="ph-plans" type="button" data-act="to" data-to="friends/plan">My climbing plans ${ic.arr('#111111')}</button>
+      <button class="ph-plans" type="button" data-act="to" data-to="friends/friends">My climbing plans ${ic.arr('#111111')}</button>
       </section>`; })()}
     ${session === 'live' ? `<section class="recap solid"><span class="sub">Climbing now · ${gym.name}</span><b class="num" id="prclk">${clk(sesSecs())}</b><span class="sub">${n(dayLog(0).reduce((s, e) => s + e.tries, 0) + gday(0).length, 'try', 'tries')} · ${n(dayLog(0).filter(e => e.sent).length + gday(0).filter(gsent).length, 'send', 'sends')} today</span><button class="pr-end" type="button" data-act="lgend">End session</button></section>` : ''}
     <div class="fold"></div>
@@ -2358,8 +2358,7 @@ const plans = user === 'regular' ? [{ by: 'Noor', g: 0, d: 1, h: 18, who: ['Noor
   if (sc === 'plan') plans.unshift({ by: 'You', g: 0, d: 0, h: Math.min(h + 2, 21), who: ['You', 'Noor', 'Leo'] }); }
 const dayName = d => d === 0 ? 'Today' : d === 1 ? 'Tomorrow' : ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][(new Date().getDay() + d) % 7];
 const names = ws => ws.length < 3 ? ws.join(' and ') : `${ws.slice(0, -1).join(', ')} and ${ws[ws.length - 1]}`;
-const feedTabs = mode => `<nav class="tok-tabs feed-tabs" aria-label="Video feed">${[['all','For you','friends'],['following','Following','friends/following'],['friends','Friends','friends/friends']].map(([key,label,to]) => `<button type="button" data-act="feedmode" data-to="${to}"${mode === key ? ' aria-current="page"' : ''}>${label}</button>`).join('')}</nav>`;
-const comTabs = () => `<nav class="tok-tabs"><button type="button" data-act="to" data-to="friends">Videos</button><button type="button" aria-current="page">Plans</button></nav>`;
+const feedTabs = mode => `<nav class="tok-tabs feed-tabs" aria-label="Community">${[['all','For you','friends'],['following','Following','friends/following'],['friends','Friends','friends/friends']].map(([key,label,to]) => `<button type="button" data-act="feedmode" data-to="${to}"${mode === key ? ' aria-current="page"' : ''}>${label}</button>`).join('')}</nav>`;
 function viewFriendsPlan() {
   const fr = [...invitedFriends];
   const row = `<div class="fr-row">${fr.map(w => `<button type="button" data-act="to" data-to="person/${w}"><span class="fr-f">${avatar(w)}</span><span>${w}</span></button>`).join('')}
@@ -2375,11 +2374,11 @@ function viewFriendsPlan() {
       <img src="${pic(x.img)}" alt="" loading="lazy"><span class="shade"></span><span class="vt-t">${sw(ROUTES[x.ri])}${rname(ROUTES[x.ri])}</span><span class="vt-b">${x.who} · ${dayLabel(x.ago)}</span></button>`).join('')}</div>`
     : `<p class="cap">${fr.length ? 'Your friends haven’t posted a climb yet.' : 'Climbs your friends post show up here.'}</p>`;
   return { photo: 'gym-arc-1', html: `
-    <div class="tok-top lt-top"><span class="tok-add-sp" aria-hidden="true"></span>${comTabs(true)}<button class="av sm" type="button" data-act="to" data-to="profile" aria-label="Your profile">${avatar('You')}</button></div>
+    <div class="tok-top lt-top"><span class="tok-add-sp" aria-hidden="true"></span>${feedTabs('friends')}<button class="av sm" type="button" data-act="to" data-to="profile" aria-label="Your profile">${avatar('You')}</button></div>
     <div class="fold"></div>
-    <div class="hl2 dk2"><h2>Friends</h2><span class="hint2">${fr.length ? n(fr.length, 'friend', 'friends') : 'none yet'}</span></div>
-    ${fr.length ? '' : '<p class="cap">See each other’s climbs and plan sessions together.</p>'}
-    ${row}
+    <div class="hl2 dk2"><h2>Friends</h2>${fr.length ? `<span class="hint2">${n(fr.length, 'friend', 'friends')}</span>` : ''}</div>
+    ${fr.length ? '' : '<div class="fr-first"><strong>Climb with friends</strong><p>Add a friend to plan sessions together, join theirs and see their climbs.</p><button class="b-lime" type="button" data-act="fadd">Add a friend</button></div>'}
+    ${fr.length ? row : ''}
     <div class="hl2 dk2"><h2>Upcoming plans</h2><button class="gy-mapb" type="button" data-act="plan">Create plan</button></div>
     <div class="pls">${ps.length ? ps.slice().sort((a, b) => a.d - b.d || a.h - b.h).map(card).join('') : `<p class="cap">No plans yet. Create a plan so friends can join.</p>`}</div>
     <div class="hl2 dk2"><h2>Friends’ climbs</h2>${theirs.length ? `<span class="hint2">${n(theirs.length, 'video', 'videos')}</span>` : ''}</div>
@@ -2405,7 +2404,7 @@ function inviteUrl() {
   const url = new URL(location.href);
   url.searchParams.set('invite', id);
   url.searchParams.set('name', 'Climber');
-  url.hash = '/friends/plan';
+  url.hash = '/friends/friends';
   return url.href;
 }
 function showInvite() {
@@ -2553,7 +2552,7 @@ const moreActions = {
   plh: b => { pd.h = +b.dataset.v; drawPlan(); },
   plw: b => { const w = b.dataset.w; pd.who.has(w) ? pd.who.delete(w) : pd.who.add(w); drawPlan(); },
   plgo: () => { const p = { by: 'You', g: pd.g, d: pd.d, h: pd.h, who: ['You', ...pd.who] }; plans.unshift(p); pd = null; closeAll();
-    if (page === 'friends' && arg === 'plan') render(); else go('friends/plan'); toast(`Plan posted · ${dayName(p.d)} ${clock(p.h)} at ${gyms[p.g].name}`); },
+    if (page === 'friends' && (arg === 'friends' || arg === 'plan')) render(); else go('friends/friends'); toast(`Plan posted · ${dayName(p.d)} ${clock(p.h)} at ${gyms[p.g].name}`); },
   pljoin: b => { const p = plans[+b.dataset.i], on = p.who.includes('You'); p.who = on ? p.who.filter(w => w !== 'You') : [...p.who, 'You']; render(); toast(on ? 'You left the plan' : `You’re going · ${dayName(p.d)} ${clock(p.h)}`); },
   plstart: () => { lgClock(); render(); openAdd(); },
   plx: b => { plans.splice(+b.dataset.i, 1); render(); toast('Plan cancelled'); }
