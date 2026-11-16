@@ -477,10 +477,10 @@ function album(only) {
     const pile = all.slice(0, 3).reverse().map((x, q, a) => `<i class="al-p${a.length - 1 - q}${x.img ? '' : ' al-ph'}"${x.img ? '' : ` style="--hold:${x.col}"`}>${x.img ? `<img src="${pic(x.img)}" alt="" loading="lazy">` : `<span class="alh-pill">By hand</span><strong>${x.g}</strong>${holdArt(x.seed)}`}</i>`).join('');
     const ids = all.filter(x => x.id != null).map(x => String(x.id)), on = alSel ? ids.filter(i => alSel.has(i)).length : 0;
     if (alSel) return `<div class="al-st al-sts${g.gy < 0 ? ' ng' : ''}${ids.length ? '' : ' off'}${on && on < ids.length ? ' part' : ''}"${on && on === ids.length ? ' data-on' : ''}>
-      <button class="al-stp" type="button" data-act="alstack" data-ids="${ids.join(',')}" aria-pressed="${!!ids.length && on === ids.length}"${ids.length ? '' : ' disabled'} aria-label="${gname(g.gy)}: select ${n(ids.length, 'video', 'videos')}">
+      <button class="al-stp" type="button" data-act="alopen" data-k="${d}_${g.gy}" aria-pressed="${!!ids.length && on === ids.length}" aria-expanded="${alOpen === `${d}_${g.gy}`}"${ids.length ? '' : ' disabled'} aria-label="${gname(g.gy)}: ${n(ids.length, 'video', 'videos')}">
         <span class="al-pile">${pile}<span class="al-ck" aria-hidden="true"></span><b class="al-cnt">${on ? `${on}/${ids.length}` : ids.length}</b></span>
         <span class="al-sb"><b>${gname(g.gy)}</b><small>${ids.length ? n(ids.length, 'video', 'videos') : 'No videos'}</small></span></button>
-      ${ids.length > 1 ? `<button class="al-one" type="button" data-act="alopen" data-k="${d}_${g.gy}" aria-expanded="${alOpen === `${d}_${g.gy}`}">${alOpen === `${d}_${g.gy}` ? 'Close' : 'Pick some'}<span aria-hidden="true">${alOpen === `${d}_${g.gy}` ? '↑' : '↓'}</span></button>` : ''}</div>`;
+</div>`;
     return `<button class="al-st${g.gy < 0 ? ' ng' : ''}" type="button" data-act="to" data-to="algym/${d}_${g.gy}" aria-label="${gname(g.gy)}, ${n(k, 'record', 'records')}">
       <span class="al-pile">${pile}<b class="al-cnt">${k}</b></span>
       <span class="al-sb"><b>${gname(g.gy)}</b><small>${n(g.routes.length, 'route', 'routes')}${top ? ` · ${top} topped` : ''}</small>
@@ -490,7 +490,7 @@ function album(only) {
     const g = dayItems(d).find(q => `${d}_${q.gy}` === alOpen); if (!g) return '';
     const vs = g.routes.flatMap(r => r.items).filter(x => x.id != null);
     const on = vs.filter(x => alSel.has(String(x.id))).length;
-    return `<div class="al-tray" role="group" aria-label="${gname(g.gy)}: pick videos"><p><b>${gname(g.gy)}</b><span>${dayLabel(d)} · ${on} of ${vs.length}</span><button type="button" class="al-tx" data-act="alopen" data-k="${alOpen}" aria-label="Close">×</button></p><div class="al-row">${vs.map(x => x.html).join('')}</div></div>`; };
+    return `<div class="al-tray" role="group" aria-label="${gname(g.gy)}: pick videos"><p><b>${gname(g.gy)}</b><span>${dayLabel(d)} · ${on} of ${vs.length}</span><button type="button" class="al-all" data-act="alstack" data-ids="${vs.map(x => x.id).join(',')}">${on === vs.length ? 'Deselect all' : 'Select all'}</button><button type="button" class="al-tx" data-act="alopen" data-k="${alOpen}" aria-label="Close">×</button></p><div class="al-row">${vs.map(x => x.html).join('')}</div></div>`; };
   if (only?.tray) return alOpen ? strip(+alOpen.split('_')[0]) : '';
   const box = alRoute ? `<div class="al${alSel ? ' sel' : ''}">${days.map(d => `<div class="al-d"><h3><button type="button" class="day-open" data-act="to" data-to="day/${d}"><em class="al-dl">${dayLabel(d)}</em> <span>View day →</span></button></h3>
     <div class="al-g">${dayItems(d).flatMap(g => g.routes.flatMap(r => r.items)).map(x => x.html).join('')}</div></div>`).join('')}</div>`

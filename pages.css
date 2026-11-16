@@ -3093,3 +3093,11 @@ textarea.note:focus { outline: 2px solid var(--ink); outline-offset: 0; backgrou
 .al-tray .al-kind { font-size: 10px; }
 .al-tray .al-ck { top: 7px; right: 7px; width: 22px; height: 22px; }
 .al.sel.tray { padding-bottom: 210px; }
+
+/* the stack whose videos are in the tray; Select all in the tray's header */
+.al-stp[aria-expanded="true"] .al-pile { transform: translateY(-3px); }
+.al-sts:has(.al-stp[aria-expanded="true"]) { box-shadow: inset 0 0 0 2px var(--ink); }
+.al-sts[data-on]:has(.al-stp[aria-expanded="true"]) { box-shadow: inset 0 0 0 3px var(--lime), 0 0 0 2px var(--ink); }
+.al-stp { padding-bottom: 12px; }
+.al-all { margin-left: auto; height: 28px; padding: 0 12px; border-radius: 999px; background: var(--ink); color: #fff; font-size: 12px; font-weight: 800; white-space: nowrap; }
+.al-all + .al-tx { margin-left: 0; }
