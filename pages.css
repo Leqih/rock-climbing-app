@@ -2585,7 +2585,7 @@ textarea.note:focus { outline: 2px solid var(--ink); outline-offset: 0; backgrou
 
 /* The analysed video: layers to switch on (right), what you're doing (top left), a strip of frames to drag along (bottom),
    and a pen. On the picture the colours are the drawing's own, lime and orange, whatever the theme */
-.lyr { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); z-index: 4; display: flex; flex-direction: column; gap: 1px; max-height: calc(100% - 64px);
+.lyr { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); z-index: 4; display: flex; flex-direction: column; gap: 1px; max-height: calc(100% - 16px);
   padding: 4px; border-radius: 14px; background: rgba(17,17,17,.6); overflow-y: auto; scrollbar-width: none; }
 .lyr::-webkit-scrollbar { display: none; }
 .lyr button { flex: none; display: grid; justify-items: center; gap: 1px; width: 44px; padding: 5px 0 4px; border: 0; border-radius: 10px; background: none; color: rgba(255,255,255,.7); font-size: 10px; font-weight: 600; line-height: 1.1; cursor: pointer; }
@@ -2601,7 +2601,11 @@ textarea.note:focus { outline: 2px solid var(--ink); outline-offset: 0; backgrou
 .lvst[data-s="Resting"]::before { background: #fff; }
 .lvtag { top: 36px; background: #C2FF01; color: #111; }
 .lvst[hidden], .lvtag[hidden] { display: none; }
-.lvstrip { position: absolute; left: 8px; right: 62px; bottom: 8px; z-index: 4; height: 40px; border-radius: 8px; overflow: hidden; background: rgba(17,17,17,.55); touch-action: none; cursor: ew-resize; }
+/* under the video: the time now, the strip, the length. White on the black around the video, ink once the sheet is up */
+.lvbar { position: relative; z-index: 1; flex: none; display: flex; align-items: center; gap: 10px; height: 40px; padding: 0 4px; box-sizing: border-box; font-size: 12px; font-weight: 700;
+  color: color-mix(in srgb, #111 calc(var(--sk, 0) * 100%), #fff); }
+.lvbar > span { flex: none; min-width: 30px; text-align: center; font-variant-numeric: tabular-nums; }
+.lvstrip { position: relative; flex: 1; min-width: 0; height: 40px; border-radius: 8px; overflow: hidden; background: rgba(17,17,17,.55); touch-action: none; cursor: ew-resize; }
 .lvs-f { display: flex; height: 100%; }
 .lv .lvs-f canvas { position: static; flex: 1; width: 0; height: 100%; object-fit: cover; opacity: .9; }
 .lvs-h { position: absolute; top: 0; bottom: 0; width: 3px; margin-left: -1.5px; border-radius: 2px; background: #fff; box-shadow: 0 0 0 1px rgba(17,17,17,.5); pointer-events: none; }
@@ -2609,7 +2613,9 @@ textarea.note:focus { outline: 2px solid var(--ink); outline-offset: 0; backgrou
 /* analysis, sheet down: the video is the screen. It fills the phone edge to edge from the very top, black around it, the
    status bar and title in white on a soft shade; the analysis is a sheet whose top shows at the bottom, to pull up */
 .screen.snap { padding-top: 0; }
-.screen.snap .lv-w.two { padding: 0 0 8px; }
+.screen.snap .lv-w.two { padding: 0 0 8px; flex-direction: column; align-items: center; justify-content: flex-start; box-sizing: border-box; }
+/* sheet down, only the handle shows: the tabs come in as it's pulled up */
+.screen.snap .ctabs button { opacity: calc(var(--sk, 0) * 4); }
 .screen.snap .lv-w.two::before { opacity: 1; background: color-mix(in srgb, var(--hd) calc(var(--sk, 0) * 100%), #000); }
 .screen.snap .lv-w.two .clip { border-radius: calc(var(--sk, 0) * 14px); }
 .screen.snap .m > .bar { position: absolute; z-index: 5; top: var(--sb); left: 16px; right: 16px; }
@@ -2657,3 +2663,9 @@ textarea.note:focus { outline: 2px solid var(--ink); outline-offset: 0; backgrou
 .al-an b { font-weight: 800; font-variant-numeric: tabular-nums; }
 .al-an.ask { background: var(--orange); color: var(--ink); }
 @media (prefers-reduced-motion: reduce) { .al-an::before { transition: none; } }
+
+/* the layer buttons sit beside the video, not in it: on its right edge while it fills the screen, in the space to its right
+   once the sheet is up and the video is small */
+.lv-w.two > .lyr { top: var(--vc, 50%); max-height: calc(var(--vh, 100%) - 16px); right: 6px; }
+.phone:not(.onvid) .lv-w.two > .lyr { right: 0; max-height: calc(var(--vh, 100%) + 8px); }
+.lv-sp { display: block; }

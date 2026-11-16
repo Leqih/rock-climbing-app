@@ -640,8 +640,10 @@ const lyrBar = (ok = {}) => `<div class="lyr" role="toolbar" aria-label="What to
     <button type="button" data-act="penx" class="lyr-x"${penOn ? '' : ' hidden'}>${lyrIcon('<path d="M6 6l12 12M18 6 6 18"/>')}<span>Clear</span></button>
     <button type="button" data-act="spd" class="lyr-sp num" aria-label="Playback speed">${speed}×</button></div>`;
 const lyrOver = () => `<canvas id="lvd" class="lvd${penOn ? ' on' : ''}"></canvas>
-    <span class="lvst" id="lvst" hidden></span><span class="lvtag" id="lvtag" hidden></span>
-    <div class="lvstrip" id="lvstrip"><div class="lvs-f" id="lvsf"></div><i class="lvs-h" id="lvsh"></i></div>`;
+    <span class="lvst" id="lvst" hidden></span><span class="lvtag" id="lvtag" hidden></span>`;
+// under the video, as wide as it: where you are, a strip of frames to drag along, and how long the video is
+const lyrStrip = (D, w) => `<div class="lvbar" id="lvbar" style="width:${w}"><span class="num" id="lvsa">0:00</span>
+    <div class="lvstrip" id="lvstrip"><div class="lvs-f" id="lvsf"></div><i class="lvs-h" id="lvsh"></i></div><span class="num">${mmss(D)}</span></div>`;
 function lyrSave() { window.poseLayers = LAY; try { localStorage.setItem('spotter-layers', JSON.stringify(LAY)); } catch {} }
 
 // the pen: draw on the video to plan a move. Drawing pauses it. Lines sit on the picture, so they zoom with it
@@ -664,7 +666,7 @@ function penWire(c, T) {
   cv.repaint = paint; paint();
 }
 
-// a strip of frames along the bottom of the video: drag along it to find a moment
+// a strip of frames under the video: drag along it to find a moment
 function stripWire(v, T) {
   const box = $('lvstrip'), row = $('lvsf'), head = $('lvsh'); if (!box || !T) return;
   const N = 10, D = T.D || v.duration || 1;
@@ -683,7 +685,9 @@ function stripWire(v, T) {
   box.addEventListener('pointerdown', e => { e.stopPropagation(); drag = true; v.pause(); box.setPointerCapture(e.pointerId); seek(e); });
   box.addEventListener('pointermove', e => { if (drag) seek(e); });
   ['pointerup', 'pointercancel'].forEach(n => box.addEventListener(n, () => { drag = false; }));
-  const tick = () => { if (!box.isConnected) return; head.style.left = `${Math.min(100, v.currentTime / (v.duration || D) * 100)}%`; requestAnimationFrame(tick); };
+  const at = $('lvsa'); let shown = -1;
+  const tick = () => { if (!box.isConnected) return; head.style.left = `${Math.min(100, v.currentTime / (v.duration || D) * 100)}%`;
+    const sec = Math.floor(v.currentTime); if (at && sec !== shown) { shown = sec; at.textContent = mmss(sec); } requestAnimationFrame(tick); };
   requestAnimationFrame(tick);
 }
 
@@ -719,16 +723,24 @@ function followWire(box) {
 let anSheet = null;
 // the status bar's height: 54 in the drawn phone, the phone's own on a real one (styles.css --sb)
 const sbH = () => parseFloat(getComputedStyle(document.querySelector('.screen')).paddingTop) || 0;
+// the phone's own home bar, under the sheet's handle (0 in the drawn phone)
+const homeH = () => { const d = document.createElement('div'); d.style.cssText = 'position:fixed;visibility:hidden;height:env(safe-area-inset-bottom, 0px)'; document.body.appendChild(d); const h = d.offsetHeight; d.remove(); return h; };
 function stickWire(box, full) {
-  const scr = document.querySelector('.screen'), w = box.parentElement, m = w.parentElement, tabs = m.querySelector('.ctabs');
+  const scr = document.querySelector('.screen'), w = box.parentElement, m = w.parentElement, tabs = m.querySelector('.ctabs'), strip = $('lvbar');
   const ar = box.offsetWidth / box.offsetHeight, phone = scr.closest('.phone');
-  scr.classList.add('snap'); w.style.height = `${full + 8}px`;
-  // pulled up, the video is half its full height: the sheet gets most of the screen
-  const MIN = Math.round(Math.max(220, full * .5));
+  // sheet down, only its handle shows at the bottom; the video and the strip under it are centred in the rest, on black
+  const PEEK = 30 + homeH(), STRIP = strip ? strip.offsetHeight + 8 : 0, room = scr.clientHeight - PEEK, gap = Math.max(0, room - 8 - full - STRIP);
+  // pulled up, the video is a third of its full height: the sheet gets most of the screen
+  const MIN = Math.round(Math.max(180, full * .34));
+  // the band holds only its pulled-up height; the room the full video needs under that is a spacer after it, so the band
+  // stays stuck at the top however far the sheet's content scrolls (a stuck box can't be taller than what's left of the page)
+  scr.classList.add('snap'); w.style.height = `${MIN + STRIP + 8}px`;
+  const sp = w.nextElementSibling?.classList.contains('lv-sp') ? w.nextElementSibling : w.insertAdjacentElement('afterend', Object.assign(document.createElement('i'), { className: 'lv-sp' }));
+  sp.style.height = `${Math.max(0, room - 8 - (MIN + STRIP + 8))}px`;
   // how far the page scrolls before the sheet's top meets the video: there the video has shrunk all the way. Measured in
   // the page's own pixels (the phone frame is scaled on screen). The video starts shrinking once it reaches the top
-  const start = w.offsetTop, D = Math.max(start + 1, Math.round(tabs.offsetTop - MIN - 8));
-  tabs.style.top = `calc(${MIN + 8}px + var(--sk, 0) * var(--sb))`;   // pulled up, the video sits under the status bar, not behind it
+  const start = w.offsetTop, D = Math.max(start + 1, Math.round(tabs.offsetTop - MIN - STRIP - 8));
+  tabs.style.top = `calc(${MIN + STRIP + 8}px + var(--sk, 0) * var(--sb))`;   // pulled up, the video sits under the status bar, not behind it
   const pad = () => {   // enough page under the open tab for the sheet to go all the way up
     const free = m.offsetHeight - (parseFloat(m.style.paddingBottom) || 0) + sbH() + 120 - scr.clientHeight;
     const want = `${Math.max(0, Math.ceil(D - free))}px`;
@@ -737,7 +749,11 @@ function stickWire(box, full) {
   const fit = () => {
     if (!box.isConnected) { scr.removeEventListener('scroll', fit); m.removeEventListener('tabchange', onTab); return; }
     const y = scr.scrollTop, k = Math.min(1, Math.max(0, (y - start) / (D - start))), h = full - (full - MIN) * k;
-    box.style.width = `min(100%, ${Math.round(h * ar)}px)`; w.style.setProperty('--bh', `${h + 8}px`);
+    const bw = `min(100%, ${Math.round(h * ar)}px)`, top = Math.round(gap / 2 * (1 - k));
+    box.style.width = bw; if (strip) strip.style.width = `min(100%, ${Math.max(300, Math.round(h * ar))}px)`;   // small video: the strip stays wide enough to drag along w.style.paddingTop = `${top}px`;
+    w.style.setProperty('--bh', `${top * 2 + h + STRIP + 8}px`);
+    // the layer buttons: on the video's right edge while it fills the screen, beside it in the space either side once it's small
+    w.style.setProperty('--vc', `${top + h / 2}px`); w.style.setProperty('--vh', `${h}px`);
     w.classList.toggle('stuck', y > 4); tabs.classList.toggle('stuck', k >= 1);
     // the header's background fades in as the sheet comes up, in step with the video, instead of switching on
     phone?.style.setProperty('--sk', k.toFixed(3)); phone?.classList.toggle('onvid', k < .5); if (anSheet) anSheet.k = k;
@@ -1112,7 +1128,7 @@ function viewClip(id) {
   const askCard = `<div class="stack"><div class="lt tgc"><span class="lt-h" id="tgt"></span><p class="an-n" id="tgx"></p>
       <div class="tg-s" id="tgs" hidden></div>
       <div class="tg-a"><button class="b-ghost" type="button" id="tgu" data-i="${c.id}"></button><button class="b-lime" type="button" id="tgb" data-i="${c.id}"></button></div></div></div>`;
-  const scrEl = document.querySelector('.screen'), room = (scrEl?.clientHeight || 874) - (two ? 150 : state === 'ask' ? 348 : 280);
+  const scrEl = document.querySelector('.screen'), room = (scrEl?.clientHeight || 874) - (two ? 92 : state === 'ask' ? 348 : 280);
   // analysed: the video fills the screen, edge to edge, with the top of the analysis sheet showing under it to pull up
   const vh = two ? Math.round(Math.max(280, Math.min(room, (scrEl?.clientWidth || 402) / lv.ar))) : Math.max(280, Math.min(560, room));
   // what the video shows right now, as it plays: in Body, above the timeline
@@ -1162,11 +1178,11 @@ function viewClip(id) {
     }, html: `
     ${bar(`${rname(r)} · try ${tryOf(c)}`)}
     <div class="lv-w${two ? ' two' : ''}"><div class="clip vp lv${state === 'run' ? ' busy' : ''}" style="aspect-ratio:${lv.ar.toFixed(4)};width:min(100%, ${Math.round(vh * lv.ar)}px)">
-      <video id="lvv" src="${vsrc(lv.vid)}" poster="${pic(lv.img, 0)}" muted playsinline preload="auto"></video><canvas id="lvc"></canvas>${two ? lyrOver() + lyrBar(T ? quality(T).ok : {}) : ''}
+      <video id="lvv" src="${vsrc(lv.vid)}" poster="${pic(lv.img, 0)}" muted playsinline preload="auto"></video><canvas id="lvc"></canvas>${two ? lyrOver() : ''}
       <button class="play-b" type="button" data-act="lvplay" aria-label="Play the video">${ic.play}</button>
       <div class="tg" id="tg" hidden></div>
       <span class="clip-l"><span class="pk-tag">${sw(r)}${rname(r)} · try ${tryOf(c)}</span>
-        <span>${dayLabel(agoOf(c))} · ${gymName(c)} · ${c.len} · ${topOf(c) ? 'topped' : 'not topped'}</span></span></div></div>
+        <span>${dayLabel(agoOf(c))} · ${gymName(c)} · ${c.len} · ${topOf(c) ? 'topped' : 'not topped'}</span></span></div>${two ? lyrStrip(T.D, `min(100%, ${Math.round(vh * lv.ar)}px)`) + lyrBar(T ? quality(T).ok : {}) : ''}</div>
     <div class="fold"></div>
     ${state === 'idle' ? `<div class="analysis-choice"><h2>Analyse this climb?</h2><p>Watch your video now, or start an analysis when you’re ready.</p><button class="b-lime" type="button" data-act="startanalysis" data-i="${c.id}">Analyse video</button><button type="button" data-act="croute" data-i="${c.id}">Change route</button></div>` : state === 'run' ? runCard : state === 'ask' ? askCard : `
       <div class="fchips ctabs">${tabs.map(([k, l]) => `<button type="button" data-act="ctab" data-v="${k}" aria-pressed="${k === tab}">${l}</button>`).join('')}</div>
