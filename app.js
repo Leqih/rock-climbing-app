@@ -34,9 +34,15 @@ const V = [
   ['wayup-p1-green', 'Sam', 0, true, 1, 187.4], ['wayup-p1-orange', 'Sam', 1, false, 1, 88.5],
   ['wayup-p3-green', 'Leo', 0, true, 3, 51.2], ['wayup-p3-orange', 'Leo', 1, true, 3, 36.3],
   ['wayup-p10-green', 'Kai', 0, true, 4, 72.6],
-  ['wayup-p5-green', 'Mia', 0, false, 5, 93.0], ['wayup-p5-orange', 'Mia', 1, false, 5, 59.1]
+  ['wayup-p5-green', 'Mia', 0, false, 5, 93.0], ['wayup-p5-orange', 'Mia', 1, false, 5, 59.1],
+  // the rest of The Way Up: every climber in it, on both routes; the coach's labels for all of them are in labels/
+  ['wayup-p10-orange', 'Kai', 1, true, 4, 59.7],
+  ['wayup-p4-green', 'Ava', 0, true, 6, 92.7], ['wayup-p4-orange', 'Ava', 1, true, 6, 50.0],
+  ['wayup-p6-green', 'Ben', 0, true, 1, 93.9], ['wayup-p6-orange', 'Ben', 1, true, 1, 74.1],
+  ['wayup-p7-green', 'Jun', 0, true, 3, 80.3], ['wayup-p7-orange', 'Jun', 1, true, 3, 57.3],
+  ['wayup-p9-green', 'Rosa', 0, true, 2, 59.3], ['wayup-p9-orange', 'Rosa', 1, true, 2, 53.3]
 ].map(([vid, who, ri, top, ago, s], i) => ({ i, vid, img: vid, who, ri, top, ago, D: s, ar: 9 / 16, len: mmss(s), t: [0, s], credit: 'The Way Up · Maschek & Schedl · CC BY 4.0' }));
-const PEOPLE = ['Noor', 'Sam', 'Leo', 'Kai', 'Mia'];
+const PEOPLE = ['Noor', 'Sam', 'Leo', 'Kai', 'Mia', 'Ava', 'Ben', 'Jun', 'Rosa'];
 const rname = r => `${r.color} ${r.grade}`;
 const sw = r => `<span class="sw" style="background:${r.hex}"></span>`;
 const dateOf = ago => { const d = new Date(); d.setHours(12, 0, 0, 0); d.setDate(d.getDate() - ago); return d; };
@@ -49,11 +55,15 @@ function needTracks(vs) {
   if (!miss.length) return;
   const at = [page, arg];
   miss.forEach(v => { TRK[v.vid] = null; });
-  Promise.all(miss.map(v => fetch(`video/${v.vid}.track.json`).then(x => x.ok ? x.json() : null).then(T => { TRK[v.vid] = T; }).catch(() => {})))
+  Promise.all(miss.filter(v => !v.mine).map(v => fetch(`video/${v.vid}.track.json`).then(x => x.ok ? x.json() : null).then(T => { TRK[v.vid] = T; }).catch(() => {})))
     .then(() => { if (page === at[0] && arg === at[1]) render(); });
 }
 
 /* ---------- Your videos ---------- */
+// videos you bring in from your phone: they never leave it. The file plays from a blob URL and its first frame is the picture
+const MINE = {};
+const pic = (name, f) => MINE[name]?.pic || `img/${name}${f === 0 ? '0' : ''}.jpg`;
+const vsrc = vid => MINE[vid]?.src || `video/${vid}.mp4`;
 // one clip = one try of yours. v = its video in V; ri = its route (you can change it); hidden = only you see it
 const clips = [];
 let cid = 0, newPublic = true;
@@ -273,7 +283,7 @@ function animateProfileShapes() {
 const vtile = c => {
   const st = c.an === 'idle' || !c.an ? 'Not analysed' : c.an === 'ask' ? 'Check this' : c.an !== 'done' ? 'Analysing' : topOf(c) ? 'Topped' : 'Not topped';
   return `<button class="vt${c.hidden ? ' hid' : ''}" type="button" data-act="to" data-to="clip/${c.id}" aria-label="${rname(ROUTES[c.ri])}, try ${tryOf(c)}, ${dayLabel(agoOf(c))}">
-    <img src="img/${c.img}.jpg" alt=""><span class="shade"></span>
+    <img src="${pic(c.img)}" alt=""><span class="shade"></span>
     <span class="vt-t">Try ${tryOf(c)}</span>${gymTag(c)}
     <span class="vt-b${c.an === 'ask' ? ' ask' : ''}">${c.hidden ? ic.eyeOff : ''}${st} · ${dayLabel(agoOf(c))}</span></button>`;
 };
@@ -294,7 +304,7 @@ const gdays = () => { const ds = [...new Set(glogs.map(x => x.ago))].sort((p, q)
 let vTab = 'all';
 const vcard = c => { const st = c.an === 'idle' || !c.an ? 'Not analysed' : c.an === 'ask' ? 'Check this' : c.an !== 'done' ? 'Analysing' : topOf(c) ? 'Topped' : 'Not topped', r = ROUTES[c.ri];
   return `<button class="vc${c.hidden ? ' hid' : ''}" type="button" data-act="to" data-to="clip/${c.id}" aria-label="${rname(r)}, try ${tryOf(c)}, ${dayLabel(agoOf(c))}">
-    <span class="vc-i"><img src="img/${c.img}.jpg" alt=""><span class="vc-t">Try ${tryOf(c)}</span>${gymTag(c)}${c.hidden ? `<span class="vc-h">${ic.eyeOff}</span>` : ''}</span>
+    <span class="vc-i"><img src="${pic(c.img)}" alt=""><span class="vc-t">Try ${tryOf(c)}</span>${gymTag(c)}${c.hidden ? `<span class="vc-h">${ic.eyeOff}</span>` : ''}</span>
     <span class="vc-b"><span class="vc-r">${sw(r)}${rname(r)}</span><b class="${st === 'Topped' ? 'on' : c.an === 'ask' ? 'ask' : ''}">${st}</b><span class="vc-d">${dayLabel(agoOf(c))}</span></span></button>`; };
 const vhand = l => { const r = ROUTES[l.ri];
   return `<button class="vc vc-p" type="button" data-act="to" data-to="${l.ago === 0 ? 'session' : `route/${l.ri}`}" aria-label="${rname(r)}, logged by hand, ${dayLabel(l.ago)}">
@@ -309,7 +319,7 @@ const vpeers = i => { const ps = peersOn(i); return ps.length ? `<button class="
     <span class="pl-avs">${[...new Set(ps.map(w => w.who))].slice(0, 3).map(w => `<i>${avatar(w)}</i>`).join('')}</span><b>${n(ps.length, 'climber', 'climbers')} on it</b><span class="vc-go">Compare with them</span></button>` : ''; };
 const rcard = i => { const r = ROUTES[i], cs = mineOn(i), top = cs.some(topOf) || handOn(i).some(l => l.sent), ps = peersOn(i);
   return `<button class="vc" type="button" data-act="to" data-to="route/${i}" aria-label="${rname(r)}">
-    <span class="vc-i rc"><img src="img/${r.img}.jpg" alt=""></span>
+    <span class="vc-i rc"><img src="${pic(r.img)}" alt=""></span>
     <span class="vc-b"><span class="vc-r">${sw(r)}${rname(r)}</span><b class="${top ? 'on' : ''}">${cs.length ? (top ? 'Topped' : 'Not topped yet') : n(ps.length, 'climber', 'climbers')}</b>
     <span class="vc-d">${cs.length ? cs.map(x => `Try ${tryOf(x)}`).join(' · ') : 'filmed it'}</span></span></button>`; };
 // someone else on a route: a card with their face, how it went, and VS against your latest try
@@ -338,7 +348,7 @@ const heroes = {
       <b class="hs-clk num">${clk(sesDur)}</b><span class="hs-s">${todayCount()}</span>
       <div class="hs-go"><button class="b-lime" type="button" data-act="to" data-to="summary">See how it went</button></div></section>`,
   plan: () => { const p = planOfToday(), g = gyms[p.g], oth = p.who.filter(w => w !== 'You');
-    return `<section class="hs hs-plan">${g.img ? `<img src="img/${g.img}.jpg" alt="">` : `<span class="gt-placeholder" aria-hidden="true">${ic.pin}</span>`}<span class="hs-k">Today · ${clock(p.h)}</span><b class="hs-t">${g.name}</b>
+    return `<section class="hs hs-plan">${g.img ? `<img src="${pic(g.img)}" alt="">` : `<span class="gt-placeholder" aria-hidden="true">${ic.pin}</span>`}<span class="hs-k">Today · ${clock(p.h)}</span><b class="hs-t">${g.name}</b>
       <span class="hs-s">${oth.length ? `With ${names(oth)}` : 'You planned it'}</span>
       ${oth.length ? `<span class="hs-avs">${oth.slice(0, 3).map(w => `<i>${avatar(w)}</i>`).join('')}</span>` : ''}
       <div class="hs-go">${p.g === 0 ? '<button class="b-lime" type="button" data-act="plstart">Start the session</button>' : `<button class="b-lime" type="button" data-act="to" data-to="gym/${p.g}">Open the gym</button>`}</div></section>`; },
@@ -360,7 +370,7 @@ function album() {
   const dayGyms = d => [...new Set([...(showVideos ? newest.filter(c => agoOf(c) === d && c.gy != null).map(c => c.gy) : []),
     ...(showManual ? glogs.filter(x => x.ago === d).map(x => x.gy) : []), ...(showManual && logs.some(l => l.ago === d && (l.tries || l.sent)) ? [0] : [])])];
   const tile = (c, many) => `<button class="al-t" type="button" data-act="to" data-to="clip/${c.id}" aria-label="${rname(ROUTES[c.ri])}, try ${tryOf(c)}${topOf(c) ? ', topped' : ''}">
-      <img src="img/${c.img}.jpg" alt="" loading="lazy"><span class="al-kind">Video · Try ${tryOf(c)}</span>${c.gy == null ? '<span class="al-ng">No gym</span>' : ''}${topOf(c) ? `<span class="al-ok" aria-hidden="true">${ic.check}</span>` : ''}
+      <img src="${pic(c.img)}" alt="" loading="lazy"><span class="al-kind">Video · Try ${tryOf(c)}</span>${c.gy == null ? '<span class="al-ng">No gym</span>' : ''}${topOf(c) ? `<span class="al-ok" aria-hidden="true">${ic.check}</span>` : ''}
       <span class="al-r">${sw(ROUTES[c.ri])}<b>${ROUTES[c.ri].grade}</b>${many && c.gy != null ? `<small class="al-gy">${gyms[c.gy].name}</small>` : ''}</span></button>`;
   // a climb logged by hand has no video and no photo, so it gets one drawn hold: big, in the route's colour, cropped by the
   // corner of the tile with its bolt in the middle. The type leads; the hold only says which colour you climbed. Same record, same hold
@@ -387,13 +397,13 @@ function album() {
   const visibleBox = days.length ? box : `<div class="album-empty"><strong>No ${albumFilter === 'videos' ? 'video' : 'manual'} records yet</strong><span>Try another filter to see your climbs.</span><button type="button" data-act="albumfilterset" data-value="all">Show all records</button></div>`;
   const sent = clips.filter(topOf), best = [...sent].sort((p, q) => GR.indexOf(ROUTES[q.ri].grade) - GR.indexOf(ROUTES[p.ri].grade) || agoOf(p) - agoOf(q))[0];
   const pins = best ? `<div class="sec"><h2>Pinned</h2></div><div class="rgrid pin">
-      <button class="vc" type="button" data-act="to" data-to="clip/${best.id}" aria-label="Hardest send: ${rname(ROUTES[best.ri])}, try ${tryOf(best)}"><span class="vc-i rc"><img src="img/${best.img}.jpg" alt=""><span class="vc-t g">Hardest send</span>${gymTag(best)}</span>
+      <button class="vc" type="button" data-act="to" data-to="clip/${best.id}" aria-label="Hardest send: ${rname(ROUTES[best.ri])}, try ${tryOf(best)}"><span class="vc-i rc"><img src="${pic(best.img)}" alt=""><span class="vc-t g">Hardest send</span>${gymTag(best)}</span>
         <span class="vc-b"><span class="vc-r">${sw(ROUTES[best.ri])}${rname(ROUTES[best.ri])}</span><b>Try ${tryOf(best)}</b><span class="vc-d">${dayLabel(agoOf(best))}</span></span></button>
-      <button class="vc" type="button" data-act="reel" aria-label="Play your highlight reel"><span class="vc-i rc"><img src="img/${newest.find(topOf).img}.jpg" alt=""><span class="vc-pl">${ic.play}</span></span>
+      <button class="vc" type="button" data-act="reel" aria-label="Play your highlight reel"><span class="vc-i rc"><img src="${pic(newest.find(topOf).img)}" alt=""><span class="vc-pl">${ic.play}</span></span>
         <span class="vc-b"><span class="vc-r">Highlight reel</span><b>${n(sent.length, 'send', 'sends')}</b><span class="vc-d">${sent.length * 8} seconds</span></span></button></div>` : '';
   const binder = `<div class="sec"><h2>Gyms</h2></div><div class="rgrid album-gyms">
       <button class="vc bnd" type="button" data-act="to" data-to="shelf/gym" aria-label="${gym.name}">
-        <span class="bnd-s">${[0, 1, 2, 3].map(k => here[k] ? `<img src="img/${here[k].img}.jpg" alt="">` : '<i></i>').join('')}</span>
+        <span class="bnd-s">${[0, 1, 2, 3].map(k => here[k] ? `<img src="${pic(here[k].img)}" alt="">` : '<i></i>').join('')}</span>
         <span class="vc-b"><span class="vc-r">${gym.name}</span><b>${n(here.length, 'video', 'videos')}</b>
         <span class="vc-d">${tops ? `<span class="stg on">${tops} of ${ROUTES.length} routes topped</span>` : `${ROUTES.length} routes`}</span></span></button></div>`;
   return `<div class="sec al-h"><h2>${albumFilter === 'videos' ? 'Videos' : albumFilter === 'manual' ? 'By hand' : 'All records'} <span class="num">${filteredCount}</span></h2><button class="al-filter${albumFilter !== 'all' ? ' active' : ''}" type="button" data-act="albumfilter" aria-label="Filter records"><svg aria-hidden="true" viewBox="0 0 20 20"><path d="M3 5h14M6 10h8M8 15h4"/></svg>${albumFilter === 'all' ? 'Filter' : 'Filtered'}</button></div>${visibleBox}${binder}`;
@@ -438,11 +448,78 @@ const upSel = new Set();
 function openUpload() { upSel.clear(); drawRoll(); }
 function drawRoll() {
   const left = V.filter(v => !v.added), k = upSel.size;
-  pane(`<h2>Import videos</h2><span class="sub">Camera roll · climbing videos</span>
-    ${left.length ? `<div class="roll">${left.map(v => `<button type="button" class="${upSel.has(v.i) ? 'on' : ''}" data-act="upick" data-i="${v.i}" aria-pressed="${upSel.has(v.i)}" aria-label="Video, ${rname(ROUTES[v.ri])}, ${v.len}"><img src="img/${v.img}.jpg" alt=""><span>${dayLabel(v.ago)} · ${v.len}</span>${upSel.has(v.i) ? `<em>${[...upSel].indexOf(v.i) + 1}</em>` : ''}</button>`).join('')}</div>
+  pane(`<h2>Import videos</h2><span class="sub">Analysed on your phone. Nothing is uploaded</span>
+    <label class="up-own">${ic.rec}<span><b>Choose from your phone</b><em>A video of one climb, filmed from the ground</em></span><input type="file" accept="video/*" data-upfile hidden></label>
+    ${left.length ? '<h3 class="up-h">Or try a sample video</h3>' : ''}
+    ${left.length ? `<div class="roll">${left.map(v => `<button type="button" class="${upSel.has(v.i) ? 'on' : ''}" data-act="upick" data-i="${v.i}" aria-pressed="${upSel.has(v.i)}" aria-label="Video, ${rname(ROUTES[v.ri])}, ${v.len}"><img src="${pic(v.img)}" alt=""><span>${dayLabel(v.ago)} · ${v.len}</span>${upSel.has(v.i) ? `<em>${[...upSel].indexOf(v.i) + 1}</em>` : ''}</button>`).join('')}</div>
       <button class="btn-l" type="button" data-act="upnext"${k ? '' : ' disabled'}>${k ? `Import ${n(k, 'video', 'videos')}` : 'Pick a video'}</button>`
     : `<p class="hint">All videos are already in your album.</p><button class="btn-l" type="button" data-act="close">Done</button>`}`);
 }
+// a video from your phone: read its length, shape and first frame, then it's a try like any other, waiting to be analysed
+async function importFile(f) {
+  if (!f || !f.type.startsWith('video/')) { toast('That isn’t a video'); return; }
+  const src = URL.createObjectURL(f), v = document.createElement('video');
+  Object.assign(v, { muted: true, playsInline: true, preload: 'auto', src });
+  v.style.cssText = 'position:fixed;left:0;top:0;width:2px;height:2px;opacity:0;pointer-events:none'; document.body.appendChild(v);
+  toast('Opening your video…');
+  try {
+    await new Promise((ok, no) => { v.addEventListener('loadeddata', ok, { once: true }); v.addEventListener('error', no, { once: true }); setTimeout(() => no(new Error('slow')), 15000); });
+    const D = v.duration;
+    if (!isFinite(D) || D < 2) throw new Error('short');
+    await new Promise(ok => { v.addEventListener('seeked', ok, { once: true }); v.currentTime = Math.min(.5, D / 2); });
+    const W = v.videoWidth, H = v.videoHeight, cv = document.createElement('canvas'), k = Math.min(1, 720 / Math.max(W, H));
+    cv.width = Math.round(W * k); cv.height = Math.round(H * k); cv.getContext('2d').drawImage(v, 0, 0, cv.width, cv.height);
+    const vid = `mine-${Date.now()}`; MINE[vid] = { src, pic: cv.toDataURL('image/jpeg', .82), name: f.name, at: Date.now() };
+    try { await DB.put('files', vid, f); } catch (_) { toast('Your phone is out of space for videos here. It will be gone when you leave'); }
+    V.push({ i: V.length, vid, img: vid, who: 'You', ri: camRoute ?? lastRoute(), top: false, ago: 0, D, ar: W / H, len: mmss(D), t: [0, D], credit: `Your video · ${esc(f.name)}`, mine: true });
+    const c = addClip(V.length - 1, { gy: null, id: mineN++ });
+    closeAll(); cTab = 'why'; go(`clip/${c.id}`);
+    if (D > 240) toast('A long video takes a while to analyse. Trim it to the climb first if you can');
+  } catch (e) { URL.revokeObjectURL(src); toast(e.message === 'short' ? 'That video is too short' : 'Couldn’t open that video. Try an MP4 or MOV'); }
+  finally { v.remove(); }
+}
+// your imported videos stay on this phone between visits: the file itself, its picture, and the try with its analysis, in
+// IndexedDB. Nothing leaves the browser
+const DB = (() => {
+  let p;
+  const open = () => p || (p = new Promise((ok, no) => { const r = indexedDB.open('spotter', 1);
+    r.onupgradeneeded = () => { r.result.createObjectStore('files'); r.result.createObjectStore('mine'); };
+    r.onsuccess = () => ok(r.result); r.onerror = () => no(r.error); }));
+  const run = async (store, mode, f) => { const db = await open(); return new Promise((ok, no) => {
+    const t = db.transaction(store, mode), r = f(t.objectStore(store)); t.oncomplete = () => ok(r?.result); t.onerror = t.onabort = () => no(t.error); }); };
+  return { put: (s, k, v) => run(s, 'readwrite', o => o.put(v, k)), get: (s, k) => run(s, 'readonly', o => o.get(k)),
+    del: (s, k) => run(s, 'readwrite', o => o.delete(k)), all: s => run(s, 'readonly', o => o.getAll()), keys: s => run(s, 'readonly', o => o.getAllKeys()) };
+})();
+let mineN = 1000;
+const KEEPC = ['id', 'ri', 'gy', 'hidden', 'an', 'track', 'tags', 'auto', 'likes', 'cm', 'res', 'style', 'trim', 'ago'];
+// after every change on screen, write down your imported tries as they are now; forget the ones you deleted
+let saveT = null;
+const saveSoon = () => { clearTimeout(saveT); saveT = setTimeout(saveMine, 400); };
+async function saveMine() {
+  try {
+    const live = clips.filter(c => V[c.v]?.mine), keep = new Set(live.map(c => V[c.v].vid));
+    for (const c of live) { const x = V[c.v], m = MINE[x.vid], o = {};
+      KEEPC.forEach(k => { if (c[k] !== undefined) o[k] = c[k]; }); if (o.an === 'run') o.an = 'idle';
+      await DB.put('mine', x.vid, { vid: x.vid, pic: m.pic, name: m.name, D: x.D, ar: x.ar, at: m.at, c: o }); }
+    for (const k of await DB.keys('mine')) if (!keep.has(k)) { await DB.del('mine', k); await DB.del('files', k); }
+  } catch (_) {}
+}
+async function restoreMine() {
+  if (!window.indexedDB) return;
+  const recs = (await DB.all('mine')).sort((p, q) => (p.at || 0) - (q.at || 0));
+  for (const r of recs) {
+    const f = await DB.get('files', r.vid); if (!f) continue;
+    MINE[r.vid] = { src: URL.createObjectURL(f), pic: r.pic, name: r.name, at: r.at };
+    // a day has passed since it was imported? then it's from that many days ago
+    const ago = Math.max(0, Math.floor((Date.now() - (r.at || Date.now())) / 864e5));
+    V.push({ i: V.length, vid: r.vid, img: r.vid, who: 'You', ri: r.c.ri ?? 0, top: false, ago, D: r.D, ar: r.ar, len: mmss(r.D), t: [0, r.D], credit: `Your video · ${esc(r.name || 'from your phone')}`, mine: true });
+    const c = addClip(V.length - 1, { ...r.c, ago: r.c.ago ?? ago });
+    if (c.track) TRK[r.vid] = c.track;
+    mineN = Math.max(mineN, c.id + 1);
+  }
+}
+const lastRoute = () => clips.length ? clips[clips.length - 1].ri : 0;
+document.addEventListener('change', e => { const f = e.target.closest?.('[data-upfile]'); if (f) { importFile(f.files[0]); f.value = ''; } });
 function importPicks(vs) {
   const cs = vs.map(i => addClip(i));
   closeAll(); cTab = 'why';
@@ -467,12 +544,12 @@ function openCameraPicker(kind) {
 
 function viewCam() {
   const v = nextRoll(), last = clips[clips.length - 1];
-  if (camStep === 'review' && v) return { bare: true, dark: true, html: '', overlay: `<div class="cam-review"><header><button class="bk" type="button" data-act="camretake" aria-label="Back">${ic.back}</button><strong>Preview your climb</strong></header><div class="cam-preview"><video src="video/${v.vid}.mp4" poster="img/${v.img}0.jpg" controls playsinline preload="metadata"></video></div><div class="cam-res"><strong>How did it go?</strong><div>${[['Flash', '✦'], ['Send', '✓'], ['Project', '↗']].map(([k, icon]) => `<button type="button" data-act="camres" data-k="${k}" aria-pressed="${camRes === k}"><span aria-hidden="true">${icon}</span>${KL[k]}</button>`).join('')}</div><small>${camRes === 'Flash' ? 'Finished on your first try' : camRes === 'Send' ? 'Finished after more than one try' : camRes === 'Project' ? 'Still working on it' : 'Pick one to save'}</small></div><div class="cam-review-actions"><button type="button" data-act="camretake">Retake</button><button type="button" data-act="camsave"${camRes ? '' : ' disabled'}>Save climb</button></div></div>` };
+  if (camStep === 'review' && v) return { bare: true, dark: true, html: '', overlay: `<div class="cam-review"><header><button class="bk" type="button" data-act="camretake" aria-label="Back">${ic.back}</button><strong>Preview your climb</strong></header><div class="cam-preview"><video src="${vsrc(v.vid)}" poster="${pic(v.img, 0)}" controls playsinline preload="metadata"></video></div><div class="cam-res"><strong>How did it go?</strong><div>${[['Flash', '✦'], ['Send', '✓'], ['Project', '↗']].map(([k, icon]) => `<button type="button" data-act="camres" data-k="${k}" aria-pressed="${camRes === k}"><span aria-hidden="true">${icon}</span>${KL[k]}</button>`).join('')}</div><small>${camRes === 'Flash' ? 'Finished on your first try' : camRes === 'Send' ? 'Finished after more than one try' : camRes === 'Project' ? 'Still working on it' : 'Pick one to save'}</small></div><div class="cam-review-actions"><button type="button" data-act="camretake">Retake</button><button type="button" data-act="camsave"${camRes ? '' : ' disabled'}>Save climb</button></div></div>` };
   return { bare: true, dark: true, html: '', overlay: `
-    <img src="img/${v ? `${v.img}0` : 'gym-arc-1'}.jpg" alt="">
+    <img src="${pic(v ? `${v.img}0` : 'gym-arc-1')}" alt="">
     <div class="cam-top"><button class="bk" type="button" data-act="back" aria-label="Back">${ic.back}</button><div class="cam-tags" aria-label="Climb details"><button class="cam-chip cam-chip-gym" type="button" data-act="campicker" data-kind="gym"${filming ? ' disabled' : ''}>${camGym === null ? 'Gym' : gyms[camGym].name}<svg aria-hidden="true" class="cam-chevron" viewBox="0 0 16 16"><path d="m4 6 4 4 4-4"/></svg></button><button class="cam-chip" type="button" data-act="campicker" data-kind="grade"${filming ? ' disabled' : ''}>${camGrade || 'Grade'}<svg aria-hidden="true" class="cam-chevron" viewBox="0 0 16 16"><path d="m4 6 4 4 4-4"/></svg></button><button class="cam-chip" type="button" data-act="campicker" data-kind="color"${filming ? ' disabled' : ''}>${camColor ? `<i style="--hold:${HOLD_COLORS[camColor]}"></i>${camColor}` : 'Colour'}<svg aria-hidden="true" class="cam-chevron" viewBox="0 0 16 16"><path d="m4 6 4 4 4-4"/></svg></button></div></div>${filming ? `<span class="rec-on cam-recording"><i></i>REC <span id="recT" class="num">${mmss(recS)}</span></span>` : ''}
     <span class="cam-fr" aria-hidden="true"></span><div class="cam-guide"><strong>${!v ? 'No videos available' : filming ? 'Recording preview' : 'Get the whole climb in frame'}</strong><span>${!v ? 'Import a video to add a climb.' : filming ? 'Tap stop when the climb is complete.' : camGym === null || !camColor || !camGrade ? 'Choose a gym, grade and colour to start.' : 'Set your phone down where it can see the whole wall.'}</span></div>
-    <div class="cam-bot">${last ? `<button class="cam-last" type="button" data-act="to" data-to="clip/${last.id}" aria-label="Your last video"><img src="img/${last.img}.jpg" alt=""></button>` : '<span></span>'}<button class="shut${filming ? ' on' : ''}" type="button" data-act="shoot" aria-label="${filming ? 'Stop recording' : 'Start recording'}"${!v || (!filming && (camGym === null || !camColor || !camGrade)) ? ' disabled' : ''}><i></i></button><span></span></div><div class="cam-shutter-label">${filming ? 'Stop' : 'Start'}</div>` };
+    <div class="cam-bot">${last ? `<button class="cam-last" type="button" data-act="to" data-to="clip/${last.id}" aria-label="Your last video"><img src="${pic(last.img)}" alt=""></button>` : '<span></span>'}<button class="shut${filming ? ' on' : ''}" type="button" data-act="shoot" aria-label="${filming ? 'Stop recording' : 'Start recording'}"${!v || (!filming && (camGym === null || !camColor || !camGrade)) ? ' disabled' : ''}><i></i></button><span></span></div><div class="cam-shutter-label">${filming ? 'Stop' : 'Start'}</div>` };
 }
 
 /* ---------- Analysis: what we saw in a video (from v8) ---------- */
@@ -483,10 +560,11 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
 async function analyse(c, seed) {
   c.an = 'run'; c.pct = 0;
   const began = Date.now(), lv = vidOf(c), here = () => page === 'clip' && +arg === c.id;
-  const track = lv && window.poseScan ? await window.poseScan(`video/${lv.vid}.mp4`, seed, p => {
+  const track = lv && window.poseScan ? await window.poseScan(`${vsrc(lv.vid)}`, seed, p => {
     c.pct = p; if (!here()) return null;
     const n = $('anp'), b = $('anb'); if (n) n.textContent = `${Math.round(p * 100)}%`; if (b) b.style.width = `${p * 100}%`;
     return $('lvc'); }).catch(() => null) : null;
+  if (track && lv.mine) { TRK[lv.vid] = track; saveSoon(); }
   c.pct = 1; if ($('anp') && here()) { $('anp').textContent = '100%'; $('anb').style.width = '100%'; }
   await wait(Math.max(0, 1200 - (Date.now() - began)));
   // a trimmed video is analysed on what's left of it
@@ -730,6 +808,63 @@ function measured(T) {
       ${s.far && !shown(s.far.t) ? row(s.far.left ? 'Out to the left' : 'Out to the right', 'Your hips, furthest from your feet', s.far.t, clipNear(s.far.t, T.D, 'hip')) : ''}</div>
     <p class="trs-l">We could see you in ${s.seen}% of this video. Tap a row to watch that moment.</p>`;
 }
+// the climb in order: every hand and foot move, numbered, with how long you paused before the next one. The longest pauses are
+// marked; tap a move to watch it
+const LIMB = { lw: 'LH', rw: 'RH', la: 'LF', ra: 'RF' };
+function pauses(T) {
+  const ms = [...T.moves].sort((p, q) => p.t0 - q.t0); let end = ms[0]?.t ?? 0;
+  return ms.map((m, i) => { const g = i ? Math.max(0, m.t0 - end) : 0; end = Math.max(end, m.t); return { ...m, i: i + 1, gap: g }; });
+}
+function moveSeq(T) {
+  const ms = pauses(T); if (!ms.length) return '';
+  const gaps = ms.slice(1).map(m => m.gap).sort((p, q) => p - q), med = gaps[Math.floor(gaps.length / 2)] || 0;
+  const long = new Set(ms.filter(m => m.gap >= 1.5).sort((p, q) => q.gap - p.gap).slice(0, 3).map(m => m.i)), top = ms.find(m => long.has(m.i) && m.gap === Math.max(...gaps));
+  return `<div class="hl2 dk2"><h2>Move by move</h2><span class="hint2">${n(ms.length, 'move', 'moves')}</span></div>
+    <div class="stack"><div class="lt mvq"><p class="mvq-s"><span><b>${med.toFixed(1)} s</b>usual pause</span>${top ? `<span><b>${top.gap.toFixed(1)} s</b>longest, before move ${top.i}</span>` : ''}</p>
+      <div class="mvq-l">${ms.map(m => `${m.gap >= 1 ? `<span class="mvq-p${long.has(m.i) ? ' long' : ''}">${m.gap.toFixed(1)}s</span>` : ''}<button type="button" class="mvq-m ${m.k === 'lw' || m.k === 'rw' ? 'h' : 'f'}" data-act="lvseek" data-t="${Math.max(0, m.t0 - .3).toFixed(2)}" aria-label="Move ${m.i}, ${m.name}, at ${mmss(m.t0)}"><b>${m.i}</b>${LIMB[m.k]}</button>`).join('')}</div>
+      <p class="an-k mvq-k"><span><i class="h"></i>Hand</span><span><i class="f"></i>Foot</span><span><i class="long"></i>Long pause</span></p></div></div>`;
+}
+// where you went: your hips over the whole climb, drawn on the first frame, with the hands faint behind; the stops are
+// circles, bigger for longer
+function climbPath(T, img) {
+  const on = climbed(T).filter(s => s.p[7][2] > .5 && s.p[8][2] > .5); if (on.length < 4) return '';
+  const W = T.W || 540, H = T.H || 960, hip = s => [(s.p[7][0] + s.p[8][0]) / 2 * W, (s.p[7][1] + s.p[8][1]) / 2 * H];
+  const line = pts => pts.map((p, i) => `${i ? 'L' : 'M'}${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join('');
+  // pose points jitter frame to frame: a moving average shows the line you actually took
+  const sm = (pts, w = 4) => pts.map((_, i) => { const r = pts.slice(Math.max(0, i - w), i + w + 1); return [r.reduce((s, p) => s + p[0], 0) / r.length, r.reduce((s, p) => s + p[1], 0) / r.length]; });
+  const hp = sm(on.map(hip)), hand = k => sm(on.filter(s => s.p[k][2] > .5).map(s => [s.p[k][0] * W, s.p[k][1] * H]));
+  const all = [...hp, ...hand(5), ...hand(6)], xs = all.map(p => p[0]), ys = all.map(p => p[1]);
+  let x0 = Math.min(...xs) - 60, x1 = Math.max(...xs) + 60, y0 = Math.min(...ys) - 60, y1 = Math.max(...ys) + 60;
+  let vw = x1 - x0, vh = y1 - y0; const ar = Math.min(1, W / H); if (vw / vh < ar) { vw = vh * ar; x0 = (x0 + x1) / 2 - vw / 2; } else { vh = vw / ar; y0 = (y0 + y1) / 2 - vh / 2; }
+  vw = Math.min(vw, W); vh = Math.min(vh, H); x0 = Math.max(0, Math.min(W - vw, x0)); y0 = Math.max(0, Math.min(H - vh, y0));
+  const zk = vw / 540, at = t => { const s = on.reduce((b, x) => Math.abs(x.t - t) < Math.abs(b.t - t) ? x : b); return hip(s); };
+  const stops = T.rests.filter(r => r.t1 - r.t0 >= 1).map(r => ({ p: at((r.t0 + r.t1) / 2), s: r.t1 - r.t0 }));
+  const side = (Math.max(...hp.map(p => p[0])) - Math.min(...hp.map(p => p[0]))) / W;
+  return `<div class="hl2 dk2"><h2>Your path</h2><span class="hint2">${n(stops.length, 'stop', 'stops')}</span></div>
+    <div class="stack"><div class="lt cpath"><svg viewBox="${x0.toFixed(0)} ${y0.toFixed(0)} ${vw.toFixed(0)} ${vh.toFixed(0)}" role="img" aria-label="Your hips over the whole climb, with ${n(stops.length, 'stop', 'stops')}">
+      <image href="${pic(img, 0)}" x="0" y="0" width="${W}" height="${H}" preserveAspectRatio="none" style="filter:brightness(.8) saturate(.8)"/>
+      ${[5, 6].map(k => `<path d="${line(hand(k))}" fill="none" stroke="rgba(255,255,255,.45)" stroke-width="${2 * zk}" stroke-linejoin="round"/>`).join('')}
+      <path d="${line(hp)}" fill="none" stroke="#111" stroke-width="${9 * zk}" stroke-linecap="round" stroke-linejoin="round" opacity=".45"/>
+      <path d="${line(hp)}" fill="none" stroke="#C4F52A" stroke-width="${5 * zk}" stroke-linecap="round" stroke-linejoin="round"/>
+      ${stops.map(s => `<circle cx="${s.p[0].toFixed(1)}" cy="${s.p[1].toFixed(1)}" r="${(6 + Math.min(14, s.s * 3)) * zk}" fill="rgba(255,255,255,.25)" stroke="#fff" stroke-width="${2 * zk}"/>`).join('')}
+      <circle cx="${hp[0][0].toFixed(1)}" cy="${hp[0][1].toFixed(1)}" r="${8 * zk}" fill="#fff" stroke="#111" stroke-width="${2.5 * zk}"/>
+      <circle cx="${hp.at(-1)[0].toFixed(1)}" cy="${hp.at(-1)[1].toFixed(1)}" r="${8 * zk}" fill="#C4F52A" stroke="#111" stroke-width="${2.5 * zk}"/></svg>
+      <p class="an-n">Lime: your hips, from the white dot to the lime one. White lines: your hands. Circles: where you stopped, bigger for longer. ${side > .18 ? 'You moved a lot side to side.' : 'A fairly straight line up.'}</p></div></div>`;
+}
+// how you held up: the climb in three parts, start, middle and top, by how fast you moved and how long you paused
+function paceState(T) {
+  const ms = pauses(T); if (ms.length < 6) return '';
+  const a = ms[0].t0, b = ms.at(-1).t, L = (b - a) / 3 || 1;
+  const parts = [0, 1, 2].map(k => { const mm = ms.filter(m => m.t0 >= a + k * L && (k === 2 ? m.t0 <= b : m.t0 < a + (k + 1) * L)); const gs = mm.filter(m => m.i > 1).map(m => m.gap);
+    return { rate: mm.length / (L / 60), gap: gs.length ? gs.reduce((p, q) => p + q, 0) / gs.length : 0 }; });
+  const [s, , e] = parts, slow = e.rate < s.rate * .7 || (e.gap > s.gap * 1.6 && e.gap - s.gap > .25), fast = e.rate > s.rate * 1.3 && e.gap <= s.gap;
+  const title = slow ? 'You slowed down near the top' : fast ? 'You picked up speed' : 'A steady pace all the way';
+  const why = slow ? `${e.rate < s.rate * .7 ? `You made ${Math.round((1 - e.rate / s.rate) * 100)}% fewer moves a minute at the top than at the start` : `Your pauses got ${(e.gap / Math.max(.1, s.gap)).toFixed(1)}× longer in the last third`}. That usually means tiring forearms, or working out the top on the wall. Shake out on a big hold before the top section.`
+    : fast ? 'You moved faster in the last third without pausing longer. You had energy left: the start is where to save time.'
+    : 'Your moves and pauses stayed about the same from bottom to top: you had enough left for the whole route.';
+  return `<div class="hl2 dk2"><h2>How you held up</h2></div><div class="stack"><div class="lt"><span class="an-k1">${slow ? 'Getting tired' : fast ? 'Strong finish' : 'Steady'}</span><span class="lt-h">${title}</span><p class="tip-d">${why}</p>
+    <div class="an-g pace">${['Start', 'Middle', 'Top'].map((l, k) => `<div><span>${l}</span><b>${Math.round(parts[k].rate)}<small>/min</small></b><em>${parts[k].gap.toFixed(1)} s pauses</em></div>`).join('')}</div></div></div>`;
+}
 // arms: over the whole climb when we can read them; otherwise only at rests, the moments you hold still (the Summary uses the same)
 const bodyStats = T => { const s = T.stats, all = s.armRead >= 30, rest = !all && s.restStraight != null && s.restRead >= 50;
   return `<div class="hl2 dk2"><h2>Your whole climb</h2></div><div class="stack"><div class="lt"><div class="an-g"><div><span>${rest ? 'Arms straight, resting' : 'Arms straight'}</span><b>${all ? `${s.armsStraight}%` : rest ? `${s.restStraight}%` : '—'}</b></div><div><span>Hips over feet</span><b>${s.hipsOver}%</b></div><div><span>Moving</span><b>${s.moving}%</b></div></div>
@@ -800,7 +935,7 @@ function viewClip(id) {
   const info = `
     <div class="hl2 dk2"><h2>Your tries on ${rname(r)}</h2></div>
     <div class="trs">${mine.map(x => `<button class="${x === c ? 'on' : ''}" type="button" data-act="to" data-to="clip/${x.id}"${x === c ? ' aria-current="true"' : ''} aria-label="Try ${tryOf(x)}, ${dayLabel(agoOf(x))}">
-      <img src="img/${x.img}.jpg" alt=""><span class="shade"></span><b>Try ${tryOf(x)}</b><small>${topOf(x) ? 'Topped' : 'Not topped'} · ${dayLabel(agoOf(x))}</small></button>`).join('')}</div>
+      <img src="${pic(x.img)}" alt=""><span class="shade"></span><b>Try ${tryOf(x)}</b><small>${topOf(x) ? 'Topped' : 'Not topped'} · ${dayLabel(agoOf(x))}</small></button>`).join('')}</div>
     <div class="hl2 dk2"><h2>Details</h2></div>
     <div class="rows">
       <div class="row"><span class="row-t"><strong>${sw(r)}${rname(r)}</strong><span>Route · selected by you</span></span><button class="pj" type="button" data-act="croute" data-i="${c.id}">Change</button></div>
@@ -819,7 +954,7 @@ function viewClip(id) {
   const nextUp = `<div class="hl2 dk2"><h2>Next</h2></div><div class="rows">
       ${betaRow(c.ri, T)}
       <button class="row" type="button" data-act="ctab" data-v="cmp"><span class="row-t"><strong>Watch it next to someone else</strong><span>${n(peers.length, 'other climber', 'other climbers')} on ${rname(r)}</span></span>${ic.arr('#111111')}</button></div>`;
-  const panels = two ? { why: `${measured(T)}${nextUp}`, body: `<div class="hl2 dk2"><h2>As it plays</h2></div>${live}${timeline(T)}${bodyStats(T)}`, cmp, info } : {};
+  const panels = two ? { why: `${measured(T)}${paceState(T)}${nextUp}`, body: `<div class="hl2 dk2"><h2>As it plays</h2></div>${live}${timeline(T)}${moveSeq(T)}${climbPath(T, lv.img)}${bodyStats(T)}`, cmp, info } : {};
   return { photo: c.img, fit: state === 'ask', cta: two ? nextTryCta(c.ri) : '', after: () => {
       tagWire(c);
       const v = $('lvv'), box = v.parentElement;
@@ -836,7 +971,7 @@ function viewClip(id) {
     }, html: `
     ${bar(`${rname(r)} · try ${tryOf(c)}`)}
     <div class="lv-w${two ? ' two' : ''}"><div class="clip vp lv${state === 'run' ? ' busy' : ''}" style="aspect-ratio:${lv.ar.toFixed(4)};width:min(100%, ${Math.round(vh * lv.ar)}px)">
-      <video id="lvv" src="video/${lv.vid}.mp4" poster="img/${lv.img}0.jpg" muted playsinline preload="auto"></video><canvas id="lvc"></canvas>
+      <video id="lvv" src="${vsrc(lv.vid)}" poster="${pic(lv.img, 0)}" muted playsinline preload="auto"></video><canvas id="lvc"></canvas>
       <button class="play-b" type="button" data-act="lvplay" aria-label="Play the video">${ic.play}</button>
       <div class="tg" id="tg" hidden></div>
       <span class="clip-l"><span class="pk-tag">${sw(r)}${rname(r)} · try ${tryOf(c)}</span>
@@ -873,8 +1008,8 @@ function viewVs(a) {
     ${bar(`You and ${x.who}`)}
     <div class="vsp"><div class="stack"><div class="lt">
       <span class="an-c">${sw(r)}${rname(r)} · ${gymName(c)}</span>
-      <div class="pv"><figure><span class="pv-b" style="aspect-ratio:${vidOf(c).ar}"><video id="pv0" src="video/${vidOf(c).vid}.mp4" poster="img/${c.img}0.jpg" muted playsinline preload="auto"></video><canvas id="pc0"></canvas></span><figcaption><i class="you"></i>You · try ${tryOf(c)}${topOf(c) ? ' · topped' : ''}</figcaption></figure>
-        <figure><span class="pv-b" style="aspect-ratio:${x.ar}"><video id="pv1" src="video/${x.vid}.mp4" poster="img/${x.img}0.jpg" muted playsinline preload="auto"></video><canvas id="pc1"></canvas></span><figcaption><i class="them"></i>${x.who}${x.top ? ' · topped' : ''}</figcaption></figure></div>
+      <div class="pv"><figure><span class="pv-b" style="aspect-ratio:${vidOf(c).ar}"><video id="pv0" src="${vsrc(vidOf(c).vid)}" poster="${pic(c.img, 0)}" muted playsinline preload="auto"></video><canvas id="pc0"></canvas></span><figcaption><i class="you"></i>You · try ${tryOf(c)}${topOf(c) ? ' · topped' : ''}</figcaption></figure>
+        <figure><span class="pv-b" style="aspect-ratio:${x.ar}"><video id="pv1" src="${vsrc(x.vid)}" poster="${pic(x.img, 0)}" muted playsinline preload="auto"></video><canvas id="pc1"></canvas></span><figcaption><i class="them"></i>${x.who}${x.top ? ' · topped' : ''}</figcaption></figure></div>
       <div class="pv-ctl"><button class="b-lime pv-go" type="button" id="pvg" data-act="pvplay"${ready ? '' : ' disabled'}>${ic.play}${ready ? 'Play side by side' : T ? 'Loading…' : 'Waiting for your analysis…'}</button>
         <button class="pv-x" type="button" id="pvs" data-act="pvslow" aria-pressed="false">0.5×</button></div>
       ${ready ? `<div class="pv-t"><b>Try next time</b><span>${vsTip(A, B, x.who, cmpTop)}</span></div>
@@ -926,7 +1061,7 @@ function viewRoute(a) {
   needTracks(peers);
   return { photo: r.img, cta: nextTryCta(i), html: `
     ${bar(rname(r))}
-    <div class="clip"><img src="img/${r.img}.jpg" alt=""><span class="shade"></span>
+    <div class="clip"><img src="${pic(r.img)}" alt=""><span class="shade"></span>
       <span class="clip-l"><span class="pk-tag">${sw(r)}${rname(r)}</span><span>Top rope · ${r.wall} · ${gym.name}</span></span></div>
     <div class="fold"></div>
     <div class="hl2 dk2"><h2>Beta</h2></div>
@@ -948,7 +1083,7 @@ function viewGym(a) {
     ${bar(gym.name)}
     <p class="sub-w"><span>${op.line}</span> · <span>${gym.dist}</span></p>
     <div class="fold"></div>
-    <div class="gy-car" id="gycar">${pics.map(p => `<img src="img/${p}.jpg" alt="">`).join('')}</div>
+    <div class="gy-car" id="gycar">${pics.map(p => `<img src="${pic(p)}" alt="">`).join('')}</div>
     <div class="gy-dots" id="gydots">${pics.map((_, k) => `<i${k ? '' : ' class="on"'}></i>`).join('')}</div>
     <div class="sec"><h2>Routes with videos</h2><span class="sec-more">rope wall</span></div>
     <div class="rgrid">${ROUTES.map((r, i) => rcard(i)).join('')}</div>
@@ -976,8 +1111,17 @@ const SAY = {
   'wayup-p3-orange': ['Finally clipped the anchor on this one', 42, [['Kai', 'Huge!'], ['Sam', 'How did you do the last move?', 30]]],
   'wayup-p10-green': ['Trying to keep my feet quiet', 15, []],
   'wayup-p5-green': ['Lowered off before the top. Working on it', 13, [['Leo', 'Trust your feet in the middle, there are good holds low', 55]]],
-  'wayup-p5-orange': ['Any tips for the middle section?', 7, [['Noor', 'Hips close to the wall, it’s less steep than it looks']]] };
-const others = V.filter(x => x.who !== 'You').map(x => { const [note, likes, comments] = SAY[x.vid]; return { who: x.who, v: x.i, ago: x.ago, note, likes, comments }; });
+  'wayup-p5-orange': ['Any tips for the middle section?', 7, [['Noor', 'Hips close to the wall, it’s less steep than it looks']]],
+  'wayup-p10-orange': ['Second go on orange, cleaner feet this time', 11, [['Mia', 'So much smoother']]],
+  'wayup-p4-green': ['Slow and steady', 8, []],
+  'wayup-p4-orange': ['Fell at the crux twice, then sent', 24, [['Ben', 'Persistence!'], ['Noor', 'That last reach though', 40]]],
+  'wayup-p6-green': ['Warming up before orange', 6, []],
+  'wayup-p6-orange': ['Rushed the top, need to breathe more', 14, [['Ava', 'Shake out on the big jug before the top']]],
+  'wayup-p7-green': ['Trying to keep my hips in', 9, [['Rosa', 'Looks good from here']]],
+  'wayup-p7-orange': ['New high point!', 19, [['Kai', 'Nice one'], ['Jun', 'Thanks!', 20]]],
+  'wayup-p9-green': ['First climb back after a break', 16, [['Sam', 'Welcome back']]],
+  'wayup-p9-orange': ['Quick and a bit messy', 5, []] };
+const others = V.filter(x => x.who !== 'You').map(x => { const [note, likes, comments] = SAY[x.vid] || ['', 0, []]; return { who: x.who, v: x.i, ago: x.ago, note, likes, comments }; });
 const feedAll = () => {
   const remaining = [...clips.filter(c => !c.hidden).map(c => ({ who: 'You', v: c.v, c, ago: agoOf(c), note: '', likes: c.likes, comments: c.cm })), ...others].sort((p, q) => p.ago - q.ago);
   const ordered = []; let last = null;
@@ -994,7 +1138,7 @@ function feedPost(p, i) {
   const x = V[p.v], r = ROUTES[p.c ? p.c.ri : x.ri], on = liked.has(likeKey(p)), me = p.who === 'You';
   const vs = `<button type="button" data-act="fchoose" data-i="${i}" aria-label="Compare with your try"><span class="ts-action-icon" aria-hidden="true">VS</span></button>`;
   return `<article class="ts" data-i="${i}">
-    <div class="ts-v fv" data-act="fvtap"><video src="video/${x.vid}.mp4" poster="img/${x.img}.jpg" muted playsinline loop preload="none" data-a="0" data-b="${x.D}" data-r="1"></video><span class="ed-p fv-p">${ic.play.replace('#111111', '#FFFFFF')}</span><span class="ts-big">${tokIc.heart}</span></div>
+    <div class="ts-v fv" data-act="fvtap"><video src="${vsrc(x.vid)}" poster="${pic(x.img)}" muted playsinline loop preload="none" data-a="0" data-b="${x.D}" data-r="1"></video><span class="ed-p fv-p">${ic.play.replace('#111111', '#FFFFFF')}</span><span class="ts-big">${tokIc.heart}</span></div>
     <span class="ts-sh"></span>
     <div class="ts-rail"><span class="ts-av"><button class="ts-face" type="button" data-act="to" data-to="${me ? 'profile' : `person/${p.who}`}" aria-label="${me ? 'Your profile' : `${p.who}’s page`}">${avatar(p.who)}</button><span class="ts-author">${esc(p.who)}</span></span>
       <button class="ts-nice" type="button" data-act="flike" data-i="${i}" aria-pressed="${on}" aria-label="Like">${tokIc.heart}<span class="ts-like-label">${on ? 'NICE!' : 'NICE'}</span></button>
@@ -1032,14 +1176,14 @@ function chooseComparison(i) {
   const video = V[post.v], route = post.c ? post.c.ri : video.ri;
   const candidates = newestClips().filter(c => c.ri === route && c.v !== video.i);
   const others = newestClips().filter(c => c.ri !== route);
-  const item = (c, disabled = false) => `<button class="compare-choice" type="button" ${disabled ? 'disabled' : `data-act="fchoosepick" data-c="${c.id}" data-v="${video.i}"`}><img src="img/${esc(c.img)}.jpg" alt=""><span><strong>${esc(rname(ROUTES[c.ri]))} · Try ${tryOf(c)}</strong><small>${esc(dayLabel(agoOf(c)))} · ${esc(gymName(c))}</small><small>${disabled ? 'Different route' : topOf(c) ? 'Topped' : 'Not topped'}</small></span>${disabled ? '' : ic.arr('#111111')}</button>`;
+  const item = (c, disabled = false) => `<button class="compare-choice" type="button" ${disabled ? 'disabled' : `data-act="fchoosepick" data-c="${c.id}" data-v="${video.i}"`}><img src="${pic(esc(c.img))}" alt=""><span><strong>${esc(rname(ROUTES[c.ri]))} · Try ${tryOf(c)}</strong><small>${esc(dayLabel(agoOf(c)))} · ${esc(gymName(c))}</small><small>${disabled ? 'Different route' : topOf(c) ? 'Topped' : 'Not topped'}</small></span>${disabled ? '' : ic.arr('#111111')}</button>`;
   pane(`<h2>Choose your video</h2><span class="sub">Compare with ${esc(post.who)} on ${esc(rname(ROUTES[route]))}</span>
     ${video.who === 'You' ? '<p class="cap">Open another climber’s video to compare it with one of your tries.</p>' : candidates.length ? `<div class="compare-list">${candidates.map(c => item(c)).join('')}</div>` : '<p class="cap">You don’t have another video on this route yet. Import or film a try to compare.</p><button class="b-lime compare-import" type="button" data-act="upload">Import a video</button>'}
     ${video.who !== 'You' && others.length ? `<h3 class="compare-heading">Other routes</h3><p class="cap">Choose a video on the same route to compare.</p><div class="compare-list">${others.map(c => item(c, true)).join('')}</div>` : ''}`);
 }
 function feedOptions(i) {
   const post = feedAll()[i], video = V[post.v], route = post.c ? post.c.ri : video.ri;
-  const url = new URL(`video/${video.vid}.mp4`, location.href).href;
+  const url = new URL(`${vsrc(video.vid)}`, location.href).href;
   pane(`<h2>Video options</h2><span class="sub">${esc(post.who)} · ${esc(rname(ROUTES[route]))}</span>
     <div class="feed-options"><button class="row" type="button" data-act="fshare" data-i="${i}"><span class="row-t"><strong>Share video</strong><span>Share with another app</span></span>${ic.arr('#111111')}</button>
     <button class="row" type="button" data-act="fcopy" data-i="${i}"><span class="row-t"><strong>Copy video link</strong><span>Copy a direct link to this video</span></span>${ic.arr('#111111')}</button>
@@ -1126,7 +1270,7 @@ function viewPerson(who) {
   const vs = V.filter(x => x.who === who), all = feedAll();
   needTracks(vs);
   const tile = x => `<button class="vt" type="button" data-act="pvid" data-v="${x.i}" aria-label="Watch ${who} on ${rname(ROUTES[x.ri])}">
-      <img src="img/${x.img}.jpg" alt=""><span class="shade"></span><span class="vt-t">${sw(ROUTES[x.ri])}${rname(ROUTES[x.ri])}</span><span class="vt-b">${x.top ? 'Topped' : 'Not topped'} · ${dayLabel(x.ago)}</span></button>`;
+      <img src="${pic(x.img)}" alt=""><span class="shade"></span><span class="vt-t">${sw(ROUTES[x.ri])}${rname(ROUTES[x.ri])}</span><span class="vt-b">${x.top ? 'Topped' : 'Not topped'} · ${dayLabel(x.ago)}</span></button>`;
   const both = vs.filter(x => lastOn(x.ri));
   return { photo: vs[0]?.img || 'gym-arc-1', html: `
     ${bar('')}
@@ -1215,7 +1359,7 @@ const openDot = o => `<span class="g3-o${o.open ? ' on' : ''}"><i></i>${o.line}<
 function gymCard(g, i) {
   const a = atGym(i), o = gymOpen(g), what = a.videos ? `${n(a.videos, 'try', 'tries')} on video` : g.addr.split(',').pop().trim();
   return `<div class="g3r">
-      <button class="g3r-m" type="button" data-act="to" data-to="gym/${i}">${g.img ? `<img src="img/${g.img}.jpg" alt="">` : `<span class="gt-placeholder" aria-hidden="true">${ic.pin}</span>`}
+      <button class="g3r-m" type="button" data-act="to" data-to="gym/${i}">${g.img ? `<img src="${pic(g.img)}" alt="">` : `<span class="gt-placeholder" aria-hidden="true">${ic.pin}</span>`}
         <span class="g3r-t"><strong>${g.name}</strong><span>${g.dist} · ${what}</span>${openDot(o)}</span></button>
       <button class="g3-nav" type="button" data-act="gymaps" data-i="${i}" aria-label="Directions to ${g.name}">${NAV}</button>
     </div>`;
@@ -1224,7 +1368,7 @@ function gymCard(g, i) {
 function gymBig(g) {
   const a = atGym(0), o = gymOpen(g);
   const meta = [g.dist, a.videos ? n(a.videos, 'try', 'tries') + ' on video' : '', a.last !== null ? 'last climbed ' + dayLabel(a.last) : ''].filter(Boolean).join(' · ');
-  return `<div class="g3"><button class="g3-i" type="button" data-act="to" data-to="gym/0" aria-label="${g.name}">${g.img ? `<img src="img/${g.img}.jpg" alt="">` : `<span class="gt-placeholder" aria-hidden="true">${ic.pin}</span>`}${openDot(o)}
+  return `<div class="g3"><button class="g3-i" type="button" data-act="to" data-to="gym/0" aria-label="${g.name}">${g.img ? `<img src="${pic(g.img)}" alt="">` : `<span class="gt-placeholder" aria-hidden="true">${ic.pin}</span>`}${openDot(o)}
       <span class="g3-t"><strong>${g.name}</strong><span>${meta}</span></span></button>
     <button class="g3-nav g3-nav-l" type="button" data-act="gymaps" data-i="0" aria-label="Directions to ${g.name}">${NAV}</button></div>`;
 }
@@ -1252,7 +1396,7 @@ function viewGymsTab() {
   const list = gyms.map((g, i) => [g, i]).filter(([g]) => inArea(g));
   const open = list.filter(([g]) => gymOpen(g).open).length;
   const row = ([g, i]) => { const o = gymOpen(g), a = atGym(i);
-    return `<div class="gt-r${gtSel === i ? ' sel' : ''}" id="gtr${i}"><button class="gt-m" type="button" data-act="gtsel" data-i="${i}" aria-expanded="${gtSel === i}">${g.img ? `<img src="img/${g.img}.jpg" alt="">` : `<span class="gt-placeholder" aria-hidden="true">${ic.pin}</span>`}
+    return `<div class="gt-r${gtSel === i ? ' sel' : ''}" id="gtr${i}"><button class="gt-m" type="button" data-act="gtsel" data-i="${i}" aria-expanded="${gtSel === i}">${g.img ? `<img src="${pic(g.img)}" alt="">` : `<span class="gt-placeholder" aria-hidden="true">${ic.pin}</span>`}
       <span class="gt-t"><strong>${g.name}${i === 0 ? '<em>Your gym</em>' : ''}</strong><span>${g.dist.replace(' from the Quad', '')}${a.videos ? ` · ${n(a.videos, 'try', 'tries')} on video` : ''}</span>${openDot(o)}</span></button>
       <div class="gt-x" ${gtSel === i ? "" : "inert"}><button class="gt-b1" type="button" data-act="to" data-to="gym/${i}">Open gym</button><button class="gt-b2" type="button" data-act="gymaps" data-i="${i}">${NAV}Directions</button></div></div>`; };
   return { map: true, html: '', overlay: `<div class="gt-map" id="gtmap">${window.L ? '' : '<p class="gm-off">The map needs an internet connection. The list works without one.</p>'}</div>
@@ -1349,7 +1493,7 @@ function gtWire(list) {
   tmap.fitBounds(L.latLngBounds(pts), { paddingTopLeft: [40, 170], paddingBottomRight: [40, $('camx').clientHeight - gtSnaps()[gtSnap] + 30], maxZoom: 14 });
   list.forEach(([g, i]) => {
     const pin = L.marker(gymLL(g), { title: g.name, riseOnHover: true, zIndexOffset: i === 0 ? 500 : 0,
-      icon: L.divIcon({ className: `tp${i === 0 ? ' me' : ''}${gtSel === i ? ' sel' : ''}`, html: `<span class="tp-ph">${g.img ? `<img src="img/${g.img}.jpg" alt="">` : `<span class="gt-placeholder" aria-hidden="true">${ic.pin}</span>`}</span><b>${g.name}</b>`, iconSize: [0, 0] }) }).addTo(tmap);
+      icon: L.divIcon({ className: `tp${i === 0 ? ' me' : ''}${gtSel === i ? ' sel' : ''}`, html: `<span class="tp-ph">${g.img ? `<img src="${pic(g.img)}" alt="">` : `<span class="gt-placeholder" aria-hidden="true">${ic.pin}</span>`}</span><b>${g.name}</b>`, iconSize: [0, 0] }) }).addTo(tmap);
     pin.getElement().dataset.i = i;
     pin.on('click', ev => { L.DomEvent.stopPropagation(ev); gtSelect(i, 'pin'); });
   });
@@ -1405,7 +1549,7 @@ function viewOtherGym(i) {
   const g = gyms[i], op = gymOpen(g), today = g.hours[new Date().getDay()], pics = [g.img, ...g.pics].filter(Boolean);
   return { html: `
     ${bar(g.name)}
-    <div class="gy-car" id="gycar">${pics.map(p => `<img src="img/${p}.jpg" alt="">`).join('')}</div>
+    <div class="gy-car" id="gycar">${pics.map(p => `<img src="${pic(p)}" alt="">`).join('')}</div>
     ${pics.length > 1 ? `<div class="gy-dots" id="gydots">${pics.map((_, k) => `<i${k ? '' : ' class="on"'}></i>`).join('')}</div>` : ''}
     <div class="gy-2"><div class="gy-t"><span class="${op.open ? 'on' : 'off'}">${op.open ? 'Open now' : 'Closed now'}</span><b class="num">${today ? `${clock(today[0])} – ${clock(today[1])}` : 'Closed today'}</b></div>
       <div class="gy-t"><span>Day pass</span><b>${g.pass.split(' · ')[0]}</b></div></div>
@@ -1502,7 +1646,7 @@ function needHolds(img, color) {
   // the photo the holds were found in is the one to draw on: the empty wall when the video has one
   HOLDS[key] = null; const at = [page, arg];
   const load = src => new Promise((ok, no) => { const im = new Image(); im.onload = () => ok(im); im.onerror = no; im.src = src; });
-  load(`img/${img}0.jpg`).catch(() => load(`img/${img}.jpg`)).then(im => { WALL[img] = im.getAttribute('src'); HOLDS[key] = HUE[color] ? findHolds(im, HUE[color]) : []; })
+  load(`${pic(img, 0)}`).catch(() => load(`${pic(img)}`)).then(im => { WALL[img] = im.getAttribute('src'); HOLDS[key] = HUE[color] ? findHolds(im, HUE[color]) : []; })
     .catch(() => { HOLDS[key] = []; }).then(() => { if (page === at[0] && arg === at[1]) render(); });
   return []; }
 // the beta opened from a route or from your analysis: no camera, so no Retake
@@ -1513,7 +1657,7 @@ function viewScan() {
   needTracks(V.filter(q => q.who === 'Leo'));
   if (!scanShot) return { html: `${bar('Find beta')}
     <div class="scan-start"><div class="scan-start-head"><span>EXPLORE A ROUTE</span><h1>Find your beta<span>✦</span></h1><p>Choose a route to see how another climber moved.</p></div>
-    <div class="scan-start-photo"><img src="img/${r.img}.jpg" alt=""><span class="scan-route-tag">${sw(r)}${rname(r)}</span><span class="scan-demo-label">Demo route preview</span></div>
+    <div class="scan-start-photo"><img src="${pic(r.img)}" alt=""><span class="scan-route-tag">${sw(r)}${rname(r)}</span><span class="scan-demo-label">Demo route preview</span></div>
     <div class="scan-start-label"><strong>Choose a route</strong><span>Available beta</span></div><div class="scan-route-options">${ROUTES.map((q,i) => ({q,i})).filter(({i}) => V.some(x => x.who === 'Leo' && x.ri === i)).map(({q,i}) => `<button type="button" data-act="scanri" data-i="${i}" aria-pressed="${i === scanRi}">${sw(q)}<span><strong>${q.color}</strong><small>${q.grade}</small></span><b>${i === scanRi ? '✓' : ''}</b></button>`).join('')}</div>
     <p class="scan-disclaimer">Choose a route to preview its recorded beta. Live wall scanning is not connected yet.</p></div>`, cta: '<button class="b-lime" type="button" data-act="snap">View beta</button>' };
   if (!B) return { html: `${bar('Find beta')}<div class="scan-unavailable"><h1>Beta isn’t available yet</h1><p>We couldn’t load a recorded climb for this route.</p><button class="b-lime" type="button" data-act="rescan">Choose another route</button></div>` };
@@ -1533,7 +1677,7 @@ function viewScan() {
   const badge = (q, l) => `<circle cx="${f(q[0] + 20 * zk)}" cy="${f(q[1] - 20 * zk)}" r="${f(13 * zk)}" fill="#C2FF01" stroke="#111111" stroke-width="${f(2 * zk)}"/>
       <text x="${f(q[0] + 20 * zk)}" y="${f(q[1] - 20 * zk + 6 * zk)}" text-anchor="middle" font-size="${f(16 * zk)}" font-weight="800" fill="#111111">${l}</text>`;
   const svg = `<svg viewBox="${f(vx)} ${f(vy)} ${f(vw)} ${f(vh)}" aria-hidden="true">
-      <image href="${WALL[B.x.img] || `img/${B.x.img}.jpg`}" x="0" y="0" width="540" height="960" style="filter:brightness(.9)"/>
+      <image href="${WALL[B.x.img] || `${pic(B.x.img)}`}" x="0" y="0" width="540" height="960" style="filter:brightness(.9)"/>
       ${hs.map(h => `<circle cx="${f(h.x)}" cy="${f(h.y)}" r="${f(Math.max(h.r * .6 + 4, 9))}" fill="none" stroke="#FFFFFF" stroke-width="${f(1.6 * zk)}" stroke-dasharray="${f(3 * zk)} ${f(2.5 * zk)}" opacity=".85"/>`).join('')}
       ${bstep ? `<path d="M${P.slice(1, bstep + 1).map(q => `${f(q[0])} ${f(q[1])}`).join(' L')}" fill="none" stroke="#C2FF01" stroke-width="${f(2.5 * zk)}" stroke-dasharray="${f(6 * zk)} ${f(6 * zk)}" opacity=".8"/>` : ''}
       ${B.steps.map((q, i) => i && i !== bstep ? ring(at(i), 11, i < bstep ? '#C2FF01' : '#FFFFFF', 2, i < bstep ? .7 : .75) : '').join('')}
@@ -1717,7 +1861,7 @@ function openGymPick(context = 'gl') {
   const sel = context === 'cam' ? camGym : glGym;
   const entries = glNearby();
   const help = glLocation === 'loading' ? 'Finding your location…' : glPosition ? 'Distances use approximate map locations. Please confirm your gym.' : 'Location unavailable. Search or choose a gym below.';
-  pane(`<div class="gl-picker"><h2>Choose a gym</h2><p>${help}</p><label class="gl-picker-search">${ic.search || ''}<input id="gl-gym-search" type="search" placeholder="Search gyms or cities" aria-label="Search gyms or cities"></label><button class="gl-locate" type="button" data-act="gllocate">${ic.pin} ${glLocation === 'loading' ? 'Locating…' : 'Use my location'}</button><h3>${glPosition ? 'Nearby gyms' : 'Available gyms'}</h3><div class="rows gl-picker-rows">${entries.map(({g,i,dist}) => `<button class="row" type="button" data-act="glgy" data-context="${context}" data-i="${i}" data-search="${(g.name+' '+g.addr).toLowerCase()}" aria-pressed="${i === sel}">${g.img ? `<img class="ss-th gl-gth" src="img/${g.img}.jpg" alt="">` : ''}<span class="row-t"><strong>${g.name}</strong><span>${g.addr}${dist === null ? '' : ` · ~${dist < 1 ? dist.toFixed(1) : Math.round(dist)} mi`}</span></span>${i === sel ? ic.check : ''}</button>`).join('')}</div><p id="gl-gym-empty" hidden>No matching gyms.</p></div>`);
+  pane(`<div class="gl-picker"><h2>Choose a gym</h2><p>${help}</p><label class="gl-picker-search">${ic.search || ''}<input id="gl-gym-search" type="search" placeholder="Search gyms or cities" aria-label="Search gyms or cities"></label><button class="gl-locate" type="button" data-act="gllocate">${ic.pin} ${glLocation === 'loading' ? 'Locating…' : 'Use my location'}</button><h3>${glPosition ? 'Nearby gyms' : 'Available gyms'}</h3><div class="rows gl-picker-rows">${entries.map(({g,i,dist}) => `<button class="row" type="button" data-act="glgy" data-context="${context}" data-i="${i}" data-search="${(g.name+' '+g.addr).toLowerCase()}" aria-pressed="${i === sel}">${g.img ? `<img class="ss-th gl-gth" src="${pic(g.img)}" alt="">` : ''}<span class="row-t"><strong>${g.name}</strong><span>${g.addr}${dist === null ? '' : ` · ~${dist < 1 ? dist.toFixed(1) : Math.round(dist)} mi`}</span></span>${i === sel ? ic.check : ''}</button>`).join('')}</div><p id="gl-gym-empty" hidden>No matching gyms.</p></div>`);
   const input = $('gl-gym-search'); input.addEventListener('input', () => { const q = input.value.trim().toLowerCase(); let found = 0; document.querySelectorAll('.gl-picker-rows .row').forEach(row => { const match = row.dataset.search.includes(q); row.hidden = !match; if (match) found++; }); $('gl-gym-empty').hidden = found > 0; });
 }
 function viewSession() {
@@ -1766,12 +1910,12 @@ function viewSummary() {
   const sn = [...es.filter(e => e.sent).map(e => [gord(e.r.grade), rname(e.r)]), ...gd.filter(gsent).map(x => [gord(x.g), x.g])].sort((p, q) => q[0] - p[0]);
   const hb = [sn.find(q => q[0] >= 100), sn.find(q => q[0] < 100)].filter(Boolean), best = hb.length ? [0, hb.map(q => q[1]).join(' · ')] : null;
   const row = e => { const c = e.cs[e.cs.length - 1], hid = c ? c.hidden : !!e.l?.hidden;
-    return `<div class="row">${c ? `<button class="ss-open" type="button" data-act="to" data-to="clip/${c.id}" aria-label="Open the analysis of ${rname(e.r)}"><img src="img/${c.img}.jpg" alt=""></button>` : ''}<span class="row-t"><strong>${sw(e.r)}${rname(e.r)}</strong><span>${e.sent ? e.style : n(e.tries, 'attempt', 'attempts')} · ${e.cs.length ? `${n(e.cs.length, 'video', 'videos')} · tap the picture for the analysis` : 'logged by hand'}</span></span>
+    return `<div class="row">${c ? `<button class="ss-open" type="button" data-act="to" data-to="clip/${c.id}" aria-label="Open the analysis of ${rname(e.r)}"><img src="${pic(c.img)}" alt=""></button>` : ''}<span class="row-t"><strong>${sw(e.r)}${rname(e.r)}</strong><span>${e.sent ? e.style : n(e.tries, 'attempt', 'attempts')} · ${e.cs.length ? `${n(e.cs.length, 'video', 'videos')} · tap the picture for the analysis` : 'logged by hand'}</span></span>
       <button class="vis${hid ? ' off' : ''}" type="button" data-act="shide" data-i="${e.ri}" aria-pressed="${hid}">${hid ? `${ic.eyeOff}Hidden` : `${ic.eye}Public`}</button></div>`; };
   // what today's videos lead to. Climbs logged by hand have no video, so nothing to analyse or put on a poster
   const vids = clips.filter(c => agoOf(c) === 0), done = vids.filter(c => c.an === 'done' && c.track), sent = vids.filter(topOf);
   const look = done.find(topOf) || done[done.length - 1], pc = sent[sent.length - 1] || vids[vids.length - 1];
-  const thumb = c => `<img class="ss-th" src="img/${c.img}.jpg" alt="">`;
+  const thumb = c => `<img class="ss-th" src="${pic(c.img)}" alt="">`;
   const next = vids.length ? `<div class="hl2 dk2"><h2>From today’s videos</h2></div>
     <div class="rows">
       ${look ? `<button class="row ss-just" type="button" data-act="to" data-to="clip/${look.id}">${thumb(look)}<span class="row-t"><strong>Look at your analysis</strong><span>${rname(ROUTES[look.ri])} · try ${tryOf(look)} · ${n(look.track.stats.moves, 'move', 'moves')}</span></span>${ic.arr('#111111')}</button>` : ''}
@@ -1837,14 +1981,14 @@ const shareBtns = () => `<div class="two"><button class="b-ghost" type="button" 
 function openShare(c) {
   const r = ROUTES[c.ri], T = c.track;
   pane(`<h2>${topOf(c) ? 'Share your send' : 'Share your progress'}</h2><span class="sub">Route, grade and gym added from the video</span>
-    <div class="poster"><img src="img/${c.img}.jpg" alt=""><span class="shade"></span><span class="po-brand">Spotter</span>
+    <div class="poster"><img src="${pic(c.img)}" alt=""><span class="shade"></span><span class="po-brand">Spotter</span>
       <span class="po-b"><span class="pk-tag">${sw(r)}${rname(r)}</span><b>${topOf(c) ? 'Topped' : T ? `${T.stats.moves} moves` : 'On the wall'}</b><span>try ${tryOf(c)} · ${gymName(c)} · ${dayLabel(agoOf(c))}</span></span></div>
     ${shareBtns()}`);
 }
 function openReel(day) {
   const s = clips.filter(c => topOf(c) && (day == null || agoOf(c) === day));
   pane(`<h2>${day === 0 ? 'Today’s highlight reel' : 'Your highlight reel'}</h2><span class="sub">${n(s.length, 'send', 'sends')} · ${s.length * 8} seconds · labels added for you</span>
-    <div class="reel">${s.map(c => `<span class="rl"><img src="img/${c.img}.jpg" alt=""><span class="pk-tag">${sw(ROUTES[c.ri])}${rname(ROUTES[c.ri])}</span><em>${gymName(c)} · ${dayLabel(agoOf(c))}</em></span>`).join('')}</div>
+    <div class="reel">${s.map(c => `<span class="rl"><img src="${pic(c.img)}" alt=""><span class="pk-tag">${sw(ROUTES[c.ri])}${rname(ROUTES[c.ri])}</span><em>${gymName(c)} · ${dayLabel(agoOf(c))}</em></span>`).join('')}</div>
     <p class="hint">Each send plays for 8 seconds, from its last move to the top.</p>
     ${shareBtns()}`);
 }
@@ -1852,7 +1996,7 @@ function openReel(day) {
 /* ---------- Export: your log as a CSV file ---------- */
 function exportLog() {
   const rows = [['date', 'gym', 'route', 'grade', 'attempts', 'sent', 'style', 'videos']];
-  logDays().slice().reverse().forEach(d => gday(d).forEach(x => rows.push([dateOf(d).toISOString().slice(0, 10), gyms[x.gy].name, '', x.g, 1, gsent(x) ? 'yes' : 'no', `${x.k} · ${x.ty}`, ''])) || dayLog(d).forEach(e => rows.push([dateOf(d).toISOString().slice(0, 10), gym.name, e.r.color, e.r.grade, e.tries, e.sent ? 'yes' : 'no', e.style, e.cs.map(c => `video/${V[c.v].vid}.mp4`).join(' ')])));
+  logDays().slice().reverse().forEach(d => gday(d).forEach(x => rows.push([dateOf(d).toISOString().slice(0, 10), gyms[x.gy].name, '', x.g, 1, gsent(x) ? 'yes' : 'no', `${x.k} · ${x.ty}`, ''])) || dayLog(d).forEach(e => rows.push([dateOf(d).toISOString().slice(0, 10), gym.name, e.r.color, e.r.grade, e.tries, e.sent ? 'yes' : 'no', e.style, e.cs.map(c => `${vsrc(V[c.v].vid)}`).join(' ')])));
   const csv = rows.map(r => r.map(x => /[",\s]/.test(String(x)) ? `"${String(x).replace(/"/g, '""')}"` : x).join(',')).join('\n');
   const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' })); a.download = 'spotter-log.csv'; a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
@@ -1884,13 +2028,13 @@ function viewFriendsPlan() {
       <button type="button" data-act="fadd"><span class="fr-f fr-add">${ic.plus}</span><span>Add</span></button></div>`;
   const ps = plans.filter(p => p.by === 'You' || fr.includes(p.by));
   const card = p => { const k = plans.indexOf(p), g = gyms[p.g], me = p.who.includes('You'), oth = p.who.filter(w => w !== 'You');
-    return `<div class="pl">${g.img ? `<img src="img/${g.img}.jpg" alt="">` : `<span class="gt-placeholder" aria-hidden="true">${ic.pin}</span>`}
+    return `<div class="pl">${g.img ? `<img src="${pic(g.img)}" alt="">` : `<span class="gt-placeholder" aria-hidden="true">${ic.pin}</span>`}
       <span class="row-t"><strong>${dayName(p.d)} · ${clock(p.h)}</strong><span>${g.name}</span>
         <span class="pl-who"><span class="pl-avs">${p.who.map(w => `<i>${avatar(w)}</i>`).join('')}</span>${p.by === 'You' ? (oth.length ? `You planned · ${names(oth)} invited` : 'You planned it') : `${names(oth)} ${oth.length > 1 ? 'are' : 'is'} going`}</span></span>
       <button class="pj pl-detail" type="button" data-act="pldetail" data-i="${k}">Details</button>${p.by === 'You' ? `<button class="pj" type="button" data-act="plx" data-i="${k}">Cancel</button>` : `<button class="pj${me ? ' on' : ''}" type="button" data-act="pljoin" data-i="${k}" aria-pressed="${me}">${me ? 'Going' : 'Join'}</button>`}</div>`; };
   const theirs = V.filter(x => fr.includes(x.who)).sort((a, b) => a.ago - b.ago);
   const vids = theirs.length ? `<div class="vg">${theirs.map(x => `<button class="vt" type="button" data-act="pvid" data-v="${x.i}" aria-label="Watch ${x.who} on ${rname(ROUTES[x.ri])}">
-      <img src="img/${x.img}.jpg" alt="" loading="lazy"><span class="shade"></span><span class="vt-t">${sw(ROUTES[x.ri])}${rname(ROUTES[x.ri])}</span><span class="vt-b">${x.who} · ${dayLabel(x.ago)}</span></button>`).join('')}</div>`
+      <img src="${pic(x.img)}" alt="" loading="lazy"><span class="shade"></span><span class="vt-t">${sw(ROUTES[x.ri])}${rname(ROUTES[x.ri])}</span><span class="vt-b">${x.who} · ${dayLabel(x.ago)}</span></button>`).join('')}</div>`
     : `<p class="cap">${fr.length ? 'Your friends haven’t posted a climb yet.' : 'Climbs your friends post show up here.'}</p>`;
   return { photo: 'gym-arc-1', html: `
     <div class="tok-top lt-top"><span class="tok-add-sp" aria-hidden="true"></span>${comTabs(true)}<button class="av sm" type="button" data-act="to" data-to="profile" aria-label="Your profile">${avatar('You')}</button></div>
@@ -2086,6 +2230,7 @@ function readHash() { const [p = '', a = ''] = location.hash.replace(/^#\/?/, ''
 function go(p) { if (location.hash === '#/' + p) render(); else location.hash = '#/' + p; }
 let lastMotionPage = null;
 function render() {
+  saveSoon();
   const pageChanged = lastMotionPage !== page;
   lastMotionPage = page;
   if (stylePickerResize) { window.removeEventListener('resize', stylePickerResize); stylePickerResize = null; }
@@ -2094,7 +2239,7 @@ function render() {
   $('main').innerHTML = v.html;
   const bd = document.querySelector('.backdrop'), fold = $('main').querySelector('.fold');
   bd.style.display = fold ? '' : 'none';
-  if (v.photo) bd.querySelector('img').src = `img/${v.photo}.jpg`;
+  if (v.photo) bd.querySelector('img').src = `${pic(v.photo)}`;
   if (fold) bd.style.height = `${54 + fold.offsetTop + 40}px`;
   $('cta').innerHTML = v.cta || '';
   $('camx').hidden = !v.overlay;
@@ -2134,11 +2279,12 @@ function pane(html) { ask.innerHTML = '<div class="grab"></div>' + html; sheet.c
 function watchPane(x) {
   const r = ROUTES[x.ri];
   pane(`<h2>${x.who} ${x.top ? 'topped' : 'climbed'} ${rname(r)}</h2><span class="sub">${gym.name} · ${dayLabel(x.ago)} · ${x.len}</span>
-    <div class="fr-v"><video src="video/${x.vid}.mp4" poster="img/${x.img}.jpg" autoplay muted playsinline controls loop></video></div>
+    <div class="fr-v"><video src="${vsrc(x.vid)}" poster="${pic(x.img)}" autoplay muted playsinline controls loop></video></div>
     <p class="hint">${x.credit}</p>`);
 }
 
 const actions = {
+  lvseek: b => { const v = $('lvv'); if (!v) return; v.currentTime = +b.dataset.t; v.play().catch(() => {}); document.querySelector('.screen').scrollTo({ top: 0, behavior: 'smooth' }); },
   status: () => pane(`<h2>Your status</h2><span class="sub">Friends see it on your profile, next to your home gym.</span>
     <div class="stt-l">${STATUS.map(([k, l]) => `<button type="button" class="stt-o${k ? ` is-${k}` : ''}" data-act="setstatus" data-s="${k}" aria-pressed="${k === myStatus}"><i></i>${l}${k === myStatus ? ic.check : ''}</button>`).join('')}</div>`),
   setstatus: b => { myStatus = b.dataset.s; try { localStorage.setItem('spotter-status', myStatus); } catch (_) {} closeAll(); render(); },
@@ -2220,7 +2366,7 @@ const actions = {
     tapT = setTimeout(() => { tapT = null; if (v.paused) { delete v.dataset.stop; v.play().catch(() => {}); } else { v.dataset.stop = 1; v.pause(); } }, 240); },
   flike: b => feedLike(b.closest('.ts'), b.getAttribute('aria-pressed') !== 'true'),
   fmore: b => feedOptions(+b.dataset.i),
-  fshare: async b => { const post = feedAll()[+b.dataset.i], url = new URL(`video/${V[post.v].vid}.mp4`, location.href).href; if (navigator.share) { try { await navigator.share({ title: 'Climbing video', url }); } catch (e) { if (e.name !== 'AbortError') toast('Could not share. Copy the link instead.'); } } else { toast('Sharing is unavailable. Copy the link instead.'); } },
+  fshare: async b => { const post = feedAll()[+b.dataset.i], url = new URL(`${vsrc(V[post.v].vid)}`, location.href).href; if (navigator.share) { try { await navigator.share({ title: 'Climbing video', url }); } catch (e) { if (e.name !== 'AbortError') toast('Could not share. Copy the link instead.'); } } else { toast('Sharing is unavailable. Copy the link instead.'); } },
   fcopy: async b => { const input = ask.querySelector('.feed-share-url'); try { await navigator.clipboard.writeText(input.value); toast('Video link copied'); } catch (_) { input.focus(); input.select(); toast('Select and copy the link'); } },
   fchoose: b => chooseComparison(+b.dataset.i),
   fchoosepick: b => { const c = byId(b.dataset.c), video = V[+b.dataset.v]; if (!c || !video || c.ri !== video.ri || c.v === video.i || video.who === 'You') return; closeAll(); go(`vs/${c.id}-${video.i}`); },
@@ -2307,7 +2453,8 @@ scr.addEventListener('scroll', () => document.querySelector('.phone').classList.
 // first open: a new climber starts on the intro; ?view=regular opens Videos
 if (!location.hash) history.replaceState(null, '', '#/' + (user === 'regular' ? 'videos' : 'setup'));
 readHash();
-render();
+// your imported videos first, so a reload on one of them opens it again
+restoreMine().catch(() => {}).finally(() => { readHash(); render(); });
 if (params.has('invite')) showIncomingInvite();
 // iPhone 16 Pro frame (894 px with its border): on a short window scale the whole phone down to fit, never squash it
 const fitPhone = () => document.querySelector('.device').style.setProperty('--fit', Math.min(1, (innerHeight - 96) / 894).toFixed(3));

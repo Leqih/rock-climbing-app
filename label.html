@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Spotter · Mark moves</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Urbanist:wght@400;500;600;700;800&display=swap">
+<style>
+  :root { --ink: #111; --bg: #EEEEEC; --card: #fff; --mute: #6b6b68; --line: rgba(17, 17, 17, .1); --lime: #C4F52A; --orange: #F08A24; --hand: #111; --foot: #3F82CA; }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 24px 16px 60px; background: var(--bg); color: var(--ink); font: 14px/1.4 Urbanist, system-ui, sans-serif; }
+  button, select, input { font: inherit; color: inherit; }
+  button { cursor: pointer; border: 0; background: none; }
+  .wrap { max-width: 1080px; margin: 0 auto; }
+  h1 { margin: 0; font-size: 30px; font-weight: 800; letter-spacing: -.03em; }
+  .sub { margin: 4px 0 18px; color: var(--mute); }
+  .top { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  select, .pill { height: 38px; padding: 0 14px; border-radius: 999px; background: var(--card); box-shadow: inset 0 0 0 1px var(--line); font-weight: 600; }
+  .pill.dark { background: var(--ink); color: #fff; box-shadow: none; }
+  .pill.lime { background: var(--lime); box-shadow: none; }
+  .pill[aria-pressed="true"] { background: var(--ink); color: #fff; }
+  .grid { display: grid; grid-template-columns: minmax(0, 360px) minmax(0, 1fr); gap: 16px; margin-top: 16px; }
+  @media (max-width: 760px) { .grid { grid-template-columns: 1fr; } }
+  .card { padding: 16px; border-radius: 22px; background: var(--card); }
+  video { display: block; width: 100%; max-height: 70vh; border-radius: 14px; background: #222; object-fit: contain; }
+  .now { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .ctl { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  .ctl .pill { height: 34px; padding: 0 12px; font-size: 13px; }
+  .marks { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 12px; }
+  .marks button { display: grid; gap: 2px; padding: 12px 6px; border-radius: 16px; background: var(--ink); color: #fff; font-weight: 800; font-size: 15px; }
+  .marks button.f { background: var(--foot); }
+  .marks kbd { font: 600 11px Urbanist, sans-serif; opacity: .65; }
+  .hint { margin: 10px 0 0; font-size: 12px; color: var(--mute); }
+  h2 { margin: 0 0 10px; font-size: 18px; font-weight: 800; letter-spacing: -.01em; }
+  .lanes { position: relative; display: grid; gap: 6px; }
+  .lane { display: grid; grid-template-columns: 82px 1fr; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; color: var(--mute); }
+  .track { position: relative; height: 26px; border-radius: 8px; background: #F2F2F0; cursor: pointer; }
+  .track i { position: absolute; top: 4px; width: 4px; height: 18px; margin-left: -2px; border-radius: 2px; }
+  .track i.m { background: var(--ink); }
+  .track i.m.f { background: var(--foot); }
+  .track i.m.sel { box-shadow: 0 0 0 3px var(--orange); }
+  .track i.a { top: 15px; height: 9px; background: var(--lime); box-shadow: 0 0 0 1px rgba(17, 17, 17, .35); }
+  .track .win { position: absolute; top: 0; bottom: 0; background: rgba(17, 17, 17, .06); pointer-events: none; }
+  .head { position: absolute; top: -4px; bottom: -4px; width: 2px; background: var(--orange); pointer-events: none; }
+  .row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 12px; }
+  .list { max-height: 220px; overflow: auto; margin-top: 12px; border-top: 1px solid var(--line); }
+  .list button { display: flex; justify-content: space-between; width: 100%; padding: 7px 4px; border-bottom: 1px solid var(--line); font-variant-numeric: tabular-nums; text-align: left; }
+  .list button.sel { background: #FFF4E8; }
+  table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+  th, td { padding: 7px 6px; border-bottom: 1px solid var(--line); text-align: right; }
+  th:first-child, td:first-child { text-align: left; }
+  th { font-size: 12px; font-weight: 700; color: var(--mute); }
+  .big { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; margin-bottom: 12px; }
+  .big div { padding: 12px; border-radius: 16px; background: #F2F2F0; }
+  .big b { display: block; font-size: 26px; font-weight: 800; letter-spacing: -.02em; }
+  .big span { font-size: 12px; color: var(--mute); }
+  .note { margin-top: 10px; font-size: 12px; color: var(--mute); }
+  .busy { color: var(--orange); font-weight: 700; }
+  .toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); padding: 10px 16px; border-radius: 999px; background: var(--ink); color: #fff; font-weight: 600; opacity: 0; transition: opacity .2s; pointer-events: none; }
+  .toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Mark moves</h1>
+  <p class="sub">Watch a climb and mark each moment a hand or foot lands on a hold. Then score how well Spotter found the same moves. Your marks stay in this browser until you export them.</p>
+  <div class="top">
+    <select id="pick" aria-label="Video"></select>
+    <label class="pill" style="display:inline-flex;align-items:center">Open a file<input id="file" type="file" accept="video/*" hidden></label>
+    <input id="who" class="pill" placeholder="Your name" aria-label="Who is marking" style="width:150px">
+    <button class="pill" id="exp" type="button">Export marks</button>
+    <label class="pill" style="display:inline-flex;align-items:center">Import marks<input id="imp" type="file" accept="application/json,.json" multiple hidden></label>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <video id="v" playsinline muted preload="auto"></video>
+      <div class="now"><span id="time">0:00.0</span><span id="count">0 marks</span></div>
+      <div class="ctl">
+        <button class="pill" type="button" data-step="-1">−1 s</button><button class="pill" type="button" data-step="-.2">−0.2 s</button>
+        <button class="pill dark" type="button" id="play">Play</button>
+        <button class="pill" type="button" data-step=".2">+0.2 s</button><button class="pill" type="button" data-step="1">+1 s</button>
+      </div>
+      <div class="ctl" id="speeds"><button class="pill" type="button" data-rate=".25">¼×</button><button class="pill" type="button" data-rate=".5" aria-pressed="true">½×</button><button class="pill" type="button" data-rate="1">1×</button></div>
+      <div class="marks">
+        <button type="button" data-k="lw">Left hand<kbd>Q</kbd></button><button type="button" data-k="rw">Right hand<kbd>W</kbd></button>
+        <button type="button" class="f" data-k="la">Left foot<kbd>A</kbd></button><button type="button" class="f" data-k="ra">Right foot<kbd>S</kbd></button>
+      </div>
+      <p class="hint">Mark the moment the limb lands and stays, not when it starts to move. Space plays and pauses, ← → step 0.2 s, Backspace removes the last mark.</p>
+    </div>
+
+    <div>
+      <div class="card">
+        <h2>Your marks</h2>
+        <div class="lanes" id="lanes"></div>
+        <div class="row">
+          <button class="pill" type="button" id="from">Marked from here</button><button class="pill" type="button" id="to">Marked to here</button>
+          <button class="pill" type="button" id="whole">Whole video</button>
+          <button class="pill" type="button" id="show" aria-pressed="false">Show Spotter’s moves</button>
+          <button class="pill" type="button" id="del" disabled>Remove selected</button>
+        </div>
+        <p class="note" id="win"></p>
+        <div class="list" id="list"></div>
+      </div>
+      <div class="card" style="margin-top:16px">
+        <h2>Score</h2>
+        <div class="row" style="margin-top:0">
+          <button class="pill lime" type="button" id="score">Score this video</button>
+          <label class="pill" style="display:inline-flex;align-items:center;gap:6px"><input type="checkbox" id="fresh"> Scan again with today’s pose.js</label>
+          <select id="tol" aria-label="How close counts"><option value="0.5">Within 0.5 s</option><option value="1" selected>Within 1 s</option><option value="1.5">Within 1.5 s</option></select>
+        </div>
+        <div id="out" class="note">Mark the whole climb first, or set the part you marked. Keep Spotter’s moves hidden while you mark, so they don’t steer you.</div>
+      </div>
+      <div class="card" style="margin-top:16px">
+        <h2>All marked videos</h2>
+        <button class="pill" type="button" id="all">Score every marked video</button>
+        <div id="allout" class="note"></div>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+<script src="pose.js?v=20261114v351"></script>
+<script src="score.js?v=1"></script>
+<script>
+const SAMPLES = ['wayup-p1-green', 'wayup-p1-orange', 'wayup-p2-green', 'wayup-p2b-orange', 'wayup-p3-green', 'wayup-p3-orange', 'wayup-p5-green', 'wayup-p5-orange', 'wayup-p8-green', 'wayup-p8-orange', 'wayup-p10-green', 'wayup-p2a-orange', 'wayup-p10-orange', 'wayup-p4-green', 'wayup-p4-orange', 'wayup-p6-green', 'wayup-p6-orange', 'wayup-p7-green', 'wayup-p7-orange', 'wayup-p9-green', 'wayup-p9-orange', 'pexels-7591810-crop', 'pexels-7591864-crop', 'rockspot-v3', 'pro-wa4-garnbret', 'pro-wa4-rakovec', 'pro-wb1-pilz', 'pro-wb1-raboutou'];
+const $ = id => document.getElementById(id), v = $('v'), KEY = 'spotter.marks.';
+const KEYS = { q: 'lw', w: 'rw', a: 'la', s: 'ra' };
+let cur = null;            // { id, src, file?, marks: [], from, to, by }
+let app = null, sel = null; // Spotter's moves for this video, once loaded; the selected mark
+const fmt = t => `${Math.floor(t / 60)}:${(t % 60).toFixed(1).padStart(4, '0')}`;
+const toast = m => { const t = $('toast'); t.textContent = m; t.classList.add('show'); clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove('show'), 1800); };
+const save = () => { try { localStorage.setItem(KEY + cur.id, JSON.stringify({ vid: cur.id, by: $('who').value, from: cur.from, to: cur.to, marks: cur.marks })); } catch (_) {} };
+const load = id => { try { return JSON.parse(localStorage.getItem(KEY + id)); } catch (_) { return null; } };
+try { $('who').value = localStorage.getItem('spotter.marker') || ''; } catch (_) {}
+$('who').addEventListener('change', () => { try { localStorage.setItem('spotter.marker', $('who').value); } catch (_) {} if (cur) save(); });
+
+$('pick').innerHTML = SAMPLES.map(s => `<option value="${s}">${s}${load(s)?.marks?.length ? ` · ${load(s).marks.length} marks` : ''}</option>`).join('');
+function open(id, src, file) {
+  const k = load(id);
+  cur = { id, src, file, marks: k?.marks || [], from: k?.from ?? null, to: k?.to ?? null };
+  app = null; sel = null; v.src = src; v.playbackRate = +document.querySelector('[data-rate][aria-pressed="true"]').dataset.rate;
+  $('out').innerHTML = 'Mark the whole climb first, or set the part you marked. Keep Spotter’s moves hidden while you mark, so they don’t steer you.';
+  draw();
+}
+$('pick').addEventListener('change', () => open($('pick').value, `video/${$('pick').value}.mp4`));
+$('file').addEventListener('change', e => { const f = e.target.files[0]; if (!f) return; const id = `file-${f.name}-${f.size}`;
+  if (![...$('pick').options].some(o => o.value === id)) $('pick').insertAdjacentHTML('afterbegin', `<option value="${id}">${f.name}</option>`);
+  $('pick').value = id; open(id, URL.createObjectURL(f), f); e.target.value = ''; });
+v.addEventListener('loadedmetadata', draw);
+v.addEventListener('timeupdate', head);
+v.addEventListener('play', () => $('play').textContent = 'Pause'); v.addEventListener('pause', () => $('play').textContent = 'Play');
+$('play').addEventListener('click', () => v.paused ? v.play() : v.pause());
+document.querySelectorAll('[data-step]').forEach(b => b.addEventListener('click', () => step(+b.dataset.step)));
+document.querySelectorAll('[data-rate]').forEach(b => b.addEventListener('click', () => { v.playbackRate = +b.dataset.rate; document.querySelectorAll('[data-rate]').forEach(x => x.setAttribute('aria-pressed', x === b)); }));
+document.querySelectorAll('[data-k]').forEach(b => b.addEventListener('click', () => mark(b.dataset.k)));
+const step = d => { v.pause(); v.currentTime = Math.max(0, Math.min(v.duration || 0, v.currentTime + d)); };
+function mark(k) {
+  if (!cur) return; const t = Math.round(v.currentTime * 10) / 10;
+  cur.marks.push({ k, t }); cur.marks.sort((p, q) => p.t - q.t); sel = cur.marks.find(m => m.k === k && m.t === t); save(); draw(); toast(`${Score.NAME[k]} at ${fmt(t)}`);
+}
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+  const k = KEYS[e.key.toLowerCase()];
+  if (k) { e.preventDefault(); mark(k); }
+  else if (e.key === ' ') { e.preventDefault(); v.paused ? v.play() : v.pause(); }
+  else if (e.key === 'ArrowLeft') { e.preventDefault(); step(-.2); }
+  else if (e.key === 'ArrowRight') { e.preventDefault(); step(.2); }
+  else if (e.key === 'Backspace' && cur?.marks.length) { e.preventDefault(); const last = sel || cur.marks.at(-1); cur.marks.splice(cur.marks.indexOf(last), 1); sel = null; save(); draw(); }
+});
+$('from').addEventListener('click', () => { cur.from = Math.round(v.currentTime * 10) / 10; save(); draw(); });
+$('to').addEventListener('click', () => { cur.to = Math.round(v.currentTime * 10) / 10; save(); draw(); });
+$('whole').addEventListener('click', () => { cur.from = cur.to = null; save(); draw(); });
+$('show').addEventListener('click', async () => { const on = $('show').getAttribute('aria-pressed') !== 'true'; $('show').setAttribute('aria-pressed', on); if (on && !app) await loadApp(); draw(); });
+$('del').addEventListener('click', () => { if (!sel) return; cur.marks.splice(cur.marks.indexOf(sel), 1); sel = null; save(); draw(); });
+
+function head() {
+  $('time').textContent = `${fmt(v.currentTime)} / ${fmt(v.duration || 0)}`;
+  document.querySelectorAll('.head').forEach(h => h.style.left = `${v.currentTime / (v.duration || 1) * 100}%`);
+}
+function draw() {
+  if (!cur) return;
+  const D = v.duration || 1, showApp = $('show').getAttribute('aria-pressed') === 'true';
+  const x = t => `${(t / D * 100).toFixed(2)}%`;
+  const win = cur.from != null || cur.to != null ? `<span class="win" style="left:${x(cur.from ?? 0)};right:${(100 - (cur.to ?? D) / D * 100).toFixed(2)}%"></span>` : '';
+  $('lanes').innerHTML = Score.LIMBS.map(k => `<div class="lane"><span>${Score.NAME[k]}</span><div class="track" data-lane="${k}">${win}
+    ${cur.marks.map((m, i) => m.k === k ? `<i class="m${k[1] === 'a' ? ' f' : ''}${m === sel ? ' sel' : ''}" data-i="${i}" style="left:${x(m.t)}"></i>` : '').join('')}
+    ${showApp && app ? app.filter(m => m.k === k).map(m => `<i class="a" style="left:${x(m.t)}"></i>`).join('') : ''}<span class="head"></span></div></div>`).join('');
+  document.querySelectorAll('.track').forEach(tr => tr.addEventListener('click', e => {
+    const i = e.target.dataset.i; if (i != null) { sel = cur.marks[+i]; v.currentTime = sel.t; v.pause(); draw(); return; }
+    const b = tr.getBoundingClientRect(); v.currentTime = (e.clientX - b.left) / b.width * D; }));
+  $('list').innerHTML = cur.marks.map((m, i) => `<button type="button" data-li="${i}" class="${m === sel ? 'sel' : ''}"><span>${Score.NAME[m.k]}</span><span>${fmt(m.t)}</span></button>`).join('');
+  document.querySelectorAll('[data-li]').forEach(b => b.addEventListener('click', () => { sel = cur.marks[+b.dataset.li]; v.currentTime = sel.t; v.pause(); draw(); }));
+  $('count').textContent = `${cur.marks.length} ${cur.marks.length === 1 ? 'mark' : 'marks'}`;
+  $('del').disabled = !sel;
+  $('win').textContent = cur.from != null || cur.to != null ? `Marked part: ${fmt(cur.from ?? 0)} to ${fmt(cur.to ?? D)}. Only this part is scored.` : 'Marked part: the whole video.';
+  head();
+}
+
+// Spotter's moves: the scan that ships with a sample, or a new scan with the pose.js on this page
+async function loadApp() {
+  const fresh = $('fresh').checked || !!cur.file;
+  $('out').innerHTML = `<span class="busy">${fresh ? 'Scanning the video with pose.js… this takes about as long as the video' : 'Loading Spotter’s scan…'}</span>`;
+  try {
+    const T = fresh ? await window.__scan(cur.src) : await (await fetch(`video/${cur.id}.track.json`)).json();
+    app = T.moves; cur.scanned = fresh ? 'a new scan' : 'the shipped scan'; return T;
+  } catch (e) { $('out').textContent = 'Couldn’t scan this video: ' + (e.message || e); app = null; }
+}
+const p = x => x == null ? '—' : `${Math.round(x * 100)}%`, s = x => x == null ? '—' : `${x.toFixed(2)} s`;
+function table(r) {
+  const rows = [['hands', 'Hands'], ['feet', 'Feet'], ['all', 'All'], ...Score.LIMBS.map(k => [k, Score.NAME[k]])];
+  return `<table><tr><th></th><th>Marked</th><th>Spotter</th><th>Found</th><th>Right</th><th>Timing</th></tr>
+    ${rows.map(([k, l]) => { const b = r.by[k]; return `<tr${k === 'all' ? ' style="font-weight:800"' : ''}><td>${l}</td><td>${b.marked}</td><td>${b.reported}</td><td>${p(b.recall)}</td><td>${p(b.precision)}</td><td>${s(b.timing)}</td></tr>`; }).join('')}</table>`;
+}
+$('score').addEventListener('click', async () => {
+  if (!cur?.marks.length) { toast('Mark some moves first'); return; }
+  if (!app || $('fresh').checked) await loadApp(); if (!app) return;
+  const tol = +$('tol').value, r = Score.score(cur.marks, app, { tol, from: cur.from ?? -Infinity, to: cur.to ?? Infinity });
+  $('out').innerHTML = `<div class="big"><div><b>${p(r.by.all.recall)}</b><span>of your marks Spotter found</span></div><div><b>${p(r.by.all.precision)}</b><span>of Spotter’s moves that are right</span></div>
+    <div><b>${p(r.order)}</b><span>in the right order (${r.orderPairs} neighbours)</span></div><div><b>${s(r.pause)}</b><span>usual pause error · ${p(r.pauseWithin05)} within 0.5 s</span></div></div>
+    ${table(r)}<p class="note">Found: your marks with a Spotter move of the same limb within ${tol} s. Right: Spotter’s moves that match one of yours. Timing: the usual gap between the two. Random times would find about ${p(r.chanceRecall)}. Against ${cur.scanned}.</p>`;
+});
+
+$('exp').addEventListener('click', () => {
+  const all = []; for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k.startsWith(KEY)) all.push(JSON.parse(localStorage.getItem(k))); }
+  if (!all.length) { toast('Nothing marked yet'); return; }
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(all, null, 1)], { type: 'application/json' }));
+  a.download = `spotter-marks-${($('who').value || 'anon').replace(/\W+/g, '-')}-${new Date().toISOString().slice(0, 10)}.json`; a.click();
+});
+$('imp').addEventListener('change', async e => {
+  let n = 0; for (const f of e.target.files) { try { const j = JSON.parse(await f.text()); for (const x of [].concat(j)) if (x?.vid && Array.isArray(x.marks)) { localStorage.setItem(KEY + x.vid, JSON.stringify(x)); n++; } } catch (_) {} }
+  toast(`${n} ${n === 1 ? 'video' : 'videos'} of marks imported`); e.target.value = ''; if (cur) open(cur.id, cur.src, cur.file);
+});
+
+$('all').addEventListener('click', async () => {
+  const list = SAMPLES.map(id => ({ id, k: load(id) })).filter(x => x.k?.marks?.length);
+  if (!list.length) { $('allout').textContent = 'No sample video has marks yet.'; return; }
+  const tol = +$('tol').value, res = [];
+  for (const x of list) { try { const T = await (await fetch(`video/${x.id}.track.json`)).json(); res.push({ id: x.id, r: Score.score(x.k.marks, T.moves, { tol, from: x.k.from ?? -Infinity, to: x.k.to ?? Infinity }) }); } catch (_) {} }
+  const t = Score.total(res.map(x => x.r));
+  $('allout').innerHTML = `<div class="big" style="margin-top:12px"><div><b>${p(t.rows.all.recall)}</b><span>found, ${t.rows.all.marked} marks in ${t.videos} ${t.videos === 1 ? 'video' : 'videos'}</span></div><div><b>${p(t.rows.all.precision)}</b><span>of Spotter’s moves right</span></div><div><b>${p(t.order)}</b><span>right order</span></div><div><b>${s(t.pause)}</b><span>usual pause error</span></div></div>
+    <table><tr><th>Video</th><th>Marks</th><th>Found</th><th>Right</th><th>Order</th><th>Pause error</th></tr>${res.map(x => `<tr><td>${x.id}</td><td>${x.r.by.all.marked}</td><td>${p(x.r.by.all.recall)}</td><td>${p(x.r.by.all.precision)}</td><td>${p(x.r.order)}</td><td>${s(x.r.pause)}</td></tr>`).join('')}</table>
+    <p class="note">Against the scans that ship with the app, within ${tol} s. Hands: ${p(t.rows.hands.recall)} found, ${p(t.rows.hands.precision)} right. Feet: ${p(t.rows.feet.recall)} found, ${p(t.rows.feet.precision)} right.</p>`;
+});
+
+open(SAMPLES[0], `video/${SAMPLES[0]}.mp4`);
+</script>
+</body>
+</html>

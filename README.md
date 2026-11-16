@@ -77,7 +77,7 @@ v9 first cut everything outside film → analysis → compare. These came back o
 
 ## The sample world
 
-All climbing footage is The Way Up (Maschek & Schedl, CC BY 4.0): ten climbers on the same two routes of a tall top-rope wall. v9 shows it as the ARC Climbing Wall's rope wall (real address and hours from campusrec.illinois.edu), routes Green 5.8 and Orange 5.9 (sample grades). You are the climber filmed as p2 (`wayup-p2a-orange`, `wayup-p2-green`, `wayup-p2b-orange`); Noor, Sam, Leo, Kai and Mia are p8, p1, p3, p10 and p5, the ones with full scans. Topped or not is what each video's last frame shows. Names, likes and comments are sample; every number about a climb is measured from its video. `wayup-p2a-orange` has no shipped scan, so it is scanned live in the browser the first time (then kept in localStorage).
+All climbing footage is The Way Up (Maschek & Schedl, CC BY 4.0): ten climbers on the same two routes of a tall top-rope wall. v9 shows it as the ARC Climbing Wall's rope wall (real address and hours from campusrec.illinois.edu), routes Green 5.8 and Orange 5.9 (sample grades). You are the climber filmed as p2 (`wayup-p2a-orange`, `wayup-p2-green`, `wayup-p2b-orange`); Noor, Sam, Leo, Kai, Mia, Ava, Ben, Jun and Rosa are p8, p1, p3, p10, p5, p4, p6, p7 and p9. 21 of the dataset's 22 climbs (all but p2b on green) are in the app with their scans, and the coach's labels for all of them are in `labels/wayup-coach.json`. Topped or not is what each video's last frame shows. Names, likes and comments are sample; every number about a climb is measured from its video. `wayup-p2a-orange` has no shipped scan, so it is scanned live in the browser the first time (then kept in localStorage).
 
 ## Two climbers
 
@@ -228,6 +228,21 @@ The earlier model found 53% with 76% right, so this one misses fewer moves and a
 Three test videos have a moving phone (the two in the app, and a shorter clip of the Pexels climber). On them, against labels we made ourselves at 1 frame a second (27 moves, within 1.5 s), a real browser scan found 12 of 14 hands and 9 of 13 feet, and reported 31 moves, where the labels have 27. Picking the same number of random times finds about 6 hands and 5 feet. This is a small set, two videos show the same climber, nobody independent labelled it, and we looked at these videos while building the method, so read it as a sanity check.
 
 A scan took 16–46 s on a laptop GPU for clips of 14–41 s. Wall tracking took 2 s of the 32 s measured on one 14 s clip, and 23 s of 62 s with the CPU slowed 6 times. That is an estimate of a slower device, not a phone measurement; no phone has been timed. Scans also change with the GPU: one clip saw the climber in 52% of frames on an Intel GPU and 72% on an NVIDIA one. Arm angles and the hip rule are not checked by this.
+
+### Checking it yourself
+
+`label.html` is a page for marking moves by hand: pick a sample video or open your own, and press Q, W, A or S (left hand, right hand, left foot, right foot) at the moment that hand or foot lands on a hold. Spotter's own moves stay hidden while you mark. **Score this video** compares your marks with Spotter's scan (the one that ships with the video, or a new scan with today's `pose.js`): how many of your marks it found, how many of its moves are right, the usual timing gap, whether neighbouring moves come in the same order, and how far off the pause between them is. It also shows what random times would score. Marks stay in the browser; **Export marks** saves them as JSON.
+
+Put exported files in `labels/` and run `node tools/score.mjs` (add `--tol 0.5` for a stricter match) to score every marked video against the scans in `video/`. The scoring is in `score.js`, shared by both.
+
+`labels/wayup-coach.json` holds The Way Up's coach labels (CC BY 4.0) moved onto the Way Up clips in the app. 21 clips, 896 landings. Each clip was cut from the original at the first labelled landing minus 1 s, so a label at x s is at x − that in the clip. Only the label files were read from the dataset's zip, not its videos. Scored against the scans that ship with the app (`node tools/score.mjs`):
+
+| Within | Found | Spotter's moves that are right | Neighbours in the right order | Usual pause error |
+|---|---|---|---|---|
+| 1 s | 78% (hands 76%, feet 80%) | 65% (hands 60%, feet 70%) | 99% | 0.36 s |
+| 0.5 s | 63% (hands 61%, feet 64%) | 52% (hands 48%, feet 57%) | 99% | 0.20 s |
+
+Random times find about 31%. **These are not independent:** the shipped network was trained on all 22 Way Up videos, these 11 included, so on new climbers and gyms expect at most the held-out scores above, and less with a moving phone. What they add is the pauses and the order, which nothing had measured: when a move is found, its neighbours come in the right order, and the gap between two moves is usually off by about a third of a second. With 5 samples a second, a pause under about half a second can't be told apart from no pause.
 
 ## Arm angles
 
