@@ -2007,7 +2007,7 @@ function needHolds(img, color) {
 let betaOnly = false, betaV = null;
 // Find beta, with the real camera: photograph the wall, tap a hold of your route. Its colour says which route it is, and every
 // hold of that colour lights up on your photo. Then the route's beta, as the climber who topped it climbed it
-let scanStream = null, scanAsk = false, scanErr = '', scanCv = null, scanURL = '', scanPick = null;
+let scanStream = null, scanAsk = false, scanErr = '', scanCv = null, scanURL = '', scanPick = null, scanFound = [];
 async function scanStart() {
   if (scanStream || scanAsk) return;
   if (!navigator.mediaDevices?.getUserMedia) { scanErr = 'none'; render(); return; }
@@ -2022,13 +2022,15 @@ function scanStop() { scanStream?.getTracks().forEach(t => t.stop()); scanStream
 function scanTake(src, w, h) {
   const cv = document.createElement('canvas'); cv.width = 540; cv.height = 960; const g = cv.getContext('2d', { willReadFrequently: true });
   const k = Math.max(540 / w, 960 / h); g.drawImage(src, (540 - w * k) / 2, (960 - h * k) / 2, w * k, h * k);
-  scanCv = cv; scanURL = cv.toDataURL('image/jpeg', .85); scanPick = null; scanStop(); render();
+  scanCv = cv; scanURL = cv.toDataURL('image/jpeg', .85); scanPick = null; scanStop();
+  scanFound = Object.keys(HUE).filter(k => k !== 'Red').map(k => ({ k, holds: findHolds(cv, HUE[k]) })).filter(q => q.holds.length >= 3).sort((a, b) => b.holds.length - a.holds.length);
+  render();
 }
 const betaRis = () => ROUTES.map((r, i) => i).filter(i => V.some(x => x.who === 'Leo' && x.ri === i));
 // the colour of the hold you tapped: the most colourful quarter of the pixels around the tap (a hold's middle, not its edge
 // or shadow), averaged round the colour wheel. Grey, white or the wall itself is no colour
 function scanColorAt(x, y) {
-  const R = 8, d = scanCv.getContext('2d', { willReadFrequently: true }).getImageData(Math.max(0, x - R), Math.max(0, y - R), R * 2, R * 2).data, px = [];
+  const R = 14, d = scanCv.getContext('2d', { willReadFrequently: true }).getImageData(Math.max(0, x - R), Math.max(0, y - R), R * 2, R * 2).data, px = [];
   for (let i = 0; i < d.length; i += 4) { const r = d[i] / 255, g = d[i + 1] / 255, b = d[i + 2] / 255, mx = Math.max(r, g, b), c = mx - Math.min(r, g, b); if (!c) continue;
     px.push({ h: (mx === r ? ((g - b) / c + 6) % 6 : mx === g ? (b - r) / c + 2 : (r - g) / c + 4) * 60, s: c / mx, v: mx }); }
   px.sort((a, b) => b.s - a.s); const top = px.slice(0, Math.max(1, px.length >> 2));
@@ -2041,10 +2043,13 @@ function scanColorAt(x, y) {
 }
 function scanTap(e) {
   const svg = e.currentTarget, pt = svg.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY;
-  const q = pt.matrixTransform(svg.getScreenCTM().inverse()), x = Math.round(q.x), y = Math.round(q.y), color = scanColorAt(x, y);
-  if (!color) { toast('That looks like the wall. Tap a coloured hold'); return; }
+  const q = pt.matrixTransform(svg.getScreenCTM().inverse()), x = Math.round(q.x), y = Math.round(q.y);
+  let near = null, bd = 1e9; scanFound.forEach(({ k, holds }) => holds.forEach(h => { const d = Math.hypot(h.x - x, h.y - y) - h.r * .6; if (d < bd) { bd = d; near = k; } }));
+  const color = bd < 26 ? near : scanColorAt(x, y);
+  if (!color) { toast('No coloured hold there. Tap closer to one, or pick a colour below'); return; }
   scanPick = { x, y, color, holds: findHolds(scanCv, HUE[color]), ri: betaRis().find(i => ROUTES[i].color === color) ?? -1 }; render();
 }
+function scanColor(k) { const q = scanFound.find(z => z.k === k); if (!q) return; scanPick = { x: null, y: null, color: k, holds: q.holds, ri: betaRis().find(i => ROUTES[i].color === k) ?? -1 }; render(); }
 function scanFile(f) {
   if (!f) return; if (f.type && !f.type.startsWith('image/')) { toast('That isn’t a photo'); return; }
   toast('Opening your photo…'); const u = URL.createObjectURL(f), im = new Image();
@@ -2075,14 +2080,16 @@ function viewScanCam() {
   }
   const k = scanPick, r = k && k.ri >= 0 ? ROUTES[k.ri] : null, f = v => v.toFixed(0);
   const marks = k ? `${k.holds.map(h => `<circle cx="${f(h.x)}" cy="${f(h.y)}" r="${f(Math.max(h.r * .6 + 5, 10))}" fill="none" stroke="#FFFFFF" stroke-width="2.5" stroke-dasharray="5 4"/>`).join('')}
-      <circle cx="${k.x}" cy="${k.y}" r="17" fill="none" stroke="#111111" stroke-width="7" opacity=".4"/><circle cx="${k.x}" cy="${k.y}" r="17" fill="none" stroke="#C2FF01" stroke-width="4"/>` : '';
-  const say = !k ? ['Tap a hold on your route', 'Its colour tells us which route it is.']
-    : r ? [`${sw(r)}${rname(r)}`, `${n(k.holds.length, 'hold', 'holds')} found in ${k.color.toLowerCase()}. Wrong route? Tap another hold.`]
-    : [`A ${k.color.toLowerCase()} route`, `Nobody has posted a climb of a ${k.color.toLowerCase()} route here yet, so there’s no beta for it. Tap another hold, or retake.`];
+      ${k.x == null ? '' : `<circle cx="${k.x}" cy="${k.y}" r="17" fill="none" stroke="#111111" stroke-width="7" opacity=".4"/><circle cx="${k.x}" cy="${k.y}" r="17" fill="none" stroke="#C2FF01" stroke-width="4"/>`}` : '';
+  const withBeta = betaRis().map(i => rname(ROUTES[i])).join(' and ');
+  const say = !k ? (scanFound.length ? ['Which route is yours?', 'Tap one of its holds on the photo, or its colour below.'] : ['No coloured holds found', 'Get closer, with the holds lit and in focus. White and black holds can’t be told from the wall yet.'])
+    : r ? [`${sw(r)}${rname(r)}`, `${n(k.holds.length, 'hold', 'holds')} found in ${k.color.toLowerCase()}. Wrong one? Tap another colour.`]
+    : [`${n(k.holds.length, `${k.color.toLowerCase()} hold`, `${k.color.toLowerCase()} holds`)} found`, `There’s no beta for a ${k.color.toLowerCase()} route yet. A beta comes from someone’s video of the route; so far only ${withBeta} at ARC have one.`];
+  const chips = scanFound.length ? `<div class="scan-chips">${scanFound.map(q => `<button type="button" data-act="scancolor" data-k="${q.k}" aria-pressed="${k?.color === q.k}"><i style="background:${HOLD_COLORS[q.k] || '#999'}"></i>${q.k}<small>${q.holds.length}</small></button>`).join('')}</div>` : '';
   return { bare: true, dark: true, html: '', after: scanAfter, overlay: `
     <svg id="scsvg" class="scan-photo" viewBox="0 0 540 960" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Your photo of the wall. Tap a hold"><image href="${scanURL}" width="540" height="960"/>${marks}</svg>
     ${top}
-    <div class="scan-res" role="status"><strong>${say[0]}</strong><span>${say[1]}</span>
+    <div class="scan-res" role="status"><strong>${say[0]}</strong><span>${say[1]}</span>${chips}
       <div class="scan-acts"><button class="b-ghost" type="button" data-act="scanretake">Retake</button>${r ? `<button class="b-lime" type="button" data-act="scango">See the beta</button>` : ''}</div></div>` };
 }
 function viewScan() {
@@ -2591,7 +2598,8 @@ const moreActions = {
   rescan: () => { scanShot = false; render(); },
   scansnap: () => { const v = $('scv'); if (!v || !v.videoWidth) return; scanTake(v, v.videoWidth, v.videoHeight); },
   scanphotos: () => scanPhotos(),
-  scanretake: () => { scanURL = ''; scanCv = null; scanPick = null; render(); },
+  scancolor: b => scanColor(b.dataset.k),
+  scanretake: () => { scanURL = ''; scanCv = null; scanPick = null; scanFound = []; render(); },
   scantry: () => { scanErr = ''; scanStop(); render(); },
   scango: () => { if (!scanPick || scanPick.ri < 0) return; scanRi = scanPick.ri; scanShot = true; bstep = 0; render(); },
   bgo: b => { const y = document.querySelector('.screen').scrollTop; bstep = +b.dataset.s; render(); document.querySelector('.screen').scrollTop = y; },
