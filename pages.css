@@ -3173,3 +3173,9 @@ textarea.note:focus { outline: 2px solid var(--ink); outline-offset: 0; backgrou
 .ce-tg[aria-checked="true"] i::after { transform: translateX(18px); background: var(--lime); }
 .ce-in { margin-top: 12px; }
 @media (prefers-reduced-motion: reduce) { .ce-tg i, .ce-tg i::after { transition: none; } }
+
+/* a gym with no photos yet: its name and address on a quiet card where the photos would be */
+.gy-noimg { display: grid; justify-items: start; gap: 4px; margin: 14px 0 0; padding: 22px 18px; border-radius: var(--r-m); background: #e8ede3; }
+.gy-noimg svg { width: 22px; height: 22px; margin-bottom: 6px; }
+.gy-noimg b { font-size: 20px; font-weight: 900; letter-spacing: -.01em; }
+.gy-noimg span { font-size: 13px; color: #6f6f6c; }

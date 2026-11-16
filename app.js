@@ -19,9 +19,9 @@ const mmss = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2
 
 /* ---------- The world ---------- */
 // the gym, from campusrec.illinois.edu (checked Nov 11, 2026). hours: [open, close] in 24 h for Sun..Sat
-const gym = { name: 'ARC Climbing Wall', addr: '201 E Peabody Dr, Champaign (UIUC)', dist: '0.6 mi from the Quad', img: 'gym-arc-1', pics: ['gym-arc-2', 'gym-arc-3'],
+const gym = { name: 'ARC Climbing Wall', addr: '201 E Peabody Dr, Champaign (UIUC)', img: 'gym-arc-1', pics: ['gym-arc-2', 'gym-arc-3'],
   hours: [[9, 22], [6, 23], [6, 23], [6, 23], [6, 23], [6, 22], [9, 22]], has: ['35.5 ft rope wall', 'Top rope', 'Bouldering Cave with a Kilter Board', 'Hangboards', 'Shoe rental'],
-  src: 'campusrec.illinois.edu', note: 'Closed Nov 21–29 for Fall Break.' };
+  src: 'campusrec.illinois.edu', note: 'Closed Nov 21–29 for Fall Break.', city: 'Champaign-Urbana', ll: [40.10039, -88.236] };
 // the two routes on the rope wall, named by hold colour. Grades are sample
 const ROUTES = [
   { color: 'Green', hex: '#2E9E62', grade: '5.8', wall: 'Rope wall', img: 'wayup-p3-green', ok: true, votes: [6, 11, 4] },
@@ -187,6 +187,7 @@ const LOCK = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke
 const clock = h => `${h % 12 || 12} ${h < 12 || h === 24 ? 'AM' : 'PM'}`;
 // open now? From the gym's hours: "Open till 11 PM" or "Closed · opens 6 AM"
 function gymOpen(g) {
+  if (!g.hours) return { open: false, unknown: true, line: 'Hours on their site' };
   const d = new Date(), h = d.getHours() + d.getMinutes() / 60, today = g.hours[d.getDay()];
   if (today && h >= today[0] && h < today[1]) return { open: true, line: `Open till ${clock(today[1])}` };
   for (let k = 0; k < 7; k++) {
@@ -196,6 +197,7 @@ function gymOpen(g) {
   return { open: false, line: 'Closed' };
 }
 function weekHours(g) {
+  if (!g.hours) return `<div class="gy-l gy-l1"><b>On their site</b></div>`;
   const names = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'], order = [1, 2, 3, 4, 5, 6, 0], out = [];
   order.forEach(d => { const h = g.hours[d], k = h ? h.join('-') : 'x', last = out[out.length - 1];
     if (last && last.k === k) last.to = d; else out.push({ k, from: d, to: d, h }); });
@@ -235,8 +237,8 @@ function viewOb(a) {
     ${bar(obDots(1), '<button class="ob-skip" type="button" data-act="to" data-to="pick/ob">Skip</button>')}
     <h1 class="hl ob-h">Where do you climb most?</h1>
     <p class="sub-w ob-s">We start you there: its routes, and the climbers on them. You can film at any gym.</p>
-    <div class="ob-gyms" role="radiogroup" aria-label="Your gym">${gyms.map((g, i) => `<button class="ob-g" type="button" role="radio" data-act="obpick" data-i="${i}" aria-checked="${homeGy === i}">
-      ${g.img ? `<img src="${pic(g.img)}" alt="">` : `<b class="ob-gi" aria-hidden="true">${g.name[0]}</b>`}<span><strong>${g.name}</strong><em>${g.dist}</em></span><i aria-hidden="true"></i></button>`).join('')}</div>` };
+    <div class="ob-gyms" role="radiogroup" aria-label="Your gym">${byNear(gyms.map((g, i) => [g, i])).map(([g, i]) => `<button class="ob-g" type="button" role="radio" data-act="obpick" data-i="${i}" aria-checked="${homeGy === i}">
+      ${g.img ? `<img src="${pic(g.img)}" alt="">` : `<b class="ob-gi" aria-hidden="true">${g.name[0]}</b>`}<span><strong>${g.name}</strong><em>${g.dist} · ${g.city}</em></span><i aria-hidden="true"></i></button>`).join('')}</div>`, after: locate };
 }
 
 /* ---------- Pick your climbing style: a page of shapes you tap, after the "Pick" pages in the team's references ----------
@@ -1973,18 +1975,66 @@ function viewProfile() {
 }
 
 /* ---------- Back from v8, in the v9 world: gyms and map, logging and the session clock, watch, reel, poster, export, friends ---------- */
-// other gyms near the UIUC Main Quad, from their own websites (checked Nov 11, 2026). mi = straight-line distance from the Quad, deg = which way.
+// gyms near where testers climb: Champaign-Urbana, Chicago and the Bay Area. Places from OpenStreetMap, checked against each gym's site (Nov 16, 2026)
 // Only ARC has routes in Spotter: no one has filmed at the others yet, so their pages are the gym's own info and nothing more
 Object.assign(gym, { mi: 0.6, deg: 229, pass: null });
+// hours run Sunday to Saturday; wk(weekdays, Saturday, Sunday). A gym without photos shows a pin; without hours or a pass, "on their site"
+const wk = (w, sa, su = sa) => [su, w, w, w, w, w, sa];
+const MV = wk([6, 23], [8, 20], [8, 18]), TSP = '$35 · $30 weekdays before 3 pm';
+const NOLEAN = { b: 0, h: 0, n: 0, se: 0 };
 const gyms = [gym,
-  { name: 'Boneyard Boulders', dist: '1.0 mi', mi: 1.0, deg: 310, addr: '119 E University Ave, Champaign', img: 'gym-boneyard-1', pics: ['gym-boneyard-2'],
+  { name: 'Boneyard Boulders', city: 'Champaign-Urbana', ll: [40.11605, -88.2378], addr: '119 E University Ave, Champaign', img: 'gym-boneyard-1', pics: ['gym-boneyard-2'],
     hours: Array(7).fill([12, 22]), pass: '$20 · $18 if 20 or under', has: ['Bouldering', 'Shoe rental $4', 'Free fitness classes', 'Same pass works at Urbana Boulders'], src: 'urbanaboulders.com' },
-  { name: 'Urbana Boulders', dist: '2.0 mi', mi: 2.0, deg: 48, addr: '1502 N Cunningham Ave, Urbana', img: 'gym-urbana-1', pics: ['gym-urbana-2'],
+  { name: 'Urbana Boulders', city: 'Champaign-Urbana', ll: [40.12592, -88.19902], addr: '1502 N Cunningham Ave, Urbana', img: 'gym-urbana-1', pics: ['gym-urbana-2'],
     hours: [[10, 21], [15, 22], [15, 22], [15, 22], [15, 22], [12, 22], [10, 21]], pass: '$20 · $18 if 20 or under', has: ['Bouldering', 'Shoe rental $4', '200+ problems across both gyms', 'Same pass works at Boneyard Boulders'], src: 'urbanaboulders.com' },
-  { name: 'Horizon Climbing', dist: '2.8 mi', mi: 2.8, deg: 278, addr: '1914 Round Barn Rd, Champaign', img: 'gym-horizon-1', pics: ['gym-horizon-2', 'gym-horizon-3', 'gym-horizon-4'],
+  { name: 'Horizon Climbing', city: 'Champaign-Urbana', ll: [40.11179, -88.2795], addr: '1914 Round Barn Rd, Champaign', img: 'gym-horizon-1', pics: ['gym-horizon-2', 'gym-horizon-3', 'gym-horizon-4'],
     hours: [[10, 20], [10, 22], [10, 22], [10, 22], [10, 22], [10, 22], [10, 22]], pass: '$22 · $16 college students', has: ['Bouldering', 'Shoe rental $4', 'New climbs every week', 'Tension Board 2', 'Showers and sauna', 'Study space'], src: 'climbhorizon.com' },
-  { name: 'Upper Limits Bloomington', dist: '49 mi', mi: 49, deg: 302, addr: '1304 W Washington St, Bloomington', img: 'gym-upperlimits-1', pics: ['gym-upperlimits-2', 'gym-upperlimits-3'],
-    hours: [[10, 18], [12, 22], [16, 22], [16, 22], [16, 22], [12, 22], [10, 18]], pass: '$21 · $17 kids 10 and under', has: ['Bouldering', 'Top rope and auto belays', 'Outdoor silo wall', 'Fitness area'], src: 'upperlimits.com' }];
+  { name: 'Upper Limits Bloomington', city: 'Bloomington', ll: [40.47841, -89.01283], addr: '1304 W Washington St, Bloomington', img: 'gym-upperlimits-1', pics: ['gym-upperlimits-2', 'gym-upperlimits-3'],
+    hours: [[10, 18], [12, 22], [16, 22], [16, 22], [16, 22], [12, 22], [10, 18]], pass: '$21 · $17 kids 10 and under', has: ['Bouldering', 'Top rope and auto belays', 'Outdoor silo wall', 'Fitness area'], src: 'upperlimits.com' },
+  { name: 'First Ascent Peoria', city: 'Peoria', ll: [40.68424, -89.59934], addr: '927 SW Washington St, Peoria', hours: [[10, 18], [12, 21], [12, 21], [12, 21], [12, 21], [12, 21], [10, 18]], has: ['Bouldering', 'Top rope', 'Lead', 'Auto belay', 'Yoga', 'Fitness'], src: 'faclimbing.com/peoria' },
+  // Chicago
+  { name: 'First Ascent Avondale', city: 'Chicago', ll: [41.94512, -87.71038], addr: '3516 N Spaulding Ave, Chicago', hours: wk([6, 23], [9, 20]), has: ['Bouldering', 'Top rope', 'Lead'], src: 'faclimbing.com/chicago' },
+  { name: 'First Ascent Uptown', city: 'Chicago', ll: [41.96761, -87.65922], addr: '4718 N Broadway, Chicago', hours: wk([6, 23], [10, 20]), has: ['Bouldering', 'Top rope', 'Lead'], src: 'faclimbing.com/chicago/uptown' },
+  { name: 'First Ascent Humboldt Park', city: 'Chicago', ll: [41.89647, -87.70155], addr: '2950 W Grand Ave, Chicago', hours: wk([6, 23], [10, 20]), has: [], src: 'faclimbing.com/chicago/humboldt-park' },
+  { name: 'First Ascent Block 37', city: 'Chicago', ll: [41.88404, -87.62877], addr: '108 N State St, Chicago', hours: wk([6, 23], [10, 20]), has: ['Bouldering only', '200+ problems'], src: 'faclimbing.com/chicago/block-37' },
+  { name: 'First Ascent West Loop', city: 'Chicago', ll: [41.88013, -87.65237], addr: '100 S Morgan St, Chicago', hours: wk([6, 23], [10, 20]), has: ['Bouldering', 'Top rope', 'Lead'], src: 'faclimbing.com/chicago/west-loop' },
+  { name: 'Movement Lincoln Park', city: 'Chicago', ll: [41.90799, -87.64958], addr: '1460 N Dayton St, Chicago', hours: MV, has: ['Bouldering', 'Top rope', 'Lead', 'Kilter Board', 'Yoga', 'Sauna'], src: 'movementgyms.com/lincoln-park' },
+  { name: 'Movement Wrigleyville', city: 'Chicago', ll: [41.94702, -87.65767], addr: '1115 W Addison St, Chicago', hours: MV, has: ['Bouldering', 'Yoga', 'Fitness'], src: 'movementgyms.com/wrigleyville' },
+  // San Francisco Bay Area
+  { name: 'Mission Cliffs', city: 'Bay Area', ll: [37.76068, -122.41241], addr: '2295 Harrison St, San Francisco', hours: wk([6, 22], [8, 19]), pass: TSP, has: ['Bouldering', 'Top rope', 'Lead'], src: 'touchstoneclimbing.com/mission-cliffs' },
+  { name: 'Dogpatch Boulders', city: 'Bay Area', ll: [37.75663, -122.38777], addr: '2573 3rd St, San Francisco', hours: [[10, 19], [7, 22], [11, 23], [7, 22], [11, 23], [7, 22], [10, 19]], pass: TSP, has: ['Bouldering only'], src: 'touchstoneclimbing.com/dogpatch-boulders' },
+  { name: 'Movement San Francisco', city: 'Bay Area', ll: [37.80436, -122.46837], addr: '924 Mason St, San Francisco', hours: MV, has: ['Bouldering', 'Top rope', 'Lead'], src: 'movementgyms.com/san-francisco' },
+  { name: 'Benchmark Climbing SF', city: 'Bay Area', ll: [37.78889, -122.42177], addr: '1414 Van Ness Ave, San Francisco', hours: wk([11, 22], [10, 19]), has: [], src: 'benchmarkclimbing.com' },
+  { name: 'Berkeley Ironworks', city: 'Bay Area', ll: [37.85083, -122.29252], addr: '800 Potter St, Berkeley', hours: wk([6, 22], [10, 19]), pass: TSP, has: ['Bouldering', 'Top rope', 'Lead'], src: 'touchstoneclimbing.com/ironworks' },
+  { name: 'The Oaks', city: 'Bay Area', ll: [37.89159, -122.27799], addr: '1875 Solano Ave, Berkeley', hours: wk([8, 22], [10, 17]), pass: TSP, has: ['Bouldering only'], src: 'touchstoneclimbing.com/the-oaks' },
+  { name: 'Benchmark Climbing Berkeley', city: 'Bay Area', ll: [37.87809, -122.26872], addr: '1607 Shattuck Ave, Berkeley', hours: wk([7, 22], [10, 19]), has: [], src: 'benchmarkclimbing.com' },
+  { name: 'Mosaic Boulders', city: 'Bay Area', ll: [37.86745, -122.25877], addr: '2369 Telegraph Ave, Berkeley', hours: null, has: ['Bouldering'], src: 'mosaicboulders.com' },
+  { name: 'Great Western Power Co.', city: 'Bay Area', ll: [37.80996, -122.27013], addr: '520 Thomas L. Berkley Way, Oakland', hours: wk([6, 22], [9, 16]), pass: TSP, has: ['Bouldering', 'Top rope', 'Lead'], src: 'touchstoneclimbing.com/gwpower-co' },
+  { name: 'Pacific Pipe', city: 'Bay Area', ll: [37.81598, -122.28875], addr: '2140 Mandela Pkwy, Oakland', hours: [[10, 19], [7, 22], [7, 23], [7, 22], [7, 23], [7, 22], [10, 19]], pass: TSP, has: ['Bouldering', 'Top rope', '55 ft lead wall'], src: 'touchstoneclimbing.com/pacific-pipe' },
+  { name: 'Bridges Rock Gym', city: 'Bay Area', ll: [37.90013, -122.30743], addr: '5635 San Diego St, El Cerrito', hours: wk([8, 22], [8.75, 20]), has: [], src: 'bridgesrockgym.com' },
+  { name: 'Movement Belmont', city: 'Bay Area', ll: [37.52896, -122.28757], addr: '100 El Camino Real, Belmont', hours: MV, has: ['Bouldering', 'Top rope', 'Lead'], src: 'movementgyms.com/belmont' },
+  { name: 'Hyperion', city: 'Bay Area', ll: [37.48408, -122.21465], addr: '801 Willow St, Redwood City', hours: wk([10, 22], [10, 18]), pass: TSP, has: ['Bouldering only', '250+ problems'], src: 'touchstoneclimbing.com/hyperion' },
+  { name: 'Movement Mountain View', city: 'Bay Area', ll: [37.40278, -122.11375], addr: '630 San Antonio Rd, Mountain View', hours: MV, has: [], src: 'movementgyms.com/mountain-view' },
+  { name: 'Movement Sunnyvale', city: 'Bay Area', ll: [37.38442, -122.01056], addr: '815 Stewart Dr, Sunnyvale', hours: MV, has: ['Bouldering', 'Top rope'], src: 'movementgyms.com/sunnyvale' },
+  { name: 'Movement Santa Clara', city: 'Bay Area', ll: [37.36678, -121.94796], addr: '801 Martin Ave, Santa Clara', hours: MV, has: ['Bouldering', 'Top rope', 'Lead'], src: 'movementgyms.com/santa-clara' },
+  { name: 'The Studio', city: 'Bay Area', ll: [37.33031, -121.8858], addr: '396 S 1st St, San Jose', hours: wk([10, 22], [10, 17]), has: [], src: 'touchstoneclimbing.com/the-studio' },
+  { name: 'The Peak of Fremont', city: 'Bay Area', ll: [37.5105, -121.95096], addr: 'Fremont', hours: wk([10, 22], [10, 18]), has: [], src: 'thepeakoffremont.com' }];
+gyms.forEach(g => { g.pics = g.pics || []; g.lean = NOLEAN; });
+// where you are: the UIUC Main Quad until the phone says otherwise. Every distance is measured from here
+const QUAD = [40.1075, -88.2272];
+let HERE = QUAD, hereReal = false;
+const miles = (a, b) => { const r = Math.PI / 180, la = (b[0] - a[0]) * r, lo = (b[1] - a[1]) * r;
+  const h = Math.sin(la / 2) ** 2 + Math.cos(a[0] * r) * Math.cos(b[0] * r) * Math.sin(lo / 2) ** 2; return 7917.6 * Math.asin(Math.sqrt(Math.min(1, h))); };
+function gymDists() { gyms.forEach(g => { g.mi = miles(HERE, g.ll); g.dist = `${g.mi < 10 ? g.mi.toFixed(1) : Math.round(g.mi)} mi`; }); }
+gymDists();
+// asked once, the first time a list of gyms or a map opens; no answer, or no, and it stays the Quad
+let locAsked = false;
+function locate() {
+  if (locAsked || !navigator.geolocation) return; locAsked = true;
+  navigator.geolocation.getCurrentPosition(p => { HERE = [p.coords.latitude, p.coords.longitude]; hereReal = true; gymDists();
+    if (['walls', 'gyms', 'ob'].includes(page)) render(); }, () => {}, { timeout: 12000, maximumAge: 600000 });
+}
+const byNear = list => list.slice().sort((x, y) => x[0].mi - y[0].mi);
 
 
 /* ---------- How hard each gym grades, worked out from climbers who climb at more than one ----------
@@ -2026,7 +2076,7 @@ function gymLeans(sends, places = 6, gymsN = 5) {
     const sd = Math.sqrt(r.reduce((n, v) => n + v * v, 0) / Math.max(1, r.length - 1));
     return { b, h: Math.round(b), n: new Set(xs.map(x => x.c)).size, se: sd / Math.sqrt(Math.max(1, xs.length)) }; });
 }
-gymLeans(sampleSends()).forEach((l, g) => { gyms[g].lean = l; });
+gymLeans(sampleSends()).forEach((l, g) => { gyms[g].lean = l; });   // the first five; the rest have no sends yet
 const ENOUGH = 15;   // fewer climbers who also climb elsewhere than this, and a gym's lean isn't shown as a number
 
 /* ---------- Gyms tab: where you climb, then the others near you. Map, and one page per gym ---------- */
@@ -2050,28 +2100,17 @@ function gymBig(g) {
       <span class="g3-t"><strong>${g.name}</strong><span>${meta}</span></span></button>
     <button class="g3-nav g3-nav-l" type="button" data-act="gymaps" data-i="0" aria-label="Directions to ${g.name}">${NAV}</button></div>`;
 }
-// Addresses, regular hours and facilities from the linked official location pages.
-gyms.push(
-  { name: 'Movement Wrigleyville', city: 'Chicago', addr: '1115 W Addison St, Chicago, IL 60613',
-    dist: 'About 132 mi', mi: 132, deg: 12, img: '', pics: [],
-    hours: [[8,18],[6,23],[6,23],[6,23],[6,23],[6,23],[8,20]],
-    pass: 'See website', has: ['Bouldering', 'Yoga', 'Fitness'], src: 'movementgyms.com/wrigleyville/' },
-  { name: 'First Ascent Peoria', city: 'Peoria', addr: '927 SW Washington St, Peoria, IL 61602',
-    dist: 'About 81 mi', mi: 81, deg: 299, img: '', pics: [],
-    hours: [[10,18],[12,21],[12,21],[12,21],[12,21],[12,21],[10,18]],
-    pass: 'See website', has: ['Bouldering', 'Top rope', 'Lead climbing', 'Auto belay', 'Yoga', 'Fitness'], src: 'faclimbing.com/peoria/location/' }
-);
 // the location bar: where you're looking (tap to change it) and the map, side by side.
 // "Near you" lists every gym by distance from you; a town lists only the gyms in it
 let gArea = 'near';
-const AREAS = ['Champaign', 'Urbana', 'Bloomington', 'Chicago', 'Peoria'];
-const inArea = g => gArea === 'near' || g.addr.includes(gArea);
+const AREAS = ['Champaign-Urbana', 'Chicago', 'Bay Area', 'Bloomington', 'Peoria'];
+const inArea = g => gArea === 'near' || g.city === gArea;
 // Gyms tab, map first, the way map apps work: the map holds still and fills the screen; the gyms sit in a sheet over it that you
 // drag between three heights (peek, half, full) and that scrolls on its own. A pin and a row select the same gym: tap a pin and the
 // sheet rises to that gym; tap a row and the map moves to its pin. A selected row opens to "Open gym" and "Directions".
 var tmap = null, gtSnap = 'peek', gtSel = null;
 function viewGymsTab() {
-  const list = gyms.map((g, i) => [g, i]).filter(([g]) => inArea(g));
+  const list = byNear(gyms.map((g, i) => [g, i]).filter(([g]) => inArea(g)));
   const open = list.filter(([g]) => gymOpen(g).open).length;
   const row = ([g, i]) => { const o = gymOpen(g), a = atGym(i);
     return `<div class="gt-r${gtSel === i ? ' sel' : ''}" id="gtr${i}"><button class="gt-m" type="button" data-act="gtsel" data-i="${i}" aria-expanded="${gtSel === i}">${g.img ? `<img src="${pic(g.img)}" alt="">` : `<span class="gt-placeholder" aria-hidden="true">${ic.pin}</span>`}
@@ -2079,12 +2118,12 @@ function viewGymsTab() {
       <div class="gt-x" ${gtSel === i ? "" : "inert"}><button class="gt-b1" type="button" data-act="to" data-to="gym/${i}">Open gym</button><button class="gt-b2" type="button" data-act="gymaps" data-i="${i}">${NAV}Directions</button></div></div>`; };
   return { map: true, html: '', overlay: `<div class="gt-map" id="gtmap">${window.L ? '' : '<p class="gm-off">The map needs an internet connection. The list works without one.</p>'}</div>
     <div class="gt-head"><div class="gt-ht"><h1 class="hl tab">Gyms${MASC}</h1><button class="av sm" type="button" data-act="to" data-to="profile" aria-label="Your profile">${avatar('You')}</button></div>
-      <label class="gt-search">${ic.search}<input id="gtsearch" type="search" placeholder="Search gyms" aria-label="Search gyms" autocomplete="off"></label><div class="gt-top"><button class="gloc-a" type="button" data-act="garea">${ic.pin}<b>${gArea === 'near' ? 'All cities' : gArea}</b><svg class="gloc-v" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></button>
+      <label class="gt-search">${ic.search}<input id="gtsearch" type="search" placeholder="Search gyms" aria-label="Search gyms" autocomplete="off"></label><div class="gt-top"><button class="gloc-a" type="button" data-act="garea">${ic.pin}<b>${gArea === 'near' ? 'Near you' : gArea}</b><svg class="gloc-v" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></button>
         <span class="gt-n">${open ? `${open} open now` : 'all closed now'}</span></div></div>
     <section class="gt-sheet" id="gtsheet" aria-label="Gyms list"><div class="gt-sh" id="gtsh"><button class="gt-grab" type="button" aria-label="Expand or collapse gyms list" aria-controls="gtlw"></button>
-      <div class="gt-h"><h2>${gArea === 'near' ? 'All cities' : gArea}</h2><span>${n(list.length, 'gym', 'gyms')}</span></div></div>
+      <div class="gt-h"><h2>${gArea === 'near' ? (hereReal ? 'Near you' : 'Nearest the UIUC Quad') : gArea}</h2><span>${n(list.length, 'gym', 'gyms')}</span></div></div>
       <div class="gt-lw" id="gtlw"><p class="cap gt-empty" id="gtempty" hidden>No gyms found.</p>${list.length ? `<div class="gt-l">${list.map(row).join('')}</div>` : `<p class="cap">No gyms in ${gArea} yet.</p>`}
-      <p class="cap">Gyms no one has filmed at show only what the gym publishes.</p></div></section>`, after: () => gtWire(list) };
+      <p class="cap">Gyms no one has filmed at show only what the gym publishes.</p></div></section>`, after: () => { gtWire(list); locate(); } };
 }
 const gtSnaps = () => { const H = $('camx').clientHeight; return { full: 112, half: Math.round(H * .5), peek: H - 274 }; };
 const gtTop = () => parseFloat($('gtsheet')?.style.top) || gtSnaps()[gtSnap];
@@ -2166,7 +2205,8 @@ function gtWire(list) {
   };
   creditControl.addTo(tmap);
   L.marker(HERE, { icon: L.divIcon({ className: 'tp-you', html: '<i></i>', iconSize: [16, 16] }), interactive: false, keyboard: false }).addTo(tmap);
-  const close = list.filter(([g]) => g.mi <= 5), fit = gArea === 'near' && close.length ? close : list;
+  // near you: the gyms within 5 mi, or else the three closest, wherever they are
+  const close = list.filter(([g]) => g.mi <= 5), fit = gArea === 'near' ? (close.length ? close : byNear(list).slice(0, 3)) : list;
   const pts = [...(gArea === 'near' ? [HERE] : []), ...fit.map(([g]) => gymLL(g))];
   tmap.fitBounds(L.latLngBounds(pts), { paddingTopLeft: [40, 170], paddingBottomRight: [40, $('camx').clientHeight - gtSnaps()[gtSnap] + 30], maxZoom: 14 });
   list.forEach(([g, i]) => {
@@ -2188,8 +2228,8 @@ function gtWire(list) {
 }
 // the map: Leaflet with OpenStreetMap tiles. You are on the UIUC Main Quad; each gym sits at its distance and bearing from there
 let gymR = 10, gymPin = null, gmap = null;
-const HERE = [40.1075, -88.2272], radii = [1, 5, 10, 50];
-const gymLL = g => { const a = g.deg * Math.PI / 180; return [HERE[0] + g.mi * Math.cos(a) / 69, HERE[1] + g.mi * Math.sin(a) / (69 * Math.cos(HERE[0] * Math.PI / 180))]; };
+const radii = [1, 5, 10, 50];
+const gymLL = g => g.ll;
 const gymPinCard = (count = $('gmcard')?.dataset.count) => gymPin !== null ? `<div class="gy-list gm-card">${gymCard(gyms[gymPin], gymPin)}</div>`
   : `<p class="gm-hint"><span>${count}</span><span>Tap a gym on the map to see it.</span></p>`;
 const gymPad = () => { const el = $('gmap'), c = $('gmcard'); if (el && c) el.style.setProperty('--gmb', `${c.offsetHeight + 34 + 8}px`); };
@@ -2217,32 +2257,32 @@ function drawGymMap(near) {
   gmap.fitBounds(L.latLng(HERE).toBounds(gymR * 1609.34 * 2), { paddingTopLeft: [16, top], paddingBottomRight: [16, bot] });
 }
 function viewGyms() {
-  const near = gyms.map((g, i) => [g, i]).filter(([g]) => g.mi <= gymR), count = near.length ? `${n(near.length, 'gym', 'gyms')} within ${gymR} mi` : `none within ${gymR} mi`;
+  locate(); const near = byNear(gyms.map((g, i) => [g, i]).filter(([g]) => g.mi <= gymR)), count = near.length ? `${n(near.length, 'gym', 'gyms')} within ${gymR} mi` : `none within ${gymR} mi`;
   const top = `<div class="gm-row"><button class="bk" type="button" data-act="back" aria-label="Back">${ic.back}</button><div class="fchips">${radii.map(r => `<button type="button" data-act="gyr" data-v="${r}" aria-pressed="${r === gymR}">${r} mi</button>`).join('')}</div></div>`;
   return { bare: true, map: true, html: '', overlay: `<div class="gmap" id="gmap">${window.L ? '' : '<p class="gm-off">The map needs an internet connection. The list works without one.</p>'}</div>
     <div class="gm-top" id="gmtop">${top}</div><div class="gm-bot" id="gmcard" data-count="${count}">${gymPinCard(count)}</div>`, after: () => drawGymMap(near) };
 }
 // one gym that isn't ARC: only what the gym itself publishes
 function viewOtherGym(i) {
-  const g = gyms[i], op = gymOpen(g), today = g.hours[new Date().getDay()], pics = [g.img, ...g.pics].filter(Boolean);
+  const g = gyms[i], op = gymOpen(g), today = g.hours?.[new Date().getDay()], pics = [g.img, ...g.pics].filter(Boolean), price = g.pass ? g.pass.split(' · ')[0] : '';
   return { html: `
     ${bar(g.name)}
-    <div class="gy-car" id="gycar">${pics.map(p => `<img src="${pic(p)}" alt="">`).join('')}</div>
+    ${pics.length ? `<div class="gy-car" id="gycar">${pics.map(p => `<img src="${pic(p)}" alt="">`).join('')}</div>` : `<div class="gy-noimg">${ic.pin}<b>${g.name}</b><span>${g.addr}</span></div>`}
     ${pics.length > 1 ? `<div class="gy-dots" id="gydots">${pics.map((_, k) => `<i${k ? '' : ' class="on"'}></i>`).join('')}</div>` : ''}
-    <div class="gy-2"><div class="gy-t"><span class="${op.open ? 'on' : 'off'}">${op.open ? 'Open now' : 'Closed now'}</span><b class="num">${today ? `${clock(today[0])} – ${clock(today[1])}` : 'Closed today'}</b></div>
-      <div class="gy-t"><span>Day pass</span><b>${g.pass.split(' · ')[0]}</b></div></div>
+    <div class="gy-2"><div class="gy-t"><span class="${op.open ? 'on' : 'off'}">${op.unknown ? 'Hours' : op.open ? 'Open now' : 'Closed now'}</span><b class="num">${op.unknown ? 'On their site' : today ? `${clock(today[0])} – ${clock(today[1])}` : 'Closed today'}</b></div>
+      <div class="gy-t"><span>Day pass</span><b>${price || 'On their site'}</b></div></div>
     <div class="gy-ab gy-wh">
       <div class="gy-ad">${ic.pin}<span><b>${g.addr}</b><button class="gy-lk" type="button" data-act="gymaps" data-i="${i}">Directions · ${g.dist} ↗</button></span>
         <button class="gy-cp" type="button" data-act="gycopy" data-i="${i}" aria-label="Copy the address">Copy</button></div>
       <a class="gy-ad gy-web" href="https://${g.src}" target="_blank" rel="noopener"><span><b>${g.src}</b><span>Waiver, passes and classes</span></span><span aria-hidden="true">↗</span></a></div>
     <div class="gy-ab">
       <div class="gy-sh">Hours</div>${weekHours(g)}
-      <div class="gy-sh">Day pass</div><div class="gy-l gy-l1"><b>${g.pass}</b></div>
-      <div class="gy-sh">Here</div><div class="gy-has">${g.has.map(h => `<span>${h}</span>`).join('')}</div>
-      <p class="cap">From ${g.src}, Nov 2026.</p></div>
+      ${g.pass ? `<div class="gy-sh">Day pass</div><div class="gy-l gy-l1"><b>${g.pass}</b></div>` : ''}
+      ${g.has.length ? `<div class="gy-sh">Here</div><div class="gy-has">${g.has.map(h => `<span>${h}</span>`).join('')}</div>` : ''}
+      <p class="cap">${g.img ? `From ${g.src}, Nov 2026.` : `From ${g.src} and OpenStreetMap, Nov 2026. Check with the gym before you go.`}</p></div>
     ${gymGrading(g)}
     <div class="rows"><div class="row"><span class="row-t"><strong>No videos from here yet</strong><span>Spotter’s routes and side by sides are at ${gym.name} for now.</span></span></div></div>
-    <a class="b-lime gy-cta" href="https://${g.src}" target="_blank" rel="noopener">Buy a day pass · ${g.pass.split(' · ')[0]} <span aria-hidden="true">↗</span></a>
+    <a class="b-lime gy-cta" href="https://${g.src}" target="_blank" rel="noopener">${price ? `Buy a day pass · ${price}` : 'Buy a day pass'} <span aria-hidden="true">↗</span></a>
     <p class="gy-cta-n">On ${g.src.replace(/\/.*$/, '')}, the gym’s own site</p>`, after: carWire };
 }
 function carWire() {
@@ -2623,7 +2663,7 @@ function glLocate() {
 function openGymPick(context = 'gl') {
   const sel = context === 'cam' ? camGym : clipOf(context) ? clipPick(clipOf(context)).gy : glGym;
   const entries = glNearby();
-  const help = glLocation === 'loading' ? 'Finding your location…' : glPosition ? 'Distances use approximate map locations. Please confirm your gym.' : 'Location unavailable. Search or choose a gym below.';
+  const help = glLocation === 'loading' ? 'Finding your location…' : glPosition ? 'Nearest first. Please confirm your gym.' : 'Location unavailable. Search or choose a gym below.';
   pane(`<div class="gl-picker"><h2>Choose a gym</h2><p>${help}</p><label class="gl-picker-search">${ic.search || ''}<input id="gl-gym-search" type="search" placeholder="Search gyms or cities" aria-label="Search gyms or cities"></label><button class="gl-locate" type="button" data-act="gllocate">${ic.pin} ${glLocation === 'loading' ? 'Locating…' : 'Use my location'}</button><h3>${glPosition ? 'Nearby gyms' : 'Available gyms'}</h3><div class="rows gl-picker-rows">${entries.map(({g,i,dist}) => `<button class="row" type="button" data-act="glgy" data-context="${context}" data-i="${i}" data-search="${(g.name+' '+g.addr).toLowerCase()}" aria-pressed="${i === sel}">${g.img ? `<img class="ss-th gl-gth" src="${pic(g.img)}" alt="">` : ''}<span class="row-t"><strong>${g.name}</strong><span>${g.addr}${dist === null ? '' : ` · ~${dist < 1 ? dist.toFixed(1) : Math.round(dist)} mi`}</span></span>${i === sel ? ic.check : ''}</button>`).join('')}</div><p id="gl-gym-empty" hidden>No matching gyms.</p></div>`);
   const input = $('gl-gym-search'); input.addEventListener('input', () => { const q = input.value.trim().toLowerCase(); let found = 0; document.querySelectorAll('.gl-picker-rows .row').forEach(row => { const match = row.dataset.search.includes(q); row.hidden = !match; if (match) found++; }); $('gl-gym-empty').hidden = found > 0; });
 }
@@ -3161,7 +3201,7 @@ const actions = {
       <div class="rows">${ROUTES.map((r, i) => `<button class="row" type="button" data-act="cset" data-c="${c.id}" data-i="${i}"><span class="row-t"><strong>${sw(r)}${rname(r)}</strong><span>${n(mineOn(i).filter(x => x !== c).length, 'other try', 'other tries')} of yours</span></span>${i === c.ri ? ic.check : ''}</button>`).join('')}</div>`); },
   garea: () => pane(`<h2>Choose a city</h2><label class="gt-city-search">${ic.search}<input id="citysearch" type="search" placeholder="Search cities" aria-label="Search cities" autocomplete="off"></label>
       <div class="rows"><button class="row" type="button" data-act="gaset" data-a="near">${ic.pin}<span class="row-t"><strong>Near you</strong><span>From where you are now · every gym by distance</span></span>${gArea === 'near' ? ic.check : ''}</button>
-      ${AREAS.map(a => `<button class="row" type="button" data-act="gaset" data-a="${a}"><span class="row-t"><strong>${a}</strong><span>${n(gyms.filter(g => g.addr.includes(a)).length, 'gym', 'gyms')}</span></span>${gArea === a ? ic.check : ''}</button>`).join('')}</div>`),
+      ${AREAS.map(a => `<button class="row" type="button" data-act="gaset" data-a="${a}"><span class="row-t"><strong>${a}</strong><span>${n(gyms.filter(g => g.city === a).length, 'gym', 'gyms')}</span></span>${gArea === a ? ic.check : ''}</button>`).join('')}</div>`),
   gaset: b => { gArea = b.dataset.a; gtSel = null; closeAll(); render(); },
   pk: b => { const k = b.dataset.k;
     if (k === 'all') { const on = !picks.has('all'); picks.clear(); if (on) picks.add('all'); }
