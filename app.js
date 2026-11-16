@@ -727,7 +727,7 @@ function tlWire() {
   ['pointerup', 'pointercancel'].forEach(n => o.addEventListener(n, () => { tlDrag = false; }));
 }
 // analysis: with the sheet down the video shows the whole picture. Pulling the sheet up zooms in on the climber, in step
-/* ---------- The video as the analysis: layers on it, a pen, a strip of frames ---------- */
+/* ---------- The video as the analysis: layers on it, a strip of frames ---------- */
 // Which layers are drawn on an analysed video. Kept on the phone, so the ones you like stay on
 const LAYERS = [
   ['pose', 'Body', '<circle cx="12" cy="4.5" r="2"/><path d="M12 7v7M7 9.5h10M12 14l-4 6M12 14l4 6"/>'],
@@ -740,41 +740,17 @@ const LAYERS = [
 let LAY = { pose: true, cog: true };
 try { const k = JSON.parse(localStorage.getItem('spotter-layers')); if (k && typeof k === 'object') LAY = k; } catch {}
 window.poseLayers = LAY;
-const PEN = {}; let penOn = false;   // your drawings, per video, while the app is open
 const lyrIcon = d => `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
 const lyrBar = (ok = {}) => `<div class="lyr" role="toolbar" aria-label="What to show on the video">
     ${LAYERS.map(([k, l, d]) => { const off = OFFWHY[k] && ok[OFFWHY[k]] === false;
       return `<button type="button" data-act="lyr" data-k="${k}"${off ? ' class="off" aria-disabled="true"' : ''} aria-pressed="${!off && !!LAY[k]}">${lyrIcon(d)}<span>${l}</span></button>`; }).join('')}
-    <button type="button" data-act="pen" aria-pressed="${penOn}">${lyrIcon('<path d="M4 20l4-1 11-11-3-3L5 16z"/><path d="M14 7l3 3"/>')}<span>Pen</span></button>
-    <button type="button" data-act="penx" class="lyr-x"${penOn ? '' : ' hidden'}>${lyrIcon('<path d="M6 6l12 12M18 6 6 18"/>')}<span>Clear</span></button>
     <button type="button" data-act="spd" class="lyr-sp num" aria-label="Playback speed">${speed}×</button></div>`;
-const lyrOver = () => `<canvas id="lvd" class="lvd${penOn ? ' on' : ''}"></canvas>
-    <span class="lvst" id="lvst" hidden></span><span class="lvtag" id="lvtag" hidden></span>`;
+const lyrOver = () => `<span class="lvst" id="lvst" hidden></span><span class="lvtag" id="lvtag" hidden></span>`;
 // under the video, as wide as it: where you are, something to drag along, and how long the video is. While the video fills
 // the screen that's a strip of its frames; pulled up, with the video small, a slim bar with a node at every move
 const lyrStrip = (D, w) => `<div class="lvbar" id="lvbar" style="width:${w}"><span class="num" id="lvsa">0:00</span>
     <div class="lvstrip" id="lvstrip" role="slider" aria-label="Position in the video" tabindex="0"><div class="lvs-f" id="lvsf"></div><i class="lvs-t"><i class="lvs-p" id="lvsp"></i></i><span class="lvs-ns" id="lvsn"></span><i class="lvs-h" id="lvsh"></i></div><span class="num">${mmss(D)}</span></div>`;
 function lyrSave() { window.poseLayers = LAY; try { localStorage.setItem('spotter-layers', JSON.stringify(LAY)); } catch {} }
-
-// the pen: draw on the video to plan a move. Drawing pauses it. Lines sit on the picture, so they zoom with it
-function penWire(c, T) {
-  const cv = $('lvd'), v = $('lvv'); if (!cv || !T) return;
-  const ctx = cv.getContext('2d'), lines = PEN[c.id] || (PEN[c.id] = []);
-  const view = () => { const bw = cv.clientWidth, bh = cv.clientHeight, dpr = Math.min(3, devicePixelRatio || 1), V = window.poseView || { z: 1, ax: 0, ay: 0 }, k = bw / T.W;
-    return { bw, bh, dpr, k, z: V.z, ox: V.ax * bw, oy: V.ay * bh }; };
-  const paint = () => { const g = view(); if (cv.width !== Math.round(g.bw * g.dpr)) { cv.width = Math.round(g.bw * g.dpr); cv.height = Math.round(g.bh * g.dpr); }
-    ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, cv.width, cv.height);
-    ctx.setTransform(g.dpr * g.z * g.k, 0, 0, g.dpr * g.z * g.k, g.dpr * g.ox, g.dpr * g.oy);
-    ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.strokeStyle = '#C2FF01'; ctx.lineWidth = 4 / (g.z * g.k);
-    lines.forEach(l => { ctx.beginPath(); l.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)); if (l.length === 1) ctx.lineTo(l[0].x + .1, l[0].y); ctx.stroke(); }); };
-  const at = e => { const r = cv.getBoundingClientRect(), g = view(), s = r.width / g.bw;   // the phone frame may be scaled on screen
-    return { x: ((e.clientX - r.left) / s - g.ox) / (g.z * g.k), y: ((e.clientY - r.top) / s - g.oy) / (g.z * g.k) }; };
-  let cur = null;
-  cv.addEventListener('pointerdown', e => { if (!penOn) return; e.preventDefault(); v.pause(); cv.setPointerCapture(e.pointerId); cur = [at(e)]; lines.push(cur); paint(); });
-  cv.addEventListener('pointermove', e => { if (!cur) return; cur.push(at(e)); paint(); });
-  ['pointerup', 'pointercancel'].forEach(n => cv.addEventListener(n, () => { cur = null; }));
-  cv.repaint = paint; paint();
-}
 
 // under the video: drag along it to find a moment. Frames from the video while it's big, nodes at each move once it's small
 function stripWire(v, T) {
@@ -831,7 +807,7 @@ function followWire(box) {
     const tf = `translate(${(50 - z * cx * 100).toFixed(2)}%, ${(50 - z * cy * 100).toFixed(2)}%) scale(${z.toFixed(3)})`;
     layers.forEach(el => { el.style.transform = tf; });
     const view = { z: +z.toFixed(3), ax: +((50 - z * cx * 100) / 100).toFixed(4), ay: +((50 - z * cy * 100) / 100).toFixed(4) };
-    if (JSON.stringify(view) !== JSON.stringify(window.poseView)) { window.poseView = view; $('lvd')?.repaint?.(); }
+    if (JSON.stringify(view) !== JSON.stringify(window.poseView)) { window.poseView = view; }
     requestAnimationFrame(step);
   };
   box.classList.add('zoom'); requestAnimationFrame(step);
@@ -879,7 +855,12 @@ function stickWire(box, full) {
     const lyr = w.querySelector(':scope > .lyr'), up = k >= .5, lw = lyr ? lyr.offsetWidth : 0, shift = up && lyr ? (lw + 8) / 2 : 0;
     box.style.left = `${-shift}px`;
     if (lyr) { const right = (w.clientWidth + vw) / 2 - shift;
-      lyr.style.left = `${up ? right + 8 : right - lw - 6}px`; lyr.style.top = `${top + h / 2}px`; lyr.style.maxHeight = `${up ? h : h - 16}px`; }
+      // full size, its right edge lines up with the ⋯ button above it (and never past the video's edge); measured from the
+      // right, so the panel's own width, which changes with the labels, can't push it off the screen
+      const mb = document.querySelector('.bar-more'), wr = w.getBoundingClientRect(), s = wr.width / (w.offsetWidth || 1);
+      const ins = mb ? (wr.right - mb.getBoundingClientRect().right) / s : 16;
+      if (up) { lyr.style.right = 'auto'; lyr.style.left = `${right + 8}px`; }
+      else { lyr.style.left = 'auto'; lyr.style.right = `${Math.max(w.clientWidth - right + 6, ins)}px`; } lyr.style.top = `${top + h / 2}px`; lyr.style.maxHeight = `${up ? h : h - 16}px`; }
     if (strip) strip.style.width = `${Math.min(w.clientWidth, Math.max(up ? vw + 8 + lw : vw, 260))}px`;
     w.classList.toggle('stuck', y > 4); tabs.classList.toggle('stuck', k >= 1);
     // the header's background fades in as the sheet comes up, in step with the video, instead of switching on
@@ -1306,7 +1287,7 @@ function viewClip(id) {
         if (over > 0) box.style.width = `${Math.round(Math.max(180, box.offsetHeight - over - 6) * lv.ar)}px`; }
       segClose(); anSheet = null; segStop = null; segT = T; v.addEventListener('play', () => $('cpv')?.pause());
       v.playbackRate = speed;
-      if (two) { window.poseGate = quality(T).ok; window.posePlay(v, $('lvc'), T); tlWire(); kfWire(T, v.currentSrc || v.src); stuckWire(T, c, v.currentSrc || v.src); penWire(c, T); stripWire(v, T); stickWire(box, vh); followWire(box); }
+      if (two) { window.poseGate = quality(T).ok; window.posePlay(v, $('lvc'), T); tlWire(); kfWire(T, v.currentSrc || v.src); stuckWire(T, c, v.currentSrc || v.src); stripWire(v, T); stickWire(box, vh); followWire(box); }
       if (state === 'ask' && c.auto) v.currentTime = c.auto.t;
       v.addEventListener('play', () => box.classList.add('playing'));
       ['pause', 'ended'].forEach(e => v.addEventListener(e, () => box.classList.remove('playing')));
@@ -2836,8 +2817,6 @@ const actions = {
   segspeed: () => { const v = $('cpv'); if (!v || !seg) return; seg.rate = seg.rate === .5 ? 1 : .5; v.playbackRate = seg.rate; $('cps').textContent = `${seg.rate}×`; },
   segclose: segClose,
   lyr: b => { const k = b.dataset.k; if (b.classList.contains('off')) { toast(offWhy(k)); return; } LAY[k] = !LAY[k]; lyrSave(); b.setAttribute('aria-pressed', String(!!LAY[k])); },
-  pen: b => { penOn = !penOn; b.setAttribute('aria-pressed', String(penOn)); $('lvd')?.classList.toggle('on', penOn); const x = document.querySelector('.lyr-x'); if (x) x.hidden = !penOn; if (penOn) $('lvv')?.pause(); },
-  penx: () => { const m = location.hash.match(/clip\/(\d+)/), l = m && PEN[m[1]]; if (l) l.length = 0; $('lvd')?.repaint?.(); },
   lvplay: () => { const v = $('lvv'); if (v) v.paused ? v.play().catch(() => {}) : v.pause(); },
   anok: b => { const c = byId(b.dataset.i); confirmed(c, c.auto); },
   tagstart: b => { $('lvv')?.pause(); tagS = { id: +b.dataset.i, i: 0, pts: {} }; drawTag(byId(b.dataset.i)); document.querySelector('.screen').scrollTo(0, 0); },

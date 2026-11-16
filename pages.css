@@ -2584,7 +2584,7 @@ textarea.note:focus { outline: 2px solid var(--ink); outline-offset: 0; backgrou
 .stk-k .sk-m { border-radius: 50%; background: transparent; box-shadow: inset 0 0 0 2px var(--g400); }
 
 /* The analysed video: layers to switch on (right), what you're doing (top left), a strip of frames to drag along (bottom),
-   and a pen. On the picture the colours are the drawing's own, lime and orange, whatever the theme */
+   and the speed. On the picture the colours are the drawing's own, lime and orange, whatever the theme */
 .lyr { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); z-index: 4; display: flex; flex-direction: column; gap: 1px; max-height: calc(100% - 16px);
   padding: 4px; border-radius: 14px; background: rgba(17,17,17,.6); overflow-y: auto; scrollbar-width: none; }
 .lyr::-webkit-scrollbar { display: none; }
@@ -2592,8 +2592,6 @@ textarea.note:focus { outline: 2px solid var(--ink); outline-offset: 0; backgrou
 .lyr button[aria-pressed="true"] { color: #C2FF01; background: rgba(255,255,255,.08); }
 .lyr button[hidden] { display: none; }
 .lyr .lyr-sp { padding: 8px 0; color: #fff; font-size: 12px; font-weight: 700; }
-.lv .lvd { z-index: 2; pointer-events: none; touch-action: none; }
-.lv .lvd.on { pointer-events: auto; cursor: crosshair; }
 .lvst, .lvtag { position: absolute; left: 8px; z-index: 4; display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; line-height: 16px; pointer-events: none; }
 .lvst { top: 8px; background: rgba(17,17,17,.7); color: #fff; }
 .lvst::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: rgba(255,255,255,.5); }
