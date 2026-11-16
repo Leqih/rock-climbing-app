@@ -137,7 +137,9 @@ function avatar(w) {
 const MASC = '<svg class="masc" viewBox="0 0 56 52" aria-hidden="true"><path d="M9 22 18 12l17-2 13 9 3 15-9 12-18 2-13-8z" fill="#B7D8F5" stroke="#111" stroke-width="2.6" stroke-linejoin="round"/><path d="M12 19c2-9 12-14 23-12 6 1 9 5 9 9-9-3-21-2-32 3z" fill="#C4F52A" stroke="#111" stroke-width="2.6" stroke-linejoin="round"/><path d="M41 15c4 0 8 1 11 4" fill="none" stroke="#111" stroke-width="2.6" stroke-linecap="round"/><rect x="20" y="24" width="4" height="7" rx="1" fill="#111"/><rect x="32" y="23" width="4" height="7" rx="1" fill="#111"/><path d="M19 35c4 5 13 5 18-1" fill="none" stroke="#111" stroke-width="2.6" stroke-linecap="round"/></svg>';
 const SPK = '<svg class="spk" viewBox="0 0 20 20" aria-hidden="true"><path d="M8 0h4v6h2v2h6v4h-6v2h-2v6H8v-6H6v-2H0V8h6V6h2z" fill="currentColor"/></svg>';
 const tabHead = t => `<div class="tabh"><h1 class="hl tab">${t}${MASC}</h1>${t === 'Profile' ? '' : `<button class="av sm" type="button" data-act="to" data-to="profile" aria-label="Your profile">${avatar('You')}</button>`}</div>`;
-const bar = (title = '') => `<div class="bar"><button class="bk" type="button" data-act="back" aria-label="Back">${ic.back}</button><span>${title}</span></div>`;
+const bar = (title = '', right = '') => `<div class="bar"><button class="bk" type="button" data-act="back" aria-label="Back">${ic.back}</button><span>${title}</span>${right}</div>`;
+const DOTS = '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>';
+const LOCK = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>';
 const clock = h => `${h % 12 || 12} ${h < 12 || h === 24 ? 'AM' : 'PM'}`;
 // open now? From the gym's hours: "Open till 11 PM" or "Closed · opens 6 AM"
 function gymOpen(g) {
@@ -359,7 +361,9 @@ const heroes = {
       <div class="hs-go"><button class="b-lime" type="button" data-act="film">${ic.rec}Film a try</button><button class="b-ghost" type="button" data-act="upload">Import videos</button></div>`,
   back: () => '' };
 // your album: the box with everything (photos fanned out), two pinned moments, then one binder per gym
-let albumFilter = 'all';
+let albumFilter = 'all', alSel = null;
+const alCta = () => { const k = alSel ? alSel.size : 0, d = k ? '' : ' disabled';
+  return alSel ? `<button class="b-ghost" type="button" data-act="alvis" data-v="me"${d}>Only you</button><button class="b-ghost" type="button" data-act="alvis" data-v="pub"${d}>Public</button><button class="b-lime" type="button" data-act="aldel"${d}>Delete${k ? ` ${k}` : ''}</button>` : ''; };
 function album() {
   const hn = vlogged(), tops = vtops(), newest = newestClips(), nogym = clips.filter(c => c.gy == null).length, here = newest.filter(c => c.gy === 0);
   if (!clips.length && !hn) return '';
@@ -369,7 +373,7 @@ function album() {
   // which gyms a day's records are from: one gym goes in the day's header, several go on each video tile
   const dayGyms = d => [...new Set([...(showVideos ? newest.filter(c => agoOf(c) === d && c.gy != null).map(c => c.gy) : []),
     ...(showManual ? glogs.filter(x => x.ago === d).map(x => x.gy) : []), ...(showManual && logs.some(l => l.ago === d && (l.tries || l.sent)) ? [0] : [])])];
-  const tile = (c, many) => `<button class="al-t" type="button" data-act="to" data-to="clip/${c.id}" aria-label="${rname(ROUTES[c.ri])}, try ${tryOf(c)}${topOf(c) ? ', topped' : ''}">
+  const tile = (c, many) => `<button class="al-t" type="button" ${alSel ? `data-act="alpick" data-i="${c.id}" aria-pressed="${alSel.has(c.id)}"` : `data-act="to" data-to="clip/${c.id}"`} aria-label="${rname(ROUTES[c.ri])}, try ${tryOf(c)}${topOf(c) ? ', topped' : ''}${c.hidden ? ', only you' : ''}">${alSel ? '<span class="al-ck" aria-hidden="true"></span>' : c.hidden ? `<span class="al-lock" title="Only you">${LOCK}</span>` : ''}
       <img src="${pic(c.img)}" alt="" loading="lazy"><span class="al-kind">Video · Try ${tryOf(c)}</span>${c.gy == null ? '<span class="al-ng">No gym</span>' : ''}${pgTag(c) || (topOf(c) ? `<span class="al-ok" aria-hidden="true">${ic.check}</span>` : '')}
       <span class="al-r">${c.need ? '<b>New climb</b>' : `${sw(ROUTES[c.ri])}<b>${ROUTES[c.ri].grade}</b>`}${many && c.gy != null ? `<small class="al-gy">${gyms[c.gy].name}</small>` : ''}</span></button>`;
   // a climb logged by hand has no video and no photo, so it gets one drawn hold: big, in the route's colour, cropped by the
@@ -392,7 +396,7 @@ function album() {
   const routeTile = l => { const r = ROUTES[l.ri];
     return handCard({ act: `data-act="to" data-to="route/${l.ri}"`, seed: `r${l.ri}${l.ago}${l.tries}`, hex: r.hex, grade: r.grade, name: `${r.color} · ${r.wall}`, where: gym.name,
       tries: l.tries || 1, res: l.sent ? (l.style || 'Topped') : 'Not yet', sent: l.sent, label: `${rname(r)}, logged by hand` }); };
-  const box = `<div class="al">${days.map(d => { const dg = dayGyms(d), many = dg.length > 1; return `<div class="al-d"><h3><button type="button" class="day-open" data-act="to" data-to="day/${d}"><em class="al-dl">${dayLabel(d)}${dg.length ? `<small class="al-dg">${many ? n(dg.length, 'gym', 'gyms') : gyms[dg[0]].name}</small>` : ''}</em> <span>View day →</span></button></h3><div class="al-g">${showManual ? glogs.map((x,i) => [x,i]).filter(([x]) => x.ago === d).reverse().map(([x,i]) => handTile(x,i)).join('') : ''}${showManual ? logs.filter(l => l.ago === d && (l.tries || l.sent)).map(routeTile).join('') : ''}${showVideos ? newest.filter(c => agoOf(c) === d).map(c => tile(c, many)).join('') : ''}</div></div>`; }).join('')}</div>`;
+  const box = `<div class="al${alSel ? ' sel' : ''}">${days.map(d => { const dg = dayGyms(d), many = dg.length > 1; return `<div class="al-d"><h3><button type="button" class="day-open" data-act="to" data-to="day/${d}"><em class="al-dl">${dayLabel(d)}${dg.length ? `<small class="al-dg">${many ? n(dg.length, 'gym', 'gyms') : gyms[dg[0]].name}</small>` : ''}</em> <span>View day →</span></button></h3><div class="al-g">${showManual ? glogs.map((x,i) => [x,i]).filter(([x]) => x.ago === d).reverse().map(([x,i]) => handTile(x,i)).join('') : ''}${showManual ? logs.filter(l => l.ago === d && (l.tries || l.sent)).map(routeTile).join('') : ''}${showVideos ? newest.filter(c => agoOf(c) === d).map(c => tile(c, many)).join('') : ''}</div></div>`; }).join('')}</div>`;
   const filteredCount = (showVideos ? clips.length : 0) + (showManual ? hn : 0);
   const visibleBox = days.length ? box : `<div class="album-empty"><strong>No ${albumFilter === 'videos' ? 'video' : 'manual'} records yet</strong><span>Try another filter to see your climbs.</span><button type="button" data-act="albumfilterset" data-value="all">Show all records</button></div>`;
   const sent = clips.filter(topOf), best = [...sent].sort((p, q) => GR.indexOf(ROUTES[q.ri].grade) - GR.indexOf(ROUTES[p.ri].grade) || agoOf(p) - agoOf(q))[0];
@@ -406,11 +410,13 @@ function album() {
         <span class="bnd-s">${[0, 1, 2, 3].map(k => here[k] ? `<img src="${pic(here[k].img)}" alt="">` : '<i></i>').join('')}</span>
         <span class="vc-b"><span class="vc-r">${gym.name}</span><b>${n(here.length, 'video', 'videos')}</b>
         <span class="vc-d">${tops ? `<span class="stg on">${tops} of ${ROUTES.length} routes topped</span>` : `${ROUTES.length} routes`}</span></span></button></div>`;
-  return `<div class="sec al-h"><h2>${albumFilter === 'videos' ? 'Videos' : albumFilter === 'manual' ? 'By hand' : 'All records'} <span class="num">${filteredCount}</span></h2><button class="al-filter${albumFilter !== 'all' ? ' active' : ''}" type="button" data-act="albumfilter" aria-label="Filter records"><svg aria-hidden="true" viewBox="0 0 20 20"><path d="M3 5h14M6 10h8M8 15h4"/></svg>${albumFilter === 'all' ? 'Filter' : 'Filtered'}</button></div>${visibleBox}${binder}`;
+  const selB = showVideos && clips.length ? `<button class="al-filter${alSel ? ' active' : ''}" type="button" data-act="alsel">${alSel ? 'Done' : 'Select'}</button>` : '';
+  if (alSel) return `<div class="sec al-h"><h2 id="alcount">${alSel.size ? `${alSel.size} selected` : 'Select videos'}</h2>${selB}</div>${visibleBox}`;
+  return `<div class="sec al-h"><h2>${albumFilter === 'videos' ? 'Videos' : albumFilter === 'manual' ? 'By hand' : 'All records'} <span class="num">${filteredCount}</span></h2><span class="al-hb">${selB}<button class="al-filter${albumFilter !== 'all' ? ' active' : ''}" type="button" data-act="albumfilter" aria-label="Filter records"><svg aria-hidden="true" viewBox="0 0 20 20"><path d="M3 5h14M6 10h8M8 15h4"/></svg>${albumFilter === 'all' ? 'Filter' : 'Filtered'}</button></span></div>${visibleBox}${binder}`;
 }
 function viewVideos() {
   const sc = sceneOf();
-  return { photo: clips.length ? clips[clips.length - 1].img : 'wayup-p3-green', html: `
+  return { photo: clips.length ? clips[clips.length - 1].img : 'wayup-p3-green', cta: alCta(), html: `
     ${tabHead('Your climbs')}
     ${sc === 'live' || sc === 'done' ? '' : heroes[sc]()}
     <div class="fold"></div>
@@ -1307,7 +1313,7 @@ function viewClip(id) {
       if (two && !seg) { const go = () => v.play().catch(() => {}); if (v.readyState >= 2) go(); else v.addEventListener('canplay', go, { once: true }); }
       if (two) v.addEventListener('ended', () => { if (segStop) return; v.currentTime = 0; v.play().catch(() => {}); });
     }, html: `
-    ${bar(c.need ? 'New climb' : `${rname(r)} · try ${tryOf(c)}`)}
+    ${bar(c.need ? 'New climb' : `${rname(r)} · try ${tryOf(c)}`, `<button class="bar-more" type="button" data-act="cmore" data-i="${c.id}" aria-label="Video options">${DOTS}</button>`)}
     <div class="lv-w${two ? ' two' : ''}"><div class="clip vp lv${state === 'run' ? ' busy' : ''}" style="aspect-ratio:${lv.ar.toFixed(4)};width:min(100%, ${Math.round(vh * lv.ar)}px)">
       <video id="lvv" src="${vsrc(lv.vid)}" poster="${pic(lv.img, 0)}" muted playsinline preload="auto"></video><canvas id="lvc"></canvas>${two ? lyrOver() : ''}
       <button class="play-b" type="button" data-act="lvplay" aria-label="Play the video">${ic.play}</button>
@@ -1538,8 +1544,10 @@ function chooseComparison(i) {
 function feedOptions(i) {
   const post = feedAll()[i], video = V[post.v], route = post.c ? post.c.ri : video.ri;
   const url = new URL(`${vsrc(video.vid)}`, location.href).href;
+  const own = post.c && clips.includes(post.c) ? `<button class="row" type="button" data-act="fpull" data-i="${post.c.id}"><span class="row-t"><strong>Remove from Community</strong><span>Only you will see it. The video and its analysis stay</span></span>${ic.eyeOff}</button>
+    <button class="row del" type="button" data-act="vdel" data-i="${post.c.id}"><span class="row-t"><strong>Delete video</strong><span>Its analysis and comments go too</span></span></button>` : '';
   pane(`<h2>Video options</h2><span class="sub">${esc(post.who)} · ${esc(rname(ROUTES[route]))}</span>
-    <div class="feed-options"><button class="row" type="button" data-act="fshare" data-i="${i}"><span class="row-t"><strong>Share video</strong><span>Share with another app</span></span>${ic.arr('#111111')}</button>
+    <div class="feed-options">${own}<button class="row" type="button" data-act="fshare" data-i="${i}"><span class="row-t"><strong>Share video</strong><span>Share with another app</span></span>${ic.arr('#111111')}</button>
     <button class="row" type="button" data-act="fcopy" data-i="${i}"><span class="row-t"><strong>Copy video link</strong><span>Copy a direct link to this video</span></span>${ic.arr('#111111')}</button>
     <button class="row" type="button" data-act="freport" data-i="${i}"><span class="row-t"><strong>Report a problem</strong><span>Describe an issue with this video</span></span>${ic.arr('#111111')}</button></div>
     <input class="feed-share-url" value="${esc(url)}" aria-label="Video link" readonly><p class="feed-credit">${esc(video.credit)}</p>`);
@@ -2824,7 +2832,28 @@ const actions = {
   vdel: b => { const c = byId(b.dataset.i);
     pane(`<h2>Delete this video?</h2><span class="sub">${rname(ROUTES[c.ri])} · try ${tryOf(c)}. Its analysis and comments go too. The video stays in your camera roll.</span>
       <div class="two"><button class="b-ghost" type="button" data-act="close">Keep</button><button class="b-lime" type="button" data-act="vdelyes" data-i="${c.id}">Delete</button></div>`); },
-  vdelyes: b => { const c = byId(b.dataset.i); clips.splice(clips.indexOf(c), 1); V[c.v].added = false; closeAll(); go('videos'); toast('Video deleted'); },
+  vdelyes: b => { const c = byId(b.dataset.i); clips.splice(clips.indexOf(c), 1); V[c.v].added = false; closeAll(); if (page === 'clip') go('videos'); else render(); toast('Video deleted'); },
+  cmore: b => { const c = byId(b.dataset.i), r = ROUTES[c.ri];
+    pane(`<h2>Video options</h2><span class="sub">${c.need ? 'New climb' : rname(r)} · try ${tryOf(c)} · ${dayLabel(agoOf(c))}</span>
+      <div class="vis-seg" role="radiogroup" aria-label="Who can see it">
+        <button type="button" role="radio" data-act="cvis" data-i="${c.id}" data-v="pub" aria-checked="${!c.hidden}">${ic.eye}<span><strong>Public</strong><small>In Community, for climbers here</small></span></button>
+        <button type="button" role="radio" data-act="cvis" data-i="${c.id}" data-v="me" aria-checked="${!!c.hidden}">${LOCK}<span><strong>Only you</strong><small>Out of Community, analysis kept</small></span></button></div>
+      <div class="rows feed-options">
+        <button class="row" type="button" data-act="croute" data-i="${c.id}"><span class="row-t"><strong>Change route</strong><span>${c.need ? 'Not set yet' : rname(r)}</span></span>${ic.arr('#111111')}</button>
+        <button class="row" type="button" data-act="cgym" data-i="${c.id}"><span class="row-t"><strong>${c.gy == null ? 'Add gym' : 'Change gym'}</strong><span>${c.gy == null ? 'Location was off' : gyms[c.gy].name}</span></span>${ic.arr('#111111')}</button>
+        <button class="row" type="button" data-act="share" data-i="${c.id}"><span class="row-t"><strong>Share</strong><span>As a poster, with the route and gym on it</span></span>${ic.arr('#111111')}</button>
+        <button class="row del" type="button" data-act="vdel" data-i="${c.id}"><span class="row-t"><strong>Delete video</strong><span>It stays in your camera roll</span></span></button></div>`); },
+  cvis: b => { const c = byId(b.dataset.i), me = b.dataset.v === 'me'; closeAll(); if (!!c.hidden === me) return; c.hidden = me; render(); toast(me ? 'Only you · removed from Community' : 'Public · in Community'); },
+  fpull: b => { const c = byId(b.dataset.i); c.hidden = true; closeAll(); render(); toast('Removed from Community · still in your videos'); },
+  alsel: () => { alSel = alSel ? null : new Set(); render(); },
+  alpick: b => { const id = b.dataset.i; alSel.has(id) ? alSel.delete(id) : alSel.add(id); b.setAttribute('aria-pressed', alSel.has(id));
+    $('cta').innerHTML = alCta(); const h = $('alcount'); if (h) h.textContent = alSel.size ? `${alSel.size} selected` : 'Select videos'; },
+  alvis: b => { const me = b.dataset.v === 'me', k = alSel.size; alSel.forEach(id => { const c = byId(id); if (c) c.hidden = me; }); alSel = null; render();
+    toast(`${n(k, 'video', 'videos')} · ${me ? 'only you' : 'public'}`); },
+  aldel: () => { const k = alSel.size; if (!k) return;
+    pane(`<h2>Delete ${n(k, 'video', 'videos')}?</h2><span class="sub">Their analysis and comments go too. The videos stay in your camera roll.</span>
+      <div class="two"><button class="b-ghost" type="button" data-act="close">Keep</button><button class="b-lime" type="button" data-act="aldelyes">Delete ${k}</button></div>`); },
+  aldelyes: () => { const k = alSel.size; alSel.forEach(id => { const c = byId(id); if (!c) return; clips.splice(clips.indexOf(c), 1); V[c.v].added = false; }); alSel = null; closeAll(); render(); toast(`${n(k, 'video', 'videos')} deleted`); },
   // side by side
   pvplay: () => pvPlay(),
   pvslow: b => { const on = b.getAttribute('aria-pressed') !== 'true'; b.setAttribute('aria-pressed', on); ['pv0', 'pv1'].forEach(id => { const v = $(id); if (v) v.playbackRate = on ? .5 : 1; }); },
@@ -2918,7 +2947,7 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape' && scrim.clas
     const eat = x => { x.stopPropagation(); x.preventDefault(); }; el.addEventListener('click', eat, true); setTimeout(() => el.removeEventListener('click', eat, true), 60); };
   el.addEventListener('pointerup', end); el.addEventListener('pointercancel', end);
 });
-window.addEventListener('hashchange', () => { readHash(); if (page !== 'cam') { camDrop(); camStop(); camStep = 'frame'; } if (page !== 'scan') scanStop(); closeAll(); render(); document.querySelector('.screen').scrollTop = 0; });
+window.addEventListener('hashchange', () => { readHash(); if (page !== 'cam') { camDrop(); camStop(); camStep = 'frame'; } if (page !== 'scan') scanStop(); if (page !== 'videos') alSel = null; closeAll(); render(); document.querySelector('.screen').scrollTop = 0; });
 // frost the status bar once content scrolls under it
 const scr = document.querySelector('.screen');
 scr.addEventListener('scroll', () => document.querySelector('.phone').classList.toggle('scrolled', scr.scrollTop > 8), { passive: true });
