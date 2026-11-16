@@ -3034,3 +3034,9 @@ textarea.note:focus { outline: 2px solid var(--ink); outline-offset: 0; backgrou
 .al.alg { margin-top: 14px; }
 .al.alg .al-rt { padding: 12px; border-radius: 22px; background: #dededc; }
 .al.alg .al-rt + .al-rt { margin-top: 12px; }
+
+/* a climb logged by hand in a stack: the same card as its tile, small: grey, the grade big, its hold in the corner */
+.al-pile i.al-ph { container-type: inline-size; background: #E7E7E5; }
+.al-ph .alh-pill { position: absolute; top: 8px; left: 8px; }
+.al-ph strong { position: absolute; left: 9px; bottom: 8px; font-size: 30cqw; font-weight: 900; letter-spacing: -.06em; line-height: .82; color: var(--ink); }
+.al-ph .alh-art { position: absolute; right: -18cqw; top: 10cqw; width: 78cqw; margin: 0; transform: rotate(-8deg); }

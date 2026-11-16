@@ -443,8 +443,8 @@ function album(only) {
   // a day, then the gyms you climbed at that day, then the routes at each: everything on one route sits together, newest try first
   const dayItems = d => {
     const it = [];
-    if (showManual) glogs.forEach((x, i) => { if (x.ago === d) it.push({ gy: x.gy, key: `g:${x.color}|${x.g}`, hex: HOLD_COLORS[x.color] || '#8A8F98', name: `${x.color || ''} ${x.g}`.trim(), sent: x.k !== 'Project', html: handTile(x, i), col: HOLD_COLORS[x.color] || '#8A8F98' }); });
-    if (showManual) logs.forEach(l => { if (l.ago === d && (l.tries || l.sent)) it.push({ gy: 0, key: `r:${l.ri}`, ri: l.ri, sent: l.sent, html: routeTile(l), col: ROUTES[l.ri].hex }); });
+    if (showManual) glogs.forEach((x, i) => { if (x.ago === d) it.push({ gy: x.gy, key: `g:${x.color}|${x.g}`, hex: HOLD_COLORS[x.color] || '#8A8F98', name: `${x.color || ''} ${x.g}`.trim(), sent: x.k !== 'Project', html: handTile(x, i), col: HOLD_COLORS[x.color] || '#8A8F98', g: x.g, seed: `g${i}${x.g}${x.ago}` }); });
+    if (showManual) logs.forEach(l => { if (l.ago === d && (l.tries || l.sent)) it.push({ gy: 0, key: `r:${l.ri}`, ri: l.ri, sent: l.sent, html: routeTile(l), col: ROUTES[l.ri].hex, g: ROUTES[l.ri].grade, seed: `r${l.ri}${l.ago}${l.tries}` }); });
     if (showVideos) newest.filter(c => agoOf(c) === d).sort((p, q) => tryOf(q) - tryOf(p)).forEach(c => it.push({ gy: c.gy ?? -1, key: c.need ? `n:${c.id}` : `r:${c.ri}`, ri: c.need ? null : c.ri, sent: topOf(c), html: tile(c), img: c.img }));
     const groups = [];
     it.forEach(x => { let g = groups.find(q => q.gy === x.gy); if (!g) groups.push(g = { gy: x.gy, routes: [] });
@@ -460,7 +460,7 @@ function album(only) {
     return { name: gname(only.gy), n: g ? g.routes.reduce((k, r) => k + r.items.length, 0) : 0, html: g ? routesOf(g) : '' }; }
   // a day shows one stack per gym: its photos piled up, the gym, how many records and routes. Tap it to see inside
   const stack = (d, g) => { const all = g.routes.flatMap(r => r.items), k = all.length, top = g.routes.filter(r => r.items.some(x => x.sent)).length;
-    const pile = all.slice(0, 3).reverse().map((x, q, a) => `<i class="al-p${a.length - 1 - q}"${x.img ? '' : ` style="background:${x.col}"`}>${x.img ? `<img src="${pic(x.img)}" alt="" loading="lazy">` : ''}</i>`).join('');
+    const pile = all.slice(0, 3).reverse().map((x, q, a) => `<i class="al-p${a.length - 1 - q}${x.img ? '' : ' al-ph'}"${x.img ? '' : ` style="--hold:${x.col}"`}>${x.img ? `<img src="${pic(x.img)}" alt="" loading="lazy">` : `<span class="alh-pill">By hand</span><strong>${x.g}</strong>${holdArt(x.seed)}`}</i>`).join('');
     return `<button class="al-st${g.gy < 0 ? ' ng' : ''}" type="button" data-act="to" data-to="algym/${d}_${g.gy}" aria-label="${gname(g.gy)}, ${n(k, 'record', 'records')}">
       <span class="al-pile">${pile}<b class="al-cnt">${k}</b></span>
       <span class="al-sb"><b>${gname(g.gy)}</b><small>${n(g.routes.length, 'route', 'routes')}${top ? ` · ${top} topped` : ''}</small>
