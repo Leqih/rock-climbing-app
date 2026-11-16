@@ -2565,3 +2565,86 @@ textarea.note:focus { outline: 2px solid var(--ink); outline-offset: 0; backgrou
 .up-h { margin: 20px 0 0; font-size: 13px; font-weight: 700; color: var(--g700); }
 .up-h + .roll { margin-top: 8px; }
 
+
+/* Where you got stuck: the frame with centre of mass, what holds you and the hardest-working arm; then two short reads */
+.stk-p { position: relative; display: block; width: 100%; margin: 12px 0 10px; padding: 0; border: 0; aspect-ratio: 340 / 414; border-radius: var(--r-s); overflow: hidden; background: var(--g300); cursor: pointer; }
+.stk-p img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.stk-p img:not([src]) { visibility: hidden; }
+.stk-t { position: absolute; left: 8px; bottom: 8px; padding: 3px 8px; border-radius: 999px; background: rgba(17,17,17,.8); color: #fff; font-size: 12px; font-weight: 600; }
+.stk-rs { display: grid; gap: 8px; margin: 10px 0 2px; }
+.stk-r { display: flex; gap: 10px; align-items: flex-start; }
+.stk-r i { flex: none; width: 10px; height: 10px; margin-top: 5px; border-radius: 50%; background: var(--g400); }
+.stk-r.sk-ok i { background: #C2FF01; box-shadow: 0 0 0 1.5px var(--ink); }
+.stk-r.sk-bad i { background: #FF6A1F; }
+.stk-r span { display: grid; gap: 1px; }
+.stk-r b { font-size: 15px; font-weight: 700; }
+.stk-r em { font-style: normal; font-size: 13px; color: var(--mid); }
+.stk-k .sk-c { border-radius: 50%; background: linear-gradient(90deg, #C2FF01 50%, #FF6A1F 50%); box-shadow: 0 0 0 1.5px var(--ink); }
+.stk-k .sk-s { border-radius: 50%; background: var(--white); box-shadow: 0 0 0 1.5px var(--ink); }
+.stk-k .sk-m { border-radius: 50%; background: transparent; box-shadow: inset 0 0 0 2px var(--g400); }
+
+/* The analysed video: layers to switch on (right), what you're doing (top left), a strip of frames to drag along (bottom),
+   and a pen. On the picture the colours are the drawing's own, lime and orange, whatever the theme */
+.lyr { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); z-index: 4; display: flex; flex-direction: column; gap: 1px; max-height: calc(100% - 64px);
+  padding: 4px; border-radius: 14px; background: rgba(17,17,17,.6); overflow-y: auto; scrollbar-width: none; }
+.lyr::-webkit-scrollbar { display: none; }
+.lyr button { flex: none; display: grid; justify-items: center; gap: 1px; width: 44px; padding: 5px 0 4px; border: 0; border-radius: 10px; background: none; color: rgba(255,255,255,.7); font-size: 10px; font-weight: 600; line-height: 1.1; cursor: pointer; }
+.lyr button[aria-pressed="true"] { color: #C2FF01; background: rgba(255,255,255,.08); }
+.lyr button[hidden] { display: none; }
+.lyr .lyr-sp { padding: 8px 0; color: #fff; font-size: 12px; font-weight: 700; }
+.lv .lvd { z-index: 2; pointer-events: none; touch-action: none; }
+.lv .lvd.on { pointer-events: auto; cursor: crosshair; }
+.lvst, .lvtag { position: absolute; left: 8px; z-index: 4; display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; line-height: 16px; pointer-events: none; }
+.lvst { top: 8px; background: rgba(17,17,17,.7); color: #fff; }
+.lvst::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: rgba(255,255,255,.5); }
+.lvst[data-s="Moving"]::before { background: #C2FF01; }
+.lvst[data-s="Resting"]::before { background: #fff; }
+.lvtag { top: 36px; background: #C2FF01; color: #111; }
+.lvst[hidden], .lvtag[hidden] { display: none; }
+.lvstrip { position: absolute; left: 8px; right: 62px; bottom: 8px; z-index: 4; height: 40px; border-radius: 8px; overflow: hidden; background: rgba(17,17,17,.55); touch-action: none; cursor: ew-resize; }
+.lvs-f { display: flex; height: 100%; }
+.lv .lvs-f canvas { position: static; flex: 1; width: 0; height: 100%; object-fit: cover; opacity: .9; }
+.lvs-h { position: absolute; top: 0; bottom: 0; width: 3px; margin-left: -1.5px; border-radius: 2px; background: #fff; box-shadow: 0 0 0 1px rgba(17,17,17,.5); pointer-events: none; }
+
+/* analysis, sheet down: the video is the screen. It fills the phone edge to edge from the very top, black around it, the
+   status bar and title in white on a soft shade; the analysis is a sheet whose top shows at the bottom, to pull up */
+.screen.snap { padding-top: 0; }
+.screen.snap .lv-w.two { padding: 0 0 8px; }
+.screen.snap .lv-w.two::before { opacity: 1; background: color-mix(in srgb, var(--hd) calc(var(--sk, 0) * 100%), #000); }
+.screen.snap .lv-w.two .clip { border-radius: calc(var(--sk, 0) * 14px); }
+.screen.snap .m > .bar { position: absolute; z-index: 5; top: 54px; left: 16px; right: 16px; }
+.screen.snap .lv-w.two .clip::after { content: ""; position: absolute; inset: 0 0 auto; z-index: 3; height: 130px; background: linear-gradient(rgba(0,0,0,.45), rgba(0,0,0,0)); opacity: calc(1 - var(--sk, 0)); pointer-events: none; }
+.phone.onvid .status { color: #fff; }
+.phone.onvid .status svg { fill: #fff; }
+.phone.onvid .screen.snap .m > .bar span { color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,.4); }
+.screen.snap .lv-w.two { top: calc(var(--sk, 0) * 54px); }
+.screen.snap .lvst { top: calc(8px + (1 - var(--sk, 0)) * 96px); }
+.screen.snap .lvtag { top: calc(36px + (1 - var(--sk, 0)) * 96px); }
+/* pulled up, the video is small: the layer buttons drop their words */
+.phone:not(.onvid) .screen.snap .lyr span { display: none; }
+.phone:not(.onvid) .screen.snap .lyr button { width: 36px; padding: 6px 0; }
+.screen.snap .ctabs { border-radius: 20px 20px 0 0; background: rgb(var(--hd-rgb)); box-shadow: 0 -6px 18px rgba(0,0,0,.18); }
+/* sheet down, the next-try buttons step aside so the video and the top of the sheet are clear */
+.phone .cta { transition: opacity .2s var(--ease), transform .2s var(--ease); }
+.phone.onvid .cta { opacity: 0; transform: translateY(12px); pointer-events: none; }
+/* pulled up, the band behind the video also covers the status bar above it and the seam down to the sheet, so nothing
+   scrolling underneath shows through */
+.screen.snap .lv-w.two::before { top: calc(var(--sk, 0) * -54px); height: calc(var(--bh, 100%) + var(--sk, 0) * 54px + 12px); }
+
+/* ---------- Video clarity: what this video can and can't tell you ---------- */
+.lyr button.off { color: rgba(255,255,255,.28); }
+.lyr button.off svg { opacity: .6; }
+.qc { margin: 4px 16px 14px; padding: 14px 16px; border-radius: 16px; background: var(--g100, #f2f2f2); display: grid; gap: 10px; }
+.qc > span { display: grid; gap: 2px; padding-left: 20px; position: relative; }
+.qc > i { display: none; }
+.qc > span::before { content: ""; position: absolute; left: 0; top: 6px; width: 10px; height: 10px; border-radius: 50%; background: var(--g400); }
+.qc.good > span::before { background: #C2FF01; box-shadow: 0 0 0 1.5px var(--ink); }
+.qc.fair > span::before { background: #FFC21F; }
+.qc.poor > span::before { background: #FF6A1F; }
+.qc b { font-size: 15px; font-weight: 700; }
+.qc em { font-style: normal; font-size: 13px; color: var(--mid); }
+.qc.good { padding: 11px 16px; }
+.qc ul { margin: 0; padding: 0 0 0 20px; list-style: none; display: grid; gap: 8px; }
+.qc li { display: grid; gap: 1px; }
+.qc li b { font-size: 14px; }
+.qc-t { margin: 0; padding: 10px 0 0 20px; border-top: 1px solid rgba(0,0,0,.08); font-size: 13px; color: var(--mid); }

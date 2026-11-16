@@ -597,11 +597,80 @@ function tlWire() {
   ['pointerup', 'pointercancel'].forEach(n => o.addEventListener(n, () => { tlDrag = false; }));
 }
 // analysis: with the sheet down the video shows the whole picture. Pulling the sheet up zooms in on the climber, in step
+/* ---------- The video as the analysis: layers on it, a pen, a strip of frames ---------- */
+// Which layers are drawn on an analysed video. Kept on the phone, so the ones you like stay on
+const LAYERS = [
+  ['pose', 'Body', '<circle cx="12" cy="4.5" r="2"/><path d="M12 7v7M7 9.5h10M12 14l-4 6M12 14l4 6"/>'],
+  ['lock', 'Arm lock', '<path d="M5 5l4 10h10"/><circle cx="9" cy="15" r="2"/>'],
+  ['cog', 'Centre', '<circle cx="12" cy="7" r="3"/><path d="M12 10v10M8.5 16.5 12 20l3.5-3.5"/>'],
+  ['trail', 'Path', '<path d="M4 19c4-1 5-6 8-8s6-2 8-6"/><circle cx="20" cy="5" r="1.6"/>'],
+  ['balance', 'Balance', '<path d="M12 4 20 19H4z" stroke-dasharray="3 2.5"/>'],
+  ['angles', 'Angles', '<path d="M5 19h14M5 19 15 6"/><path d="M10.5 19a5.5 5.5 0 0 0-2-4.3"/>'],
+  ['zoom', 'Zoom in', '<circle cx="10.5" cy="10.5" r="6"/><path d="M15 15l5 5M8 10.5h5M10.5 8v5"/>']];   // the video follows you, close up
+let LAY = { pose: true, cog: true };
+try { const k = JSON.parse(localStorage.getItem('spotter-layers')); if (k && typeof k === 'object') LAY = k; } catch {}
+window.poseLayers = LAY;
+const PEN = {}; let penOn = false;   // your drawings, per video, while the app is open
+const lyrIcon = d => `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
+const lyrBar = (ok = {}) => `<div class="lyr" role="toolbar" aria-label="What to show on the video">
+    ${LAYERS.map(([k, l, d]) => { const off = OFFWHY[k] && ok[OFFWHY[k]] === false;
+      return `<button type="button" data-act="lyr" data-k="${k}"${off ? ' class="off" aria-disabled="true"' : ''} aria-pressed="${!off && !!LAY[k]}">${lyrIcon(d)}<span>${l}</span></button>`; }).join('')}
+    <button type="button" data-act="pen" aria-pressed="${penOn}">${lyrIcon('<path d="M4 20l4-1 11-11-3-3L5 16z"/><path d="M14 7l3 3"/>')}<span>Pen</span></button>
+    <button type="button" data-act="penx" class="lyr-x"${penOn ? '' : ' hidden'}>${lyrIcon('<path d="M6 6l12 12M18 6 6 18"/>')}<span>Clear</span></button>
+    <button type="button" data-act="spd" class="lyr-sp num" aria-label="Playback speed">${speed}×</button></div>`;
+const lyrOver = () => `<canvas id="lvd" class="lvd${penOn ? ' on' : ''}"></canvas>
+    <span class="lvst" id="lvst" hidden></span><span class="lvtag" id="lvtag" hidden></span>
+    <div class="lvstrip" id="lvstrip"><div class="lvs-f" id="lvsf"></div><i class="lvs-h" id="lvsh"></i></div>`;
+function lyrSave() { window.poseLayers = LAY; try { localStorage.setItem('spotter-layers', JSON.stringify(LAY)); } catch {} }
+
+// the pen: draw on the video to plan a move. Drawing pauses it. Lines sit on the picture, so they zoom with it
+function penWire(c, T) {
+  const cv = $('lvd'), v = $('lvv'); if (!cv || !T) return;
+  const ctx = cv.getContext('2d'), lines = PEN[c.id] || (PEN[c.id] = []);
+  const view = () => { const bw = cv.clientWidth, bh = cv.clientHeight, dpr = Math.min(3, devicePixelRatio || 1), V = window.poseView || { z: 1, ax: 0, ay: 0 }, k = bw / T.W;
+    return { bw, bh, dpr, k, z: V.z, ox: V.ax * bw, oy: V.ay * bh }; };
+  const paint = () => { const g = view(); if (cv.width !== Math.round(g.bw * g.dpr)) { cv.width = Math.round(g.bw * g.dpr); cv.height = Math.round(g.bh * g.dpr); }
+    ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, cv.width, cv.height);
+    ctx.setTransform(g.dpr * g.z * g.k, 0, 0, g.dpr * g.z * g.k, g.dpr * g.ox, g.dpr * g.oy);
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.strokeStyle = '#C2FF01'; ctx.lineWidth = 4 / (g.z * g.k);
+    lines.forEach(l => { ctx.beginPath(); l.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)); if (l.length === 1) ctx.lineTo(l[0].x + .1, l[0].y); ctx.stroke(); }); };
+  const at = e => { const r = cv.getBoundingClientRect(), g = view(), s = r.width / g.bw;   // the phone frame may be scaled on screen
+    return { x: ((e.clientX - r.left) / s - g.ox) / (g.z * g.k), y: ((e.clientY - r.top) / s - g.oy) / (g.z * g.k) }; };
+  let cur = null;
+  cv.addEventListener('pointerdown', e => { if (!penOn) return; e.preventDefault(); v.pause(); cv.setPointerCapture(e.pointerId); cur = [at(e)]; lines.push(cur); paint(); });
+  cv.addEventListener('pointermove', e => { if (!cur) return; cur.push(at(e)); paint(); });
+  ['pointerup', 'pointercancel'].forEach(n => cv.addEventListener(n, () => { cur = null; }));
+  cv.repaint = paint; paint();
+}
+
+// a strip of frames along the bottom of the video: drag along it to find a moment
+function stripWire(v, T) {
+  const box = $('lvstrip'), row = $('lvsf'), head = $('lvsh'); if (!box || !T) return;
+  const N = 10, D = T.D || v.duration || 1;
+  row.innerHTML = Array.from({ length: N }, () => '<canvas width="48" height="64"></canvas>').join('');
+  const cvs = [...row.querySelectorAll('canvas')];
+  // frames come from a second, hidden copy of the video, one seek at a time
+  const s = document.createElement('video'); s.muted = true; s.playsInline = true; s.preload = 'auto'; s.src = v.currentSrc || v.src;
+  s.style.cssText = 'position:fixed;left:0;top:0;width:2px;height:2px;opacity:0;pointer-events:none'; document.body.appendChild(s);
+  let i = 0; const next = () => { if (i >= N || !box.isConnected) { s.remove(); return; } s.currentTime = Math.min(D - .05, (i + .5) / N * D); };
+  s.addEventListener('seeked', () => { const cv = cvs[i], g = cv.getContext('2d'), ar = s.videoWidth / s.videoHeight, w = cv.width, h = cv.height;
+    const sw = ar > w / h ? s.videoHeight * w / h : s.videoWidth, sh = ar > w / h ? s.videoHeight : s.videoWidth * h / w;
+    g.drawImage(s, (s.videoWidth - sw) / 2, (s.videoHeight - sh) / 2, sw, sh, 0, 0, w, h); i++; next(); });
+  s.addEventListener('loadeddata', next, { once: true }); s.addEventListener('error', () => s.remove(), { once: true });
+  const seek = e => { const r = box.getBoundingClientRect(); v.currentTime = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)) * (v.duration || D); };
+  let drag = false;
+  box.addEventListener('pointerdown', e => { e.stopPropagation(); drag = true; v.pause(); box.setPointerCapture(e.pointerId); seek(e); });
+  box.addEventListener('pointermove', e => { if (drag) seek(e); });
+  ['pointerup', 'pointercancel'].forEach(n => box.addEventListener(n, () => { drag = false; }));
+  const tick = () => { if (!box.isConnected) return; head.style.left = `${Math.min(100, v.currentTime / (v.duration || D) * 100)}%`; requestAnimationFrame(tick); };
+  requestAnimationFrame(tick);
+}
+
 // with your finger, and the small video then follows them; dragging along the timeline zooms in too. Where we can't
 // see you, it stays on where you were last seen
 let tlDrag = false;
 function followWire(box) {
-  const v = $('lvv'), layers = [v, $('lvc')].filter(Boolean);
+  const v = $('lvv'), layers = [v].filter(Boolean);
   let cx = .5, cy = .5, z = 1, held = null; window.poseNow = null;
   const clampC = (c, z) => Math.min(1 - .5 / z, Math.max(.5 / z, c));
   const step = () => {
@@ -611,11 +680,13 @@ function followWire(box) {
     let zt = 1, xt = .5, yt = .5;
     if (p && v.readyState >= 1) {
       const h = Math.max(.05, p.y1 - p.y0, (p.x1 - p.x0) * box.offsetWidth / box.offsetHeight);
-      const k = tlDrag ? 1 : anSheet?.k ?? 0;
-      zt = 1 + (Math.min(3, Math.max(1, .75 / h)) - 1) * k; xt = (p.x0 + p.x1) / 2; yt = (p.y0 + p.y1) / 2; }
+      const k = tlDrag || LAY.zoom ? 1 : anSheet?.k ?? 0;
+      zt = 1 + (Math.min(2.4, Math.max(1, .75 / h)) - 1) * k; xt = (p.x0 + p.x1) / 2; yt = (p.y0 + p.y1) / 2; }
     z += (zt - z) * .18; cx += (clampC(xt, z) - cx) * .15; cy += (clampC(yt, z) - cy) * .15;
     const tf = `translate(${(50 - z * cx * 100).toFixed(2)}%, ${(50 - z * cy * 100).toFixed(2)}%) scale(${z.toFixed(3)})`;
     layers.forEach(el => { el.style.transform = tf; });
+    const view = { z: +z.toFixed(3), ax: +((50 - z * cx * 100) / 100).toFixed(4), ay: +((50 - z * cy * 100) / 100).toFixed(4) };
+    if (JSON.stringify(view) !== JSON.stringify(window.poseView)) { window.poseView = view; $('lvd')?.repaint?.(); }
     requestAnimationFrame(step);
   };
   box.classList.add('zoom'); requestAnimationFrame(step);
@@ -634,7 +705,7 @@ function stickWire(box, full) {
   // how far the page scrolls before the sheet's top meets the video: there the video has shrunk all the way. Measured in
   // the page's own pixels (the phone frame is scaled on screen). The video starts shrinking once it reaches the top
   const start = w.offsetTop, D = Math.max(start + 1, Math.round(tabs.offsetTop - MIN - 8));
-  tabs.style.top = `${MIN + 8}px`;
+  tabs.style.top = `calc(${MIN + 8}px + var(--sk, 0) * 54px)`;   // pulled up, the video sits under the status bar, not behind it
   const pad = () => {   // enough page under the open tab for the sheet to go all the way up
     const free = m.offsetHeight - (parseFloat(m.style.paddingBottom) || 0) + 54 + 120 - scr.clientHeight;
     const want = `${Math.max(0, Math.ceil(D - free))}px`;
@@ -646,7 +717,7 @@ function stickWire(box, full) {
     box.style.width = `min(100%, ${Math.round(h * ar)}px)`; w.style.setProperty('--bh', `${h + 8}px`);
     w.classList.toggle('stuck', y > 4); tabs.classList.toggle('stuck', k >= 1);
     // the header's background fades in as the sheet comes up, in step with the video, instead of switching on
-    phone?.style.setProperty('--sk', k.toFixed(3)); if (anSheet) anSheet.k = k;
+    phone?.style.setProperty('--sk', k.toFixed(3)); phone?.classList.toggle('onvid', k < .5); if (anSheet) anSheet.k = k;
     if (y !== last) dir = y > last ? 1 : -1; last = y;
     clearTimeout(t); if (!anim) t = setTimeout(settle, 120);
   };
@@ -824,6 +895,99 @@ function moveSeq(T) {
       <div class="mvq-l">${ms.map(m => `${m.gap >= 1 ? `<span class="mvq-p${long.has(m.i) ? ' long' : ''}">${m.gap.toFixed(1)}s</span>` : ''}<button type="button" class="mvq-m ${m.k === 'lw' || m.k === 'rw' ? 'h' : 'f'}" data-act="lvseek" data-t="${Math.max(0, m.t0 - .3).toFixed(2)}" aria-label="Move ${m.i}, ${m.name}, at ${mmss(m.t0)}"><b>${m.i}</b>${LIMB[m.k]}</button>`).join('')}</div>
       <p class="an-k mvq-k"><span><i class="h"></i>Hand</span><span><i class="f"></i>Foot</span><span><i class="long"></i>Long pause</span></p></div></div>`;
 }
+// How clear a video is, and so which conclusions we can stand behind. Better to say nothing than to say something wrong:
+// each analysis is shown only when what it needs was seen well enough, and the video page says what was left out and why.
+//   seen   share of the video where we found a body
+//   size   how big you are: shoulders to hips, as a share of the picture's height (0.05 is a climber filmed from far off)
+//   feet   share of those frames where both ankles are clearly seen
+//   arms   share of the climb where an elbow angle could be read (pose.js drops angles from a hidden or tiny arm)
+//   jumps  how often the body we follow leaps more than its own torso between two samples: likely someone else
+// The numbers were set on The Way Up's 21 videos, all filmed from the far side of the gym: there, arm angles read in 8–34% of
+// the climb, so arm conclusions are off for most of them.
+const QCACHE = new WeakMap();
+function quality(T) {
+  if (QCACHE.has(T)) return QCACHE.get(T);
+  const S = T.S || [], seen = S.filter(s => s.p), med = a => { const b = [...a].sort((x, y) => x - y); return b.length ? b[b.length >> 1] : 0; };
+  const tor = s => { const p = s.p, sx = (p[1][0] + p[2][0]) / 2 * T.W, sy = (p[1][1] + p[2][1]) / 2 * T.H, hx = (p[7][0] + p[8][0]) / 2 * T.W, hy = (p[7][1] + p[8][1]) / 2 * T.H; return { l: Math.hypot(sx - hx, sy - hy), hx, hy }; };
+  let jumps = 0, pairs = 0;
+  for (let i = 1; i < S.length; i++) { if (!S[i].p || !S[i - 1].p) continue; pairs++; const a = tor(S[i - 1]), b = tor(S[i]); if (Math.hypot(a.hx - b.hx, a.hy - b.hy) > Math.max(a.l, b.l)) jumps++; }
+  const m = { seen: seen.length / (S.length || 1), size: med(seen.map(s => tor(s).l / T.H)), feet: seen.filter(s => s.p[11][2] > .5 && s.p[12][2] > .5).length / (seen.length || 1),
+    arms: (T.stats?.armRead ?? 0) / 100, jumps: jumps / (pairs || 1) };
+  const ok = { arms: m.arms >= .3, balance: m.feet >= .7 && m.seen >= .5, angles: m.arms >= .3 && m.size >= .06, tags: m.size >= .05 && m.seen >= .5 };
+  const level = m.seen < .5 || m.size < .04 || m.jumps > .03 ? 'poor' : !ok.arms || !ok.balance || m.size < .06 || m.seen < .7 ? 'fair' : 'good';
+  // what's off, why, and how to film it next time
+  const issues = [];
+  if (m.jumps > .03) issues.push(['Who we followed jumps around', 'Someone else may have been followed. Check Tracking in Info.']);
+  if (m.seen < .5) issues.push([`We saw you in ${Math.round(m.seen * 100)}% of the video`, 'Keep your whole body in the picture, from start to top.']);
+  else if (m.seen < .7) issues.push([`We saw you in ${Math.round(m.seen * 100)}% of the video`, 'Parts of the climb were out of the picture.']);
+  if (m.size < .06) issues.push(['You’re small in the picture', 'Film a little closer, or zoom in once, so you fill more of the screen.']);
+  if (!ok.arms) issues.push(['Your arms were hard to read', 'So arm lock and arm angles are off for this video.']);
+  if (m.feet < .7) issues.push(['Your feet were often hidden', 'So balance and centre of mass are off for this video.']);
+  const q = { ...m, ok, level, issues };
+  QCACHE.set(T, q); return q;
+}
+const OFFWHY = { lock: 'arms', angles: 'angles', balance: 'balance' };
+const offWhy = k => k === 'angles' ? 'Your arms were too small or hidden to read their angles in this video' : k === 'lock' ? 'Your arms were hard to read in this video, so arm lock is off' : 'Your feet were often hidden in this video, so balance is off';
+// at the top of Summary: how clear the video is. One line when it's clear; what's off and how to film it when it isn't
+function qualityCard(q) {
+  if (q.level === 'good') return `<div class="qc good"><i></i><span><b>Clear video</b><em>Every analysis is on.</em></span></div>`;
+  return `<div class="qc ${q.level}"><i></i><span><b>${q.level === 'poor' ? 'Hard to see you in this video' : 'Some analysis is off'}</b>
+      <em>${q.level === 'poor' ? 'We won’t draw conclusions from it. Here is what got in the way:' : 'We only show what we could see clearly.'}</em></span>
+    <ul>${q.issues.map(([a, b]) => `<li><b>${a}</b><em>${b}</em></li>`).join('')}</ul>
+    <p class="qc-t">Best results: phone on the floor 3–4 m from the wall, whole route in the picture, one climber at a time.</p></div>`;
+}
+
+// Where you got stuck: one frame, with why it was hard to move from there. Not topped: the last stop before you came off (or the
+// end itself when you hung there). Topped: the longest stop. Then the frame just before your next move, so it shows the position
+// you were stuck in, with your centre of mass, the hands and feet holding you and the arm working hardest
+const LNAME = { lw: 'left hand', rw: 'right hand', la: 'left foot', ra: 'right foot' };
+function stuckAt(T, topped) {
+  const ms = pauses(T); if (ms.length < 2) return null;
+  const end = Math.max(...ms.map(m => m.t)), pz = ms.filter(m => m.gap >= 1);
+  // the nearest frame to a moment where hips and feet are seen
+  // a clear frame: shoulders, hips and a foot seen, and most of the body
+  const ok = x => x.p && [1, 2, 7, 8].every(i => x.p[i][2] > .5) && (x.p[11][2] > .3 || x.p[12][2] > .3) && x.p.slice(0, 13).filter(q => q[2] > .5).length >= 10;
+  const near = at => { const s = T.S.filter(ok).reduce((a, x) => !a || Math.abs(x.t - at) < Math.abs(a.t - at) ? x : a, null); return s && Math.abs(s.t - at) <= 1.2 ? s : null; };
+  const onAt = s => ['lw', 'rw', 'la', 'ra'].filter(k => !T.moves.some(m => m.k === k && s.t >= m.t0 - .05 && s.t <= m.t + .05));
+  if (!topped && T.D - end >= 1.5) { const s = near(end + Math.min(1, (T.D - end) / 2)); if (s) return { s, kind: 'end', gap: T.D - end, next: null, on: onAt(s), end }; }
+  // not topped: the last stops first; topped: the longest first, leaving out the top itself (clipping in, the last reach)
+  const order = topped ? pz.filter(m => m.t0 < T.D * .92).sort((p, q) => q.gap - p.gap) : [...pz.filter(m => m.t0 >= T.D * .6).reverse(), ...pz.filter(m => m.t0 < T.D * .6).sort((p, q) => q.gap - p.gap)];
+  for (const m of order) { const s = near(m.t0 - Math.min(.4, m.gap / 2)); if (s) return { s, kind: topped ? 'long' : 'late', gap: m.gap, next: m, on: onAt(s), end }; }
+  return null;
+}
+function stuckCard(T, c) {
+  const k = stuckAt(T, topOf(c)), d = k && window.poseDiag?.(T, k.s, k.on.join(','));
+  if (!d) return '';
+  const q = quality(T), armsOk = q.ok.arms || T.stats.restRead >= 50;
+  const head = k.kind === 'end' ? 'Where you came off' : k.kind === 'late' ? 'Where you got stuck' : 'Where you stopped longest';
+  const what = k.kind === 'end' ? `Your last move was at ${mmss(k.end)}. You hung on ${k.gap.toFixed(1)} s more, then came off.`
+    : `You stopped ${k.gap.toFixed(1)} s here before moving your ${LNAME[k.next.k]}.`;
+  const side = d.side < 0 ? 'left' : 'right';
+  let bal = d.base === 'in' ? ['ok', 'Weight over your feet', 'The line from your centre falls between your feet.']
+    : d.base === 'out' ? ['bad', `Weight out to the ${side}`, `Your centre is past your ${side} foot, so your hands hold you on.`]
+    : d.base === 'over1' ? ['ok', 'Weight over one foot', 'Only one foot was on, and your centre was above it.']
+    : d.base === 'beside1' ? ['bad', `Weight beside your only foot`, `Only one foot was on, and your centre was out to the ${side} of it.`]
+    : d.base === 'none' ? ['bad', 'Feet moving', 'Both feet were moving at this moment, so your arms held you.'] : null;
+  if (!q.ok.balance) bal = null;
+  const arm = armsOk && d.bent ? (d.bent.a < 120 ? ['bad', `${d.bent.k === 'lw' ? 'Left' : 'Right'} arm bent · ${d.bent.a}°`, 'Holding on with a bent arm tires you out fast.']
+    : d.bent.a >= 145 ? ['ok', `Arms straight · ${d.bent.a}°`, 'Hanging on straight arms saves strength.'] : ['mid', `Arms half bent · ${d.bent.a}°`, 'Straighter arms would save strength here.']) : null;
+  const tip = !bal && !arm ? 'Watch this moment, then see how someone else got past it.' : bal && d.base === 'none' ? 'Next try: find a foothold before you reach.'
+    : bal?.[0] === 'bad' ? `Next try: before you reach, move your hips over your feet, or put a foot further ${side}.`
+    : arm?.[0] === 'bad' ? 'Next try: drop your hips and straighten that arm, then move.'
+    : 'Your position looked steady here. See how someone else got past it.';
+  const row = ([tone, big, small]) => `<div class="stk-r sk-${tone}"><i></i><span><b>${big}</b><em>${small}</em></span></div>`;
+  return `<div class="stack"><div class="lt stuck"><span class="an-k1">${head}</span>
+      <button class="stk-p" type="button" ${clipNear(k.s.t, T.D, 'none')} aria-label="Watch this moment"><img alt="" id="stkimg"><span class="stk-t num">${mmss(k.s.t)}</span></button>
+      <p class="tip-d">${what}</p>
+      ${bal || arm ? `<div class="stk-rs">${bal ? row(bal) : ''}${arm ? row(arm) : ''}</div>` : ''}
+      <p class="an-nx">${tip}</p>
+      <p class="an-k stk-k"><span><i class="sk-c"></i>Your centre</span><span><i class="sk-s"></i>Holding you</span><span><i class="sk-m"></i>Moving</span></p>
+      <p class="trs-l">Worked out from your body in the video, so it’s an estimate.</p></div></div>`;
+}
+function stuckWire(T, c, src) {
+  const im = $('stkimg'), k = im && stuckAt(T, topOf(c)); if (!k) return;
+  window.poseStill(src, T, k.s, `stuck:${k.on.join(',')}`, 'bad').then(u => { if (u) im.src = u; });
+}
 // where you went: your hips over the whole climb, drawn on the first frame, with the hands faint behind; the stops are
 // circles, bigger for longer
 function climbPath(T, img) {
@@ -922,8 +1086,9 @@ function viewClip(id) {
   const askCard = `<div class="stack"><div class="lt tgc"><span class="lt-h" id="tgt"></span><p class="an-n" id="tgx"></p>
       <div class="tg-s" id="tgs" hidden></div>
       <div class="tg-a"><button class="b-ghost" type="button" id="tgu" data-i="${c.id}"></button><button class="b-lime" type="button" id="tgb" data-i="${c.id}"></button></div></div></div>`;
-  const room = (document.querySelector('.screen')?.clientHeight || 874) - (two ? 300 : state === 'ask' ? 348 : 280);
-  const vh = Math.max(280, Math.min(two ? 520 : 560, room));
+  const scrEl = document.querySelector('.screen'), room = (scrEl?.clientHeight || 874) - (two ? 150 : state === 'ask' ? 348 : 280);
+  // analysed: the video fills the screen, edge to edge, with the top of the analysis sheet showing under it to pull up
+  const vh = two ? Math.round(Math.max(280, Math.min(room, (scrEl?.clientWidth || 402) / lv.ar))) : Math.max(280, Math.min(560, room));
   // what the video shows right now, as it plays: in Body, above the timeline
   const live = two ? `<div class="lv-s${T.stats.armRead >= 30 ? '' : ' n2'}"><div><span>Hand and foot moves</span><b id="tl-moves">—</b></div>${T.stats.armRead >= 30 ? '<div><span>Arms now</span><b id="tl-arms">—</b></div>' : ''}<div><span>Hips now</span><b id="tl-hips">—</b></div></div>${T.stats.armRead >= 30 ? '<p class="lv-k">Arms: 180° is straight. Under 145° counts as bent.</p>' : ''}` : '';
   // Compare: everyone else filmed on this route, each one a tap from side by side
@@ -954,13 +1119,13 @@ function viewClip(id) {
   const nextUp = `<div class="hl2 dk2"><h2>Next</h2></div><div class="rows">
       ${betaRow(c.ri, T)}
       <button class="row" type="button" data-act="ctab" data-v="cmp"><span class="row-t"><strong>Watch it next to someone else</strong><span>${n(peers.length, 'other climber', 'other climbers')} on ${rname(r)}</span></span>${ic.arr('#111111')}</button></div>`;
-  const panels = two ? { why: `${measured(T)}${paceState(T)}${nextUp}`, body: `<div class="hl2 dk2"><h2>As it plays</h2></div>${live}${timeline(T)}${moveSeq(T)}${climbPath(T, lv.img)}${bodyStats(T)}`, cmp, info } : {};
+  const panels = two ? { why: (q => `${qualityCard(q)}${q.level === 'poor' ? '' : `${stuckCard(T, c)}${measured(T)}${paceState(T)}`}${nextUp}`)(quality(T)), body: `<div class="hl2 dk2"><h2>As it plays</h2></div>${live}${timeline(T)}${moveSeq(T)}${climbPath(T, lv.img)}${bodyStats(T)}`, cmp, info } : {};
   return { photo: c.img, fit: state === 'ask', cta: two ? nextTryCta(c.ri) : '', after: () => {
       tagWire(c);
       const v = $('lvv'), box = v.parentElement;
       segClose(); anSheet = null; segStop = null; segT = T; v.addEventListener('play', () => $('cpv')?.pause());
       v.playbackRate = speed;
-      if (two) { window.posePlay(v, $('lvc'), T); tlWire(); kfWire(T, v.currentSrc || v.src); stickWire(box, vh); followWire(box); }
+      if (two) { window.poseGate = quality(T).ok; window.posePlay(v, $('lvc'), T); tlWire(); kfWire(T, v.currentSrc || v.src); stuckWire(T, c, v.currentSrc || v.src); penWire(c, T); stripWire(v, T); stickWire(box, vh); followWire(box); }
       if (state === 'ask' && c.auto) v.currentTime = c.auto.t;
       v.addEventListener('play', () => box.classList.add('playing'));
       ['pause', 'ended'].forEach(e => v.addEventListener(e, () => box.classList.remove('playing')));
@@ -971,7 +1136,7 @@ function viewClip(id) {
     }, html: `
     ${bar(`${rname(r)} · try ${tryOf(c)}`)}
     <div class="lv-w${two ? ' two' : ''}"><div class="clip vp lv${state === 'run' ? ' busy' : ''}" style="aspect-ratio:${lv.ar.toFixed(4)};width:min(100%, ${Math.round(vh * lv.ar)}px)">
-      <video id="lvv" src="${vsrc(lv.vid)}" poster="${pic(lv.img, 0)}" muted playsinline preload="auto"></video><canvas id="lvc"></canvas>
+      <video id="lvv" src="${vsrc(lv.vid)}" poster="${pic(lv.img, 0)}" muted playsinline preload="auto"></video><canvas id="lvc"></canvas>${two ? lyrOver() + lyrBar(T ? quality(T).ok : {}) : ''}
       <button class="play-b" type="button" data-act="lvplay" aria-label="Play the video">${ic.play}</button>
       <div class="tg" id="tg" hidden></div>
       <span class="clip-l"><span class="pk-tag">${sw(r)}${rname(r)} · try ${tryOf(c)}</span>
@@ -2248,7 +2413,7 @@ function render() {
   document.querySelector('.phone').classList.toggle('dark', !!v.dark);
   const scr = document.querySelector('.screen');
   scr.classList.toggle('tok-on', !!v.tok); scr.classList.toggle('fit', !!v.fit);
-  scr.classList.remove('snap'); scr.style.scrollPaddingTop = ''; $('main').style.paddingBottom = '';   // the analysis page turns it on once its video sticks
+  scr.classList.remove('snap'); scr.closest('.phone')?.classList.remove('onvid'); scr.style.scrollPaddingTop = ''; $('main').style.paddingBottom = '';   // the analysis page turns it on once its video sticks
   // the dock belongs to the four tabs; every page opened from a tab has a back button instead
   dock.hidden = !!v.cta || !!v.bare || !tabs.includes(page);
   dock.querySelectorAll('.dk:not(.plus)').forEach(b => b.toggleAttribute('aria-current', b.dataset.dock === tabOf[page]));
@@ -2324,6 +2489,9 @@ const actions = {
   segagain: segAgain,
   segspeed: () => { const v = $('cpv'); if (!v || !seg) return; seg.rate = seg.rate === .5 ? 1 : .5; v.playbackRate = seg.rate; $('cps').textContent = `${seg.rate}×`; },
   segclose: segClose,
+  lyr: b => { const k = b.dataset.k; if (b.classList.contains('off')) { toast(offWhy(k)); return; } LAY[k] = !LAY[k]; lyrSave(); b.setAttribute('aria-pressed', String(!!LAY[k])); },
+  pen: b => { penOn = !penOn; b.setAttribute('aria-pressed', String(penOn)); $('lvd')?.classList.toggle('on', penOn); const x = document.querySelector('.lyr-x'); if (x) x.hidden = !penOn; if (penOn) $('lvv')?.pause(); },
+  penx: () => { const m = location.hash.match(/clip\/(\d+)/), l = m && PEN[m[1]]; if (l) l.length = 0; $('lvd')?.repaint?.(); },
   lvplay: () => { const v = $('lvv'); if (v) v.paused ? v.play().catch(() => {}) : v.pause(); },
   anok: b => { const c = byId(b.dataset.i); confirmed(c, c.auto); },
   tagstart: b => { $('lvv')?.pause(); tagS = { id: +b.dataset.i, i: 0, pts: {} }; drawTag(byId(b.dataset.i)); document.querySelector('.screen').scrollTo(0, 0); },

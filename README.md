@@ -161,14 +161,16 @@ Gyms, people, routes and numbers are placeholders.
 
 ## Live analysis on videos (v6)
 
-Open a video (the Yellow V3 try, Jo's Blue V3 try, and every try you film in a session) and press play. `pose.js` runs MediaPipe Pose Landmarker (the full model, from jsDelivr and Google's model storage) on every frame in the browser, nothing uploaded. It draws the climber's body points on the video and updates the readout live:
+Open a video (the Yellow V3 try, Jo's Blue V3 try, and every try you film in a session) and press play. `pose.js` runs MediaPipe Pose Landmarker (the full model, shipped with the app in `vendor/mediapipe`, Apache-2.0) on every frame in the browser, nothing uploaded. It draws the climber's body points on the video and updates the readout live:
 - the hand or foot moving now;
 - arms straight or bent, with the elbow angle;
 - hips over the feet or out to one side (the dashed plumb line);
 - moves so far (a hand or foot that travels and settles);
 - the share of rests on straight arms, and the longest rest.
 
-The tip under it changes with what it sees. When the video ends, it sums up the try. When more than one person is in frame it follows the climber: the body about the same size and closest to where the hips just were (it waits up to 1 s rather than jump to someone else), or, when it starts or loses them, the body whose feet are highest on the wall. A person standing near the phone is skipped. The model needs a connection the first time.
+The tip under it changes with what it sees. When the video ends, it sums up the try. When more than one person is in frame it follows the climber: the body about the same size and closest to where the hips just were (it waits up to 1 s rather than jump to someone else), or, when it starts or loses them, the body whose feet are highest on the wall. A person standing near the phone is skipped.
+
+**At the gym with no signal.** Open the app once with a connection and `sw.js` keeps it on the phone: the page, its scripts and styles, the pose engine and model (about 28 MB) and the moves network. After that the app opens and analyses your own videos with no connection; tested by stopping the server mid-session and scanning a 53 s video (48 moves, the same as with a connection). Sample videos stream from the site, so they need a connection, and so does the map. `manifest.webmanifest` lets you add it to the home screen, the screen stays on while a scan runs (Wake Lock), and the app asks the browser to keep your saved videos when space runs low. On localhost the worker only runs with `?sw` in the address, so editing never serves old files.
 
 Videos:
 

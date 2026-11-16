@@ -5,12 +5,18 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Spotter Prototype v9</title>
   <meta name="description" content="Spotter: film a climb, see what your body did, compare it with others on the same route">
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#FFFFFF">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Spotter">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Urbanist:wght@300;400;500;600;700;800;900&display=swap">
   <link rel="stylesheet" href="styles.css?v=20261115-sb3">
-  <link rel="stylesheet" href="pages.css?v=20261115-import">
+  <link rel="stylesheet" href="pages.css?v=20261116-gate">
 </head>
 <body>
 <main class="stage">
@@ -76,14 +82,23 @@
   <i class="hw side" aria-hidden="true"></i><i class="hw cc" aria-hidden="true"></i>
   </div>
 </main>
-<!-- live pose analysis on clips: MediaPipe Pose Landmarker, loaded from jsDelivr when a clip plays -->
+<!-- live pose analysis on clips: MediaPipe Pose Landmarker, shipped in vendor/mediapipe -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin></script>
-<script src="pose.js?v=20261114v351"></script>
+<script src="pose.js?v=20261116-steady3"></script>
 <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script src="https://unpkg.com/@maplibre/maplibre-gl-leaflet@0.0.22/leaflet-maplibre-gl.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-<script src="app.js?v=20261115-wayup22"></script>
-<script src="i18n.js?v=20261115-status2"></script>
+<script src="app.js?v=20261116-gate"></script>
+<script src="i18n.js?v=20261116-gate"></script>
+<script>
+  // offline at the gym: sw.js keeps the app on the phone. Not on localhost unless ?sw, so editing doesn't serve yesterday's files
+  if ('serviceWorker' in navigator) addEventListener('load', () => {
+    const dev = /^(localhost|127\.0\.0\.1)$/.test(location.hostname) && !/[?&]sw(=|&|$)/.test(location.search);
+    if (dev) navigator.serviceWorker.getRegistrations().then(rs => rs.forEach(r => r.unregister()));
+    else navigator.serviceWorker.register('sw.js').catch(() => {});
+    navigator.storage?.persist?.().catch(() => {});   // ask the browser not to clear your saved videos when space runs low
+  });
+</script>
 </body>
 </html>

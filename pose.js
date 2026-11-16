@@ -1,10 +1,11 @@
 /* Spotter · movement analysis of a video of a climb.
    MediaPipe Pose Landmarker (full) finds 33 body points, in the browser. poseScan goes through the whole video once and keeps a
    track: which hand or foot moves when, every rest, the arm angles and where the hips are. posePlay then shows that track on the
-   video and under it, at whatever moment the video is at. Nothing is uploaded. Needs a connection the first time, to load the model. */
+   video and under it, at whatever moment the video is at. Nothing is uploaded. The engine and the model ship with the app
+   (vendor/mediapipe, Apache-2.0) and sw.js keeps them, so it works at a gym with no signal once the app has been opened. */
 (() => {
-  const VIS = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14';
-  const MODEL = 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/1/pose_landmarker_full.task';
+  const VIS = new URL('vendor/mediapipe', document.baseURI).href;   // @mediapipe/tasks-vision 0.10.14
+  const MODEL = `${VIS}/pose_landmarker_full.task`;
   let lm = null, loading = null;
   const load = () => loading || (loading = (async () => {
     const { FilesetResolver, PoseLandmarker } = await import(`${VIS}/vision_bundle.mjs`);
@@ -273,7 +274,15 @@
   }
 
   const seekTo = (v, t) => new Promise(r => { if (Math.abs(v.currentTime - t) < .001 && v.readyState >= 2) return r(); const to = setTimeout(r, 3000); v.addEventListener('seeked', () => { clearTimeout(to); r(); }, { once: true }); v.currentTime = t; });
+  // keep the screen on while a scan runs: a phone that sleeps mid-scan stops decoding the video. Asked again when the page comes back
+  let awake = null, scans = 0;
+  const wake = async () => { try { if (scans && !awake && document.visibilityState === 'visible') { awake = await navigator.wakeLock?.request('screen'); awake?.addEventListener('release', () => { awake = null; }); } } catch { awake = null; } };
+  document.addEventListener('visibilitychange', wake);
   async function scan(src, seed, onP) {
+    scans++; wake();
+    try { return await scanNow(src, seed, onP); } finally { if (!--scans) { awake?.release().catch(() => {}); awake = null; } }
+  }
+  async function scanNow(src, seed, onP) {
     await load();
     const v = document.createElement('video');
     Object.assign(v, { muted: true, playsInline: true, preload: 'auto', src });
@@ -324,13 +333,17 @@
   async function grab(src, T, s, mark, tone) {
     await frameAt(src, s.t);
     const q = unpack(s, T.W, T.H), pts = q.filter(Boolean), xs = pts.map(a => a.x), ys = pts.map(a => a.y), RATIO = 170 / 207;
-    let h = (Math.max(...ys) - Math.min(...ys)) * 1.3, w = h * RATIO;
+    const room = String(mark).startsWith('stuck') ? 1.6 : 1.3;   // stuck: more of the wall around, so the holds you could use show
+    let h = (Math.max(...ys) - Math.min(...ys)) * room, w = h * RATIO;
     if (w < (Math.max(...xs) - Math.min(...xs)) * 1.25) { w = (Math.max(...xs) - Math.min(...xs)) * 1.25; h = w / RATIO; }
-    if (h > T.H) { h = T.H; w = h * RATIO; } if (w > T.W) { w = T.W; h = w / RATIO; }
-    const clamp = (a, lo, hi) => Math.max(lo, Math.min(hi, a));
+    // a stuck frame keeps the whole body in, with dark around it if the video is too small; the others crop inside the video
+    const whole = room > 1.3;
+    if (!whole) { if (h > T.H) { h = T.H; w = h * RATIO; } if (w > T.W) { w = T.W; h = w / RATIO; } }
+    const clamp = (a, lo, hi) => hi < lo ? (lo + hi) / 2 : Math.max(lo, Math.min(hi, a));
     const x0 = clamp((Math.min(...xs) + Math.max(...xs) - w) / 2, 0, T.W - w), y0 = clamp((Math.min(...ys) + Math.max(...ys) - h) / 2, 0, T.H - h);
     const cv = document.createElement('canvas'); cv.width = 340; cv.height = 414;
     const ctx = cv.getContext('2d'), sc = cv.width / w, px = a => a / sc, col = tone === 'good' ? '#C2FF01' : '#FF6A1F';
+    ctx.fillStyle = '#1b1b1b'; ctx.fillRect(0, 0, cv.width, cv.height);
     ctx.setTransform(sc, 0, 0, sc, -x0 * sc, -y0 * sc); ctx.drawImage(still, 0, 0, T.W, T.H); ctx.lineCap = 'round';
     ctx.strokeStyle = 'rgba(255,255,255,.75)'; ctx.lineWidth = px(3);
     BONES.forEach(([a, b]) => { if (q[a].v < .3 || q[b].v < .3) return; ctx.beginPath(); ctx.moveTo(q[a].x, q[a].y); ctx.lineTo(q[b].x, q[b].y); ctx.stroke(); });
@@ -340,6 +353,7 @@
     else if (mark === 'arm') { const o = s.er == null || s.el >= s.er ? q[P.le] : q[P.re], a = `${arm(s)}°`; dot(o, 11, col);
       ctx.font = `600 ${px(26)}px sans-serif`; const tw = ctx.measureText(a).width, lx = clamp(o.x + px(16), x0 + px(6), x0 + w - tw - px(16)), ly = clamp(o.y - px(10), y0 + px(34), y0 + h - px(10));
       ctx.fillStyle = 'rgba(17,17,17,.8)'; ctx.fillRect(lx - px(6), ly - px(26), tw + px(12), px(34)); ctx.fillStyle = '#FFFFFF'; ctx.fillText(a, lx, ly); }
+    else if (String(mark).startsWith('stuck')) drawStuck(ctx, q, s, diagOf(T, s, String(mark).split(':')[1]), px, dot, x0, y0, w, h);
     else if (P[mark]) dot(q[P[mark]], 13, col);
     return cv.toDataURL('image/jpeg', .85);
   }
@@ -585,6 +599,47 @@
       const tick = now => { if (!cv.isConnected) return; const r = cv.getBoundingClientRect(); if (r.bottom > 0 && r.top < innerHeight) paint((now - t0) / 1000); requestAnimationFrame(tick); }; requestAnimationFrame(tick); };
     line = line.then(() => frameAt(src, plan.s.t)).then(go).catch(() => {});
   };
+  // Where you got stuck, read off one frame. Your centre of mass is put between hips and shoulders (most of it is at the hips), and
+  // dropped straight down; the hands and feet that are on holds (not moving at that moment) make the shape that holds you up.
+  // A climber is balanced when that line falls between their feet. It is from a flat picture, so it is an estimate
+  const ON = { lw: P.lw, rw: P.rw, la: P.la, ra: P.ra };
+  function diagOf(T, s, onList) {
+    const q = unpack(s, T.W, T.H), sh = mid(q[P.ls], q[P.rs]), hp = mid(q[P.lh], q[P.rh]), torso = dist(sh, hp) || 1;
+    const cog = { x: hp.x * .7 + sh.x * .3, y: hp.y * .7 + sh.y * .3 };
+    const held = (onList ? onList.split(',') : Object.keys(ON)).filter(k => ON[k]), on = held.filter(k => q[ON[k]].v >= .3);
+    // a foot on a hold that we can't see is not a foot off: then we say nothing about balance. Just past the edge counts as over
+    const feetHeld = held.filter(k => k === 'la' || k === 'ra'), feet = feetHeld.filter(k => on.includes(k)).map(k => q[ON[k]]), m = .25 * torso;
+    let base = 'none', side = 0;
+    if (feet.length < feetHeld.length) base = 'unseen';
+    else if (feet.length === 2) { const lo = Math.min(feet[0].x, feet[1].x) - m, hi = Math.max(feet[0].x, feet[1].x) + m; base = cog.x < lo || cog.x > hi ? 'out' : 'in'; side = cog.x < lo ? -1 : cog.x > hi ? 1 : 0; }
+    else if (feet.length === 1) { const d = cog.x - feet[0].x; base = Math.abs(d) <= .35 * torso ? 'over1' : 'beside1'; side = Math.sign(d); }
+    const by = side ? Math.round(Math.min(...feet.map(f => Math.abs(cog.x - f.x))) / torso * 10) / 10 : 0;
+    // a hidden or far-off elbow can read as a few degrees; under 40° is not an arm anyone hangs on
+    const arms = ['lw', 'rw'].filter(k => on.includes(k)).map(k => ({ k, a: k === 'lw' ? s.el : s.er })).filter(x => x.a != null && x.a >= 40);
+    const bent = arms.length ? arms.reduce((p, x) => x.a < p.a ? x : p) : null;
+    return { t: s.t, on, cog, torso, base, side, by, bent, arms };
+  }
+  function drawStuck(ctx, q, s, d, px, dot, x0, y0, w, h) {
+    const good = d.base !== 'out' && d.base !== 'beside1' && d.base !== 'none', col = good ? '#C2FF01' : '#FF6A1F';
+    const pts = d.on.map(k => q[ON[k]]), c = pts.reduce((a, b) => ({ x: a.x + b.x / pts.length, y: a.y + b.y / pts.length }), { x: 0, y: 0 });
+    pts.sort((a, b) => Math.atan2(a.y - c.y, a.x - c.x) - Math.atan2(b.y - c.y, b.x - c.x));
+    if (pts.length >= 3) { ctx.beginPath(); pts.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)); ctx.closePath();
+      ctx.fillStyle = good ? 'rgba(194,255,1,.14)' : 'rgba(255,106,31,.16)'; ctx.fill(); }
+    if (pts.length >= 2) { ctx.setLineDash([px(8), px(7)]); ctx.lineWidth = px(3); ctx.strokeStyle = col; ctx.beginPath(); pts.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)); if (pts.length >= 3) ctx.closePath(); ctx.stroke(); ctx.setLineDash([]); }
+    // hands and feet: filled when on a hold, a ring when that one is moving
+    Object.keys(ON).forEach(k => { const p = q[ON[k]]; if (p.v < .3) return; if (d.on.includes(k)) dot(p, 8, '#FFFFFF');
+      else { ctx.beginPath(); ctx.arc(p.x, p.y, px(9), 0, 7); ctx.lineWidth = px(3); ctx.strokeStyle = '#FFFFFF'; ctx.stroke(); } });
+    // the arm that is working hardest
+    if (d.bent) { const e = q[d.bent.k === 'lw' ? P.le : P.re], ok = d.bent.a >= 145, a = `${d.bent.a}°`; dot(e, 9, ok ? '#C2FF01' : '#FF6A1F');
+      ctx.font = `600 ${px(22)}px sans-serif`; const tw = ctx.measureText(a).width, lx = Math.max(x0 + px(6), Math.min(x0 + w - tw - px(16), e.x + px(14))), ly = Math.max(y0 + px(30), e.y - px(8));
+      ctx.fillStyle = 'rgba(17,17,17,.8)'; ctx.fillRect(lx - px(6), ly - px(22), tw + px(12), px(30)); ctx.fillStyle = '#FFFFFF'; ctx.fillText(a, lx, ly); }
+    // centre of mass and the line straight down from it
+    const low = Math.min(y0 + h - px(6), Math.max(d.cog.y + px(40), ...d.on.filter(k => k === 'la' || k === 'ra').map(k => q[ON[k]].y + px(18))));
+    ctx.lineWidth = px(4); ctx.strokeStyle = col; ctx.beginPath(); ctx.moveTo(d.cog.x, d.cog.y); ctx.lineTo(d.cog.x, low); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(d.cog.x - px(8), low - px(10)); ctx.lineTo(d.cog.x, low); ctx.lineTo(d.cog.x + px(8), low - px(10)); ctx.stroke();
+    dot(d.cog, 11, col);
+  }
+  window.poseDiag = (T, s, on) => s?.p ? diagOf(T, s, on) : null;
   window.poseStill = (src, T, s, mark, tone) => {
     const key = [src, s.t, mark, tone].join('|');
     if (stills[key]) return Promise.resolve(stills[key]);
@@ -598,19 +653,171 @@
       return { x0: Math.min(...xs), x1: Math.max(...xs), y0: Math.min(...ys), y1: Math.max(...ys) }; }
     return null;
   };
+  // ---- the video with layers you switch on and off: body, arm lock, centre of mass, its path, balance, joint angles.
+  // window.poseLayers says which are on (the page keeps it). Everything is drawn from the track, at the moment the video is at
+  const LIME = '#C2FF01', ORANGE = '#FF6A1F', INK = '#111111';
+  const centre = q => { const sh = mid(q[P.ls], q[P.rs]), hp = mid(q[P.lh], q[P.rh]); return { x: hp.x * .7 + sh.x * .3, y: hp.y * .7 + sh.y * .3, torso: dist(sh, hp) || 1 }; };
+  const paths = new WeakMap();
+  function centrePath(T) {   // the centre of mass over the whole climb, smoothed, where shoulders and hips are seen
+    if (paths.has(T)) return paths.get(T);
+    const raw = T.S.filter(s => s.p && [1, 2, 7, 8].every(i => s.p[i][2] > .5)).map(s => ({ t: s.t, ...centre(unpack(s, T.W, T.H)) }));
+    const out = raw.map((c, i) => { const w = raw.slice(Math.max(0, i - 2), i + 3).filter(o => Math.abs(o.t - c.t) < 1.2); return { t: c.t, x: w.reduce((a, o) => a + o.x, 0) / w.length, y: w.reduce((a, o) => a + o.y, 0) / w.length }; });
+    paths.set(T, out); return out;
+  }
+  const holding = (T, t) => Object.keys(ON).filter(k => !T.moves.some(m => m.k === k && t >= m.t0 - .05 && t <= m.t + .05));
+  function balanceOf(p, held, torso, c) {
+    const feet = held.filter(k => k === 'la' || k === 'ra');
+    if (feet.some(k => !p[ON[k]] || p[ON[k]].v < .3)) return 'unseen';
+    const xs = feet.map(k => p[ON[k]].x);
+    if (xs.length === 2) return c.x < Math.min(...xs) - .25 * torso || c.x > Math.max(...xs) + .25 * torso ? 'out' : 'in';
+    if (xs.length === 1) return Math.abs(c.x - xs[0]) <= .35 * torso ? 'in' : 'out';
+    return 'out';
+  }
+  function label(ctx, u, x, y, text, fg, bg) {
+    ctx.font = `700 ${13 * u}px sans-serif`; const w = ctx.measureText(text).width + 10 * u, h = 20 * u;
+    ctx.fillStyle = bg; ctx.beginPath(); if (ctx.roundRect) ctx.roundRect(x - w / 2, y - h / 2, w, h, 6 * u); else ctx.rect(x - w / 2, y - h / 2, w, h); ctx.fill();
+    ctx.fillStyle = fg; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(text, x, y + .5 * u); ctx.textAlign = 'start'; ctx.textBaseline = 'alphabetic';
+  }
+  // where the video is on screen: window.poseView = { z, ax, ay } is the zoom and the shift (fractions of the box) the page
+  // gives it. Returns pixels on screen per video pixel, and sets the canvas to draw in video pixels
+  function toScreen(ctx, T) {
+    const cv = ctx.canvas, bw = cv.clientWidth || T.W, bh = cv.clientHeight || T.H, dpr = Math.min(3, window.devicePixelRatio || 1);
+    if (cv.width !== Math.round(bw * dpr) || cv.height !== Math.round(bh * dpr)) { cv.width = Math.round(bw * dpr); cv.height = Math.round(bh * dpr); }
+    ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, cv.width, cv.height);
+    const V = window.poseView || { z: 1, ax: 0, ay: 0 }, k = bw / T.W, z = V.z;
+    // CSS: the shift, then the zoom from the top-left corner (.clip.zoom video { transform-origin: 0 0 })
+    ctx.setTransform(dpr * z * k, 0, 0, dpr * z * k, dpr * V.ax * bw, dpr * V.ay * bh);
+    return z * k;
+  }
+  function drawLive(ctx, f, t, T) {
+    const W = T.W, H = T.H, px = toScreen(ctx, T);
+    const G = window.poseGate || {}, L0 = window.poseLayers || { pose: true };
+    const L = { ...L0, lock: L0.lock && G.arms !== false, angles: L0.angles && G.angles !== false, balance: L0.balance && G.balance !== false };
+    const info = { state: '', tag: '' };
+    if (!f) return info;
+    const p = f.pts, u = 1 / px, held = holding(T, t), seen = i => p[i] && p[i].v >= .3;
+    const c = centre(p), torso = c.torso, armA = { lw: f.el, rw: f.er };
+    const legA = side => { const [h, k, a] = side === 'l' ? [P.lh, P.lk, P.la] : [P.rh, P.rk, P.ra]; return [h, k, a].every(i => p[i]?.v >= .5) ? Math.round(angleAt(p[h], p[k], p[a])) : null; };
+    // centre of mass path: where it has been, the last 10 s, fading
+    if (L.trail) { const cp = centrePath(T).filter(o => o.t <= t && o.t >= t - 10);
+      ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+      for (let i = 1; i < cp.length; i++) { ctx.strokeStyle = `rgba(194,255,1,${(.15 + .85 * (1 - (t - cp[i].t) / 10)).toFixed(3)})`; ctx.lineWidth = 4 * u; ctx.beginPath(); ctx.moveTo(cp[i - 1].x, cp[i - 1].y); ctx.lineTo(cp[i].x, cp[i].y); ctx.stroke(); } }
+    // balance: what holds you up, and whether your centre is over your feet
+    const bal = balanceOf(p, held, torso, c);
+    if (L.balance) { const pts = held.filter(k => seen(ON[k])).map(k => p[ON[k]]), good = bal === 'in' || bal === 'unseen', col = good ? LIME : ORANGE;
+      if (pts.length >= 2) { const m = pts.reduce((a, b) => ({ x: a.x + b.x / pts.length, y: a.y + b.y / pts.length }), { x: 0, y: 0 });
+        pts.sort((a, b) => Math.atan2(a.y - m.y, a.x - m.x) - Math.atan2(b.y - m.y, b.x - m.x));
+        ctx.beginPath(); pts.forEach((o, i) => i ? ctx.lineTo(o.x, o.y) : ctx.moveTo(o.x, o.y)); if (pts.length > 2) { ctx.closePath(); ctx.fillStyle = good ? 'rgba(194,255,1,.14)' : 'rgba(255,106,31,.16)'; ctx.fill(); }
+        ctx.setLineDash([7 * u, 6 * u]); ctx.lineWidth = 2.5 * u; ctx.strokeStyle = col; ctx.stroke(); ctx.setLineDash([]); }
+      const feetY = Math.max(c.y + torso * .6, ...held.filter(k => (k === 'la' || k === 'ra') && seen(ON[k])).map(k => p[ON[k]].y));
+      ctx.setLineDash([3 * u, 5 * u]); ctx.lineWidth = 2 * u; ctx.strokeStyle = col; ctx.beginPath(); ctx.moveTo(c.x, c.y); ctx.lineTo(c.x, feetY); ctx.stroke(); ctx.setLineDash([]); }
+    // the body
+    if (L.pose) { ctx.lineCap = 'round'; ctx.lineWidth = 3 * u; ctx.strokeStyle = 'rgba(255,255,255,.9)';
+      BONES.forEach(([a, b]) => { if (!seen(a) || !seen(b)) return; ctx.beginPath(); ctx.moveTo(p[a].x, p[a].y); ctx.lineTo(p[b].x, p[b].y); ctx.stroke(); });
+      [P.ls, P.rs, P.le, P.re, P.lh, P.rh, P.lk, P.rk].forEach(i => { if (!seen(i)) return; ctx.beginPath(); ctx.arc(p[i].x, p[i].y, 3.5 * u, 0, 7); ctx.fillStyle = '#FFFFFF'; ctx.fill(); }); }
+    // arm lock: a hand on a hold with its arm bent is pulling; straight is hanging
+    if (L.lock) ['lw', 'rw'].forEach(k => { const a = armA[k], [s0, e0, w0] = k === 'lw' ? [P.ls, P.le, P.lw] : [P.rs, P.re, P.rw];
+      if (a == null || a < 40 || !held.includes(k) || ![s0, e0, w0].every(seen)) return;
+      const col = a < 120 ? ORANGE : a >= 145 ? LIME : '#FFFFFF';
+      ctx.lineCap = 'round'; ctx.lineWidth = 6 * u; ctx.strokeStyle = col; ctx.beginPath(); ctx.moveTo(p[s0].x, p[s0].y); ctx.lineTo(p[e0].x, p[e0].y); ctx.lineTo(p[w0].x, p[w0].y); ctx.stroke();
+      if (a < 120) label(ctx, u, p[e0].x, p[e0].y - 18 * u, `${document.documentElement.lang.startsWith('zh') ? '锁臂' : 'Lock'} · ${a}°`, '#FFFFFF', 'rgba(255,106,31,.95)'); });
+    // hands and feet: filled on a hold, a ring while it moves
+    if (L.pose || L.balance) Object.keys(ON).forEach(k => { const o = p[ON[k]]; if (!seen(ON[k]) || !held.includes(k)) return;
+      ctx.beginPath(); ctx.arc(o.x, o.y, 6 * u, 0, 7); ctx.fillStyle = '#FFFFFF'; ctx.fill(); ctx.lineWidth = 2 * u; ctx.strokeStyle = INK; ctx.stroke(); });
+    // joint angles: elbows and knees
+    if (L.angles) [[P.le, f.el], [P.re, f.er], [P.lk, legA('l')], [P.rk, legA('r')]].forEach(([i, a]) => { if (a == null || a < 40 || !seen(i)) return;
+      label(ctx, u, p[i].x + 22 * u, p[i].y, `${a}°`, a >= 145 ? LIME : a < 90 ? ORANGE : '#FFFFFF', 'rgba(17,17,17,.78)'); });
+    // centre of mass, and an arrow straight down
+    if (L.cog) { const col = G.balance === false ? '#FFFFFF' : bal === 'out' ? ORANGE : LIME, len = torso * .55;
+      ctx.lineCap = 'round'; ctx.lineWidth = 3 * u; ctx.strokeStyle = col; ctx.beginPath(); ctx.moveTo(c.x, c.y); ctx.lineTo(c.x, c.y + len); ctx.moveTo(c.x - 6 * u, c.y + len - 8 * u); ctx.lineTo(c.x, c.y + len); ctx.lineTo(c.x + 6 * u, c.y + len - 8 * u); ctx.stroke();
+      ctx.beginPath(); ctx.arc(c.x, c.y, 8 * u, 0, 7); ctx.fillStyle = col; ctx.fill(); ctx.lineWidth = 2 * u; ctx.strokeStyle = INK; ctx.stroke(); }
+    // what you're doing now, and a move worth naming
+    const rest = T.rests.find(r => t >= r.t0 && t < r.t1);
+    info.state = f.now ? 'Moving' : rest ? 'Resting' : 'Pausing';
+    const hp = mid(p[P.lh], p[P.rh]), high = ['la', 'ra'].find(k => held.includes(k) && p[ON[k]].v >= .5 && p[ON[k]].y <= hp.y + torso * .3);
+    const lock = G.arms !== false && ['lw', 'rw'].find(k => held.includes(k) && armA[k] != null && armA[k] >= 40 && armA[k] < 90) && ['lw', 'rw'].some(k => !held.includes(k));
+    info.tag = G.tags === false ? '' : high ? 'High foot' : lock ? 'Lock-off' : rest && G.arms !== false && [f.el, f.er].some(a => a >= 150) ? 'Straight-arm rest' : '';
+    return info;
+  }
+  const steadies = new WeakMap();
+  // slots in a track sample: 1 2 shoulders, 3 4 elbows, 5 6 wrists, 7 8 hips, 9 10 knees, 11 12 ankles (left, right)
+  // each limb: its joints from the body out, and how long each part may be, as a share of the torso. Facing the wall the
+  // limbs stay in the picture's plane, so a part far outside these is a misread, not a pose
+  const BONELEN = [[1, 3, 5, [.3, 1.05], [.22, 1]], [2, 4, 6, [.3, 1.05], [.22, 1]], [7, 9, 11, [.4, 1.4], [.4, 1.4]], [8, 10, 12, [.4, 1.4], [.4, 1.4]]];
+  function steady(T) {
+    if (steadies.has(T)) return steadies.get(T);
+    const S = T.S, n = S.length, J = IDX.length, GAP = Math.max(2, Math.round(1.2 * T.hz)), OK = .3, W = T.W, H = T.H;
+    const out = S.map(x => x.p ? x.p.map(q => [...q]) : null);
+    const d = (q, i, r, j) => Math.hypot((q[i][0] - r[j][0]) * W, (q[i][1] - r[j][1]) * H);
+    // the torso, shoulders to hips, from the frames that show it; held to near its usual size so one bad frame can't
+    // stretch every limb check
+    const torsoOf = q => Math.hypot(((q[1][0] + q[2][0]) - (q[7][0] + q[8][0])) / 2 * W, ((q[1][1] + q[2][1]) - (q[7][1] + q[8][1])) / 2 * H);
+    const tz = out.map(q => q && [1, 2, 7, 8].every(i => q[i][2] >= .5) ? torsoOf(q) : null);
+    const tor = k => { const w = tz.slice(Math.max(0, k - 10), k + 11).filter(Boolean).sort((x, y) => x - y); return w.length ? w[w.length >> 1] : H * .06; };
+    // left and right swapped: the model sometimes trades your two hands (or feet) for a frame. Keep each on the side
+    // nearest where it just was
+    let prev = null;
+    for (let k = 0; k < n; k++) { const q = out[k]; if (!q) continue;
+      if (prev) [[3, 4, 5, 6], [9, 10, 11, 12]].forEach(([l1, r1, l2, r2]) => {
+        if (![l1, r1, l2, r2].every(i => q[i][2] >= OK && prev[i][2] >= OK)) return;
+        const same = d(q, l2, prev, l2) + d(q, r2, prev, r2) + d(q, l1, prev, l1) + d(q, r1, prev, r1);
+        const cross = d(q, l2, prev, r2) + d(q, r2, prev, l2) + d(q, l1, prev, r1) + d(q, r1, prev, l1);
+        if (cross < same * .6) [[l1, r1], [l2, r2]].forEach(([x, y]) => { const t = q[x]; q[x] = q[y]; q[y] = t; }); });
+      prev = q; }
+    // parts of a limb the wrong length: the joint out from there can't be trusted, nor anything past it
+    for (let k = 0; k < n; k++) { const q = out[k]; if (!q) continue; const L = tor(k);
+      BONELEN.forEach(([r, m, e, up, lo]) => {
+        if (q[r][2] >= OK && q[m][2] >= OK) { const x = d(q, r, q, m) / L; if (x < up[0] || x > up[1]) { q[m][2] = 0; q[e][2] = 0; return; } }
+        if (q[m][2] >= OK && q[e][2] >= OK) { const x = d(q, m, q, e) / L; if (x < lo[0] || x > lo[1]) q[e][2] = 0; } }); }
+    // a joint far from both its neighbours (more than a torso) is a misread too
+    for (let k = 1; k < n - 1; k++) { const a = out[k - 1], q = out[k], b = out[k + 1]; if (!a || !q || !b) continue; const L = tor(k);
+      for (let j = 0; j < J; j++) { if (q[j][2] < OK || a[j][2] < OK || b[j][2] < OK) continue;
+        if (d(q, j, a, j) > L && d(q, j, b, j) > L && d(a, j, b, j) < L * .6) q[j][2] = 0; } }
+    // the whole body missing for a moment: in between the samples either side
+    for (let k = 0; k < n; k++) { if (out[k]) continue; let a = k - 1; while (a >= 0 && !out[a]) a--; let b = k + 1; while (b < n && !S[b].p) b++;
+      if (a < 0 || b >= n || b - a - 1 > GAP) continue; const u = (k - a) / (b - a), A = out[a], B = out[b];
+      out[k] = A.map((q, j) => [q[0] + (B[j][0] - q[0]) * u, q[1] + (B[j][1] - q[1]) * u, Math.min(q[2], B[j][2])]); }
+    // one joint unseen for a moment: the same, joint by joint; at the edge of a longer gap, hold it a moment
+    const good = (k, j) => out[k] && out[k][j][2] >= OK;
+    for (let j = 0; j < J; j++) { const src = out.map((q, k) => good(k, j));
+      for (let k = 0; k < n; k++) { if (!out[k] || src[k]) continue;
+        let a = k - 1; while (a >= 0 && !src[a]) a--; let b = k + 1; while (b < n && !src[b]) b++;
+        if (a >= 0 && b < n && b - a - 1 <= GAP) { const u = (k - a) / (b - a); out[k][j] = [out[a][j][0] + (out[b][j][0] - out[a][j][0]) * u, out[a][j][1] + (out[b][j][1] - out[a][j][1]) * u, .45]; }
+        else if (a >= 0 && k - a <= 2) out[k][j] = [out[a][j][0], out[a][j][1], .45]; } }
+    // smoothing over five samples (1 2 3 2 1), joint by joint, where they're seen: the model's guess wobbles frame to frame
+    const wt = [1, 2, 3, 2, 1];
+    const sm = out.map((q, k) => q && q.map((o, j) => { if (o[2] < OK) return o; let x = 0, y = 0, w = 0;
+      for (let z = -2; z <= 2; z++) { const r = out[k + z]; if (!r || r[j][2] < OK) continue; x += r[j][0] * wt[z + 2]; y += r[j][1] * wt[z + 2]; w += wt[z + 2]; }
+      return [x / w, y / w, o[2]]; }));
+    // last: each part of a limb kept within a body's proportions, in the direction it points, so filling and smoothing
+    // can't stretch an arm or fold it to nothing
+    sm.forEach((q, k) => { if (!q) return; const L = tor(k);
+      BONELEN.forEach(([r, m, e, up, lo]) => { [[r, m, up], [m, e, lo]].forEach(([i, j, [mn, mx]]) => {
+        if (q[i][2] < OK || q[j][2] < OK) return; const dx = (q[j][0] - q[i][0]) * W, dy = (q[j][1] - q[i][1]) * H, l = Math.hypot(dx, dy);
+        const want = Math.min(mx, Math.max(mn, l / L)) * L; if (Math.abs(want - l) < .5) return;
+        if (l < 1e-3) { q[j][2] = 0; return; }   // no direction to keep
+        const g = want / l, ox = q[j][0], oy = q[j][1]; q[j] = [q[i][0] + dx * g / W, q[i][1] + dy * g / H, q[j][2]];
+        if (i === r) { q[e] = [q[e][0] + q[j][0] - ox, q[e][1] + q[j][1] - oy, q[e][2]]; }   // the hand or foot moves with its elbow or knee
+      }); }); });
+    steadies.set(T, sm); return sm;
+  }
+  window.poseSteady = steady;
   window.posePlay = (v, cv, T, mark) => {   // with a mark: only the picture, for a stretch played on its own
     const ctx = cv.getContext('2d'); cv.width = T.W; cv.height = T.H;
     let last = -1;
     const paint = t => {
-      const i = Math.min(T.S.length - 1, Math.floor(t * T.hz)), a = T.S[i], b = T.S[i + 1] || a, u = t * T.hz - i;
+      const SP = steady(T), at = k => T.S[k] && { ...T.S[k], p: SP[k] };
+      const i = Math.min(T.S.length - 1, Math.floor(t * T.hz)), a = at(i), b = at(i + 1) || a, u = t * T.hz - i;
       let f = null;
       if (a.p) { const q = unpack(a, T.W, T.H), w = b.p ? unpack(b, T.W, T.H) : q, pts = [];
         q.forEach((p, k) => { if (p) pts[k] = { x: p.x + (w[k].x - p.x) * u, y: p.y + (w[k].y - p.y) * u, v: p.v }; });
         const trail = { lw: [], rw: [] };
-        for (let k = Math.max(0, i - 4); k <= i; k++) if (T.S[k].p) { const o = unpack(T.S[k], T.W, T.H); trail.lw.push(o[P.lw]); trail.rw.push(o[P.rw]); }
+        for (let k = Math.max(0, i - 4); k <= i; k++) if (SP[k]) { const o = unpack(at(k), T.W, T.H); trail.lw.push(o[P.lw]); trail.rw.push(o[P.rw]); }
         f = { pts, now: a.now || T.moves.find(m => t >= m.t0 && t <= m.t)?.name || null, el: a.el, er: a.er, off: a.off, trail }; }
-      draw(ctx, f, T.W, T.H, mark);
-      if (mark) return;
+      if (mark) { draw(ctx, f, T.W, T.H, mark); return; }
+      const now = drawLive(ctx, f, t, T), st = document.getElementById('lvst'), tg = document.getElementById('lvtag');
+      if (st) { if (st.dataset.s !== now.state) { st.dataset.s = now.state; st.textContent = now.state; } st.hidden = !now.state; }
+      if (tg) { if (tg.textContent !== now.tag) tg.textContent = now.tag; tg.hidden = !now.tag; }
       // where the climber is in the picture right now (0 to 1 across and down), for zooming in on them
       if (!f) window.poseNow = null;
       if (f) { const ps = f.pts.filter(Boolean); if (ps.length) { const xs = ps.map(q => q.x / T.W), ys = ps.map(q => q.y / T.H);
@@ -626,7 +833,8 @@
         : Math.abs(f.off) >= .35 ? 'Hips away from your feet here. Planned, or stuck?' : bent == null ? 'Too far from the camera to read your arms here.' : 'Good rest: arms straight, hips over your feet.');
       const ph = document.getElementById('tlp'); if (ph) ph.style.left = `${Math.min(100, t / T.D * 100)}%`;
     };
-    const tick = () => { if (!v.isConnected) return; if (v.currentTime !== last) { last = v.currentTime; paint(last); } requestAnimationFrame(tick); };
+    let lk = '';
+    const tick = () => { if (!v.isConnected) return; const k = JSON.stringify(window.poseLayers || {}) + JSON.stringify(window.poseView || {}); if (v.currentTime !== last || (!mark && k !== lk)) { last = v.currentTime; lk = k; paint(last); } requestAnimationFrame(tick); };
     paint(v.currentTime); requestAnimationFrame(tick);
   };
 })();
