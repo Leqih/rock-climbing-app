@@ -3040,3 +3040,18 @@ textarea.note:focus { outline: 2px solid var(--ink); outline-offset: 0; backgrou
 .al-ph .alh-pill { position: absolute; top: 8px; left: 8px; }
 .al-ph strong { position: absolute; left: 9px; bottom: 8px; font-size: 30cqw; font-weight: 900; letter-spacing: -.06em; line-height: .82; color: var(--ink); }
 .al-ph .alh-art { position: absolute; right: -18cqw; top: 10cqw; width: 78cqw; margin: 0; transform: rotate(-8deg); }
+
+/* the album filter: a sheet of chips (type, time, gym, then that gym's routes); the ones in use sit under the album's title */
+.alf-sheet h2 { margin: 4px 0 4px; }
+.alf-sheet h3 { margin: 16px 0 8px; font-size: 13px; font-weight: 800; color: #6c766f; }
+.alf-row { display: flex; flex-wrap: wrap; gap: 7px; }
+.alf-row.alf-days { flex-wrap: nowrap; overflow-x: auto; margin-top: 7px; padding-bottom: 2px; scrollbar-width: none; }
+.alf-row button { display: inline-flex; align-items: center; gap: 6px; flex: none; height: 36px; padding: 0 14px; border-radius: 999px; background: #ececea; color: var(--ink); font-size: 13px; font-weight: 700; white-space: nowrap; }
+.alf-row button[aria-pressed="true"] { background: var(--ink); color: #fff; }
+.alf-row button i, .alf-on button i { width: 9px; height: 9px; border-radius: 50%; box-shadow: 0 0 0 1.5px #fff; }
+.alf-go { display: flex; gap: 8px; margin-top: 22px; }
+.alf-go button { flex: 1; }
+.alf-on { display: flex; flex-wrap: wrap; gap: 6px; margin: -2px 0 12px; }
+.alf-on button { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 8px 0 12px; border-radius: 999px; background: var(--ink); color: #fff; font-size: 12px; font-weight: 700; }
+.alf-on button b { display: grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; background: rgba(255,255,255,.18); font-size: 13px; line-height: 1; }
+.alf-on .alf-clr { padding: 0 12px; background: transparent; color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }

@@ -406,6 +406,11 @@ const heroes = {
   back: () => '' };
 // your album: the box with everything (photos fanned out), two pinned moments, then one binder per gym
 let albumFilter = 'all', alSel = null;
+// the album's other filters: when (all, this week, this month, or one day 'd:N'), which gym (-1 = no gym) and, inside it, which route
+let alTime = 'all', alGym = null, alRoute = null;
+const alTimeOk = d => alTime === 'all' ? true : alTime === 'week' ? d < 7 : alTime === 'month' ? dateOf(d).getMonth() === dateOf(0).getMonth() && dateOf(d).getFullYear() === dateOf(0).getFullYear() : d === +alTime.slice(2);
+const alTimeName = () => alTime === 'week' ? 'This week' : alTime === 'month' ? 'This month' : alTime.startsWith('d:') ? dayLabel(+alTime.slice(2)) : 'All time';
+const alFiltered = () => albumFilter !== 'all' || alTime !== 'all' || alGym != null;
 const alCta = () => { const k = alSel ? alSel.size : 0, d = k ? '' : ' disabled';
   return alSel ? `<button class="b-ghost" type="button" data-act="alvis" data-v="me"${d}>Only you</button><button class="b-ghost" type="button" data-act="alvis" data-v="pub"${d}>Public</button><button class="b-lime" type="button" data-act="aldel"${d}>Delete${k ? ` ${k}` : ''}</button>` : ''; };
 function album(only) {
@@ -413,7 +418,8 @@ function album(only) {
   if (!clips.length && !hn) return '';
   // the album is just your videos: a grid by day, newest first. Each tile says the route and whether you topped it.
   const showVideos = albumFilter !== 'manual', showManual = albumFilter !== 'videos';
-  const days = [...new Set([...(showVideos ? newest.map(agoOf) : []), ...(showManual ? glogs.map(x => x.ago) : []), ...(showManual ? logs.filter(l => l.tries || l.sent).map(l => l.ago) : [])])].sort((a, b) => a - b);
+  const allDays = [...new Set([...(showVideos ? newest.map(agoOf) : []), ...(showManual ? glogs.map(x => x.ago) : []), ...(showManual ? logs.filter(l => l.tries || l.sent).map(l => l.ago) : [])])].sort((a, b) => a - b);
+  let days = allDays;   // narrowed to the filters once the items are known (below)
   // which gyms a day's records are from: one gym goes in the day's header, several go on each video tile
   const dayGyms = d => [...new Set([...(showVideos ? newest.filter(c => agoOf(c) === d && c.gy != null).map(c => c.gy) : []),
     ...(showManual ? glogs.filter(x => x.ago === d).map(x => x.gy) : []), ...(showManual && logs.some(l => l.ago === d && (l.tries || l.sent)) ? [0] : [])])];
@@ -441,20 +447,28 @@ function album(only) {
     return handCard({ act: `data-act="to" data-to="route/${l.ri}"`, seed: `r${l.ri}${l.ago}${l.tries}`, hex: r.hex, grade: r.grade, name: `${r.color} · ${r.wall}`, where: gym.name,
       tries: l.tries || 1, res: l.sent ? (l.style || 'Topped') : 'Not yet', sent: l.sent, label: `${rname(r)}, logged by hand` }); };
   // a day, then the gyms you climbed at that day, then the routes at each: everything on one route sits together, newest try first
-  const dayItems = d => {
+  const rawItems = d => {
     const it = [];
     if (showManual) glogs.forEach((x, i) => { if (x.ago === d) it.push({ gy: x.gy, key: `g:${x.color}|${x.g}`, hex: HOLD_COLORS[x.color] || '#8A8F98', name: `${x.color || ''} ${x.g}`.trim(), sent: x.k !== 'Project', html: handTile(x, i), col: HOLD_COLORS[x.color] || '#8A8F98', g: x.g, seed: `g${i}${x.g}${x.ago}` }); });
     if (showManual) logs.forEach(l => { if (l.ago === d && (l.tries || l.sent)) it.push({ gy: 0, key: `r:${l.ri}`, ri: l.ri, sent: l.sent, html: routeTile(l), col: ROUTES[l.ri].hex, g: ROUTES[l.ri].grade, seed: `r${l.ri}${l.ago}${l.tries}` }); });
     if (showVideos) newest.filter(c => agoOf(c) === d).sort((p, q) => tryOf(q) - tryOf(p)).forEach(c => it.push({ gy: c.gy ?? -1, key: c.need ? `n:${c.id}` : `r:${c.ri}`, ri: c.need ? null : c.ri, sent: topOf(c), html: tile(c), img: c.img }));
-    const groups = [];
+    return it; };
+  const keep = x => only && !only.index ? true : (alGym == null || x.gy === alGym) && (!alRoute || x.key === alRoute);
+  const dayItems = d => {
+    const it = rawItems(d).filter(keep), groups = [];
     it.forEach(x => { let g = groups.find(q => q.gy === x.gy); if (!g) groups.push(g = { gy: x.gy, routes: [] });
       let r = g.routes.find(q => q.key === x.key); if (!r) g.routes.push(r = { key: x.key, ri: x.ri, hex: x.hex, name: x.name, items: [] }); r.items.push(x); });
     return groups.sort((p, q) => (p.gy < 0) - (q.gy < 0));   // no gym yet goes last
   };
+  if (!only || only.index) days = allDays.filter(d => alTimeOk(d) && dayItems(d).length);
   const routeHead = r => { const R = r.ri != null ? ROUTES[r.ri] : null, top = r.items.some(x => x.sent);
     return `<p class="al-rh">${R ? `${sw(R)}<b>${rname(R)}</b>` : r.key.startsWith('n:') ? '<b>New climb</b>' : `<span class="sw" style="background:${r.hex}"></span><b>${r.name}</b>`}<span class="${top ? 'on' : ''}">${top ? 'Topped' : 'Not topped yet'}</span></p>`; };
   const gname = gy => gy < 0 ? 'No gym' : gyms[gy].name;
   const routesOf = g => g.routes.map(r => `<div class="al-rt">${routeHead(r)}<div class="al-g">${r.items.map(x => x.html).join('')}</div></div>`).join('');
+  if (only?.index) {
+    const all = allDays.flatMap(d => rawItems(d).map(x => ({ ...x, d }))), gy = [...new Set(all.map(x => x.gy))].sort((p, q) => (p < 0) - (q < 0) || p - q);
+    const rs = []; all.filter(x => x.gy === alGym && !x.key.startsWith('n:')).forEach(x => { if (!rs.some(r => r.key === x.key)) rs.push({ key: x.key, hex: x.ri != null ? ROUTES[x.ri].hex : x.hex, name: x.ri != null ? rname(ROUTES[x.ri]) : x.name }); });
+    return { gyms: gy.map(g => ({ gy: g, name: gname(g) })), routes: rs, days: allDays, n: days.reduce((k, d) => k + dayItems(d).reduce((m, g) => m + g.routes.reduce((q, r) => q + r.items.length, 0), 0), 0) }; }
   // inside one stack: that gym on that day, route by route
   if (only) { const g = dayItems(only.d).find(q => q.gy === only.gy);
     return { name: gname(only.gy), n: g ? g.routes.reduce((k, r) => k + r.items.length, 0) : 0, html: g ? routesOf(g) : '' }; }
@@ -465,10 +479,16 @@ function album(only) {
       <span class="al-pile">${pile}<b class="al-cnt">${k}</b></span>
       <span class="al-sb"><b>${gname(g.gy)}</b><small>${n(g.routes.length, 'route', 'routes')}${top ? ` · ${top} topped` : ''}</small>
       <span class="al-sw">${g.routes.slice(0, 6).map(r => `<i style="background:${r.ri != null ? ROUTES[r.ri].hex : r.hex || '#d5d5d2'}"></i>`).join('')}</span></span></button>`; };
-  const box = `<div class="al${alSel ? ' sel' : ''}">${days.map(d => `<div class="al-d"><h3><button type="button" class="day-open" data-act="to" data-to="day/${d}"><em class="al-dl">${dayLabel(d)}</em> <span>View day →</span></button></h3>
+  const box = alRoute ? `<div class="al${alSel ? ' sel' : ''}">${days.map(d => `<div class="al-d"><h3><button type="button" class="day-open" data-act="to" data-to="day/${d}"><em class="al-dl">${dayLabel(d)}</em> <span>View day →</span></button></h3>
+    <div class="al-g">${dayItems(d).flatMap(g => g.routes.flatMap(r => r.items)).map(x => x.html).join('')}</div></div>`).join('')}</div>`
+    : `<div class="al${alSel ? ' sel' : ''}">${days.map(d => `<div class="al-d"><h3><button type="button" class="day-open" data-act="to" data-to="day/${d}"><em class="al-dl">${dayLabel(d)}</em> <span>View day →</span></button></h3>
     <div class="al-gg">${dayItems(d).map(g => stack(d, g)).join('')}</div></div>`).join('')}</div>`;
-  const filteredCount = (showVideos ? clips.length : 0) + (showManual ? hn : 0);
-  const visibleBox = days.length ? box : `<div class="album-empty"><strong>No ${albumFilter === 'videos' ? 'video' : 'manual'} records yet</strong><span>Try another filter to see your climbs.</span><button type="button" data-act="albumfilterset" data-value="all">Show all records</button></div>`;
+  const filteredCount = days.reduce((k, d) => k + dayItems(d).reduce((m, g) => m + g.routes.reduce((q, r) => q + r.items.length, 0), 0), 0);
+  // the filters in use, each one a chip you can take off
+  const rsel = alRoute ? album({ index: true }).routes.find(r => r.key === alRoute) : null;
+  const chips = [albumFilter !== 'all' && ['type', albumFilter === 'videos' ? 'Videos' : 'By hand'], alTime !== 'all' && ['time', alTimeName()], alGym != null && ['gym', gname(alGym)], rsel && ['route', rsel.name]].filter(Boolean);
+  const chipRow = chips.length ? `<div class="alf-on">${chips.map(([k, t]) => `<button type="button" data-act="alf" data-k="${k}" data-v="" aria-label="Remove filter: ${t}">${k === 'route' ? `<i style="background:${rsel.hex}"></i>` : ''}<span>${t}</span><b aria-hidden="true">×</b></button>`).join('')}${chips.length > 1 ? '<button type="button" class="alf-clr" data-act="alfclear">Clear all</button>' : ''}</div>` : '';
+  const visibleBox = days.length ? box : `<div class="album-empty"><strong>No records match</strong><span>Take a filter off to see more of your climbs.</span><button type="button" data-act="alfclear">Clear filters</button></div>`;
   const sent = clips.filter(topOf), best = [...sent].sort((p, q) => GR.indexOf(ROUTES[q.ri].grade) - GR.indexOf(ROUTES[p.ri].grade) || agoOf(p) - agoOf(q))[0];
   const pins = best ? `<div class="sec"><h2>Pinned</h2></div><div class="rgrid pin">
       <button class="vc" type="button" data-act="to" data-to="clip/${best.id}" aria-label="Hardest send: ${rname(ROUTES[best.ri])}, try ${tryOf(best)}"><span class="vc-i rc"><img src="${pic(best.img)}" alt=""><span class="vc-t g">Hardest send</span>${gymTag(best)}</span>
@@ -476,13 +496,13 @@ function album(only) {
       <button class="vc" type="button" data-act="reel" aria-label="Play your highlight reel"><span class="vc-i rc"><img src="${pic(newest.find(topOf).img)}" alt=""><span class="vc-pl">${ic.play}</span></span>
         <span class="vc-b"><span class="vc-r">Highlight reel</span><b>${n(sent.length, 'send', 'sends')}</b><span class="vc-d">${sent.length * 8} seconds</span></span></button></div>` : '';
   const binder = `<div class="sec"><h2>Gyms</h2></div><div class="rgrid album-gyms">
-      <button class="vc bnd" type="button" data-act="to" data-to="shelf/gym" aria-label="${gym.name}">
+      <button class="vc bnd" type="button" data-act="alf" data-k="gym" data-v="0" data-top="1" aria-label="Show only ${gym.name}">
         <span class="bnd-s">${[0, 1, 2, 3].map(k => here[k] ? `<img src="${pic(here[k].img)}" alt="">` : '<i></i>').join('')}</span>
         <span class="vc-b"><span class="vc-r">${gym.name}</span><b>${n(here.length, 'video', 'videos')}</b>
         <span class="vc-d">${tops ? `<span class="stg on">${tops} of ${ROUTES.length} routes topped</span>` : `${ROUTES.length} routes`}</span></span></button></div>`;
   const selB = showVideos && clips.length ? `<button class="al-filter${alSel ? ' active' : ''}" type="button" data-act="alsel">${alSel ? 'Done' : 'Select'}</button>` : '';
   if (alSel) return `<div class="sec al-h"><h2 id="alcount">${alSel.size ? `${alSel.size} selected` : 'Select videos'}</h2>${selB}</div>${visibleBox}`;
-  return `<div class="sec al-h"><h2>${albumFilter === 'videos' ? 'Videos' : albumFilter === 'manual' ? 'By hand' : 'All records'} <span class="num">${filteredCount}</span></h2><span class="al-hb">${selB}<button class="al-filter${albumFilter !== 'all' ? ' active' : ''}" type="button" data-act="albumfilter" aria-label="Filter records"><svg aria-hidden="true" viewBox="0 0 20 20"><path d="M3 5h14M6 10h8M8 15h4"/></svg>${albumFilter === 'all' ? 'Filter' : 'Filtered'}</button></span></div>${visibleBox}${binder}`;
+  return `<div class="sec al-h"><h2>${albumFilter === 'videos' ? 'Videos' : albumFilter === 'manual' ? 'By hand' : 'All records'} <span class="num">${filteredCount}</span></h2><span class="al-hb">${selB}<button class="al-filter${alFiltered() ? ' active' : ''}" type="button" data-act="albumfilter" aria-label="Filter records"><svg aria-hidden="true" viewBox="0 0 20 20"><path d="M3 5h14M6 10h8M8 15h4"/></svg>${alFiltered() ? 'Filtered' : 'Filter'}</button></span></div>${chipRow}${visibleBox}${alGym == null ? binder : ''}`;
 }
 function viewVideos() {
   const sc = sceneOf();
@@ -2965,8 +2985,24 @@ const actions = {
     <div class="stt-l">${STATUS.map(([k, l]) => `<button type="button" class="stt-o${k ? ` is-${k}` : ''}" data-act="setstatus" data-s="${k}" aria-pressed="${k === myStatus}"><i></i>${l}${k === myStatus ? ic.check : ''}</button>`).join('')}</div>`),
   setstatus: b => { myStatus = b.dataset.s; try { localStorage.setItem('spotter-status', myStatus); } catch (_) {} closeAll(); render(); },
   to: b => go(b.dataset.to),
-  albumfilter: () => pane(`<div class="album-filter-sheet"><h2>Filter records</h2><p>Choose what you want to see.</p>${[['all','All records'],['videos','Videos'],['manual','By hand']].map(([value,label]) => `<button type="button" data-act="albumfilterset" data-value="${value}" aria-pressed="${albumFilter === value}"><span>${label}</span>${albumFilter === value ? '<b>✓</b>' : ''}</button>`).join('')}</div>`),
-  albumfilterset: b => { albumFilter = b.dataset.value; closeAll(); render(); },
+  albumfilter: () => { const ix = album({ index: true }) || { gyms: [], routes: [], days: [], n: 0 };
+    const ch = (k, v, t, on, dot) => `<button type="button" data-act="alf" data-k="${k}" data-v="${v}" aria-pressed="${on}">${dot ? `<i style="background:${dot}"></i>` : ''}${t}</button>`;
+    pane(`<div class="alf-sheet"><h2>Filter records</h2>
+      <h3>Type</h3><div class="alf-row">${[['all', 'All'], ['videos', 'Videos'], ['manual', 'By hand']].map(([v, t]) => ch('type', v, t, albumFilter === v)).join('')}</div>
+      <h3>Time</h3><div class="alf-row">${[['all', 'All time'], ['week', 'This week'], ['month', 'This month']].map(([v, t]) => ch('time', v, t, alTime === v)).join('')}</div>
+      <div class="alf-row alf-days">${ix.days.map(d => ch('time', `d:${d}`, dayLabel(d), alTime === `d:${d}`)).join('')}</div>
+      <h3>Gym</h3><div class="alf-row">${ch('gym', '', 'All gyms', alGym == null)}${ix.gyms.map(g => ch('gym', g.gy, g.name, alGym === g.gy)).join('')}</div>
+      ${alGym != null && ix.routes.length ? `<h3>Route</h3><div class="alf-row">${ch('route', '', 'All routes', !alRoute)}${ix.routes.map(r => ch('route', r.key, r.name, alRoute === r.key, r.hex)).join('')}</div>` : ''}
+      <div class="alf-go"><button class="b-ghost" type="button" data-act="alfclear">Clear all</button><button class="b-lime" type="button" data-act="close">Show ${n(ix.n, 'record', 'records')}</button></div></div>`); },
+  alf: b => { const { k, v } = b.dataset;
+    if (k === 'type') { albumFilter = v || 'all'; alRoute = null; }
+    if (k === 'time') alTime = v || 'all';
+    if (k === 'gym') { alGym = v === '' ? null : +v; alRoute = null; }
+    if (k === 'route') alRoute = v || null;
+    render(); if (ask.classList.contains('show')) actions.albumfilter();
+    if (b.dataset.top) document.querySelector('.al-h')?.scrollIntoView({ behavior: 'smooth' }); },
+  alfclear: () => { albumFilter = 'all'; alTime = 'all'; alGym = null; alRoute = null; render(); if (ask.classList.contains('show')) actions.albumfilter(); },
+  albumfilterset: b => { albumFilter = b.dataset.value; alRoute = null; closeAll(); render(); },
   vtab: b => { vTab = b.dataset.t; render(); },
   back: () => history.length > 1 ? history.back() : go('videos'),
   close: () => closeAll(),
