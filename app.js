@@ -21,11 +21,11 @@ const mmss = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2
 // the gym, from campusrec.illinois.edu (checked Nov 11, 2026). hours: [open, close] in 24 h for Sun..Sat
 const gym = { name: 'ARC Climbing Wall', addr: '201 E Peabody Dr, Champaign (UIUC)', dist: '0.6 mi from the Quad', img: 'gym-arc-1', pics: ['gym-arc-2', 'gym-arc-3'],
   hours: [[9, 22], [6, 23], [6, 23], [6, 23], [6, 23], [6, 22], [9, 22]], has: ['35.5 ft rope wall', 'Top rope', 'Bouldering Cave with a Kilter Board', 'Hangboards', 'Shoe rental'],
-  src: 'campusrec.illinois.edu', note: 'Closed Nov 21–29 for Fall Break.' };
+  src: 'campusrec.illinois.edu', note: 'Closed Nov 21–29 for Fall Break.', lean: [1, 39] };
 // the two routes on the rope wall, named by hold colour. Grades are sample
 const ROUTES = [
-  { color: 'Green', hex: '#2E9E62', grade: '5.8', wall: 'Rope wall', img: 'wayup-p3-green', ok: true },
-  { color: 'Orange', hex: '#F08A24', grade: '5.9', wall: 'Rope wall', img: 'wayup-p3-orange', ok: true }];
+  { color: 'Green', hex: '#2E9E62', grade: '5.8', wall: 'Rope wall', img: 'wayup-p3-green', ok: true, votes: [6, 11, 4] },
+  { color: 'Orange', hex: '#F08A24', grade: '5.9', wall: 'Rope wall', img: 'wayup-p3-orange', ok: true, votes: [3, 9, 14] }];
 // every video in the world: [vid, who, route, topped, days ago, length in s]. "You" = the climber filmed as p2.
 // Topped is what the video's last frame shows: at the top, or lower on the wall when it ends
 const V = [
@@ -44,6 +44,48 @@ const V = [
 ].map(([vid, who, ri, top, ago, s], i) => ({ i, vid, img: vid, who, ri, top, ago, D: s, ar: 9 / 16, len: mmss(s), t: [0, s], credit: 'The Way Up · Maschek & Schedl · CC BY 4.0' }));
 const PEOPLE = ['Noor', 'Sam', 'Leo', 'Kai', 'Mia', 'Ava', 'Ben', 'Jun', 'Rosa'];
 const rname = r => `${r.color} ${r.grade}`;
+/* ---------- Grades: what climbers who topped a route felt, and how hard each gym grades ----------
+   A gym's grade only means something at that gym. Two fixes, both sample data for now:
+   1. after a send you say how it felt (soft, about right, hard); the route shows what everyone who topped it said
+   2. every gym gets a lean, in half grades, worked out from climbers who climb at more than one gym, so a grade
+      converts to what it would be at the average gym */
+const FEELS = [['soft', 'Soft'], ['ok', 'About right'], ['hard', 'Hard']];
+let myFeel = {}; try { myFeel = JSON.parse(localStorage.getItem('spotter-feel')) || {}; } catch {}
+const feelSave = () => { try { localStorage.setItem('spotter-feel', JSON.stringify(myFeel)); } catch {} };
+// a grade moved by half grades: +1 is "5.9+", +2 the next grade
+function shiftG(g, h) {
+  const L = GR.includes(g) ? GR : VG.includes(g) ? VG : null; if (!L || !h) return g;
+  const i = Math.max(0, Math.min(L.length - 1, L.indexOf(g) + Math.trunc(h / 2))), r = h % 2;
+  return `${L[i]}${r > 0 ? '+' : r < 0 ? '-' : ''}`;
+}
+// everyone's votes on a route, yours included, and the half grade they add up to
+function votesOf(ri) {
+  const v = [...(ROUTES[ri]?.votes || [0, 0, 0])], k = FEELS.findIndex(([x]) => x === myFeel[ri]); if (k >= 0) v[k]++;
+  const n = v[0] + v[1] + v[2], lean = n ? (v[2] - v[0]) / n : 0;
+  return { v, n, h: n >= 3 ? (lean > .2 ? 1 : lean < -.2 ? -1 : 0) : 0 };
+}
+const gymLean = g => g?.lean?.[0] ?? 0;
+const leanWords = h => h >= 2 ? 'About a grade hard' : h === 1 ? 'About half a grade hard' : h <= -2 ? 'About a grade soft' : h === -1 ? 'About half a grade soft' : 'Graded about average';
+// the gym page's block: where it sits from soft to hard, how many climbers that comes from, an example
+function gymGrading(g) {
+  if (!g?.lean) return '';
+  const [h, n] = g.lean, ex = g.has.some(x => /rope/i.test(x)) ? '5.10' : 'V4', to = shiftG(ex, h);
+  return `<div class="gy-ab gy-gr"><div class="gy-sh">Grading here</div>
+      <div class="gr-sc" role="img" aria-label="${leanWords(h)}"><span>Soft</span><i><b style="left:${50 + h * 20}%"></b></i><span>Hard</span></div>
+      <p class="gr-w"><b>${leanWords(h)}</b> compared with other gyms</p>
+      <p class="cap">${h ? `A ${ex} here is about a ${to} at the average gym. ` : `A ${ex} here is about a ${ex} anywhere. `}From ${n} climbers who also climb at other gyms.</p></div>`;
+}
+// the route page's block: the gym's grade, what the climbers who topped it say, your vote, and the grade at the average gym
+function gradeBlock(i, topped) {
+  const r = ROUTES[i], q = votesOf(i), said = shiftG(r.grade, q.h), avg = shiftG(r.grade, q.h + gymLean(gym)), max = Math.max(1, ...q.v);
+  return `<div class="hl2 dk2"><h2>Grade</h2><span class="hint2">${n(q.n, 'vote', 'votes')}</span></div>
+    <div class="stack"><div class="lt gv">
+      <div class="gv-top"><span><i>The gym</i><b class="num">${r.grade}</b></span><span><i>Climbers who topped it</i><b class="num">${q.n >= 3 ? said : '—'}</b></span><span><i>Average gym</i><b class="num">${avg}</b></span></div>
+      <div class="gv-bars">${FEELS.map(([k, l], j) => `<div class="gv-r${myFeel[i] === k ? ' mine' : ''}"><span>${l}</span><i><b style="width:${q.v[j] / max * 100}%"></b></i><em class="num">${q.v[j]}</em></div>`).join('')}</div>
+      ${topped ? `<p class="gv-q">How did it feel to you?</p><div class="gv-seg" role="group" aria-label="How it felt">${FEELS.map(([k, l]) => `<button type="button" data-act="feel" data-ri="${i}" data-k="${k}" aria-pressed="${myFeel[i] === k}">${l}</button>`).join('')}</div>`
+        : '<p class="gv-q gv-no">Top it to vote. Only climbers who topped it are counted.</p>'}
+      <p class="la-how">${gym.name} grades ${leanWords(gymLean(gym)).toLowerCase().replace('graded ', '')}, from climbers who also climb elsewhere. That puts ${rname(r)} at about ${avg} at the average gym.</p></div></div>`;
+}
 const sw = r => `<span class="sw" style="background:${r.hex}"></span>`;
 const dateOf = ago => { const d = new Date(); d.setHours(12, 0, 0, 0); d.setDate(d.getDate() - ago); return d; };
 const dayLabel = ago => ago === 0 ? 'Today' : ago === 1 ? 'Yesterday' : ago < 7 ? dateOf(ago).toLocaleDateString('en-US', { weekday: 'long' }) : dateOf(ago).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
@@ -556,7 +598,7 @@ function importPicks(vs) {
 
 /* ---------- Film a try: the phone camera, full screen ---------- */
 // the camera reads the route from the holds in frame. In this prototype it films the next of your sample tries
-let filming = false, recS = 0, recT = null, camStep = 'frame', camRoute = null, camGym = null, camColor = '', camGrade = '', camRes = null;
+let filming = false, recS = 0, recT = null, camStep = 'frame', camRoute = null, camGym = null, camColor = '', camGrade = '', camRes = null, camFeel = null;
 // the phone's back camera, filming for real: a live picture while you set up, a recording while you climb, then you watch it
 // back and save it as one of your videos. No sound (the analysis doesn't use it, and the file is smaller to send)
 let camStream = null, camAsk = false, camErr = '', camRec = null, camChunks = [], camBlob = null, camURL = null;
@@ -665,7 +707,7 @@ function openCameraPicker(kind) {
 }
 
 function viewCam() {
-  if (camStep === 'review' && camURL) return { bare: true, dark: true, html: '', overlay: `<div class="cam-review"><header><button class="bk" type="button" data-act="camretake" aria-label="Back">${ic.back}</button><strong>Preview your climb</strong></header><div class="cam-preview"><video src="${camURL}" controls playsinline preload="metadata"></video></div><div class="cam-res"><strong>How did it go?</strong><div>${[['Flash', '✦'], ['Send', '✓'], ['Project', '↗']].map(([k, icon]) => `<button type="button" data-act="camres" data-k="${k}" aria-pressed="${camRes === k}"><span aria-hidden="true">${icon}</span>${KL[k]}</button>`).join('')}</div><small>${camRes === 'Flash' ? 'Finished on your first try' : camRes === 'Send' ? 'Finished after more than one try' : camRes === 'Project' ? 'Still working on it' : 'Pick one to save'}</small></div><div class="cam-review-actions"><button type="button" data-act="camretake">Retake</button><button type="button" data-act="camsave"${camRes ? '' : ' disabled'}>Save climb</button></div></div>` };
+  if (camStep === 'review' && camURL) return { bare: true, dark: true, html: '', overlay: `<div class="cam-review"><header><button class="bk" type="button" data-act="camretake" aria-label="Back">${ic.back}</button><strong>Preview your climb</strong></header><div class="cam-preview"><video src="${camURL}" controls playsinline preload="metadata"></video></div><div class="cam-res"><strong>How did it go?</strong><div>${[['Flash', '✦'], ['Send', '✓'], ['Project', '↗']].map(([k, icon]) => `<button type="button" data-act="camres" data-k="${k}" aria-pressed="${camRes === k}"><span aria-hidden="true">${icon}</span>${KL[k]}</button>`).join('')}</div><small>${camRes === 'Flash' ? 'Finished on your first try' : camRes === 'Send' ? 'Finished after more than one try' : camRes === 'Project' ? 'Still working on it' : 'Pick one to save'}</small>${camRes === 'Flash' || camRes === 'Send' ? `<strong class="cam-fq">How did the grade feel? <i>Optional</i></strong><div>${FEELS.map(([k, l]) => `<button type="button" data-act="camfeel" data-k="${k}" aria-pressed="${camFeel === k}">${l}</button>`).join('')}</div>` : ''}</div><div class="cam-review-actions"><button type="button" data-act="camretake">Retake</button><button type="button" data-act="camsave"${camRes ? '' : ' disabled'}>Save climb</button></div></div>` };
   const ready = !!camStream, ask = camGym === null || !camColor || !camGrade;
   const why = camErr === 'denied' ? ['Camera access is off', 'Allow the camera for this site in your browser settings, then try again.'] : camErr ? ['No camera here', 'This browser or device can’t film. Import a video you filmed instead.'] : null;
   return { bare: true, dark: true, html: '', after: camAttach, overlay: `
@@ -1510,6 +1552,7 @@ function viewRoute(a) {
     <div class="fold"></div>
     <div class="hl2 dk2"><h2>Beta</h2></div>
     <div class="rows">${betaRow(i)}</div>
+    ${gradeBlock(i, mine.some(topOf) || logs.some(l => l.ri === i && l.sent))}
     <div class="sec"><h2>Your tries</h2>${mine.length ? `<span class="stg${mine.some(topOf) ? ' on' : ''}">${mine.some(topOf) ? 'Topped' : 'Not topped yet'}</span>` : ''}</div>
     ${mine.length ? `<div class="rgrid">${mine.slice().reverse().map(vcard).join('')}</div>`
       : '<div class="rows"><button class="row" type="button" data-act="film"><span class="row-t"><strong>Film a try</strong><span>Then watch it next to anyone below</span></span>' + ic.arr('#111111') + '</button></div>'}
@@ -1541,7 +1584,8 @@ function viewGym(a) {
       <div class="gy-sh">Hours</div>
       ${weekHours(gym)}
       <div class="gy-sh">Here</div><div class="gy-has">${gym.has.map(h => `<span>${h}</span>`).join('')}</div>
-      <p class="cap"><span>${gym.note}</span> <span>From ${gym.src}, Nov 2026.</span></p></div>`, after: carWire };
+      <p class="cap"><span>${gym.note}</span> <span>From ${gym.src}, Nov 2026.</span></p></div>
+    ${gymGrading(gym)}`, after: carWire };
 }
 
 /* ---------- Community: every public video from this gym, one at a time ---------- */
@@ -1803,13 +1847,13 @@ function viewProfile() {
 Object.assign(gym, { mi: 0.6, deg: 229, pass: null });
 const gyms = [gym,
   { name: 'Boneyard Boulders', dist: '1.0 mi', mi: 1.0, deg: 310, addr: '119 E University Ave, Champaign', img: 'gym-boneyard-1', pics: ['gym-boneyard-2'],
-    hours: Array(7).fill([12, 22]), pass: '$20 · $18 if 20 or under', has: ['Bouldering', 'Shoe rental $4', 'Free fitness classes', 'Same pass works at Urbana Boulders'], src: 'urbanaboulders.com' },
+    hours: Array(7).fill([12, 22]), lean: [-1, 64], pass: '$20 · $18 if 20 or under', has: ['Bouldering', 'Shoe rental $4', 'Free fitness classes', 'Same pass works at Urbana Boulders'], src: 'urbanaboulders.com' },
   { name: 'Urbana Boulders', dist: '2.0 mi', mi: 2.0, deg: 48, addr: '1502 N Cunningham Ave, Urbana', img: 'gym-urbana-1', pics: ['gym-urbana-2'],
-    hours: [[10, 21], [15, 22], [15, 22], [15, 22], [15, 22], [12, 22], [10, 21]], pass: '$20 · $18 if 20 or under', has: ['Bouldering', 'Shoe rental $4', '200+ problems across both gyms', 'Same pass works at Boneyard Boulders'], src: 'urbanaboulders.com' },
+    hours: [[10, 21], [15, 22], [15, 22], [15, 22], [15, 22], [12, 22], [10, 21]], lean: [-1, 58], pass: '$20 · $18 if 20 or under', has: ['Bouldering', 'Shoe rental $4', '200+ problems across both gyms', 'Same pass works at Boneyard Boulders'], src: 'urbanaboulders.com' },
   { name: 'Horizon Climbing', dist: '2.8 mi', mi: 2.8, deg: 278, addr: '1914 Round Barn Rd, Champaign', img: 'gym-horizon-1', pics: ['gym-horizon-2', 'gym-horizon-3', 'gym-horizon-4'],
-    hours: [[10, 20], [10, 22], [10, 22], [10, 22], [10, 22], [10, 22], [10, 22]], pass: '$22 · $16 college students', has: ['Bouldering', 'Shoe rental $4', 'New climbs every week', 'Tension Board 2', 'Showers and sauna', 'Study space'], src: 'climbhorizon.com' },
+    hours: [[10, 20], [10, 22], [10, 22], [10, 22], [10, 22], [10, 22], [10, 22]], lean: [1, 47], pass: '$22 · $16 college students', has: ['Bouldering', 'Shoe rental $4', 'New climbs every week', 'Tension Board 2', 'Showers and sauna', 'Study space'], src: 'climbhorizon.com' },
   { name: 'Upper Limits Bloomington', dist: '49 mi', mi: 49, deg: 302, addr: '1304 W Washington St, Bloomington', img: 'gym-upperlimits-1', pics: ['gym-upperlimits-2', 'gym-upperlimits-3'],
-    hours: [[10, 18], [12, 22], [16, 22], [16, 22], [16, 22], [12, 22], [10, 18]], pass: '$21 · $17 kids 10 and under', has: ['Bouldering', 'Top rope and auto belays', 'Outdoor silo wall', 'Fitness area'], src: 'upperlimits.com' }];
+    hours: [[10, 18], [12, 22], [16, 22], [16, 22], [16, 22], [12, 22], [10, 18]], lean: [0, 22], pass: '$21 · $17 kids 10 and under', has: ['Bouldering', 'Top rope and auto belays', 'Outdoor silo wall', 'Fitness area'], src: 'upperlimits.com' }];
 
 /* ---------- Gyms tab: where you climb, then the others near you. Map, and one page per gym ---------- */
 const atGym = i => i === 0 ? { videos: clips.length, last: clips.length ? Math.min(...clips.map(agoOf)) : null } : { videos: 0, last: null };
@@ -2022,6 +2066,7 @@ function viewOtherGym(i) {
       <div class="gy-sh">Day pass</div><div class="gy-l gy-l1"><b>${g.pass}</b></div>
       <div class="gy-sh">Here</div><div class="gy-has">${g.has.map(h => `<span>${h}</span>`).join('')}</div>
       <p class="cap">From ${g.src}, Nov 2026.</p></div>
+    ${gymGrading(g)}
     <div class="rows"><div class="row"><span class="row-t"><strong>No videos from here yet</strong><span>Spotter’s routes and side by sides are at ${gym.name} for now.</span></span></div></div>
     <a class="b-lime gy-cta" href="https://${g.src}" target="_blank" rel="noopener">Buy a day pass · ${g.pass.split(' · ')[0]} <span aria-hidden="true">↗</span></a>
     <p class="gy-cta-n">On ${g.src.replace(/\/.*$/, '')}, the gym’s own site</p>`, after: carWire };
@@ -2846,7 +2891,7 @@ const actions = {
   close: () => closeAll(),
   feedmode: b => { feedAt = 0; go(b.dataset.to); },
   // add
-  film: () => { closeAll(); filming = false; camStep = 'frame'; camRoute = null; camGym = todayGym(); camColor = ''; camGrade = ''; camRes = null; go('cam'); },
+  film: () => { closeAll(); filming = false; camStep = 'frame'; camRoute = null; camGym = todayGym(); camColor = ''; camGrade = ''; camRes = null; camFeel = null; go('cam'); },
   upload: () => { if (page === 'setup') { history.replaceState(null, '', '#/videos'); readHash(); render(); } openUpload(); },
   upick: b => { const i = +b.dataset.i; upSel.has(i) ? upSel.delete(i) : upSel.add(i); drawRoll(); },
   upnext: () => { const s = [...upSel]; if (s.length) importPicks(s); },
@@ -2870,7 +2915,9 @@ const actions = {
     }
     filming = false; camRec?.stop();   // the review opens once the recording is complete
   },
-  camres: b => { camRes = b.dataset.k; render(); },
+  camres: b => { camRes = b.dataset.k; if (camRes === 'Project') camFeel = null; render(); },
+  camfeel: b => { camFeel = camFeel === b.dataset.k ? null : b.dataset.k; render(); },
+  feel: b => { const ri = +b.dataset.ri; myFeel[ri] = myFeel[ri] === b.dataset.k ? undefined : b.dataset.k; if (!myFeel[ri]) delete myFeel[ri]; feelSave(); render(); },
   camretake: () => { camDrop(); camStep = 'frame'; render(); },
   camtry: () => { camErr = ''; camStop(); render(); },
   camreview: () => { camStep = 'review'; render(); },
@@ -2883,7 +2930,8 @@ const actions = {
     // what you set before filming is the route; you post it or analyse it from its page
     const ri = routeFor(camGym, camColor, camGrade, 'gym-arc-1');
     const c = await addMine(f, { ri, gy: camGym, res: camRes, hidden: true }, 'Saving your climb…'); if (!c) return;
-    camDrop(); camStep = 'frame'; camRoute = null; camGym = null; camColor = ''; camGrade = ''; camRes = null; cTab = 'why'; go(`clip/${c.id}`); toast('Climb saved');
+    if (camFeel && camRes !== 'Project') { myFeel[ri] = camFeel; feelSave(); }
+    camDrop(); camStep = 'frame'; camRoute = null; camGym = null; camColor = ''; camGrade = ''; camRes = null; camFeel = null; cTab = 'why'; go(`clip/${c.id}`); toast('Climb saved');
   },
   clpick: b => { const c = byId(b.dataset.c), k = b.dataset.k; if (!c) return; if (k === 'gy') openGymPick(`clip:${c.id}`); else if (k === 'color') openHoldColors(`clip:${c.id}`); else openClipGrade(c); },
   clpgrade: b => { const c = byId(b.dataset.c); if (c) setPick(c, 'grade', b.dataset.grade); },

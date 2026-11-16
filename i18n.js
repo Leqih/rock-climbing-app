@@ -3,11 +3,21 @@
    an exact match first, then a pattern ({} is any text, translated in turn; {1} picks a piece out of order),
    then piece by piece around " · ". Anything not found stays in English. */
 const ZH = {
+  // ---- grades: votes and how hard each gym grades
+  "The gym": "岩馆定级", "Climbers who topped it": "完攀者认为", "Average gym": "平均水平岩馆", "{} votes": "{} 票", "1 vote": "1 票",
+  "How did it feel to you?": "你觉得这条线难度如何？", "Top it to vote. Only climbers who topped it are counted.": "完攀后才能投票，只统计完攀者的意见。",
+  "{} grades {}, from climbers who also climb elsewhere. That puts {} at about {} at the average gym.": "{} 的定级{}（根据也在其他馆爬的岩友）。所以 {} 在平均水平的岩馆大约是 {}。",
+  "about half a grade hard": "偏硬约半级", "about a grade hard": "偏硬约一级", "about half a grade soft": "偏软约半级", "about a grade soft": "偏软约一级", "about average": "和平均水平差不多",
+  "Grading here": "这里的定级", "About half a grade hard": "偏硬约半级", "About a grade hard": "偏硬约一级", "About half a grade soft": "偏软约半级", "About a grade soft": "偏软约一级", "Graded about average": "定级和平均水平差不多",
+  "compared with other gyms": "（和其他岩馆相比）",
+  "A {} here is about a {} at the average gym. From {} climbers who also climb at other gyms.": "这里的 {} 大约相当于平均水平岩馆的 {}。来自 {} 位也在其他馆爬的岩友。",
+  "A {} here is about a {} anywhere. From {} climbers who also climb at other gyms.": "这里的 {} 在哪里都差不多是 {}。来自 {} 位也在其他馆爬的岩友。",
+  "How did the grade feel?": "难度感觉如何？", "Optional": "可选", "How it felt": "难度感觉",
   // ---- legs or arms
   "Move by move": "逐个动作", "How you held up": "体力撑得怎么样",
   "Leg push ↑": "腿推 ↑", "Arm pull ↑": "手拉 ↑", "Legs and arms ↑": "手脚并用 ↑",
   "Legs or arms": "腿还是手", "1 step up": "1 次上升", "{} steps up": "{} 次上升", "Can’t tell from this video": "这个视频看不出来",
-  "To tell a leg push from an arm pull we need to see your knees and your elbows while you move up. They were hidden on {} of {}. Film from a little further back, side-on if you can.": "要分清是腿推还是手拉，需要在你往上时同时看到膝盖和手肘。这次 {2}里有 {1} 步被挡住了。下次离远一点，尽量从侧面拍。",
+  "To tell a leg push from an arm pull we need to see your knees and your elbows while you move up. They were hidden on {} of {}. Film from a little further back, side-on if you can.": "要分清是腿推还是手拉，需要在你往上时同时看到膝盖和手肘。这次 {1}里有 {0} 步被挡住了。下次离远一点，尽量从侧面拍。",
   "{} steps": "{} 步", "1 step": "1 步",
   "There is only one step up in this video. We need at least two to say whether your legs or your arms did the work.": "这个视频里只有一次往上的动作。至少要两次，才能判断是腿还是手在出力。",
   "There are only {} steps up in this video. We need at least two to say whether your legs or your arms did the work.": "这个视频里只有 {} 次往上的动作。至少要两次，才能判断是腿还是手在出力。",
