@@ -2739,3 +2739,11 @@ textarea.note:focus { outline: 2px solid var(--ink); outline-offset: 0; backgrou
 .shut:active { transform: scale(.94); }
 .shut.ask i { background: rgba(255,255,255,.28); }
 .cam-shutter-label { bottom: 26px; }
+
+/* what the analysis needs from the picture, above the shutter until you start */
+.cam-tips { position: absolute; left: 20px; right: 20px; bottom: 150px; padding: 11px 14px 12px; border-radius: 14px; background: rgba(20,24,22,.78); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); color: #fff; }
+.cam-tips strong { display: block; margin-bottom: 6px; font-size: 13px; font-weight: 800; }
+.cam-tips ul { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; }
+.cam-tips li { position: relative; padding-left: 20px; font-size: 12px; line-height: 1.35; color: #e9ece9; }
+.cam-tips li::before { content: ''; position: absolute; left: 2px; top: 3px; width: 10px; height: 6px; border: solid #c4f52a; border-width: 0 0 2px 2px; transform: rotate(-45deg); }
+.camx:not(.mapx):has(.cam-tips) .cam-fr { bottom: 274px; }
