@@ -660,9 +660,9 @@ const lyrBar = (ok = {}) => `<div class="lyr" role="toolbar" aria-label="What to
     <button type="button" data-act="spd" class="lyr-sp num" aria-label="Playback speed">${speed}×</button></div>`;
 const lyrOver = () => `<canvas id="lvd" class="lvd${penOn ? ' on' : ''}"></canvas>
     <span class="lvst" id="lvst" hidden></span><span class="lvtag" id="lvtag" hidden></span>`;
-// under the video, as wide as it: where you are, a strip of frames to drag along, and how long the video is
+// under the video, as wide as it: where you are, a progress bar to drag along, and how long the video is
 const lyrStrip = (D, w) => `<div class="lvbar" id="lvbar" style="width:${w}"><span class="num" id="lvsa">0:00</span>
-    <div class="lvstrip" id="lvstrip"><div class="lvs-f" id="lvsf"></div><i class="lvs-h" id="lvsh"></i></div><span class="num">${mmss(D)}</span></div>`;
+    <div class="lvstrip" id="lvstrip" role="slider" aria-label="Position in the video" tabindex="0"><i class="lvs-t"><i class="lvs-p" id="lvsp"></i></i><i class="lvs-h" id="lvsh"></i></div><span class="num">${mmss(D)}</span></div>`;
 function lyrSave() { window.poseLayers = LAY; try { localStorage.setItem('spotter-layers', JSON.stringify(LAY)); } catch {} }
 
 // the pen: draw on the video to plan a move. Drawing pauses it. Lines sit on the picture, so they zoom with it
@@ -685,28 +685,19 @@ function penWire(c, T) {
   cv.repaint = paint; paint();
 }
 
-// a strip of frames under the video: drag along it to find a moment
+// the progress bar under the video: drag along it to find a moment
 function stripWire(v, T) {
-  const box = $('lvstrip'), row = $('lvsf'), head = $('lvsh'); if (!box || !T) return;
-  const N = 10, D = T.D || v.duration || 1;
-  row.innerHTML = Array.from({ length: N }, () => '<canvas width="48" height="64"></canvas>').join('');
-  const cvs = [...row.querySelectorAll('canvas')];
-  // frames come from a second, hidden copy of the video, one seek at a time
-  const s = document.createElement('video'); s.muted = true; s.playsInline = true; s.preload = 'auto'; s.src = v.currentSrc || v.src;
-  s.style.cssText = 'position:fixed;left:0;top:0;width:2px;height:2px;opacity:.01;pointer-events:none'; document.body.appendChild(s);
-  let i = 0; const next = () => { if (i >= N || !box.isConnected) { s.remove(); return; } s.currentTime = Math.min(D - .05, (i + .5) / N * D); };
-  s.addEventListener('seeked', () => { const cv = cvs[i], g = cv.getContext('2d'), ar = s.videoWidth / s.videoHeight, w = cv.width, h = cv.height;
-    const sw = ar > w / h ? s.videoHeight * w / h : s.videoWidth, sh = ar > w / h ? s.videoHeight : s.videoWidth * h / w;
-    g.drawImage(s, (s.videoWidth - sw) / 2, (s.videoHeight - sh) / 2, sw, sh, 0, 0, w, h); i++; next(); });
-  openVideo(s, 10000).then(next, () => s.remove());
+  const box = $('lvstrip'), fill = $('lvsp'), head = $('lvsh'); if (!box || !T) return;
+  const D = T.D || v.duration || 1;
   const seek = e => { const r = box.getBoundingClientRect(); v.currentTime = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)) * (v.duration || D); };
   let drag = false;
   box.addEventListener('pointerdown', e => { e.stopPropagation(); drag = true; v.pause(); box.setPointerCapture(e.pointerId); seek(e); });
   box.addEventListener('pointermove', e => { if (drag) seek(e); });
   ['pointerup', 'pointercancel'].forEach(n => box.addEventListener(n, () => { drag = false; }));
+  box.addEventListener('keydown', e => { const d = { ArrowLeft: -1, ArrowRight: 1 }[e.key]; if (!d) return; e.preventDefault(); v.currentTime = Math.max(0, Math.min(v.duration || D, v.currentTime + d)); });
   const at = $('lvsa'); let shown = -1;
-  const tick = () => { if (!box.isConnected) return; head.style.left = `${Math.min(100, v.currentTime / (v.duration || D) * 100)}%`;
-    const sec = Math.floor(v.currentTime); if (at && sec !== shown) { shown = sec; at.textContent = mmss(sec); } requestAnimationFrame(tick); };
+  const tick = () => { if (!box.isConnected) return; const pc = `${Math.min(100, v.currentTime / (v.duration || D) * 100)}%`; head.style.left = pc; fill.style.width = pc;
+    const sec = Math.floor(v.currentTime); if (at && sec !== shown) { shown = sec; at.textContent = mmss(sec); box.setAttribute('aria-valuetext', `${mmss(sec)} of ${mmss(D)}`); } requestAnimationFrame(tick); };
   requestAnimationFrame(tick);
 }
 
@@ -1197,9 +1188,12 @@ function viewClip(id) {
       ${betaRow(c.ri, T)}
       <button class="row" type="button" data-act="ctab" data-v="cmp"><span class="row-t"><strong>Watch it next to someone else</strong><span>${n(peers.length, 'other climber', 'other climbers')} on ${rname(r)}</span></span>${ic.arr('#111111')}</button></div>`;
   const panels = two ? { why: (q => `${postCard}${qualityCard(q)}${q.level === 'poor' ? '' : `${stuckCard(T, c)}${measured(T)}${paceState(T)}`}${nextUp}`)(quality(T)), body: `<div class="hl2 dk2"><h2>As it plays</h2></div>${live}${timeline(T)}${moveSeq(T)}${climbPath(T, lv.img)}${bodyStats(T)}`, cmp, info } : {};
-  return { photo: c.img, fit: state === 'ask', cta: '', after: () => {
+  return { photo: c.img, fit: state === 'ask' || state === 'idle', cta: '', after: () => {
       tagWire(c);
       const v = $('lvv'), box = v.parentElement;
+      // not analysed yet: the video, what you say about it and the two buttons are one screen, no scrolling. The video gives up the room
+      if (state === 'idle') { const scr = document.querySelector('.screen'), over = scr.scrollHeight - scr.clientHeight;
+        if (over > 0) box.style.width = `${Math.round(Math.max(180, box.offsetHeight - over - 6) * lv.ar)}px`; }
       segClose(); anSheet = null; segStop = null; segT = T; v.addEventListener('play', () => $('cpv')?.pause());
       v.playbackRate = speed;
       if (two) { window.poseGate = quality(T).ok; window.posePlay(v, $('lvc'), T); tlWire(); kfWire(T, v.currentSrc || v.src); stuckWire(T, c, v.currentSrc || v.src); penWire(c, T); stripWire(v, T); stickWire(box, vh); followWire(box); }
