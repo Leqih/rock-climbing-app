@@ -5,6 +5,9 @@
    (vendor/mediapipe, Apache-2.0) and sw.js keeps them, so it works at a gym with no signal once the app has been opened. */
 (() => {
   const VIS = new URL('vendor/mediapipe', document.baseURI).href;   // @mediapipe/tasks-vision 0.10.14
+  // full, not heavy: on three of The Way Up's climbs (2026-11-16) heavy found the body a little more often but drew
+  // fewer hands (60 -> 36%) and read fewer arm angles, at the same speed. Wrists of a far-off climber facing the wall
+  // are past what either model reads with confidence
   const MODEL = `${VIS}/pose_landmarker_full.task`;
   let lm = null, loading = null;
   const load = () => loading || (loading = (async () => {
@@ -290,7 +293,42 @@
   document.addEventListener('visibilitychange', wake);
   async function scan(src, seed, onP) {
     scans++; wake();
-    try { return await scanNow(src, seed, onP); } finally { if (!--scans) { awake?.release().catch(() => {}); awake = null; } }
+    try {
+      if (SERVER) try { return await onServer(src, seed, onP); } catch (e) { console.warn('Spotter server:', e.message, '- reading it on the phone'); onP?.(0); }
+      return await scanNow(src, seed, onP);
+    } finally { if (!--scans) { awake?.release().catch(() => {}); awake = null; } }
+  }
+  // a server with a GPU reads the body better than the phone (YOLO pose: more hands, more arm angles, on the coach-labelled
+  // climbs), then the same analysis runs here on what it read. Ours is on Modal (server/modal_app.py); ?server=<url> uses
+  // another (your laptop: http://localhost:8765), ?server=off reads on the phone, ?server= goes back to ours. When the
+  // server can't be reached the phone reads the video as before
+  const CLOUD = 'https://leqih--spotter-web.us-east.modal.run';
+  const SERVER = (() => { let s = CLOUD; try {
+    const q = new URLSearchParams(location.search).get('server');
+    if (q !== null) { if (q) localStorage.setItem('spotter.server', q); else localStorage.removeItem('spotter.server'); }
+    s = localStorage.getItem('spotter.server') || CLOUD;
+  } catch {} return s === 'off' ? '' : s.replace(/\/+$/, ''); })();
+  window.poseServer = SERVER;
+  async function onServer(src, seed, onP) {
+    const blob = await (await fetch(src)).blob();
+    // the upload is the first 30% of the bar, the server's reading the rest
+    const job = await new Promise((ok, no) => {
+      const x = new XMLHttpRequest();
+      x.open('POST', `${SERVER}/jobs${seed ? `?seed=${encodeURIComponent(JSON.stringify(seed))}` : ''}`);
+      x.timeout = 10 * 60e3;
+      x.upload.onprogress = e => { if (e.lengthComputable) onP?.(e.loaded / e.total * .3); };
+      x.onload = () => { try { if (x.status !== 200) throw new Error(`upload ${x.status}`); ok(JSON.parse(x.responseText)); } catch (e) { no(e); } };
+      x.onerror = () => no(new Error('no connection')); x.ontimeout = () => no(new Error('upload timed out'));
+      x.send(blob);
+    });
+    for (let miss = 0; ;) {
+      await new Promise(r => setTimeout(r, 1000));
+      let j; try { const r = await fetch(`${SERVER}/jobs/${job.id}`); if (!r.ok) throw new Error(`job ${r.status}`); j = await r.json(); miss = 0; }
+      catch (e) { if (++miss > 30) throw e; continue; }   // a moment without signal is fine
+      if (j.state === 'error') throw new Error(j.error || 'server failed');
+      onP?.(.3 + .7 * (j.pct || 0));
+      if (j.state === 'done') { const r = j.result; return { ...await window.__trackFromFrames(r.frames, r.W, r.H, r.D), by: r.model }; }
+    }
   }
   async function scanNow(src, seed, onP) {
     await load();
@@ -333,6 +371,17 @@
     if (!src.endsWith('.mp4')) return null;   // a video from your phone has no scan shipped with it
     try { const r = await fetch(src.replace('.mp4', '.track.json')); if (r.ok) return seenBefore[src] = await r.json(); } catch {}
     return null; };
+  // the same analysis on bodies read elsewhere (another pose model, on a server): frames[f] is the climber at f / FHZ s
+  // in MediaPipe's 33-point order, [x, y, confidence] as fractions of the picture, or null. No picture, so no wall motion
+  window.__trackFromFrames = async (frames, W, H, D) => {
+    const st = fresh(), S = [], F = [], per = FHZ / HZ;
+    for (let f = 0; f < frames.length; f++) {
+      const t = f / FHZ, b = frames[f], res = { landmarks: b ? [b.map(([x, y, v]) => ({ x, y, visibility: v }))] : [] };
+      if (f % per) { const q = pickOnly(res, st, W, H, t); F.push(q ? IDX.map(j => [R3(q[j].x / W), R3(q[j].y / H), R3(q[j].v)]) : null); continue; }
+      const s = pack(step(st, res, t, W, H), t, W, H); s.w = [1, 0, 0, 0]; S.push(s); F.push(s.p || null);
+    }
+    return { ...results(S, await findMoves(S, W, H), D, W, H), F, fhz: FHZ };
+  };
   window.__scan = src => scan(src); window.__results = T => ({ ...results(T.S, T.moves, T.D, T.W, T.H), F: T.F, fhz: T.fhz }); window.__moves = T => findMoves(T.S, T.W, T.H); window.__chance = async T => Array.from(netChance(await loadNet(), T.S, T.W, T.H));   // to bake the sample videos again
   let queue = Promise.resolve();
   window.poseScan = async (src, seed, onP) => {
