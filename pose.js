@@ -794,7 +794,7 @@
     const W = T.W, H = T.H, px = toScreen(ctx, T);
     const G = window.poseGate || {}, L0 = window.poseLayers || { pose: true };
     const L = { ...L0, lock: L0.lock && (G.lock ?? G.arms) !== false, angles: L0.angles && G.angles !== false, balance: L0.balance && G.balance !== false };
-    const info = { state: '', tag: '' };
+    const info = { state: '', tag: '', why: '' };
     if (!f) return info;
     const p = f.pts, u = 1 / px, held = holding(T, t), seen = i => p[i] && p[i].v >= .3;
     const c = centre(p), torso = c.torso, armA = { lw: f.el, rw: f.er };
@@ -839,6 +839,10 @@
     const hp = mid(p[P.lh], p[P.rh]), high = ['la', 'ra'].find(k => held.includes(k) && p[ON[k]].v >= .5 && p[ON[k]].y <= hp.y + torso * .3);
     const lock = G.arms !== false && ['lw', 'rw'].find(k => held.includes(k) && armA[k] != null && armA[k] >= 40 && armA[k] < 90) && ['lw', 'rw'].some(k => !held.includes(k));
     info.tag = G.tags === false ? '' : high ? 'High foot' : lock ? 'Lock-off' : rest && G.arms !== false && [f.el, f.er].some(a => a >= 150) ? 'Straight-arm rest' : '';
+    // the colours, in words: orange says what it costs you, lime what it saves
+    const offC = (L.balance || L.cog) && G.balance !== false && bal === 'out', bentA = L.lock && ['lw', 'rw'].some(k => held.includes(k) && armA[k] != null && armA[k] >= 40 && armA[k] < 120);
+    const okC = (L.balance && (bal === 'in' || bal === 'unseen')) || (L.lock && ['lw', 'rw'].some(k => held.includes(k) && armA[k] >= 145));
+    info.why = offC ? 'Orange: your weight is off your feet, so your hands hold you on' : bentA ? 'Orange arm: bent and pulling, so it tires fast' : okC ? 'Lime: your weight is on your feet, which saves strength' : '';
     return info;
   }
   const steadies = new WeakMap();
@@ -940,6 +944,7 @@
       const now = drawLive(ctx, f, t, T), st = document.getElementById('lvst'), tg = document.getElementById('lvtag');
       if (st) { if (st.dataset.s !== now.state) { st.dataset.s = now.state; st.textContent = now.state; } st.hidden = !now.state; }
       if (tg) { if (tg.textContent !== now.tag) tg.textContent = now.tag; tg.hidden = !now.tag; }
+      const wy = document.getElementById('lvwhy'); if (wy) { if (wy.dataset.w !== now.why) { wy.dataset.w = now.why; wy.textContent = now.why; } wy.hidden = !now.why; }
       // where the climber is in the picture right now (0 to 1 across and down), for zooming in on them
       if (!f) window.poseNow = null;
       if (f) { const ps = f.pts.filter(Boolean); if (ps.length) { const xs = ps.map(q => q.x / T.W), ys = ps.map(q => q.y / T.H);

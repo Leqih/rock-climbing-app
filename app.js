@@ -847,7 +847,7 @@ function timeline(T) {
     <div class="tl-g">${lane('Left hand', limb('lw'))}${lane('Right hand', limb('rw'))}${lane('Left foot', limb('la'))}${lane('Right foot', limb('ra'))}
       ${lane('Rests', T.rests.map(r => at(r.t0, r.t1, r.straight > .5 ? 'rs' : 'rb')).join(''))}
       <div class="tl-o" id="tlo" role="slider" aria-label="Go to a moment in the video"><i id="tlp"></i></div></div>
-    <p class="an-k tl-k"><span><i class="rs"></i>Rest, arms straight</span><span><i class="rb"></i>Rest, arms bent</span></p>
+    <p class="an-k tl-k"><span><i class="rs"></i>Rest, arms straight: saves strength</span><span><i class="rb"></i>Rest, arms bent: tires you faster</span></p>
 </section>`;
 }
 function tlWire() {
@@ -876,7 +876,7 @@ const lyrBar = (ok = {}) => `<div class="lyr" role="toolbar" aria-label="What to
     ${LAYERS.map(([k, l, d]) => { const off = OFFWHY[k] && ok[OFFWHY[k]] === false;
       return `<button type="button" data-act="lyr" data-k="${k}"${off ? ' class="off" aria-disabled="true"' : ''} aria-pressed="${!off && !!LAY[k]}">${lyrIcon(d)}<span>${l}</span></button>`; }).join('')}
     <button type="button" data-act="spd" class="lyr-sp num" aria-label="Playback speed">${speed}×</button></div>`;
-const lyrOver = () => `<div class="lvtags" id="lvtags"><span class="lvst" id="lvst" hidden></span><span class="lvtag" id="lvtag" hidden></span><span class="lvla" id="lvla" hidden></span></div>`;
+const lyrOver = () => `<div class="lvtags" id="lvtags"><span class="lvst" id="lvst" hidden></span><span class="lvtag" id="lvtag" hidden></span><span class="lvla" id="lvla" hidden></span></div><span class="lvwhy" id="lvwhy" hidden></span>`;
 // under the video, as wide as it: where you are, something to drag along, and how long the video is. While the video fills
 // the screen that's a strip of its frames; pulled up, with the video small, a slim bar with a node at every move
 const lyrStrip = (D, w) => `<div class="lvbar" id="lvbar" style="width:${w}"><span class="num" id="lvsa">0:00</span>
@@ -1185,7 +1185,7 @@ function takeaway(T) {
   return { sim: isOff(far) ? hipSim(T, on.filter(isOff), on, isOff) : null, ...say('Good control', arms ? `Arms straight in ${s.restStraight}% of your rests, and hips over your feet for ${s.hipsOver}% of the climb.` : `Hips over your feet for ${s.hipsOver}% of the climb.`, 'Nothing stands out across the whole climb. Open where you stopped, below, and compare that part with someone who topped it.', s.longest.t, 'See your best rest', { frames: [{ s: best, tone: 'good', mark: bigArm(best) == null ? 'hip' : 'arm', title: 'Your best rest', sub: `${s.longest.s.toFixed(1)} s` }, { s: far, tone: isOff(far) ? 'bad' : 'good', mark: 'hip', title: side(far), sub: isOff(far) ? 'Worth a look' : 'Still centred' }],
     head: 'Whole climb', share: `${s.hipsOver}% centred`, bar: band(T, hips), keys: swatch('g', 'Centred') + swatch('b', 'Off to one side') }, { a: s.longest.t, b: s.longest.t + s.longest.s, mark: 'none', tone: 'good' }) };
 }
-const seeBlock = v => `${v.frames.length ? `<div class="kf-g n${v.frames.length}">${v.frames.map((f, i) => `<button class="kf" type="button" ${clipNear(f.s.t, v.T, f.mark)}><span class="kf-i"><img alt="" data-kf="${i}"></span><b><span class="num">${mmss(f.s.t)}</span> <span>${f.title}</span></b><em>${f.sub}</em></button>`).join('')}</div>` : ''}
+const seeBlock = v => `${v.frames.length ? `<div class="kf-g n${v.frames.length}">${v.frames.map((f, i) => `<button class="kf" type="button" ${clipNear(f.s.t, v.T, f.mark)}><span class="kf-i"><img alt="" data-kf="${f.i ?? i}"></span><b><span class="num">${mmss(f.s.t)}</span> <span>${f.title}</span></b><em>${f.sub}</em></button>`).join('')}</div>` : ''}
     ${v.bar ? `<div class="vz"><div class="vz-h"><b>${v.head}</b><span>${v.share}</span></div>${v.bar}<div class="vz-a num"><span>0:00</span><span>${mmss(v.T)}</span></div>${v.keys ? `<div class="vz-l">${v.keys}</div>` : ''}</div>` : ''}`;
 // the frames come out of the video itself, one at a time, once the card is on the page
 function kfWire(T, src) {
@@ -1274,15 +1274,27 @@ function legCard(T) {
     <details class="lm"><summary>How we tell</summary><p class="la-how">Each time your hips went up, we compared how much your knees straightened with how much your elbows bent. Steps where we couldn’t see both are marked ?.</p></details></div></div>`;
 }
 // the top of Summary: one thing to change next time, with its picture and what to do. Why it matters is behind Learn more
+// why each kind of tip matters, and a search for a coach explaining it (a search, not one chosen video)
+const PRIN = {
+  hips: ['When your hips are over your feet, your legs hold your weight. When they drift to one side, your hands have to hold you on and your forearms tire.', 'climbing technique hips close to the wall'],
+  arms: ['A straight arm hangs on your bones; a bent arm holds you with muscle. Resting on straight arms lets your forearms recover.', 'climbing straight arms technique rest'],
+  feet: ['Your legs are much stronger than your arms. Move a foot up first and the leg pushes you up, so the hand only has to hold on.', 'climbing footwork technique'],
+  rest: ['Forearms only recover when you stop and shake out. A short rest on a good hold halfway saves strength for the top.', 'climbing how to rest shake out'] };
+const PRIN_OF = { 'Keep your hips over your feet': 'hips', 'Good control': 'hips', 'Rest on straighter arms': 'arms', 'Use your feet more': 'feet', 'Take a rest on the way': 'rest' };
+const learnMore = (k, body = '') => !PRIN[k] && !body ? '' : `<details class="lm"><summary>Why? Learn more</summary>${PRIN[k] ? `<p class="tip-d lm-p">${PRIN[k][0]}</p>` : ''}${body}
+  ${PRIN[k] ? `<a class="lm-v" href="https://www.youtube.com/results?search_query=${encodeURIComponent(PRIN[k][1])}" target="_blank" rel="noopener"><span>▶</span>Find a coaching video on this</a>` : ''}</details>`;
+// the top of Summary: one thing to change next time. Its picture, what's wrong, what to do; the rest is behind Learn more
 function sumHero(T, strip) {
   const m = takeaway(T); if (m.vis) m.vis.T = T.D;
   const sp = m.span || { a: Math.max(0, m.t - 1), b: m.t + 2, mark: 'none' }, spa = sp.a, spb = Math.min(T.D, Math.max(sp.b, spa + 2));
-  // the whole climb is drawn once, in the strip under this card; here only when there's no strip
-  const why = `${m.vis?.bar && !strip ? seeBlock({ ...m.vis, frames: [] }) : ''}${m.sim ? simBlock(m.sim) : ''}`;
+  const fr = (m.vis?.frames || []).map((f, i) => ({ ...f, i })), bad = fr.filter(f => f.tone === 'bad'), shown = bad.length ? bad.slice(0, 1) : fr.slice(0, 1);
+  // Learn more: the two moments next to each other (less control, more control), then how it could look. The whole climb is
+  // drawn once, in the strip under this card; here only when there's no strip
+  const body = `${fr.length > 1 ? `<p class="lm-h">Side by side</p>${seeBlock({ ...m.vis, frames: fr, bar: '' })}` : ''}${m.vis?.bar && !strip ? seeBlock({ ...m.vis, frames: [] }) : ''}${m.sim ? simBlock(m.sim) : ''}`;
   return `<div class="stack"><div class="lt nx1"><span class="an-k1">${m.title === 'Good control' ? 'Keep doing this' : 'Next time, change this first'}</span><span class="lt-h">${m.title}</span>${m.why ? `<p class="tip-d nx1-why">${m.why}</p>` : ''}
-      ${m.vis?.frames.length ? seeBlock({ ...m.vis, bar: '' }) : ''}<p class="an-nx nx1-do">${m.next}</p>
-      ${m.vis?.frames.length ? '' : `<button class="b-ghost an-see" type="button" ${clipAt(spa, spb, sp.mark, m.t ?? spa)}>${m.see} · ${mmss(m.t ?? spa)}</button>`}
-      ${why ? `<details class="lm"><summary>${m.sim ? 'See how it could look' : 'Learn more'}</summary>${why}</details>` : ''}</div></div>`;
+      ${shown.length ? seeBlock({ ...m.vis, frames: shown, bar: '' }) : ''}<p class="an-nx nx1-do">${m.next}</p>
+      ${shown.length ? '' : `<button class="b-ghost an-see" type="button" ${clipAt(spa, spb, sp.mark, m.t ?? spa)}>${m.see} · ${mmss(m.t ?? spa)}</button>`}
+      ${learnMore(PRIN_OF[m.title], body)}</div></div>`;
 }
 // the whole climb as one strip, about the same thing as the tip above it: where it happened and where it didn't. The part the
 // tip is about is outlined. Tap a part to watch it, with a line saying what it is
@@ -1312,7 +1324,7 @@ function ctlStrip(T, m) {
   const nb = sm.filter(r => r.k === 'b').length, ng = sm.filter(r => r.k === 'g').length;
   const say = r => r.k === 'b' ? M.why(r) : M[r.k];
   const keys = ['g', 'b', 'm'].filter(k => M[k] && sm.some(r => r.k === k));
-  return `<div class="hl2 dk2"><h2>The whole climb</h2><span class="hint2">${nb ? n(nb, 'part to work on', 'parts to work on') : M.b ? 'Not once on this climb' : ng ? n(ng, 'pause', 'pauses') : 'No pause on the way'}</span></div>
+  return `<div class="hl2 dk2"><h2>The whole climb</h2><span class="hint2">${nb ? '' : M.b ? 'Not once on this climb' : ng ? n(ng, 'pause', 'pauses') : 'No pause on the way'}</span></div>
     <div class="stack"><div class="lt ctl"><div class="ctl-b">${sm.map(r => `<button type="button" class="${r.k}${r === me ? ' ctl-me' : ''}" style="flex-grow:${Math.max(.3, r.b - r.a).toFixed(2)}" ${clipAt(Math.max(0, r.a - .5), Math.min(T.D, Math.max(r.b + .5, r.a + 2)), r.k === 'b' ? 'hip' : 'none')} data-say="${say(r)}" aria-label="${mmss(r.a)}–${mmss(r.b)}: ${say(r)}"></button>`).join('')}</div>
       <div class="vz-a num"><span>${mmss(on[0].t)}</span><span>${mmss(on[on.length - 1].t)}</span></div>
       <p class="ctl-k">${keys.map(k => `<span><u class="${k}"></u>${M[k]}</span>`).join('')}${me ? '<span><u class="ctl-me"></u>Outlined: the part the tip above is about</span>' : ''}<span class="ctl-t">Tap a part to watch it.</span></p></div></div>`;
@@ -1328,16 +1340,66 @@ function moreNums(T) {
     <p class="trs-l">We could see you in ${s.seen}% of this video. Tap a row to watch that moment.</p>${bodyStats(T)}`;
 }
 // Summary: the main page, and a page for each tile. Tiles open in place, ‹ Summary comes back
+// every spot worth working on, in three groups: hard pulls, feet and centre, rests and stamina. Each spot: when, a picture,
+// what's wrong, what to do. Only what we could see: a group we can't read says so
+function fixes(T) {
+  const st = T.stats, q = quality(T).ok, on = climbed(T), isOff = x => Math.abs(x.off) >= .35;
+  const hands = T.moves.filter(v => v.k[1] === 'w'), feet = T.moves.filter(v => v.k[1] === 'a'), led = h => feet.some(f => f.t0 <= h.t0 && h.t0 - f.t0 < 1.2);
+  const near = t => on.length ? mostBy(on, x => -Math.abs(x.t - t)) : null, clip = (a, b) => [Math.max(0, a), Math.min(T.D, Math.max(b, a + 2))];
+  // hard pulls: steps up where the arm did the lifting, and reaches with no foot first (a run of them is one spot)
+  const pull = [], la = legArm(T);
+  (la?.steps || []).filter(x => x.kind === 'arm').forEach(x => pull.push({ t: x.t0, ab: clip(x.t0 - .5, x.t1 + .5), mark: 'arm', q: 'Your arm pulled you up here, not your legs.', d: 'Put a foot on a higher hold first, stand up on it, then reach.' }));
+  const lone = hands.filter(h => !led(h)), groups = [];
+  lone.forEach(h => { const g = groups[groups.length - 1]; if (g && h.t0 - g[g.length - 1].t < 2.5) g.push(h); else groups.push([h]); });
+  // a reach on its own may be a hold where the foot can't move; two or more in a row is a habit. Singles only when that's all there is
+  const many = groups.filter(g => g.length > 1), use = many.length || pull.length ? many : groups.slice(0, 3);
+  use.forEach(g => { if (pull.some(x => Math.abs(x.t - g[0].t0) < 1.5)) return;
+    pull.push({ n: g.length, t: g[0].t0, ab: clip(g[0].t0 - 1, g[g.length - 1].t + .5), mark: g[0].k, q: g.length > 1 ? `${g.length} reaches in a row with no foot moving first.` : `Your ${LNAME[g[0].k]} reached with no foot moving first.`, d: 'Step a foot up first, then reach.' }); });
+  // the clearest five: arm pulls first, then the longest runs of reaches
+  pull.sort((x, y) => (y.mark === 'arm') - (x.mark === 'arm') || (y.n || 0) - (x.n || 0)).splice(5);
+  // feet and centre: each stretch of a second or more with the hips out to one side
+  const feetC = [];
+  if (q.balance) { let r = null; const end = () => { if (r && r.b - r.a >= .8) { const w = mostBy(r.xs, x => Math.abs(x.off)), side = w.off < 0 ? 'left' : 'right';
+      feetC.push({ t: w.t, ab: clip(r.a - .5, r.b + .5), mark: 'hip', q: `Your hips were out to the ${side} for ${(r.b - r.a).toFixed(1)} s, so your hands were holding you on.`, d: `Step your ${side} foot out under your hips, or turn your ${side} hip in to the wall.`, w: r.b - r.a }); } r = null; };
+    on.forEach(x => { if (isOff(x)) { if (r) { r.b = x.t; r.xs.push(x); } else r = { a: x.t, b: x.t, xs: [x] }; } else end(); }); end();
+    feetC.sort((x, y) => y.w - x.w).splice(5); }
+  // rests and stamina: rests on a bent arm, no rest at all, slowing down at the top
+  const rest = [], arms = st.restRead >= 50;
+  if (arms) T.rests.filter(r => r.t1 - r.t0 >= 1).forEach(r => { const xs = on.filter(x => x.t >= r.t0 && x.t < r.t1 && bigArm(x) != null); if (!xs.length) return;
+    const w = mostBy(xs, x => -bigArm(x)), a = Math.round(bigArm(w)); if (a < 120) rest.push({ t: w.t, ab: clip(r.t0, r.t1), mark: 'arm', q: `You rested here on a bent arm (${a}°).`, d: 'Let the arm go straight and hang from it, hips low.' }); });
+  const ps = pauses(T), gaps = ps.filter(m => m.i > 1 && m.gap > 0 && m.t0 < T.D * .92);
+  if (!st.longest && gaps.length) { const g = gaps.reduce((x, y) => y.gap > x.gap ? y : x);
+    rest.push({ t: g.t0 - g.gap / 2, ab: clip(g.t0 - g.gap - .5, g.t0 + .5), mark: 'none', q: `Your longest stop was ${g.gap.toFixed(1)} s: no real rest on the way.`, d: 'Pick a good hold halfway up and shake out each arm.' }); }
+  if (ps.length >= 6 && paceState(T).includes('You slowed down near the top')) { const a = ps[0].t0, t = a + (ps[ps.length - 1].t - a) * 2 / 3;
+    rest.push({ t, ab: clip(t, t + 4), mark: 'none', q: 'You slowed down in the last third: fewer moves a minute, longer pauses.', d: 'Shake out on a big hold before the top section.' }); }
+  const byT = l => l.sort((x, y) => x.t - y.t);
+  return [
+    { id: 'pull', title: 'Hard pulls', items: byT(pull), cant: st.hands < 3 && !la?.share, prin: 'feet', more: legCard(T) ? `<details class="lm"><summary>Legs or arms, step by step</summary>${legCard(T)}</details>` : '' },
+    { id: 'feet', title: 'Feet and centre', items: byT(feetC), cant: !q.balance, cantWhy: 'Your feet were often hidden in this video, so we can’t say where your weight was.', prin: 'hips' },
+    { id: 'rest', title: 'Rests and stamina', items: byT(rest), cant: !arms && !rest.length, cantWhy: 'Your arms were hard to read in this video, so we can’t say how you rested.', prin: 'arms', more: paceState(T) ? `<details class="lm"><summary>Your pace, start to top</summary>${paceState(T)}</details>` : '' }];
+}
+const fixItem = it => `<div class="fx"><button class="fx-p" type="button" ${clipAt(it.ab[0], it.ab[1], it.mark, it.t)} aria-label="Watch ${mmss(it.t)}"><img alt="" data-ft="${it.t.toFixed(2)}" data-fm="${it.mark}"><span class="num">${mmss(it.t)}</span></button>
+  <div class="fx-t"><p class="fx-q">${it.q}</p><p class="fx-d">${it.d}</p></div></div>`;
+// a page's pictures are drawn when it opens, one at a time, from the video itself
+async function fixWire(pg) {
+  const v = $('lvv'), T = segT; if (!v || !T) return;
+  for (const im of pg.querySelectorAll('img[data-ft]:not([src])')) { const t = +im.dataset.ft, s = T.S.filter(x => x.p).reduce((a, x) => !a || Math.abs(x.t - t) < Math.abs(a.t - t) ? x : a, null);
+    if (s) { const u = await window.poseStill(v.currentSrc || v.src, T, s, im.dataset.fm, 'bad'); if (u && im.isConnected) im.src = u; } }
+}
+// Summary: the main page, and a page for each tile. Tiles open in place, ‹ Summary comes back
 function sumPanel(T, c, nextUp, q, top) {
-  const tile = (id, title, sub) => `<button class="row" type="button" data-act="sumgo" data-v="${id}"><span class="row-t"><strong>${title}</strong><span>${sub}</span></span>${ic.arr('#111111')}</button>`;
-  const pages = [], tiles = [], add = (id, title, sub, html) => { if (!html) return; tiles.push(tile(id, title, sub)); pages.push(`<div class="sub" data-sub="${id}" hidden><button class="sub-bk" type="button" data-act="sumgo" data-v="">‹ Summary</button>${html}</div>`); };
+  const tile = (id, title, sub, tone) => `<button class="row sm-t ${tone}" type="button" data-act="sumgo" data-v="${id}"><span class="row-t"><strong>${title}</strong><span>${sub}</span></span>${ic.arr('#111111')}</button>`;
+  const pages = [], tiles = [], add = (id, title, sub, tone, html) => { tiles.push(tile(id, title, sub, tone)); pages.push(`<div class="sub" data-sub="${id}" hidden><button class="sub-bk" type="button" data-act="sumgo" data-v="">‹ Summary</button>${html}</div>`); };
   const k = stuckAt(T, topOf(c)), st = stuckCard(T, c);
-  if (k && st) add('stuck', k.kind === 'end' ? 'Where you came off' : k.kind === 'late' ? 'Where you got stuck' : 'Where you stopped longest', `${k.gap.toFixed(1)} s at ${mmss(k.s.t)}`, st);
-  const la = legArm(T); if (la && la.steps.length) add('legs', 'Legs or arms', la.share == null ? 'Can’t tell from this video' : `Legs ${la.share}%, arms ${100 - la.share}%`, legCard(T));
-  const pc = paceState(T); if (pc) add('pace', 'How you held up', (pc.match(/class="lt-h">([^<]*)</) || [])[1] || '', pc);
-  add('nums', 'More numbers', `${n(T.stats.moves, 'move', 'moves')} · seen in ${T.stats.seen}% of the video`, moreNums(T));
+  if (k && st) add('stuck', k.kind === 'end' ? 'Where you came off' : k.kind === 'late' ? 'Where you got stuck' : 'Where you stopped longest', `${k.gap.toFixed(1)} s at ${mmss(k.s.t)}`, 'one', st);
+  fixes(T).forEach(g => { const nI = g.items.length, sub = nI ? n(nI, 'spot to work on', 'spots to work on') : g.cant ? 'Can’t tell from this video' : 'Nothing to fix here';
+    const list = nI ? `<div class="fx-l">${g.items.map(fixItem).join('')}</div>`
+      : `<div class="stack"><div class="lt"><span class="lt-h">${g.cant ? 'Can’t tell from this video' : 'Nothing to fix here'}</span><p class="tip-d">${g.cant ? g.cantWhy || 'We couldn’t see enough of you in this video.' : 'Nothing stood out in this part of your climbing. Keep doing it.'}</p></div></div>`;
+    add(g.id, g.title, sub, nI ? 'fix' : g.cant ? 'cant' : 'ok', `<div class="hl2 dk2"><h2>${g.title}</h2><span class="hint2">${sub}</span></div>${list}${nI ? '<p class="trs-l">Tap a picture to watch that moment.</p>' : ''}${g.more || ''}<div class="stack"><div class="lt">${learnMore(g.prin)}</div></div>`); });
+  pages.push(`<div class="sub" data-sub="nums" hidden><button class="sub-bk" type="button" data-act="sumgo" data-v="">‹ Summary</button>${moreNums(T)}</div>`);
   return `<div class="sub" data-sub="">${top}${(st => sumHero(T, st) + st)(ctlStrip(T, takeaway(T)))}
-      ${tiles.length ? `<div class="hl2 dk2"><h2>Look closer</h2></div><div class="rows">${tiles.join('')}</div>` : ''}${nextUp}${qualityCard(q)}</div>${pages.join('')}`;
+      <div class="hl2 dk2"><h2>Look closer</h2></div><div class="rows">${tiles.join('')}</div>
+      <button class="sub-lk" type="button" data-act="sumgo" data-v="nums">All the numbers ›</button>${nextUp}${qualityCard(q)}</div>${pages.join('')}`;
 }
 // the climb in order: every hand and foot move, numbered, with how long you paused before the next one. The longest pauses are
 // marked; tap a move to watch it
@@ -3262,7 +3324,8 @@ const actions = {
   // a video's page
   sumgo: b => { const v = b.dataset.v; document.querySelectorAll('[data-pn="why"] > .sub').forEach(x => { x.hidden = x.dataset.sub !== v; }); $('main').dispatchEvent(new Event('tabchange'));
     // the page opens at its top, with the sheet pulled up
-    setTimeout(() => { if (anSheet?.top) document.querySelector('.screen').scrollTop = anSheet.top(); }, 20); },
+    setTimeout(() => { if (anSheet?.top) document.querySelector('.screen').scrollTop = anSheet.top(); }, 20);
+    const pg = document.querySelector(`[data-pn="why"] > .sub[data-sub="${v}"]`); if (pg && v) fixWire(pg); },
   lvreplay: () => { const v = $('lvv'); anSheet?.go(0); if (v) { v.currentTime = 0; v.play().catch(() => {}); } },
   ctab: b => { cTab = b.dataset.v; setTimeout(() => $('main').dispatchEvent(new Event('tabchange'))); document.querySelectorAll('.ctabs button').forEach(x => x.setAttribute('aria-pressed', x.dataset.v === cTab)); document.querySelectorAll('.pn').forEach(p => { p.hidden = p.dataset.pn !== cTab; }); },
   spd: b => { speed = { 1: .5, .5: .25, .25: 1 }[speed] || 1; const v = $('lvv'); if (v) v.playbackRate = speed; b.textContent = `${speed}×`; },   // 1× → 0.5× → 0.25×
