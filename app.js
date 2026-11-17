@@ -1,4 +1,4 @@
-// Spotter v9: one loop. Film or import a try → see what your body did on the wall → watch it next to someone else on the same route.
+// Spotter v10: one loop. Film or import a try → see what your body did on the wall → watch it next to someone else on the same route.
 // One sample world: the ARC Climbing Wall at UIUC (its real address and hours), its top-rope wall, and two routes on it.
 // The climbing videos are The Way Up (Maschek & Schedl, CC BY 4.0): ten climbers on the same two routes, filmed from the floor.
 // You are one of them; five others with full scans are the community. Their names, likes and comments are sample data.
