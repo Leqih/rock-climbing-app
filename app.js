@@ -953,7 +953,9 @@ function stripWire(v, T) {
 let tlDrag = false;
 function followWire(box) {
   const v = $('lvv'), layers = [v].filter(Boolean);
-  let cx = .5, cy = .5, z = 1, held = null; window.poseNow = null;
+  // the aim (centre and how close) moves only once you have clearly moved: small wobbles of the body box leave it where it is,
+  // so the picture doesn't shake. Then it glides there slowly
+  let cx = .5, cy = .5, z = 1, held = null, ax = .5, ay = .5, az = 1; window.poseNow = null;
   const clampC = (c, z) => Math.min(1 - .5 / z, Math.max(.5 / z, c));
   const step = () => {
     if (!box.isConnected) return;
@@ -963,8 +965,11 @@ function followWire(box) {
     if (p && v.readyState >= 1) {
       const h = Math.max(.05, p.y1 - p.y0, (p.x1 - p.x0) * box.offsetWidth / box.offsetHeight);
       const k = tlDrag || LAY.zoom ? 1 : anSheet?.k ?? 0;
-      zt = 1 + (Math.min(2.4, Math.max(1, .75 / h)) - 1) * k; xt = (p.x0 + p.x1) / 2; yt = (p.y0 + p.y1) / 2; }
-    z += (zt - z) * .18; cx += (clampC(xt, z) - cx) * .15; cy += (clampC(yt, z) - cy) * .15;
+      const zc = Math.min(2.4, Math.max(1, .75 / h)), mx = (p.x0 + p.x1) / 2, my = (p.y0 + p.y1) / 2;
+      if (Math.abs(zc - az) / az > .15) az = zc;
+      if (Math.abs(mx - ax) > .08 / az) ax = mx; if (Math.abs(my - ay) > .08 / az) ay = my;
+      zt = 1 + (az - 1) * k; xt = ax; yt = ay; }
+    z += (zt - z) * .12; cx += (clampC(xt, z) - cx) * .06; cy += (clampC(yt, z) - cy) * .06;
     const tf = `translate(${(50 - z * cx * 100).toFixed(2)}%, ${(50 - z * cy * 100).toFixed(2)}%) scale(${z.toFixed(3)})`;
     layers.forEach(el => { el.style.transform = tf; });
     const view = { z: +z.toFixed(3), ax: +((50 - z * cx * 100) / 100).toFixed(4), ay: +((50 - z * cy * 100) / 100).toFixed(4) };
