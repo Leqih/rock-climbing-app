@@ -1284,18 +1284,25 @@ const PRIN_OF = { 'Keep your hips over your feet': 'hips', 'Good control': 'hips
 const learnMore = (k, body = '') => !PRIN[k] && !body ? '' : `<details class="lm"><summary>Why? Learn more</summary>${PRIN[k] ? `<p class="tip-d lm-p">${PRIN[k][0]}</p>` : ''}${body}
   ${PRIN[k] ? `<a class="lm-v" href="https://www.youtube.com/results?search_query=${encodeURIComponent(PRIN[k][1])}" target="_blank" rel="noopener"><span>▶</span>Find a coaching video on this</a>` : ''}</details>`;
 // the top of Summary: one thing to change next time. Its picture, what's wrong, what to do; the rest is behind Learn more
+// the one spot the top card shows: the clearest one of its kind, or with Good control the clearest of all
+function heroSpot(m, F) {
+  const g = id => F?.find(x => x.id === id)?.items || [], one = l => l.length ? l[0] : null;
+  return { 'Rest on straighter arms': one(g('rest').filter(i => !i.none && i.kind === 'rest')), 'Take a rest on the way': one(g('rest').filter(i => i.none)),
+    'Keep your hips over your feet': g('feet').length ? mostBy(g('feet'), i => i.w) : null, 'Use your feet more': g('pull').length ? mostBy(g('pull'), i => (i.kind === 'pull' ? 100 : 0) + (i.n || 1)) : null,
+    // the clearest spot of all: one with someone to compare with first, then an arm pull, the longest hips-out, a run of reaches
+    'Good control': (l => l.length ? mostBy(l, i => (i.ref ? 1000 : 0) + (i.kind === 'pull' ? 300 : i.kind === 'hip' ? 200 + i.w * 10 : i.kind === 'reach' ? 100 + (i.n || 1) * 10 : 50)) : null)((F || []).flatMap(x => x.items)) }[m.title];
+}
 function sumHero(T, strip, F, cid) {
   const m = takeaway(T); if (m.vis) m.vis.T = T.D;
-  const g = id => F?.find(x => x.id === id)?.items || [], one = l => l.length ? l[0] : null;
-  const it = { 'Rest on straighter arms': one(g('rest').filter(i => !i.none && i.kind === 'rest')), 'Take a rest on the way': one(g('rest').filter(i => i.none)),
-    'Keep your hips over your feet': g('feet').length ? mostBy(g('feet'), i => i.w) : null, 'Use your feet more': g('pull').length ? mostBy(g('pull'), i => (i.kind === 'pull' ? 100 : 0) + (i.n || 1)) : null }[m.title];
+  const it = heroSpot(m, F);
+  const good = m.title === 'Good control';
   const sp = m.span || { a: Math.max(0, m.t - 1), b: m.t + 2, mark: 'none' }, spa = sp.a, spb = Math.min(T.D, Math.max(sp.b, spa + 2));
   const fr = (m.vis?.frames || []).map((f, i) => ({ ...f, i })), bad = fr.filter(f => f.tone === 'bad'), shown = bad.length ? bad.slice(0, 1) : fr.slice(0, 1);
   // Learn more: the two moments next to each other (less control, more control), then how it could look. The whole climb is
   // drawn once, in the strip under this card; here only when there's no strip
   const body = `${fr.length > 1 ? `<p class="lm-h">Side by side</p>${seeBlock({ ...m.vis, frames: fr, bar: '' })}` : ''}${m.vis?.bar && !strip ? seeBlock({ ...m.vis, frames: [] }) : ''}${m.sim ? simBlock(m.sim) : ''}`;
   return `<div class="stack"><div class="lt nx1"><span class="an-k1">${m.title === 'Good control' ? 'Keep doing this' : 'Next time, change this first'}</span><span class="lt-h">${m.title}</span>${m.why ? `<p class="tip-d nx1-why">${m.why}</p>` : ''}
-      ${it ? fixItem(it, cid, true) : `${shown.length ? seeBlock({ ...m.vis, frames: shown, bar: '' }) : ''}<p class="an-nx nx1-do">${m.next}</p>`}
+      ${it ? `${good ? `<p class="lm-h">One spot to try next time</p><p class="fx-q">${it.q}</p>` : ''}${fixItem(it, cid, true)}` : `${shown.length ? seeBlock({ ...m.vis, frames: shown, bar: '' }) : ''}<p class="an-nx nx1-do">${m.next}</p>`}
       ${shown.length || it ? '' : `<button class="b-ghost an-see" type="button" ${clipAt(spa, spb, sp.mark, m.t ?? spa)}>${m.see} · ${mmss(m.t ?? spa)}</button>`}
       ${learnMore(PRIN_OF[m.title], body)}</div></div>`;
 }
@@ -1323,7 +1330,7 @@ function ctlStrip(T, m) {
   if (M.min) for (let i = sm.length - 2; i > 0; i--) if (sm[i].k === 'm' && sm[i].b - sm[i].a < 1.2 && sm[i - 1].k === sm[i + 1].k) { sm[i - 1].b = sm[i + 1].b; sm.splice(i, 2); }
   // the part the tip is about: the one that overlaps its moment most
   const sp = m.span || { a: m.t - 1, b: m.t + 2 }, ov = r => Math.min(r.b, sp.b) - Math.max(r.a, sp.a);
-  const me = sm.filter(r => r.k !== 'm' && ov(r) > -.3).sort((x, y) => ov(y) - ov(x))[0];
+  const me = sm.filter(r => r.k !== 'm' && (!m.onlyBad || r.k === 'b') && ov(r) > -.3).sort((x, y) => ov(y) - ov(x))[0];
   const nb = sm.filter(r => r.k === 'b').length, ng = sm.filter(r => r.k === 'g').length;
   const say = r => r.k === 'b' ? M.why(r) : M[r.k];
   const keys = ['g', 'b', 'm'].filter(k => M[k] && sm.some(r => r.k === k));
@@ -1442,7 +1449,7 @@ function sumPanel(T, c, nextUp, q, top) {
       : `<div class="stack"><div class="lt"><span class="lt-h">${g.cant ? 'Can’t tell from this video' : 'Nothing to fix here'}</span><p class="tip-d">${g.cant ? g.cantWhy || 'We couldn’t see enough of you in this video.' : 'Nothing stood out in this part of your climbing. Keep doing it.'}</p></div></div>`;
     add(g.id, g.title, sub, nI ? 'fix' : g.cant ? 'cant' : 'ok', `<div class="hl2 dk2"><h2>${g.title}</h2><span class="hint2">${sub}</span></div>${list}${nI ? '<p class="trs-l">Tap your picture to watch that moment; tap the other to watch it side by side.</p>' : ''}${g.more || ''}<div class="stack"><div class="lt">${learnMore(g.prin)}</div></div>`, g.items[0], nI || (g.cant ? '?' : '✓')); });
   pages.push(`<div class="sub" data-sub="nums" hidden><button class="sub-bk" type="button" data-act="sumgo" data-v="">‹ Summary</button>${moreNums(T)}</div>`);
-  return `<div class="sub" data-sub="">${top}${(st => sumHero(T, st, F, c.id) + st)(ctlStrip(T, takeaway(T)))}
+  return `<div class="sub" data-sub="">${top}${(st => sumHero(T, st, F, c.id) + st)(ctlStrip(T, (m => { const it = heroSpot(m, F); return it && m.title === 'Good control' ? { ...m, title: { pull: 'Use your feet more', reach: 'Use your feet more', hip: 'Keep your hips over your feet', rest: 'Rest on straighter arms' }[it.kind] || m.title, span: { a: it.ab[0], b: it.ab[1] }, onlyBad: true } : m; })(takeaway(T))))}
       <div class="hl2 dk2"><h2>Where to improve</h2></div><div class="sm-g">${tiles.join('')}</div>
       <button class="sub-lk" type="button" data-act="sumgo" data-v="nums">All the numbers ›</button>${nextUp}${qualityCard(q)}</div>${pages.join('')}`;
 }

@@ -458,6 +458,7 @@
     else if (String(mark).startsWith('reach:')) { const h = q[P[String(mark).split(':')[1]]], lo = q[P.la].y >= q[P.ra].y ? q[P.la] : q[P.ra], hp = mid(q[P.lh], q[P.rh]), tl = dist(mid(q[P.ls], q[P.rs]), hp) || 1;
       if (h && h.v >= .3) { ctx.beginPath(); ctx.arc(h.x, h.y, px(17), 0, 7); ctx.lineWidth = px(5); ctx.strokeStyle = col; ctx.stroke(); }
       if (lo.v >= .3) { if (tone !== 'good') arrow(lo, { x: lo.x + (hp.x - lo.x) * .3, y: lo.y - tl * .5 }, '#C2FF01'); dot(lo, 9, tone === 'good' ? '#C2FF01' : '#FFFFFF'); } }
+    else if (mark === 'arm' && arm(s) == null) dot(q[P.le].v >= q[P.re].v ? q[P.le] : q[P.re], 11, col);
     else if (mark === 'arm') { const o = s.er == null || s.el >= s.er ? q[P.le] : q[P.re], a = `${arm(s)}°`; dot(o, 11, col);
       ctx.font = `600 ${px(26)}px sans-serif`; const tw = ctx.measureText(a).width, lx = clamp(o.x + px(16), x0 + px(6), x0 + w - tw - px(16)), ly = clamp(o.y - px(10), y0 + px(34), y0 + h - px(10));
       ctx.fillStyle = 'rgba(17,17,17,.8)'; ctx.fillRect(lx - px(6), ly - px(26), tw + px(12), px(34)); ctx.fillStyle = '#FFFFFF'; ctx.fillText(a, lx, ly); }
