@@ -2137,12 +2137,12 @@ function styleOf(T) {
   const on = climbed(T), W = T.W, H = T.H, pt = (s, i) => ({ x: s.p[i][0] * W, y: s.p[i][1] * H, v: s.p[i][2] });
   const tor = s => { const a = pt(s, 1), b = pt(s, 2), c = pt(s, 7), d = pt(s, 8); return Math.hypot((a.x + b.x - c.x - d.x) / 2, (a.y + b.y - c.y - d.y) / 2) || 1; };
   const at = t => on.length ? mostBy(on, x => -Math.abs(x.t - t)) : null, R = Object.fromEntries(STY.map(m => [m.id, { e: 0, c: 0, ex: null }]));
-  const hit = (id, yes, s, mark) => { R[id].c++; if (yes) { R[id].e++; if (s && id !== 'side') (R[id].at ||= []).push(s.t); if (!R[id].ex && s) R[id].ex = { t: s.t, mark }; } };
+  const hit = (id, yes, s, mark) => { R[id].c++; if (yes) { R[id].e++; if (s && id !== 'side') { (R[id].at ||= []).push(s.t); (R[id].ev ||= []).push({ t: s.t, mark }); } if (!R[id].ex && s) R[id].ex = { t: s.t, mark }; } };
   // side-on: the shoulders look narrow next to the torso. Square to the wall they are about as wide as the torso is long, or a bit less
   const wide = on.filter(s => [1, 2, 7, 8].every(i => s.p[i][2] >= .6)).map(s => ({ s, r: Math.abs(pt(s, 1).x - pt(s, 2).x) / tor(s) }));
   wide.forEach(o => hit('side', o.r < .45, o.s, 'none'));
   const starts = []; let run = null; wide.forEach(o => { if (o.r < .45) { if (run && o.s.t - run.b <= .4) run.b = o.s.t; else { if (run && run.b - run.a >= .6) starts.push(run.a); run = { a: o.s.t, b: o.s.t }; } } }); if (run && run.b - run.a >= .6) starts.push(run.a);
-  R.side.runs = starts.length; R.side.at = starts;
+  R.side.runs = starts.length; R.side.at = starts; R.side.ev = starts.map(t => ({ t, mark: 'none' }));
   const feet = T.moves.filter(m => m.k[1] === 'a'), hands = T.moves.filter(m => m.k[1] === 'w');
   feet.forEach(m => { const s = at(m.t); if (!s) return; const i = m.k === 'la' ? 11 : 12, an = pt(s, i), kn = pt(s, i - 2), hy = (pt(s, 7).y + pt(s, 8).y) / 2, u = tor(s);
     if (an.v < .5) return; hit('high', an.y <= hy + .3 * u, s, m.k); if (kn.v >= .5) hit('drop', kn.y > an.y + .05 * u, s, m.k === 'la' ? 'lk' : 'rk'); });
@@ -2245,6 +2245,53 @@ function nextPlan(T, c, F) {
     <strong>${x.term ? `<button class="tm-n" type="button" data-act="term" data-term="${x.term}">${x.h}<i aria-hidden="true">?</i></button>` : x.h}</strong><span class="nxp-d">${x.d}</span>
     ${x.act || x.q ? `<span class="nxp-a">${x.act ? `<button class="nxp-b" type="button" ${x.act}>${x.btn} ›</button>` : ''}${x.q ? coachLink(x.q) : ''}</span>` : ''}</span></div>`).join('')}</div></div>`;
 }
+// Check moves: every technique Spotter found, one moment at a time, for someone who climbs to say right, wrong or can't tell.
+// It measures how often a found move is real (not how many real ones it misses). Answers stay in this browser; Export saves them
+const REV_KEY = 'spotter.review', REV_IDS = ['drop', 'high', 'side', 'lock', 'cross', 'match', 'foot', 'rest'];
+let rev = (() => { try { return JSON.parse(localStorage.getItem(REV_KEY)) || {}; } catch { return {}; } })(), revId = 'drop', revAt = -1;   // -1: open at the first one not yet answered
+const revSave = () => { try { localStorage.setItem(REV_KEY, JSON.stringify(rev)); } catch { } };
+// up to 30 moments of a move, taken in turn from each climb so no one climber fills the list
+function revList(id) {
+  const vs = V.filter(v => !v.mine && TRK[v.vid]?.S), per = vs.map(v => (styleOf(TRK[v.vid]).R[id].ev || []).map(e => ({ ...e, vi: V.indexOf(v), vid: v.vid, who: v.who, key: `${v.vid}|${id}|${e.t.toFixed(1)}` })));
+  const out = []; for (let i = 0; out.length < 30 && per.some(l => l[i]); i++) per.forEach(l => { if (l[i] && out.length < 30) out.push(l[i]); });
+  return out;
+}
+function viewReview() {
+  const vs = V.filter(v => !v.mine); needTracks(vs);
+  if (vs.some(v => !TRK[v.vid]?.S)) return { html: `${bar()}<h1 class="hl">Check moves</h1><p class="sub-w">Loading the climbs…</p>` };
+  const L = revList(revId); if (revAt < 0) { revAt = L.findIndex(e => !rev[e.key]); if (revAt < 0) revAt = L.length; } revAt = Math.min(revAt, L.length); const e = L[revAt], x = STY.find(y => y.id === revId);
+  const cnt = id => { const l = revList(id), a = l.map(e => rev[e.key]?.v).filter(Boolean); return { n: l.length, done: a.length, ok: a.filter(v => v === 'right').length, no: a.filter(v => v === 'wrong').length, un: a.filter(v => v === 'unsure').length }; };
+  const chips = REV_IDS.map(id => { const c = cnt(id), y = STY.find(z => z.id === id); return `<button class="rv-k" type="button" data-act="revk" data-k="${id}" aria-pressed="${id === revId}">${y.name}<i class="num">${c.done}/${c.n}</i></button>`; }).join('');
+  const T = e && TRK[e.vid], was = e && rev[e.key]?.v;
+  const card = !L.length ? `<div class="lt"><p class="tip-d">Spotter didn’t find this move in any climb.</p></div>`
+    : !e ? `<div class="lt"><p class="tip-d">All ${L.length} checked. Pick another move above.</p><button class="nxp-b" type="button" data-act="revgo" data-d="-1">‹ Back to the last one</button></div>`
+    : `<div class="lt rv-c"><div class="rv-h"><span class="num">${revAt + 1} / ${L.length}</span><span>${e.who} · ${mmss(e.t)}</span></div>
+      <div class="rv-m"><img alt="" data-pv="${e.vi}" data-ft="${e.t.toFixed(2)}" data-fm="${e.mark}" data-tone="good"><span class="rv-v"><video id="rvv" src="${vsrc(e.vid)}" muted playsinline preload="auto" data-t="${e.t.toFixed(2)}" data-a="${Math.max(0, e.t - 1.2).toFixed(2)}" data-b="${Math.min(T.D, e.t + 1.2).toFixed(2)}"></video></span></div>
+      <p class="rv-q">Is this one: <button class="tm-n" type="button" data-act="term" data-term="${revId}">${x.name}<i aria-hidden="true">?</i></button></p><p class="tip-d">${x.what}</p>
+      <div class="rv-a">${[['right', 'Correct', '1'], ['wrong', 'Wrong', '2'], ['unsure', 'Can’t tell', '3']].map(([v, l, k]) => `<button class="rv-b ${v}" type="button" data-act="revset" data-v="${v}" aria-pressed="${was === v}">${l}<kbd>${k}</kbd></button>`).join('')}</div>
+      <div class="rv-n"><button type="button" data-act="revgo" data-d="-1" ${revAt ? '' : 'disabled'}>‹ Previous</button><button type="button" data-act="revgo" data-d="1">Skip ›</button></div></div>`;
+  const rows = REV_IDS.map(id => { const c = cnt(id), y = STY.find(z => z.id === id), j = c.ok + c.no;
+    return `<tr><td>${y.name}</td><td class="num">${c.done}/${c.n}</td><td class="num">${c.ok}</td><td class="num">${c.no}</td><td class="num">${c.un}</td><td class="num"><b>${j ? `${Math.round(c.ok / j * 100)}%` : '—'}</b></td></tr>`; }).join('');
+  return { html: `${bar()}
+    <h1 class="hl">Check moves</h1>
+    <p class="sub-w">These are moments where Spotter says a move happened. Watch each one and say whether it’s right. The picture is the moment, the video is a second either side, at half speed.</p>
+    <div class="rv-ks">${chips}</div>
+    <div class="stack">${card}</div>
+    <div class="hl2 dk2"><h2>How often Spotter is right</h2></div>
+    <div class="stack"><div class="lt"><table class="rv-t"><thead><tr><th>Move</th><th>Checked</th><th>Correct</th><th>Wrong</th><th>Can’t tell</th><th>Correct of judged</th></tr></thead><tbody>${rows}</tbody></table>
+      <p class="tip-d">This says how often a move Spotter found is real. It doesn’t say how many real ones it missed.</p>
+      <div class="rv-x"><button class="nxp-b" type="button" data-act="revexp">Export answers</button><button class="rv-clr" type="button" data-act="revclr">Clear answers</button></div></div></div>`,
+    after: () => { fixWire($('main')); const v = $('rvv'); if (!v) return; const a = +v.dataset.a, b = +v.dataset.b;
+      // zoomed onto the climber like the picture next to it: the body about two thirds of the height, the frame never past the video's edge
+      const fit = () => { const T = TRK[V.find(x => vsrc(x.vid) === v.getAttribute('src'))?.vid], bx = T && window.poseBox(T, +v.dataset.t), box = v.parentElement, cw = box.clientWidth, ch = box.clientHeight, W = v.videoWidth, H = v.videoHeight;
+        if (!bx || !W) return; const k = Math.max(cw / W, ch / H, ch / ((bx.y1 - bx.y0) * H * 1.5)), cx = (bx.x0 + bx.x1) / 2 * W * k, cy = (bx.y0 + bx.y1) / 2 * H * k;
+        Object.assign(v.style, { width: `${W * k}px`, height: `${H * k}px`, left: `${Math.min(0, Math.max(cw - W * k, cw / 2 - cx))}px`, top: `${Math.min(0, Math.max(ch - H * k, ch / 2 - cy))}px` }); };
+      v.addEventListener('loadedmetadata', () => { fit(); v.currentTime = a; v.playbackRate = .5; v.play().catch(() => { }); }, { once: true });
+      v.addEventListener('timeupdate', () => { if (v.currentTime >= b) { v.currentTime = a; v.play().catch(() => { }); } }); } };
+}
+function revSet(v) { const L = revList(revId), e = L[revAt]; if (!e) return; rev[e.key] = { v, vid: e.vid, move: revId, t: +e.t.toFixed(2), mark: e.mark }; revSave(); revAt++; render(); }
+addEventListener('keydown', ev => { if (page !== 'review' || ev.target.closest?.('input, textarea')) return; const v = { 1: 'right', 2: 'wrong', 3: 'unsure' }[ev.key]; if (v) revSet(v);
+  if (ev.key === 'ArrowLeft' && revAt) { revAt--; render(); } if (ev.key === 'ArrowRight') { revAt++; render(); } });
 function viewProfile() {
   const done = clips.filter(c => c.an === 'done' && c.track), tops = ROUTES.filter((r, i) => mineOn(i).some(topOf)).length;
   const prog = ROUTES.map((r, i) => [r, i, mineOn(i)]).filter(([, , cs]) => cs.length).map(([r, i, cs]) => `
@@ -3365,7 +3412,7 @@ const moreActions = {
 };
 
 /* ---------- shell: routing, render, sheets ---------- */
-const views = { pick: viewPick, setup: viewSetup, videos: viewVideos, day: viewDay, algym: viewAlGym, ob: viewOb, shelf: viewShelf, clip: viewClip, vs: viewVs, route: viewRoute, walls: viewGymsTab, gyms: viewGyms, gym: viewGym, friends: viewFriends, person: viewPerson, profile: viewProfile, cam: viewCam, session: viewSession, logc: viewSession, scan: viewScan, summary: viewSummary, watch: viewWatch };
+const views = { pick: viewPick, setup: viewSetup, videos: viewVideos, day: viewDay, algym: viewAlGym, ob: viewOb, shelf: viewShelf, clip: viewClip, vs: viewVs, route: viewRoute, walls: viewGymsTab, gyms: viewGyms, gym: viewGym, friends: viewFriends, person: viewPerson, profile: viewProfile, cam: viewCam, session: viewSession, logc: viewSession, scan: viewScan, summary: viewSummary, watch: viewWatch, review: viewReview };
 const tabOf = { videos: 'videos', shelf: 'videos', clip: 'videos', vs: 'videos', cam: 'videos', route: 'walls', walls: 'walls', gyms: 'walls', gym: 'walls', session: 'videos', logc: 'videos', scan: 'walls', summary: 'profile', watch: 'profile', friends: 'friends', person: 'friends', profile: 'profile' };
 const tabs = ['videos', 'walls', 'friends', 'profile'];
 const dock = document.querySelector('.dock');
@@ -3428,6 +3475,11 @@ function watchPane(x) {
 
 const actions = {
   term: b => termPane(b.dataset.term || termName[b.dataset.tag]),
+  revk: b => { revId = b.dataset.k; const L = revList(revId); revAt = Math.max(0, L.findIndex(e => !rev[e.key])); if (L.every(e => rev[e.key])) revAt = L.length; render(); },
+  revset: b => revSet(b.dataset.v),
+  revgo: b => { revAt = Math.max(0, revAt + +b.dataset.d); render(); },
+  revexp: () => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(Object.values(rev), null, 1)], { type: 'application/json' })); a.download = 'spotter-review.json'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000); },
+  revclr: () => { if (!confirm('Clear every answer on this page?')) return; rev = {}; revSave(); revAt = 0; render(); },
   legend: () => legendPane(),
   lvseek: b => { const v = $('lvv'); if (!v) return; v.currentTime = +b.dataset.t; v.play().catch(() => {});
     document.querySelectorAll('.mvq-m.on').forEach(x => x.classList.remove('on')); b.classList.add('on'); },

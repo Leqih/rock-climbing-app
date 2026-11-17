@@ -3326,3 +3326,31 @@ button.sty-i { padding: 0; border: 0; cursor: pointer; }
 .nxp-a { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
 .nxp-b { padding: 8px 14px; border: 0; border-radius: 999px; background: #C4F52A; color: #111; font: inherit; font-size: 14px; font-weight: 800; cursor: pointer; }
 .nxp-a .lm-v { margin: 0; }
+
+/* Check moves: one found moment at a time, right / wrong / can't tell */
+.rv-ks { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 14px; }
+.rv-k { display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 12px; border: 0; border-radius: 999px; background: #fff; color: #111; font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
+.rv-k i { font-style: normal; font-size: 11px; color: #6b6b68; }
+.rv-k[aria-pressed="true"] { background: #111; color: #fff; }
+.rv-k[aria-pressed="true"] i { color: #C4F52A; }
+.rv-c { display: grid; gap: 10px; }
+.rv-h { display: flex; justify-content: space-between; font-size: 13px; font-weight: 700; color: #6b6b68; }
+.rv-m { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.rv-m img, .rv-v { display: block; width: 100%; aspect-ratio: 3 / 4; object-fit: cover; border-radius: 12px; background: #222; }
+.rv-v { position: relative; overflow: hidden; }
+.rv-v video { position: absolute; left: 0; top: 0; width: 100%; height: 100%; object-fit: cover; }
+.rv-q { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 16px; font-weight: 700; }
+.rv-a { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.rv-b { display: grid; justify-items: center; gap: 2px; padding: 12px 4px; border: 0; border-radius: 14px; background: #F2F2F0; color: #111; font: inherit; font-size: 15px; font-weight: 800; cursor: pointer; }
+.rv-b kbd { font: inherit; font-size: 11px; font-weight: 600; opacity: .55; }
+.rv-b.right[aria-pressed="true"], .rv-b.right:hover { background: #C4F52A; }
+.rv-b.wrong[aria-pressed="true"], .rv-b.wrong:hover { background: #FF7A3D; }
+.rv-b.unsure[aria-pressed="true"], .rv-b.unsure:hover { background: #d9d9d5; }
+.rv-n { display: flex; justify-content: space-between; }
+.rv-n button, .rv-clr { padding: 6px 0; border: 0; background: none; color: #6b6b68; font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
+.rv-n button:disabled { opacity: .35; cursor: default; }
+.rv-t { width: 100%; border-collapse: collapse; font-size: 13px; }
+.rv-t th, .rv-t td { padding: 7px 4px; border-bottom: 1px solid #e3e3e0; text-align: right; }
+.rv-t th:first-child, .rv-t td:first-child { text-align: left; }
+.rv-t th { font-size: 11px; color: #6b6b68; font-weight: 700; }
+.rv-x { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; }

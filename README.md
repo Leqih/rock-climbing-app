@@ -262,6 +262,12 @@ Feet first used to count a reach only when a foot started moving in the 1.2 s be
 
 What these labels can't check: they only say when a hand or foot landed, not how. Whether a knee really dropped, a foot was really high, the body side-on or an arm locked is still decided by the rules on Spotter's own pose at that moment, and nobody has checked those by eye. That needs someone to go through the detected moments and mark each one right or wrong.
 
+### Checking moves by eye
+
+Open the app at `#/review` (for example `https://chalk-prototype-omega.vercel.app/#/review`). For each technique (drop knee, high foot, side-on, lock-off, cross, match, feet first, straight-arm rest) it shows up to 30 moments where Spotter says it happened, taken in turn from each of the climbs so no one climber fills the list. Each moment has the still with the body drawn on it and the video a second either side at half speed, zoomed onto the climber. Answer Correct, Wrong or Can't tell (keys 1, 2, 3; arrows to move). The table underneath gives, per technique, how many of the judged moments were correct. That is precision only: how often a found move is real, not how many real ones were missed. Answers stay in the browser; **Export answers** saves them as `spotter-review.json`.
+
+Spotter finds few drop knees (8), lock-offs (7) and matches (3) across all the climbs, so those numbers will stay rough.
+
 ## Arm angles
 
 An arm only gets an angle when shoulder, elbow and wrist all have confidence of at least 0.3 and both parts of the arm are at least 0.3 of the torso length on screen (`readArms` in `pose.js`). Otherwise the app shows no angle. On a far-off climber the wrist is a guess, which used to read as 9°. Conclusions about arms need at least half of the rest time readable; the whole-climb figure needs 30% of the climb. The thresholds were set by checking which readings looked impossible, not against measured angles.
