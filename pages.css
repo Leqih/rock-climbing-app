@@ -3271,3 +3271,6 @@ textarea.note:focus { outline: 2px solid var(--ink); outline-offset: 0; backgrou
 .fx-s { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; counter-reset: fx; }
 .fx-s li { counter-increment: fx; display: flex; gap: 10px; align-items: baseline; font-size: 16px; font-weight: 700; line-height: 1.3; }
 .fx-s li::before { content: counter(fx); flex: none; display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: #111; color: #fff; font-size: 12px; font-weight: 800; transform: translateY(-1px); }
+
+/* the top card holds a spot card without its own box */
+.fx.bare { padding: 0; background: none; margin-top: 12px; }
