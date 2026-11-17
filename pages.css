@@ -3182,3 +3182,30 @@ textarea.note:focus { outline: 2px solid var(--ink); outline-offset: 0; backgrou
 
 /* the city picker: towns under their state */
 .gt-rg { margin: 18px 4px 8px; font-size: 13px; font-weight: 800; color: #8a8a87; letter-spacing: .02em; }
+
+/* Summary: one thing to change at the top, the climb as one strip, tiles that open a page each */
+.nx1-do { font-size: 17px; font-weight: 600; }
+.lm { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--bg); }
+.lm > summary { display: flex; align-items: center; gap: 8px; min-height: 32px; font-size: 14px; font-weight: 700; color: var(--mid); cursor: pointer; list-style: none; }
+.lm > summary::-webkit-details-marker { display: none; }
+.lm > summary::after { content: ""; width: 7px; height: 7px; margin-top: -3px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(45deg); transition: transform .2s; }
+.lm[open] > summary::after { margin-top: 3px; transform: rotate(-135deg); }
+.lm .tip-d:first-of-type { margin-top: 4px; }
+.ctl-b { display: flex; gap: 3px; height: 36px; }
+.ctl-b button { flex-basis: 0; min-width: 8px; padding: 0; border: 0; border-radius: 6px; cursor: pointer; }
+.ctl-b button.g { background: #C4F52A; }
+.ctl-b button.b { background: #FF7A3D; }
+.ctl-b button:active { transform: scaleY(.9); }
+.ctl .vz-a { margin-top: 6px; }
+.ctl-k { display: grid; gap: 6px; margin-top: 12px; font-size: 13px; color: var(--mid); }
+.ctl-k span { display: flex; align-items: center; gap: 8px; }
+.ctl-k u { flex: none; width: 12px; height: 12px; border-radius: 3px; }
+.ctl-k u.g { background: #C4F52A; } .ctl-k u.b { background: #FF7A3D; }
+.sub-bk { display: inline-flex; align-items: center; min-height: 40px; margin: 0 0 4px; padding: 0 14px; border: 0; border-radius: 999px; background: var(--g100, #f2f2f2); color: var(--ink); font: inherit; font-size: 14px; font-weight: 700; cursor: pointer; }
+.lv-rp { position: absolute; left: 16px; right: 16px; top: 4px; z-index: 6; display: flex; align-items: center; gap: 10px; height: 48px; padding: 0 14px 0 4px; border: 0; border-radius: 14px; background: #fff; color: var(--ink); font: inherit; text-align: left; cursor: pointer; opacity: 0; pointer-events: none; transition: opacity .15s; }
+.lv-rp img { width: 40px; height: 40px; border-radius: 10px; object-fit: cover; }
+.lv-rp span { flex: 1; display: grid; }
+.lv-rp b { font-size: 15px; font-weight: 700; }
+.lv-rp em { font-size: 12px; font-style: normal; color: var(--mid); }
+.lv-w.two.fold > .lv-rp { opacity: 1; pointer-events: auto; }
+.lv-w.two.fold > .lyr, .lv-w.two.fold > .lvbar { opacity: 0; pointer-events: none; }
