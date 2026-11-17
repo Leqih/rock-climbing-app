@@ -1437,9 +1437,10 @@ const fixItem = (it, cid, bare) => { const r = it.ref;
   return `<div class="fx${bare ? ' bare' : ''}"><div class="fx-pair${r ? '' : ' one'}">${mine}${good}</div>${bare ? '' : `<p class="fx-q">${it.q}</p>`}<ol class="fx-s">${it.steps.map(x => `<li>${x}</li>`).join('')}</ol></div>`; };
 // a page's pictures are drawn when it opens, one at a time, from the videos themselves (yours, or the other climber's)
 async function fixWire(pg) {
-  const v = $('lvv'); if (!v || !segT) return;
-  for (const im of pg.querySelectorAll('img[data-ft]:not([src])')) { const pv = im.dataset.pv, T = pv != null ? TRK[V[+pv].vid] : segT, src = pv != null ? vsrc(V[+pv].vid) : v.currentSrc || v.src;
-    if (!T) continue; const t = +im.dataset.ft, s = T.S.filter(x => x.p).reduce((a, x) => !a || Math.abs(x.t - t) < Math.abs(a.t - t) ? x : a, null);
+  const v = $('lvv');
+  for (const im of pg.querySelectorAll('img[data-ft]:not([src])')) { const pv = im.dataset.pv; if (pv == null && (!v || !segT)) continue;
+    const T = pv != null ? clips.find(c => c.v === +pv && c.track)?.track || TRK[V[+pv].vid] : segT, src = pv != null ? vsrc(V[+pv].vid) : v.currentSrc || v.src;
+    if (!T?.S) continue; const t = +im.dataset.ft, s = T.S.filter(x => x.p).reduce((a, x) => !a || Math.abs(x.t - t) < Math.abs(a.t - t) ? x : a, null);
     if (s) { const u = await window.poseStill(src, T, s, im.dataset.fm, im.dataset.tone || 'bad'); if (u && im.isConnected) im.src = u; } }
 }
 // Summary: the main page, and a page for each tile. Tiles open in place, ‹ Summary comes back
@@ -2106,6 +2107,73 @@ function viewPerson(who) {
 }
 
 /* ---------- Profile: how you're getting on, from your own videos ---------- */
+// Your style, from all your videos: how you climb (square or side-on, legs or arms, steady or with stops), and which moves you
+// use more or less than other climbers on the same routes. A move you hardly use may be one you haven't learned yet. Words,
+// not numbers; compared with other climbers, because a move's count alone says nothing
+const STY = [
+  { id: 'foot', name: 'Foot first, then the hand', tip: 'Move a foot up before each reach, so your legs lift you.', q: 'climbing footwork feet first' },
+  { id: 'high', name: 'High foot', tip: 'Put a foot up near hip height, then stand up on it. Saves a hard pull on a big move.', q: 'climbing high step technique' },
+  { id: 'side', name: 'Turning side-on', tip: 'Turn one hip to the wall to reach further with the arm on that side.', q: 'climbing hip turn twist lock' },
+  { id: 'drop', name: 'Drop knee', tip: 'Turn one knee down and in, so your hips come close to the wall. Lets you reach further on steep walls.', q: 'climbing drop knee technique' },
+  { id: 'cross', name: 'Cross-through', tip: 'Reach past your other hand instead of matching: one move instead of two.', q: 'climbing cross through technique' },
+  { id: 'match', name: 'Match', tip: 'Bring both hands to one hold, to swap hands or to rest.', q: 'climbing matching hands technique' },
+  { id: 'lock', name: 'Lock-off', tip: 'Hold one arm bent and still while the other reaches. Needs good feet under you.', q: 'climbing lock off technique' },
+  { id: 'rest', name: 'Straight-arm rest', tip: 'Hang on a straight arm and shake out the other.', q: 'climbing straight arm rest shake out' }];
+const styMemo = new WeakMap();
+// one climb: for each move, how often it happened (e) out of how often it could have (c), and a clear moment of it
+function styleOf(T) {
+  if (styMemo.has(T)) return styMemo.get(T);
+  const on = climbed(T), W = T.W, H = T.H, pt = (s, i) => ({ x: s.p[i][0] * W, y: s.p[i][1] * H, v: s.p[i][2] });
+  const tor = s => { const a = pt(s, 1), b = pt(s, 2), c = pt(s, 7), d = pt(s, 8); return Math.hypot((a.x + b.x - c.x - d.x) / 2, (a.y + b.y - c.y - d.y) / 2) || 1; };
+  const at = t => on.length ? mostBy(on, x => -Math.abs(x.t - t)) : null, R = Object.fromEntries(STY.map(m => [m.id, { e: 0, c: 0, ex: null }]));
+  const hit = (id, yes, s, mark) => { R[id].c++; if (yes) { R[id].e++; if (!R[id].ex && s) R[id].ex = { t: s.t, mark }; } };
+  // side-on: the shoulders look narrow next to the torso. Square to the wall they are about as wide as the torso is long, or a bit less
+  const wide = on.filter(s => [1, 2, 7, 8].every(i => s.p[i][2] >= .6)).map(s => ({ s, r: Math.abs(pt(s, 1).x - pt(s, 2).x) / tor(s) }));
+  wide.forEach(o => hit('side', o.r < .45, o.s, 'none'));
+  const feet = T.moves.filter(m => m.k[1] === 'a'), hands = T.moves.filter(m => m.k[1] === 'w');
+  feet.forEach(m => { const s = at(m.t); if (!s) return; const i = m.k === 'la' ? 11 : 12, an = pt(s, i), kn = pt(s, i - 2), hy = (pt(s, 7).y + pt(s, 8).y) / 2, u = tor(s);
+    if (an.v < .5) return; hit('high', an.y <= hy + .3 * u, s, m.k); if (kn.v >= .5) hit('drop', kn.y > an.y + .05 * u, s, m.k === 'la' ? 'lk' : 'rk'); });
+  hands.forEach(m => { const s = at(m.t); hit('foot', feet.some(f => f.t0 <= m.t0 && m.t0 - f.t0 < 1.2), at(m.t0), m.k); if (!s) return;
+    const l = pt(s, 5), r = pt(s, 6), u = tor(s);
+    if (l.v >= .5 && r.v >= .5) { const d = Math.hypot(l.x - r.x, l.y - r.y); hit('match', d < .25 * u, s, m.k); hit('cross', d >= .25 * u && l.x > r.x + .1 * u, s, m.k); }
+    const s2 = at((m.t0 + m.t) / 2), o = s2 && (m.k === 'lw' ? s2.er : s2.el); if (o != null) hit('lock', o < 90, s2, 'arm'); });
+  T.rests.filter(r => r.t1 - r.t0 >= 1).forEach(r => { const xs = on.filter(x => x.t >= r.t0 && x.t < r.t1 && bigArm(x) != null); if (!xs.length) return;
+    const b = mostBy(xs, bigArm); hit('rest', bigArm(b) >= 150, b, 'arm'); });
+  const o = { R, side: wide.length ? wide.filter(x => x.r < .45).length / wide.length : null, arms: hands.length ? R.foot.c ? 1 - R.foot.e / R.foot.c : null : null, still: T.stats?.moving != null ? 1 - T.stats.moving / 100 : null };
+  styMemo.set(T, o); return o;
+}
+// where a value sits among other climbers' climbs, 0 to 1
+const rankIn = (x, l) => l.length ? (l.filter(y => y < x).length + l.filter(y => y === x).length / 2) / l.length : .5;
+function styleCard() {
+  const trk = v => clips.find(c => c.v === v.i && c.track)?.track || TRK[v.vid];
+  const mine = V.filter(v => v.who === 'You'), them = V.filter(v => v.who !== 'You' && !v.mine);
+  needTracks([...mine, ...them].filter(v => !v.mine));
+  const my = mine.map(v => ({ v, T: trk(v) })).filter(o => o.T?.S), th = them.map(trk).filter(T => T?.S);
+  if (!my.length && mine.some(v => !v.mine && !TRK[v.vid]?.S)) return '';   // still loading
+  if (!my.length) return `<div class="hl2 dk2"><h2>Your style</h2></div><div class="stack"><div class="lt"><p class="tip-d">Analyse a climb and your style shows here: how you move, and the moves you use a lot or hardly at all.</p></div></div>`;
+  if (th.length < 4) return '';
+  const S = my.map(o => ({ ...o, st: styleOf(o.T) })), O = th.map(styleOf);
+  const sum = (l, id) => l.reduce((a, x) => ({ e: a.e + x.R[id].e, c: a.c + x.R[id].c }), { e: 0, c: 0 });
+  const mean = (l, k) => { const xs = l.map(x => x[k]).filter(x => x != null); return xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null; };
+  // the three ways of climbing, each as a dot between two ends: where you sit among the other climbers
+  const ax = [['side', 'Square to the wall', 'Side-on'], ['arms', 'Legs lift you', 'Arms pull you'], ['still', 'Climbs without stopping', 'Stops often']].map(([k, a, b]) => {
+    const x = mean(S.map(o => o.st), k); if (x == null) return ''; const f = rankIn(x, O.map(o => o[k]).filter(y => y != null));
+    return `<div class="sty-a"><span>${a}</span><span class="sty-l"><i style="left:${(8 + f * 84).toFixed(0)}%"></i></span><span>${b}</span></div>`; }).join('');
+  // each move: more than others, about the same, less, or not at all
+  const rows = STY.map(m => { const me = sum(S.map(o => o.st), m.id), ot = sum(O, m.id); if (me.c < 3 || !ot.c) return null;
+    const r = me.e / me.c, b = ot.e / ot.c, lv = !me.e ? 'never' : r >= b * 1.4 && me.e >= 2 ? 'more' : r <= b * .6 ? 'less' : 'same';
+    const ex = S.map(o => o.st.R[m.id].ex && { ...o.st.R[m.id].ex, v: o.v }).find(Boolean);
+    return { m, lv, ex }; }).filter(Boolean);
+  const more = rows.filter(r => r.lv === 'more'), less = rows.filter(r => r.lv === 'less' || r.lv === 'never'), same = rows.filter(r => r.lv === 'same');
+  const pic = r => r.ex ? `<span class="sty-i"><img alt="" data-ft="${r.ex.t.toFixed(2)}" data-fm="${r.ex.mark}" data-tone="good" data-pv="${r.ex.v.i}"></span>` : '';
+  const vid = q => `<a class="lm-v" href="https://www.youtube.com/results?search_query=${encodeURIComponent(q)}" target="_blank" rel="noopener"><span>▶</span>Find a coaching video on this</a>`;
+  return `<div class="hl2 dk2"><h2>Your style</h2><span class="hint2">${n(my.length, 'video', 'videos')}</span></div>
+    <div class="stack sty"><div class="lt"><span class="lt-h">How you climb</span><p class="tip-d">Next to ${n(new Set(them.map(v => v.who)).size, 'other climber', 'other climbers')} on the same routes.</p><div class="sty-ax">${ax}</div></div>
+    ${more.length ? `<div class="lt"><span class="lt-h">You use these a lot</span><div class="sty-m">${more.map(r => `<div class="sty-r good">${pic(r)}<span class="sty-t"><b>${r.m.name}</b><em>More than most climbers here</em></span></div>`).join('')}</div></div>` : ''}
+    ${less.length ? `<div class="lt"><span class="lt-h">You hardly use these</span><p class="tip-d">A move you rarely use may be one you haven’t learned yet. Try one next session.</p><div class="sty-m">${less.map(r => `<div class="sty-r"><span class="sty-t"><b>${r.m.name}</b><em>${r.lv === 'never' ? 'Not once in your videos' : 'Less than most climbers here'}</em><span class="sty-d">${r.m.tip}</span>${vid(r.m.q)}</span></div>`).join('')}</div></div>` : ''}
+    ${same.length ? `<div class="lt"><span class="lt-h">About the same as others</span><p class="sty-c">${same.map(r => `<span>${r.m.name}</span>`).join('')}</p></div>` : ''}
+    <p class="an-n">Read from your body in each video. A move the camera can’t see isn’t counted, so more videos make this surer.</p></div>`;
+}
 function viewProfile() {
   const done = clips.filter(c => c.an === 'done' && c.track), tops = ROUTES.filter((r, i) => mineOn(i).some(topOf)).length;
   const prog = ROUTES.map((r, i) => [r, i, mineOn(i)]).filter(([, , cs]) => cs.length).map(([r, i, cs]) => `
@@ -2115,7 +2183,7 @@ function viewProfile() {
   const trend = done.slice().sort((a, b) => agoOf(b) - agoOf(a) || a.id - b.id);
   const bars = (label, f) => `<div class="pf-t"><span>${label}</span>${trend.map(c => `<span class="pf-b"><i style="--h:${f(c.track.stats)}%"></i><b class="num">${f(c.track.stats)}%</b><small>${ROUTES[c.ri].color[0]}${tryOf(c)}</small></span>`).join('')}</div>`;
   const hid = clips.filter(c => c.hidden).length;
-  return { photo: clips[0]?.img || 'gym-arc-1', after: animateProfileShapes, html: `
+  return { photo: clips[0]?.img || 'gym-arc-1', after: (...a) => { animateProfileShapes(...a); const st = document.querySelector('.sty'); if (st) fixWire(st); }, html: `
     ${tabHead('Profile')}
     ${(() => {
       // your Climber ID, after the lanyard ID card in the team's references: a lime card on an ink strap, the mascot as a
@@ -2140,9 +2208,7 @@ function viewProfile() {
     ${session === 'live' ? `<section class="recap solid"><span class="sub">Climbing now · ${gym.name}</span><b class="num" id="prclk">${clk(sesSecs())}</b><span class="sub">${n(dayLog(0).reduce((s, e) => s + e.tries, 0) + gday(0).length, 'try', 'tries')} · ${n(dayLog(0).filter(e => e.sent).length + gday(0).filter(gsent).length, 'send', 'sends')} today</span><button class="pr-end" type="button" data-act="lgend">End session</button></section>` : ''}
     <div class="fold"></div>
     ${prog ? `<div class="sec"><h2>Your routes</h2></div><div class="rgrid">${ROUTES.map((r, i) => i).filter(i => mineOn(i).length).map(rcard).join('')}</div>` : ''}
-    ${trend.length > 1 ? `<div class="hl2 dk2"><h2>Your body, try by try</h2><span class="hint2">oldest first</span></div>
-      <div class="stack"><div class="lt pf">${bars('Hips over feet', s => s.hipsOver)}${bars('Moving', s => s.moving)}
-        <p class="an-n">From each analysed video, first move to last. G = Green, O = Orange, then the try.</p></div></div>` : ''}
+    ${styleCard()}
     <div class="sec"><h2>Logbook</h2><button class="sec-more" type="button" data-act="to" data-to="session">${session === 'live' ? 'Open the session' : 'Start a session'}</button></div>
     ${logbook()}
     <div class="stack">
