@@ -859,11 +859,14 @@
     info.state = hold(T, 'state', f.now || up ? 'Moving' : rest ? 'Resting' : 'Pausing', t, .4, 1);
     const hp = mid(p[P.lh], p[P.rh]), high = ['la', 'ra'].find(k => held.includes(k) && p[ON[k]].v >= .5 && p[ON[k]].y <= hp.y + torso * .3);
     const lock = G.arms !== false && ['lw', 'rw'].find(k => held.includes(k) && armA[k] != null && armA[k] >= 40 && armA[k] < 90) && ['lw', 'rw'].some(k => !held.includes(k));
-    info.tag = hold(T, 'tag', G.tags === false ? '' : high ? 'High foot' : lock ? 'Lock-off' : rest && G.arms !== false && [f.el, f.er].some(a => a >= 150) ? 'Straight-arm rest' : '', t, .4, 1.5);
+    // the move being made now, from the moves the analysis found (the same ones its techniques list counts): each shows for two seconds
+    const TAGN = { high: 'High foot', drop: 'Drop knee', cross: 'Cross-through', match: 'Match', lock: 'Lock-off', rest: 'Straight-arm rest', side: 'Turning side-on' };
+    const ev = G.tags === false ? null : (window.poseTagList || []).filter(e => t >= e.t - .2 && t <= e.t + 2).pop();
+    info.tag = hold(T, 'tag', ev ? TAGN[ev.id] : '', t, 0, 1.2);
     // the colours, in words: orange says what it costs you, lime what it saves
     const offC = (L.balance || L.cog) && G.balance !== false && bal === 'out', bentA = L.lock && ['lw', 'rw'].some(k => armC[k] === 'b');
     const okC = (L.balance && (bal === 'in' || bal === 'unseen')) || (L.lock && ['lw', 'rw'].some(k => armC[k] === 'g'));
-    const tagWhy = { 'High foot': 'High foot: a foot up near hip height, so your leg lifts you', 'Lock-off': 'Lock-off: one arm bent and held still while the other reaches', 'Straight-arm rest': 'Straight-arm rest: hanging on a straight arm lets the muscles recover' }[info.tag];
+    const tagWhy = { 'High foot': 'High foot: a foot up near hip height, so your leg lifts you', 'Lock-off': 'Lock-off: one arm bent and held still while the other reaches', 'Straight-arm rest': 'Straight-arm rest: hanging on a straight arm lets the muscles recover', 'Drop knee': 'Drop knee: a knee turned down and in brings your hip to the wall', 'Cross-through': 'Cross-through: one hand reaches past the other, one move instead of two', 'Match': 'Match: both hands on one hold, to swap or rest', 'Turning side-on': 'Side-on: a hip turned to the wall reaches further' }[info.tag];
     info.why = hold(T, 'why', tagWhy ? tagWhy : offC ? 'Orange: your weight is off your feet, so your hands hold you on' : bentA ? 'Orange arm: bent and pulling, so it tires fast' : okC ? 'Lime: your weight is on your feet, which saves strength' : '', t, .6, 2);
     return info;
   }

@@ -1732,7 +1732,7 @@ function viewClip(id) {
       segClose(); anSheet = null; segStop = null; segT = T; v.addEventListener('play', () => $('cpv')?.pause());
       if (state === 'idle' && !c.cut) trimWire(lv, v);
       v.playbackRate = speed;
-      if (two) { window.poseGate = quality(T).ok; window.posePlay(v, $('lvc'), T); tlWire(); kfWire(T, v.currentSrc || v.src); stuckWire(T, c, v.currentSrc || v.src); laWire(T, v); (g => g && fixWire(g))(document.querySelector('[data-pn="why"] > .sub[data-sub=""]')); stripWire(v, T); stickWire(box, vh); followWire(box); }
+      if (two) { window.poseGate = quality(T).ok; window.poseTagList = (R => ['high', 'drop', 'cross', 'match', 'lock', 'rest', 'side'].flatMap(id => (R[id].at || []).map(t => ({ t, id }))).sort((a, b) => a.t - b.t))(styleOf(T).R); window.posePlay(v, $('lvc'), T); tlWire(); kfWire(T, v.currentSrc || v.src); stuckWire(T, c, v.currentSrc || v.src); laWire(T, v); (g => g && fixWire(g))(document.querySelector('[data-pn="why"] > .sub[data-sub=""]')); stripWire(v, T); stickWire(box, vh); followWire(box); }
       if (state === 'ask' && c.auto) v.currentTime = c.auto.t;
       v.addEventListener('play', () => box.classList.add('playing'));
       ['pause', 'ended'].forEach(e => v.addEventListener(e, () => box.classList.remove('playing')));
@@ -2127,12 +2127,12 @@ function styleOf(T) {
   const on = climbed(T), W = T.W, H = T.H, pt = (s, i) => ({ x: s.p[i][0] * W, y: s.p[i][1] * H, v: s.p[i][2] });
   const tor = s => { const a = pt(s, 1), b = pt(s, 2), c = pt(s, 7), d = pt(s, 8); return Math.hypot((a.x + b.x - c.x - d.x) / 2, (a.y + b.y - c.y - d.y) / 2) || 1; };
   const at = t => on.length ? mostBy(on, x => -Math.abs(x.t - t)) : null, R = Object.fromEntries(STY.map(m => [m.id, { e: 0, c: 0, ex: null }]));
-  const hit = (id, yes, s, mark) => { R[id].c++; if (yes) { R[id].e++; if (!R[id].ex && s) R[id].ex = { t: s.t, mark }; } };
+  const hit = (id, yes, s, mark) => { R[id].c++; if (yes) { R[id].e++; if (s && id !== 'side') (R[id].at ||= []).push(s.t); if (!R[id].ex && s) R[id].ex = { t: s.t, mark }; } };
   // side-on: the shoulders look narrow next to the torso. Square to the wall they are about as wide as the torso is long, or a bit less
   const wide = on.filter(s => [1, 2, 7, 8].every(i => s.p[i][2] >= .6)).map(s => ({ s, r: Math.abs(pt(s, 1).x - pt(s, 2).x) / tor(s) }));
   wide.forEach(o => hit('side', o.r < .45, o.s, 'none'));
-  let runs = 0, run = null; wide.forEach(o => { if (o.r < .45) { if (run && o.s.t - run.b <= .4) run.b = o.s.t; else { if (run && run.b - run.a >= .6) runs++; run = { a: o.s.t, b: o.s.t }; } } }); if (run && run.b - run.a >= .6) runs++;
-  R.side.runs = runs;
+  const starts = []; let run = null; wide.forEach(o => { if (o.r < .45) { if (run && o.s.t - run.b <= .4) run.b = o.s.t; else { if (run && run.b - run.a >= .6) starts.push(run.a); run = { a: o.s.t, b: o.s.t }; } } }); if (run && run.b - run.a >= .6) starts.push(run.a);
+  R.side.runs = starts.length; R.side.at = starts;
   const feet = T.moves.filter(m => m.k[1] === 'a'), hands = T.moves.filter(m => m.k[1] === 'w');
   feet.forEach(m => { const s = at(m.t); if (!s) return; const i = m.k === 'la' ? 11 : 12, an = pt(s, i), kn = pt(s, i - 2), hy = (pt(s, 7).y + pt(s, 8).y) / 2, u = tor(s);
     if (an.v < .5) return; hit('high', an.y <= hy + .3 * u, s, m.k); if (kn.v >= .5) hit('drop', kn.y > an.y + .05 * u, s, m.k === 'la' ? 'lk' : 'rk'); });
@@ -2189,7 +2189,7 @@ const TERMS = {
   trail: { name: 'Path', what: 'The line your centre took over the last 10 seconds. A smooth line up is efficient; zigzags are wasted moves.' },
   angles: { name: 'Angles', what: 'Elbow and knee angles. A straight arm is near 180°; under 90° the arm is pulling hard.' }};
 TERMS.lock.how = STY.find(m => m.id === 'lock').tip;
-const termName = { 'High foot': 'high', 'Lock-off': 'lock', 'Straight-arm rest': 'straight' };
+const termName = { 'High foot': 'high', 'Lock-off': 'lock', 'Straight-arm rest': 'straight', 'Drop knee': 'drop', 'Cross-through': 'cross', 'Match': 'match', 'Turning side-on': 'side' };
 const coachLink = q => `<a class="lm-v" href="https://www.youtube.com/results?search_query=${encodeURIComponent(q)}" target="_blank" rel="noopener"><span>▶</span>Find a coaching video on this</a>`;
 function termPane(k) {
   const t = TERMS[k]; if (!t) return;
