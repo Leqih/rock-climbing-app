@@ -798,6 +798,17 @@
     ctx.setTransform(dpr * z * k, 0, 0, dpr * z * k, dpr * V.ax * bw, dpr * V.ay * bh);
     return z * k;
   }
+  // a colour or a caption changes only once the new one has lasted a moment, and a caption stays up long enough to read.
+  // Without this they flicker with every small wobble of the pose. A jump in the video (a seek) shows the new one at once
+  const holds = new WeakMap();
+  function hold(T, key, v, t, need, show = 0) {
+    let H = holds.get(T); if (!H) holds.set(T, H = {});
+    const h = H[key]; if (!h || t < h.t - .05 || t - h.t > 1) { H[key] = { v, cand: v, since: t, t, shown: t }; return v; }
+    h.t = t; if (v === h.v) { h.cand = v; h.since = t; return v; }
+    if (h.cand !== v) { h.cand = v; h.since = t; }
+    if (t - h.since >= need && t - h.shown >= show) { h.v = v; h.shown = t; }
+    return h.v;
+  }
   function drawLive(ctx, f, t, T) {
     const W = T.W, H = T.H, px = toScreen(ctx, T);
     const G = window.poseGate || {}, L0 = window.poseLayers || { pose: true };
@@ -806,13 +817,15 @@
     if (!f) return info;
     const p = f.pts, u = 1 / px, held = holding(T, t), seen = i => p[i] && p[i].v >= .3;
     const c = centre(p), torso = c.torso, armA = { lw: f.el, rw: f.er };
+    // each arm as a colour: b bent (pulling), g straight, w in between, x not on a hold or not read; held steady like the rest
+    const armC = Object.fromEntries(['lw', 'rw'].map(k => { const a = armA[k]; return [k, hold(T, `arm-${k}`, a == null || a < 40 || !held.includes(k) ? 'x' : a < 120 ? 'b' : a >= 145 ? 'g' : 'w', t, .5)]; }));
     const legA = side => { const [h, k, a] = side === 'l' ? [P.lh, P.lk, P.la] : [P.rh, P.rk, P.ra]; return [h, k, a].every(i => p[i]?.v >= .5) ? Math.round(angleAt(p[h], p[k], p[a])) : null; };
     // centre of mass path: where it has been, the last 10 s, fading
     if (L.trail) { const cp = centrePath(T).filter(o => o.t <= t && o.t >= t - 10);
       ctx.lineCap = 'round'; ctx.lineJoin = 'round';
       for (let i = 1; i < cp.length; i++) { ctx.strokeStyle = `rgba(194,255,1,${(.15 + .85 * (1 - (t - cp[i].t) / 10)).toFixed(3)})`; ctx.lineWidth = 4 * u; ctx.beginPath(); ctx.moveTo(cp[i - 1].x, cp[i - 1].y); ctx.lineTo(cp[i].x, cp[i].y); ctx.stroke(); } }
     // balance: what holds you up, and whether your centre is over your feet
-    const bal = balanceOf(p, held, torso, c);
+    const bal = hold(T, 'bal', balanceOf(p, held, torso, c), t, .5);
     if (L.balance) { const pts = held.filter(k => seen(ON[k])).map(k => p[ON[k]]), good = bal === 'in' || bal === 'unseen', col = good ? LIME : ORANGE;
       if (pts.length >= 2) { const m = pts.reduce((a, b) => ({ x: a.x + b.x / pts.length, y: a.y + b.y / pts.length }), { x: 0, y: 0 });
         pts.sort((a, b) => Math.atan2(a.y - m.y, a.x - m.x) - Math.atan2(b.y - m.y, b.x - m.x));
@@ -826,10 +839,10 @@
       [P.ls, P.rs, P.le, P.re, P.lh, P.rh, P.lk, P.rk].forEach(i => { if (!seen(i)) return; ctx.beginPath(); ctx.arc(p[i].x, p[i].y, 3.5 * u, 0, 7); ctx.fillStyle = '#FFFFFF'; ctx.fill(); }); }
     // arm lock: a hand on a hold with its arm bent is pulling; straight is hanging
     if (L.lock) ['lw', 'rw'].forEach(k => { const a = armA[k], [s0, e0, w0] = k === 'lw' ? [P.ls, P.le, P.lw] : [P.rs, P.re, P.rw];
-      if (a == null || a < 40 || !held.includes(k) || ![s0, e0, w0].every(seen)) return;
-      const col = a < 120 ? ORANGE : a >= 145 ? LIME : '#FFFFFF';
+      if (a == null || armC[k] === 'x' || ![s0, e0, w0].every(seen)) return;
+      const col = armC[k] === 'b' ? ORANGE : armC[k] === 'g' ? LIME : '#FFFFFF';
       ctx.lineCap = 'round'; ctx.lineWidth = 6 * u; ctx.strokeStyle = col; ctx.beginPath(); ctx.moveTo(p[s0].x, p[s0].y); ctx.lineTo(p[e0].x, p[e0].y); ctx.lineTo(p[w0].x, p[w0].y); ctx.stroke();
-      if (a < 120) label(ctx, u, p[e0].x, p[e0].y - 18 * u, `${document.documentElement.lang.startsWith('zh') ? '锁臂' : 'Lock'} · ${a}°`, '#FFFFFF', 'rgba(255,106,31,.95)'); });
+      if (armC[k] === 'b') label(ctx, u, p[e0].x, p[e0].y - 18 * u, `${document.documentElement.lang.startsWith('zh') ? '锁臂' : 'Lock'} · ${a}°`, '#FFFFFF', 'rgba(255,106,31,.95)'); });
     // hands and feet: filled on a hold, a ring while it moves
     if (L.pose || L.balance) Object.keys(ON).forEach(k => { const o = p[ON[k]]; if (!seen(ON[k]) || !held.includes(k)) return;
       ctx.beginPath(); ctx.arc(o.x, o.y, 6 * u, 0, 7); ctx.fillStyle = '#FFFFFF'; ctx.fill(); ctx.lineWidth = 2 * u; ctx.strokeStyle = INK; ctx.stroke(); });
@@ -843,14 +856,14 @@
     // what you're doing now, and a move worth naming
     // going up counts as moving, even with every hand and foot still on its hold (the app says when the hips are rising)
     const up = window.poseRising?.(t), rest = !up && T.rests.find(r => t >= r.t0 && t < r.t1);
-    info.state = f.now || up ? 'Moving' : rest ? 'Resting' : 'Pausing';
+    info.state = hold(T, 'state', f.now || up ? 'Moving' : rest ? 'Resting' : 'Pausing', t, .4, 1);
     const hp = mid(p[P.lh], p[P.rh]), high = ['la', 'ra'].find(k => held.includes(k) && p[ON[k]].v >= .5 && p[ON[k]].y <= hp.y + torso * .3);
     const lock = G.arms !== false && ['lw', 'rw'].find(k => held.includes(k) && armA[k] != null && armA[k] >= 40 && armA[k] < 90) && ['lw', 'rw'].some(k => !held.includes(k));
-    info.tag = G.tags === false ? '' : high ? 'High foot' : lock ? 'Lock-off' : rest && G.arms !== false && [f.el, f.er].some(a => a >= 150) ? 'Straight-arm rest' : '';
+    info.tag = hold(T, 'tag', G.tags === false ? '' : high ? 'High foot' : lock ? 'Lock-off' : rest && G.arms !== false && [f.el, f.er].some(a => a >= 150) ? 'Straight-arm rest' : '', t, .4, 1.5);
     // the colours, in words: orange says what it costs you, lime what it saves
-    const offC = (L.balance || L.cog) && G.balance !== false && bal === 'out', bentA = L.lock && ['lw', 'rw'].some(k => held.includes(k) && armA[k] != null && armA[k] >= 40 && armA[k] < 120);
-    const okC = (L.balance && (bal === 'in' || bal === 'unseen')) || (L.lock && ['lw', 'rw'].some(k => held.includes(k) && armA[k] >= 145));
-    info.why = offC ? 'Orange: your weight is off your feet, so your hands hold you on' : bentA ? 'Orange arm: bent and pulling, so it tires fast' : okC ? 'Lime: your weight is on your feet, which saves strength' : '';
+    const offC = (L.balance || L.cog) && G.balance !== false && bal === 'out', bentA = L.lock && ['lw', 'rw'].some(k => armC[k] === 'b');
+    const okC = (L.balance && (bal === 'in' || bal === 'unseen')) || (L.lock && ['lw', 'rw'].some(k => armC[k] === 'g'));
+    info.why = hold(T, 'why', offC ? 'Orange: your weight is off your feet, so your hands hold you on' : bentA ? 'Orange arm: bent and pulling, so it tires fast' : okC ? 'Lime: your weight is on your feet, which saves strength' : '', t, .6, 2);
     return info;
   }
   const steadies = new WeakMap();
