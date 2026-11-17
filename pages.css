@@ -3293,3 +3293,23 @@ textarea.note:focus { outline: 2px solid var(--ink); outline-offset: 0; backgrou
 .sty-d { font-size: 14px; line-height: 1.35; color: #3a3a38; }
 .sty-c { display: flex; flex-wrap: wrap; gap: 6px; }
 .sty-c span { padding: 6px 10px; border-radius: 999px; background: #f4f4f2; font-size: 13px; font-weight: 700; }
+
+/* terms: the tag on the video opens what it means; the Key button on the toolbar; the explanation card */
+.lvtag { pointer-events: auto; cursor: pointer; }
+.lvtag::after { content: "?"; display: grid; place-items: center; width: 14px; height: 14px; border-radius: 50%; background: #111; color: #C2FF01; font-size: 10px; font-weight: 800; }
+.lyr .lyr-q b { display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; border: 1.8px solid currentColor; font-size: 12px; line-height: 1; }
+.tm-n { display: inline-flex; align-items: center; gap: 6px; padding: 0; border: 0; background: none; color: inherit; font: inherit; font-size: 16px; font-weight: 800; text-align: left; cursor: pointer; }
+.tm-n i { display: grid; place-items: center; width: 16px; height: 16px; border-radius: 50%; background: #111; color: #C4F52A; font-style: normal; font-size: 10px; font-weight: 800; }
+.tm-no { display: grid; gap: 4px; padding: 10px 0; border-top: 1px solid #e3e3e0; }
+.tm-lg { margin: 0; padding: 0; }
+.tm-w { font-size: 16px; line-height: 1.45; margin: 8px 0 0; }
+.tm-h { font-size: 15px; line-height: 1.45; color: #3a3a38; margin: 8px 0 0; }
+.tm-h b { margin-right: 6px; }
+.tm-x { display: flex; gap: 12px; align-items: center; margin: 14px 0 4px; }
+.tm-l { display: grid; gap: 4px; margin-top: 10px; }
+.tm-r { display: flex; gap: 12px; align-items: flex-start; padding: 10px 4px; border: 0; border-bottom: 1px solid #e3e3e0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.tm-r svg { flex: none; margin-top: 2px; }
+.tm-r > span { display: grid; gap: 2px; }
+.tm-r > span > span { font-size: 14px; line-height: 1.4; color: #3a3a38; }
+.tm-tag { flex: none; padding: 2px 8px; border-radius: 999px; background: #C2FF01; color: #111; font-style: normal; font-size: 12px; font-weight: 800; }
+button.sty-i { padding: 0; border: 0; cursor: pointer; }

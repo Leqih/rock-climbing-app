@@ -863,7 +863,8 @@
     // the colours, in words: orange says what it costs you, lime what it saves
     const offC = (L.balance || L.cog) && G.balance !== false && bal === 'out', bentA = L.lock && ['lw', 'rw'].some(k => armC[k] === 'b');
     const okC = (L.balance && (bal === 'in' || bal === 'unseen')) || (L.lock && ['lw', 'rw'].some(k => armC[k] === 'g'));
-    info.why = hold(T, 'why', offC ? 'Orange: your weight is off your feet, so your hands hold you on' : bentA ? 'Orange arm: bent and pulling, so it tires fast' : okC ? 'Lime: your weight is on your feet, which saves strength' : '', t, .6, 2);
+    const tagWhy = { 'High foot': 'High foot: a foot up near hip height, so your leg lifts you', 'Lock-off': 'Lock-off: one arm bent and held still while the other reaches', 'Straight-arm rest': 'Straight-arm rest: hanging on a straight arm lets the muscles recover' }[info.tag];
+    info.why = hold(T, 'why', tagWhy ? tagWhy : offC ? 'Orange: your weight is off your feet, so your hands hold you on' : bentA ? 'Orange arm: bent and pulling, so it tires fast' : okC ? 'Lime: your weight is on your feet, which saves strength' : '', t, .6, 2);
     return info;
   }
   const steadies = new WeakMap();
@@ -964,7 +965,7 @@
       if (mark) { draw(ctx, f, T.W, T.H, mark); return; }
       const now = drawLive(ctx, f, t, T), st = document.getElementById('lvst'), tg = document.getElementById('lvtag');
       if (st) { if (st.dataset.s !== now.state) { st.dataset.s = now.state; st.textContent = now.state; } st.hidden = !now.state; }
-      if (tg) { if (tg.textContent !== now.tag) tg.textContent = now.tag; tg.hidden = !now.tag; }
+      if (tg) { if (tg.textContent !== now.tag) tg.textContent = now.tag; tg.dataset.tag = now.tag; tg.hidden = !now.tag; }
       const wy = document.getElementById('lvwhy'); if (wy) { if (wy.dataset.w !== now.why) { wy.dataset.w = now.why; wy.textContent = now.why; } wy.hidden = !now.why; }
       // where the climber is in the picture right now (0 to 1 across and down), for zooming in on them
       if (!f) window.poseNow = null;

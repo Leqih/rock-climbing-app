@@ -875,8 +875,9 @@ const lyrIcon = d => `<svg viewBox="0 0 24 24" width="20" height="20" fill="none
 const lyrBar = (ok = {}) => `<div class="lyr" role="toolbar" aria-label="What to show on the video">
     ${LAYERS.map(([k, l, d]) => { const off = OFFWHY[k] && ok[OFFWHY[k]] === false;
       return `<button type="button" data-act="lyr" data-k="${k}"${off ? ' class="off" aria-disabled="true"' : ''} aria-pressed="${!off && !!LAY[k]}">${lyrIcon(d)}<span>${l}</span></button>`; }).join('')}
+    <button type="button" data-act="legend" class="lyr-q" aria-label="What’s on the video"><b>?</b><span>Key</span></button>
     <button type="button" data-act="spd" class="lyr-sp num" aria-label="Playback speed">${speed}×</button></div>`;
-const lyrOver = () => `<div class="lvtags" id="lvtags"><span class="lvst" id="lvst" hidden></span><span class="lvtag" id="lvtag" hidden></span><span class="lvla" id="lvla" hidden></span></div><span class="lvwhy" id="lvwhy" hidden></span>`;
+const lyrOver = () => `<div class="lvtags" id="lvtags"><span class="lvst" id="lvst" hidden></span><span class="lvtag" id="lvtag" data-act="term" role="button" tabindex="0" hidden></span><span class="lvla" id="lvla" hidden></span></div><span class="lvwhy" id="lvwhy" hidden></span>`;
 // under the video, as wide as it: where you are, something to drag along, and how long the video is. While the video fills
 // the screen that's a strip of its frames; pulled up, with the video small, a slim bar with a node at every move
 const lyrStrip = (D, w) => `<div class="lvbar" id="lvbar" style="width:${w}"><span class="num" id="lvsa">0:00</span>
@@ -1457,7 +1458,7 @@ function sumPanel(T, c, nextUp, q, top) {
     add(g.id, g.title, sub, nI ? 'fix' : g.cant ? 'cant' : 'ok', `<div class="hl2 dk2"><h2>${g.title}</h2><span class="hint2">${sub}</span></div>${list}${nI ? '<p class="trs-l">Tap a picture to watch that moment.</p>' : ''}${g.more || ''}<div class="stack"><div class="lt">${learnMore(g.prin)}</div></div>`, g.items[0], nI || (g.cant ? '?' : '✓')); });
   pages.push(`<div class="sub" data-sub="nums" hidden><button class="sub-bk" type="button" data-act="sumgo" data-v="">‹ Summary</button>${moreNums(T)}</div>`);
   return `<div class="sub" data-sub="">${top}${(st => sumHero(T, st, F, c.id) + st)(ctlStrip(T, (m => { const it = heroSpot(m, F); return it && m.title === 'Good control' ? { ...m, title: { pull: 'Use your feet more', reach: 'Use your feet more', hip: 'Keep your hips over your feet', rest: 'Rest on straighter arms' }[it.kind] || m.title, span: { a: it.ab[0], b: it.ab[1] }, onlyBad: true } : m; })(takeaway(T))))}
-      <div class="hl2 dk2"><h2>Where to improve</h2></div><div class="sm-g">${tiles.join('')}</div>
+      <div class="hl2 dk2"><h2>Where to improve</h2></div><div class="sm-g">${tiles.join('')}</div>${techCard(T)}
       <button class="sub-lk" type="button" data-act="sumgo" data-v="nums">All the numbers ›</button>${nextUp}${qualityCard(q)}</div>${pages.join('')}`;
 }
 // the climb in order: every hand and foot move, numbered, with how long you paused before the next one. The longest pauses are
@@ -2111,14 +2112,14 @@ function viewPerson(who) {
 // use more or less than other climbers on the same routes. A move you hardly use may be one you haven't learned yet. Words,
 // not numbers; compared with other climbers, because a move's count alone says nothing
 const STY = [
-  { id: 'foot', name: 'Foot first, then the hand', tip: 'Move a foot up before each reach, so your legs lift you.', q: 'climbing footwork feet first' },
-  { id: 'high', name: 'High foot', tip: 'Put a foot up near hip height, then stand up on it. Saves a hard pull on a big move.', q: 'climbing high step technique' },
-  { id: 'side', name: 'Turning side-on', tip: 'Turn one hip to the wall to reach further with the arm on that side.', q: 'climbing hip turn twist lock' },
-  { id: 'drop', name: 'Drop knee', tip: 'Turn one knee down and in, so your hips come close to the wall. Lets you reach further on steep walls.', q: 'climbing drop knee technique' },
-  { id: 'cross', name: 'Cross-through', tip: 'Reach past your other hand instead of matching: one move instead of two.', q: 'climbing cross through technique' },
-  { id: 'match', name: 'Match', tip: 'Bring both hands to one hold, to swap hands or to rest.', q: 'climbing matching hands technique' },
-  { id: 'lock', name: 'Lock-off', tip: 'Hold one arm bent and still while the other reaches. Needs good feet under you.', q: 'climbing lock off technique' },
-  { id: 'rest', name: 'Straight-arm rest', tip: 'Hang on a straight arm and shake out the other.', q: 'climbing straight arm rest shake out' }];
+  { id: 'foot', what: "A foot moves up before the hand reaches, so the reach starts from your legs.", name: 'Foot first, then the hand', tip: 'Move a foot up before each reach, so your legs lift you.', q: 'climbing footwork feet first' },
+  { id: 'high', what: "A foot placed up near hip height. Standing up on it lifts you with your leg instead of a pull.", name: 'High foot', tip: 'Put a foot up near hip height, then stand up on it. Saves a hard pull on a big move.', q: 'climbing high step technique' },
+  { id: 'side', what: "One hip turned to the wall instead of facing it square. The arm on that side reaches further.", name: 'Turning side-on', tip: 'Turn one hip to the wall to reach further with the arm on that side.', q: 'climbing hip turn twist lock' },
+  { id: 'drop', what: "One knee turned down and in, so your hip comes close to the wall. It lets you reach further, mostly on steep walls.", name: 'Drop knee', tip: 'Stand on a hold beside you with the outside edge of your foot, then turn that knee down and in.', q: 'climbing drop knee technique' },
+  { id: 'cross', what: "One hand reaches past the other to the next hold: one move instead of matching first.", name: 'Cross-through', tip: 'Reach past your other hand instead of matching: one move instead of two.', q: 'climbing cross through technique' },
+  { id: 'match', what: "Both hands on the same hold, to swap hands or to rest.", name: 'Match', tip: 'Bring both hands to one hold, to swap hands or to rest.', q: 'climbing matching hands technique' },
+  { id: 'lock', what: "One arm bent and held still, holding you in place, while the other hand reaches. It takes strength, so do it with good feet under you.", name: 'Lock-off', tip: 'Hold one arm bent and still while the other reaches. Needs good feet under you.', q: 'climbing lock off technique' },
+  { id: 'rest', what: "Hanging from a hold on a straight arm. Your bones take the weight instead of your muscles, so the arm recovers.", name: 'Straight-arm rest', tip: 'Hang on a straight arm and shake out the other.', q: 'climbing straight arm rest shake out' }];
 const styMemo = new WeakMap();
 // one climb: for each move, how often it happened (e) out of how often it could have (c), and a clear moment of it
 function styleOf(T) {
@@ -2130,6 +2131,8 @@ function styleOf(T) {
   // side-on: the shoulders look narrow next to the torso. Square to the wall they are about as wide as the torso is long, or a bit less
   const wide = on.filter(s => [1, 2, 7, 8].every(i => s.p[i][2] >= .6)).map(s => ({ s, r: Math.abs(pt(s, 1).x - pt(s, 2).x) / tor(s) }));
   wide.forEach(o => hit('side', o.r < .45, o.s, 'none'));
+  let runs = 0, run = null; wide.forEach(o => { if (o.r < .45) { if (run && o.s.t - run.b <= .4) run.b = o.s.t; else { if (run && run.b - run.a >= .6) runs++; run = { a: o.s.t, b: o.s.t }; } } }); if (run && run.b - run.a >= .6) runs++;
+  R.side.runs = runs;
   const feet = T.moves.filter(m => m.k[1] === 'a'), hands = T.moves.filter(m => m.k[1] === 'w');
   feet.forEach(m => { const s = at(m.t); if (!s) return; const i = m.k === 'la' ? 11 : 12, an = pt(s, i), kn = pt(s, i - 2), hy = (pt(s, 7).y + pt(s, 8).y) / 2, u = tor(s);
     if (an.v < .5) return; hit('high', an.y <= hy + .3 * u, s, m.k); if (kn.v >= .5) hit('drop', kn.y > an.y + .05 * u, s, m.k === 'la' ? 'lk' : 'rk'); });
@@ -2173,6 +2176,45 @@ function styleCard() {
     ${less.length ? `<div class="lt"><span class="lt-h">You hardly use these</span><p class="tip-d">A move you rarely use may be one you haven’t learned yet. Try one next session.</p><div class="sty-m">${less.map(r => `<div class="sty-r"><span class="sty-t"><b>${r.m.name}</b><em>${r.lv === 'never' ? 'Not once in your videos' : 'Less than most climbers here'}</em><span class="sty-d">${r.m.tip}</span>${vid(r.m.q)}</span></div>`).join('')}</div></div>` : ''}
     ${same.length ? `<div class="lt"><span class="lt-h">About the same as others</span><p class="sty-c">${same.map(r => `<span>${r.m.name}</span>`).join('')}</p></div>` : ''}
     <p class="an-n">Read from your body in each video. A move the camera can’t see isn’t counted, so more videos make this surer.</p></div>`;
+}
+// the words on the video and in the analysis, explained: what it is, a picture of you doing it in this video if you did,
+// and a coaching video. Tap a term to open it
+const TERMS = {
+  ...Object.fromEntries(STY.map(m => [m.id, { name: m.name, what: m.what, how: m.tip, q: m.q }])),
+  straight: { name: 'Straight-arm rest', what: STY.find(m => m.id === 'rest').what, how: STY.find(m => m.id === 'rest').tip, q: 'climbing straight arm rest shake out', sty: 'rest' },
+  armlock: { name: 'Arm lock', what: 'Your arms on holds, in colour. Orange: bent and pulling, so it tires fast. Lime: straight and hanging, which saves strength.' },
+  pose: { name: 'Body', what: 'The body Spotter reads from the video: white lines between your joints. A white dot is a hand or foot on a hold.' },
+  cog: { name: 'Centre', what: 'Your centre of gravity: the point your weight balances on, about at your belly button. Over your feet, your legs hold you and your arms rest.', q: 'climbing centre of gravity over feet' },
+  balance: { name: 'Balance', what: 'The shape between the hands and feet on holds. Lime: your centre is over your feet. Orange: it is off to one side, so your hands hold you on.', q: 'climbing body position balance' },
+  trail: { name: 'Path', what: 'The line your centre took over the last 10 seconds. A smooth line up is efficient; zigzags are wasted moves.' },
+  angles: { name: 'Angles', what: 'Elbow and knee angles. A straight arm is near 180°; under 90° the arm is pulling hard.' }};
+TERMS.lock.how = STY.find(m => m.id === 'lock').tip;
+const termName = { 'High foot': 'high', 'Lock-off': 'lock', 'Straight-arm rest': 'straight' };
+const coachLink = q => `<a class="lm-v" href="https://www.youtube.com/results?search_query=${encodeURIComponent(q)}" target="_blank" rel="noopener"><span>▶</span>Find a coaching video on this</a>`;
+function termPane(k) {
+  const t = TERMS[k]; if (!t) return;
+  const ex = segT && $('lvv') ? styleOf(segT).R[t.sty || k]?.ex : null;
+  pane(`<h2>${t.name}</h2><p class="tm-w">${t.what}</p>${t.how ? `<p class="tm-h"><b>How to do it</b> ${t.how}</p>` : ''}
+    ${ex ? `<div class="tm-x"><span class="sty-i"><img alt="" data-ft="${ex.t.toFixed(2)}" data-fm="${ex.mark}" data-tone="good"></span><span class="sub">You, in this video at <b class="num">${mmss(ex.t)}</b></span></div>` : ''}
+    ${t.q ? coachLink(t.q) : ''}${STY.some(m => m.id === (t.sty || k)) ? '<p class="an-n">Spotter reads this from where your body is in the video, so now and then it is wrong.</p>' : ''}`);
+  if (ex) fixWire(ask);
+}
+// what's on the video: every layer, what it shows
+const legendPane = () => pane(`<h2>What’s on the video</h2><div class="tm-l">${LAYERS.map(([k, l, d]) => [k === 'lock' ? 'armlock' : k, d]).filter(([k]) => TERMS[k]).map(([k, d]) => `<button type="button" class="tm-r" data-act="term" data-term="${k}">${lyrIcon(d)}<span><b>${TERMS[k].name}</b><span>${TERMS[k].what}</span></span></button>`).join('')}
+  ${['high', 'lock', 'straight'].map(k => `<button type="button" class="tm-r" data-act="term" data-term="${k}"><i class="tm-tag">${TERMS[k].name}</i><span><span>${TERMS[k].what}</span></span></button>`).join('')}</div>`);
+// this climb's techniques: what you did (a picture, how often, what it is) and, folded, what you didn't, with how to try it
+function techCard(T) {
+  const st = styleOf(T), D = T.D;
+  const rows = STY.map(m => ({ m, r: st.R[m.id] })).filter(o => o.r.c >= 2);
+  const used = rows.filter(o => o.r.e > 0 && (o.m.id !== 'side' || o.r.runs)), not = rows.filter(o => !used.includes(o));
+  const howMany = o => o.m.id === 'side' ? n(o.r.runs, 'time', 'times') : o.m.id === 'foot' ? (o.r.e / o.r.c >= .6 ? 'Before most of your reaches' : o.r.e / o.r.c >= .3 ? 'Before about half your reaches' : 'Before a few of your reaches') : n(o.r.e, 'time', 'times');
+  if (!used.length && !not.length) return '';
+  return `<div class="hl2 dk2"><h2>Techniques in this climb</h2><button class="sub-lk tm-lg" type="button" data-act="legend">What’s on the video ›</button></div>
+    <div class="stack sty"><div class="lt">${used.length ? `<div class="sty-m">${used.sort((a, b) => b.r.e - a.r.e).map(o => `<div class="sty-r good">
+      ${o.r.ex ? `<button class="sty-i" type="button" ${clipNear(o.r.ex.t, D, o.r.ex.mark.length === 2 ? o.r.ex.mark : 'none')} aria-label="Watch ${mmss(o.r.ex.t)}"><img alt="" data-ft="${o.r.ex.t.toFixed(2)}" data-fm="${o.r.ex.mark}" data-tone="good"></button>` : ''}
+      <span class="sty-t"><button class="tm-n" type="button" data-act="term" data-term="${o.m.id}">${o.m.name}<i aria-hidden="true">?</i></button><em>${howMany(o)}</em><span class="sty-d">${o.m.what}</span></span></div>`).join('')}</div>` : '<p class="tip-d">None of the moves we look for showed up in this climb.</p>'}
+      ${not.length ? `<details class="lm"><summary>Not used this time · ${not.length}</summary>${not.map(o => `<div class="tm-no"><button class="tm-n" type="button" data-act="term" data-term="${o.m.id}">${o.m.name}<i aria-hidden="true">?</i></button><span class="sty-d">${o.m.tip}</span></div>`).join('')}</details>` : ''}
+      <p class="an-n">Tap a name to see what it means. Spotter reads these from your body in the video, so now and then it is wrong.</p></div></div>`;
 }
 function viewProfile() {
   const done = clips.filter(c => c.an === 'done' && c.track), tops = ROUTES.filter((r, i) => mineOn(i).some(topOf)).length;
@@ -3356,6 +3398,8 @@ function watchPane(x) {
 }
 
 const actions = {
+  term: b => termPane(b.dataset.term || termName[b.dataset.tag]),
+  legend: () => legendPane(),
   lvseek: b => { const v = $('lvv'); if (!v) return; v.currentTime = +b.dataset.t; v.play().catch(() => {});
     document.querySelectorAll('.mvq-m.on').forEach(x => x.classList.remove('on')); b.classList.add('on'); },
   status: () => pane(`<h2>Your status</h2><span class="sub">Friends see it on your profile, next to your home gym.</span>
