@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <base href="../../">
+  <script>/* links like #/videos stay on this version, not on the root the base points at */ { const f = h => (st, t, u) => h.call(history, st, t, typeof u === "string" && u[0] === "#" ? location.pathname + location.search + u : u); history.replaceState = f(history.replaceState); history.pushState = f(history.pushState); }</script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Spotter Prototype v9</title>
+  <meta name="description" content="Spotter: film a climb, see what your body did, compare it with others on the same route">
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#EEEEEC">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Spotter">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Urbanist:wght@300;400;500;600;700;800;900&display=swap">
+  <link rel="stylesheet" href="versions/v9/styles.css?v=20261116-mob1">
+  <link rel="stylesheet" href="versions/v9/pages.css?v=20261116-gy9">
+</head>
+<body>
+<main class="stage">
+  <div class="device">
+  <div class="phone" aria-label="Spotter app prototype">
+    <div class="screen">
+      <div class="backdrop"><img src="img/wayup-p3-green.jpg" alt=""></div>
+      <div class="m" id="main"></div>
+    </div>
+    <!-- full-screen camera for "Film a try": filled by app.js -->
+    <section class="camx" id="camx" hidden></section>
+
+    <!-- status bar stays put while the screen scrolls under it; frosted once you scroll -->
+    <div class="status">
+      <span>9:41</span>
+      <span class="island" aria-hidden="true"></span>
+      <svg width="68" height="13" viewBox="0 0 70 14" fill="#111111" aria-hidden="true"><rect x="0" y="9" width="3" height="5" rx="1"/><rect x="5" y="6" width="3" height="8" rx="1"/><rect x="10" y="3" width="3" height="11" rx="1"/><rect x="15" y="0" width="3" height="14" rx="1"/><path d="M29 4.5a10 10 0 0 1 14 0l-1.6 1.7a7.6 7.6 0 0 0-10.8 0zM32 7.7a5.6 5.6 0 0 1 8 0L36 12z"/><rect x="47.5" y="1.5" width="19" height="11" rx="3" fill="none" stroke="#111111"/><rect x="49.5" y="3.5" width="13" height="7" rx="1.5"/></svg>
+    </div>
+
+    <nav class="dock" aria-label="Main">
+      <button class="dk" type="button" data-dock="videos" aria-current="page"><svg viewBox="0 0 32 32" aria-hidden="true"><path fill="currentColor" fill-rule="evenodd" d="M4 11 10 5 23 4l6 8-1 12-8 5-12-1-5-8Zm9-1v12l10-6Z"/></svg><span>Videos</span></button>
+      <button class="dk" type="button" data-dock="walls"><svg viewBox="0 0 32 32" aria-hidden="true"><defs><mask id="dkmap"><rect width="32" height="32" fill="#fff"/><path d="M11.5 7.5v15M20.5 9.5v15" stroke="#000" stroke-width="1.9" stroke-linecap="round"/></mask></defs><path mask="url(#dkmap)" fill="currentColor" stroke="currentColor" stroke-width="3.4" stroke-linejoin="round" d="M4 8.6 11.5 5l9 3.6L28 5v18.4L20.5 27l-9-3.6L4 27Z"/></svg><span>Explore</span></button>
+      <button class="dk plus" type="button" id="plus" data-dock="plus"></button>
+      <button class="dk" type="button" data-dock="friends"><svg viewBox="0 0 32 32" aria-hidden="true"><path fill="currentColor" d="M10 5 5 8l1 6 5 3 5-3 1-6-4-3Zm12 0-4 3 1 6 5 3 4-4-1-5-3-3ZM4 20l5-3 6 1 3 6-2 4H5l-3-3Zm17-3 5 1 4 5-2 5h-9l1-4-2-5Z"/></svg><span>Social</span></button>
+      <button class="dk" type="button" data-dock="profile"><svg viewBox="0 0 32 32" aria-hidden="true"><path fill="currentColor" fill-rule="evenodd" d="M16 3 8 6 5 13l2 8 9 8 9-8 2-8-3-7Zm0 5 5 2 1 4-2 4-4 2-4-2-2-4 1-4Zm-6 13 6 3 6-3 2 3-8 5-8-5Z"/></svg><span>Profile</span></button>
+    </nav>
+
+    <div class="scrim" id="scrim"></div>
+    <section class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
+      <div class="grab"></div>
+      <h2 id="sheetTitle">Log the send</h2>
+      <span class="sub" id="sheetSub"></span>
+      <div class="field">
+        <span class="lbl" id="feltLbl">How did it feel?</span>
+        <div class="opts" id="feltOpts"><button type="button" aria-pressed="false">Soft</button><button type="button" aria-pressed="false">Spot on</button><button type="button" aria-pressed="false">Hard</button></div>
+        <p class="hint">Compared with the grade on the route. Climbers looking at it see what everyone said.</p>
+      </div>
+      <div class="field">
+        <span class="lbl">How much did you like it?</span>
+        <div class="stars" id="starOpts" role="radiogroup" aria-label="Stars"><button type="button" role="radio" aria-checked="false" aria-label="1 star" data-n="1">★</button><button type="button" role="radio" aria-checked="false" aria-label="2 stars" data-n="2">★</button><button type="button" role="radio" aria-checked="false" aria-label="3 stars" data-n="3">★</button><button type="button" role="radio" aria-checked="false" aria-label="4 stars" data-n="4">★</button><button type="button" role="radio" aria-checked="false" aria-label="5 stars" data-n="5">★</button></div>
+      </div>
+      <div class="field">
+        <label class="lbl" for="noteIn">Note</label>
+        <textarea class="note" id="noteIn" rows="2" placeholder="What worked? e.g. left heel hook on move 3"></textarea>
+      </div>
+      <div class="field">
+        <span class="lbl">Who filmed you?</span>
+        <div class="opts" id="filmOpts"></div>
+        <p class="hint" id="filmHint"></p>
+      </div>
+      <button class="btn-l" type="button" id="saveTop">Save</button>
+    </section>
+    <!-- "Sent it?" and "Keep climbing?": filled by app.js -->
+    <section class="sheet" id="ask" role="dialog" aria-modal="true"></section>
+
+    <!-- set-up and summary screens put their main button here instead of the dock -->
+    <div class="cta" id="cta"></div>
+    <div class="home-ind"></div>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  </div>
+  <!-- the 16 Pro's buttons: Action and volume on the left, the side button and Camera Control on the right. Volume down switches 中文 / English -->
+  <i class="hw act" aria-hidden="true"></i><i class="hw vup" aria-hidden="true"></i><button class="hw vdn" type="button" aria-label="中文 / English" title="中文 / English"></button>
+  <i class="hw side" aria-hidden="true"></i><i class="hw cc" aria-hidden="true"></i>
+  </div>
+</main>
+<!-- live pose analysis on clips: MediaPipe Pose Landmarker, shipped in vendor/mediapipe -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin></script>
+<script src="versions/v9/pose.js?v=20261116-bg3"></script>
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script src="https://unpkg.com/@maplibre/maplibre-gl-leaflet@0.0.22/leaflet-maplibre-gl.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="versions/v9/app.js?v=20261116-gy9"></script>
+<script src="versions/v9/i18n.js?v=20261116-gy9"></script>
+</body>
+</html>

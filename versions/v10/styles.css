@@ -1,0 +1,149 @@
+/* Spotter prototype: shared tokens and app-wide pieces (phone frame, dock, sheets, lists, tiles).
+   A white app: white screen, white cards with #EDEDED hairlines, ink type, lime #C2FF01 for actions, orange #FF6A1F
+   for what speaks to you. Screen styles and the design system that ties them together live in pages.css. */
+:root { --ease: cubic-bezier(.23, 1, .32, 1); --bg: #FFFFFF; --card: #FFFFFF; --white: #FFFFFF; --ink: #111111;
+  /* one grey ramp: fill → line → track → placeholder → neutral mark → icon → text → dark */
+  --g50: #F4F4F4; --line: #EDEDED; --g200: #E2E2DE; --g300: #D6D6D2; --g400: #BDBDB8; --soft: #9A9A9A; --mid: #666666; --g700: #3A3C3A;
+  /* two accents and three states */
+  --lime: #C2FF01; --lime-soft: #E9F3C2; --orange: #FF6A1F; --ok: #2E7D32; --warn: #E5484D; --warn-ink: #C4502A;
+  --stage: #CBCBCB; --glass: rgba(58, 58, 58, .42); --glass-line: rgba(255, 255, 255, .16);
+  --r-s: 4px; --r-m: 6px; --r-l: 10px; --sh: none; --f: "Urbanist", "Helvetica Neue", Arial, system-ui, sans-serif; color-scheme: light; }
+* { box-sizing: border-box; }
+html, body { background: var(--stage); color: var(--ink); }
+body { font-family: var(--f); font-size: 14px; line-height: 1.35; -webkit-font-smoothing: antialiased; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 32px; }
+button { font: inherit; color: inherit; border: 0; background: none; cursor: pointer; padding: 0; text-align: left; }
+button:focus-visible { outline: 2px solid var(--lime); outline-offset: 2px; border-radius: var(--r-m); }
+img { display: block; width: 100%; height: 100%; object-fit: cover; }
+h1, h2, p { margin: 0; }
+.num { font-variant-numeric: tabular-nums; }
+.stage { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+.credit { margin: 0; font-size: 11px; color: var(--mid); }
+/* iPhone 16 Pro, natural titanium: a 402 × 874 pt screen, a 7 pt black bezel, a 3 pt titanium band with its five buttons.
+   On a short window app.js scales the whole device (--fit) instead of squashing it. */
+.device { position: relative; flex: none; padding: 3px; border-radius: 66px; background: #BEB8AE; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .1); zoom: var(--fit, 1); }
+.phone { position: relative; width: 416px; height: 888px; border-radius: 63px; overflow: hidden; overflow: clip; background: var(--bg); border: 7px solid var(--ink); }
+.hw { position: absolute; width: 3px; background: #ABA59B; }
+.hw.act, .hw.vup, .hw.vdn { left: -3px; border-radius: 2px 0 0 2px; }
+.hw.act { top: 172px; height: 32px; }
+.hw.vup { top: 240px; height: 60px; }
+.hw.vdn { top: 314px; height: 60px; padding: 0; border: 0; cursor: pointer; }
+.hw.vdn:hover, .hw.vdn:focus-visible { background: var(--ink); outline: none; }
+.hw.side { right: -3px; top: 262px; height: 96px; border-radius: 0 2px 2px 0; }
+.hw.cc { right: -2px; top: 528px; width: 2px; height: 66px; border-radius: 0 2px 2px 0; background: #8F897F; }
+/* clip, not hidden: a hidden box can still be scrolled by focus or scrollIntoView, which pushed the clock off and lifted the sheets */
+.phone { --sb: 54px; }   /* the status bar's height: the drawn one in the frame; on a real phone, the phone's own */
+.screen { position: relative; height: 100%; overflow-y: auto; scrollbar-width: none; padding: var(--sb) 0 120px; }
+.screen::-webkit-scrollbar { display: none; }
+.screen.fit { overflow: hidden; padding-bottom: 0; }
+/* blurred photo behind the top half; render() sets its height to end where "Your gym today" starts */
+.backdrop { position: absolute; left: 0; right: 0; top: 0; height: 900px; overflow: hidden; pointer-events: none; -webkit-mask-image: linear-gradient(to bottom, #000 62%, transparent 96%); mask-image: linear-gradient(to bottom, #000 62%, transparent 96%); }
+.backdrop img { filter: blur(6px) saturate(.75); transform: scale(1.08); object-position: 60% 20%; }
+.backdrop::after { content: ""; position: absolute; inset: 0; background: linear-gradient(to bottom, rgba(216, 219, 221, .55) 0%, rgba(40, 40, 40, .2) 25%, rgba(40, 40, 40, .3) 100%); }
+.status { position: absolute; z-index: 4; top: 0; left: 0; right: 0; height: 54px; display: flex; justify-content: space-between; align-items: center; padding: 4px 30px 0 40px; font-weight: 600; font-size: 15px; pointer-events: none; transition: background-color .2s; }
+.status svg { display: block; }
+.island { position: absolute; top: 11px; left: 50%; width: 126px; height: 37px; margin-left: -63px; border-radius: 19px; background: var(--ink); }
+.m { position: relative; padding: 0 16px; }
+/* header */
+.top { display: flex; align-items: center; gap: 12px; padding: 8px 0 0; }
+.av { width: 48px; height: 48px; overflow: hidden; flex: none; }
+.av img { object-position: 60% 25%; }
+.who { flex: 1; min-width: 0; }
+.who strong { display: block; font-size: 18px; font-weight: 600; }
+.who button { display: flex; align-items: center; gap: 4px; font-size: 13px; color: var(--g700); }
+/* headlines */
+.hl { margin: 40px 0 12px; line-height: 1.1; }
+.hl2 { display: flex; justify-content: space-between; }
+.hl2 button { text-decoration: underline; text-underline-offset: 3px; }
+/* frosted panel */
+.glass { position: relative; padding: 16px; }
+.glass .sub, .tile .sub { font-size: 13px; }
+/* "Your gym today": flat light tiles, hairline gaps, nearly square corners */
+.lb { display: grid; grid-template-columns: 1fr 1fr; }
+.lt { position: relative; display: flex; flex-direction: column; justify-content: flex-start; align-items: stretch; border-radius: var(--r-s); color: var(--ink); overflow: hidden; }
+.lt.w2 { grid-column: span 2; }
+.lt-h { display: block; line-height: 1.1; }
+.mv b { display: block; font-size: 40px; line-height: 1; }
+.mv-l { display: block; margin-top: 6px; font-size: 16px; line-height: 1.2; color: var(--mid); }
+/* level as a staircase: one step per grade, lime = grades you climb, lilac = the next one, dark top edge = where you are */
+.steps { position: absolute; left: 16px; right: 16px; bottom: 16px; height: 120px; display: flex; align-items: flex-end; gap: 3px; }
+.st { position: relative; flex: 1; border-radius: 3px 3px 0 0; background: var(--g200); }
+.st.on { background: var(--lime); }
+.st.next { background: var(--orange); }
+.st.cur { box-shadow: inset 0 3px 0 var(--ink); }
+.st i { position: absolute; top: 6px; left: 0; right: 0; font-style: normal; font-size: 10px; font-weight: 600; text-align: center; color: var(--mid); }
+.st.on i, .st.next i { color: var(--ink); }
+.lb { grid-auto-rows: 147px; }
+.lt.tall { grid-row: span 2; height: auto; }
+.short .mv { position: absolute; left: 16px; right: 14px; bottom: 14px; }
+.short .mv b { font-size: 36px; }
+.short .mv-l { font-size: 14px; }
+.sqb { position: absolute; top: 12px; right: 12px; width: 36px; height: 36px; border-radius: var(--r-s); background: var(--ink); display: grid; place-items: center; }
+.cv { display: block; margin-top: 8px; font-size: 13px; color: var(--mid); }
+.cv b { font-size: 28px; font-weight: 300; color: var(--ink); }
+.crowd svg { position: absolute; left: 16px; right: 16px; bottom: 14px; width: calc(100% - 32px); height: 40px; }
+/* the route you are on: its photo, the line drawn on it (top right), hero number and tip at the bottom */
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--lime); flex: none; animation: pulse 1.6s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: .35; } }
+.end { height: 32px; padding: 0 14px; border-radius: var(--r-s); background: rgba(255, 255, 255, .16); font-size: 13px; font-weight: 600; flex: none; }
+/* route picker: picked route big on the left, the others stacked as small photos on the right */
+.pk-tag { position: absolute; top: 12px; left: 12px; display: flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border-radius: var(--r-s); background: rgba(255, 255, 255, .92); color: var(--ink); font-size: 13px; font-weight: 600; }
+.pk-tag .sw { box-shadow: none; }
+/* actions live on the card they act on: lime, full width, icon + verb */
+.arr { position: absolute; top: 12px; right: 12px; width: 40px; height: 40px; border-radius: var(--r-s); background: rgba(255, 255, 255, .14); display: grid; place-items: center; }
+.sw { width: 12px; height: 12px; flex: none; box-shadow: 0 0 0 1.5px rgba(255, 255, 255, .8); }
+/* bottom pair */
+.tile { position: relative; min-height: 156px; border-radius: var(--r-m); padding: 16px; color: var(--white); overflow: hidden; display: flex; flex-direction: column; justify-content: flex-end; background: linear-gradient(160deg, #4A4F48 0%, #3E4A36 60%, #5E7040 100%); }
+.tile b { display: block; font-size: 30px; font-weight: 300; line-height: 1.05; }
+.tile .t2 { font-size: 17px; font-weight: 500; line-height: 1.2; }
+.tile .arr { width: 36px; height: 36px; }
+.tile .ic { position: absolute; top: 16px; left: 16px; }
+.tile.go { background: var(--lime); color: var(--ink); }
+.tile.go .sub { color: rgba(17, 17, 17, .65); }
+.tile > b, .tile > span:not(.arr):not(.ic):not(.shade):not(.t-h) { position: relative; }
+.cmp b { font-size: 26px; }
+.bars { display: grid; gap: 6px; margin-top: 12px; }
+.tile.photo img { position: absolute; inset: 0; object-position: 50% 30%; }
+.tile.photo .shade { position: absolute; inset: 0; background: linear-gradient(to top, rgba(17, 17, 17, .85) 0%, rgba(17, 17, 17, .55) 45%, rgba(17, 17, 17, .05) 80%); }
+.tile .play { width: 40px; height: 40px; border-radius: var(--r-s); background: rgba(255, 255, 255, .82); display: grid; place-items: center; top: 12px; left: 12px; }
+.tile.photo b { font-size: 36px; }
+/* every tab has a label so beginners never guess an icon; the lime cell is the one action: start, then record */
+.dock { position: absolute; left: 16px; right: 16px; bottom: 22px; display: grid; grid-template-columns: 1fr 1fr 1.25fr 1fr 1fr; gap: 2px; backdrop-filter: blur(20px) saturate(1.2); -webkit-backdrop-filter: blur(20px) saturate(1.2); z-index: 5; }
+.dk { position: relative; height: 56px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; color: var(--mid); text-align: center; }
+.dk span:not(.pip) { line-height: 1; }
+.dk[aria-current="page"] span { font-weight: 600; }
+.dk.plus span { font-weight: 600; }
+.home-ind { position: absolute; z-index: 9; bottom: 8px; left: 50%; transform: translateX(-50%); width: 140px; height: 5px; border-radius: 3px; background: var(--ink); }
+/* topped-it sheet */
+.scrim { position: absolute; inset: 0; z-index: 6; background: rgba(17, 17, 17, .4); opacity: 0; pointer-events: none; transition: opacity .2s; }
+.scrim.show { opacity: 1; pointer-events: auto; }
+.sheet { position: absolute; left: 0; right: 0; bottom: 0; z-index: 7; background: var(--white); padding: 8px 20px 40px; transform: translateY(100%); transition: transform .25s; visibility: hidden; }
+.sheet.show { transform: none; visibility: visible; }
+.grab { width: 36px; height: 5px; border-radius: 3px; background: var(--g200); margin: 0 auto 16px; }
+.sheet .sub { font-size: 14px; color: var(--mid); }
+.lbl { font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--mid); }
+.field { margin-top: 24px; }
+.opts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 8px; }
+.opts button { height: 44px; border-radius: var(--r-m); box-shadow: inset 0 0 0 1px var(--g200); text-align: center; font-weight: 600; }
+.opts button[aria-pressed="true"] { background: var(--ink); color: var(--white); box-shadow: none; }
+.hint { margin-top: 8px; font-size: 12px; color: var(--mid); }
+.btn-l { display: block; width: 100%; margin-top: 24px; background: var(--ink); color: var(--white); font-size: 16px; text-align: center; }
+.toast { position: absolute; z-index: 8; left: 50%; bottom: 112px; transform: translateX(-50%); max-width: calc(100% - 40px); font-size: 13px; padding: 10px 16px; border-radius: var(--r-m); opacity: 0; transition: opacity .2s; pointer-events: none; text-align: center; }
+.toast.show { opacity: 1; }
+@media (max-width: 480px) {
+  body { margin: 0; padding-block: 0; padding-left: 0; padding-right: 0; background: var(--bg); }
+  .credit { display: none; }
+  .device { width: 100%; padding: 0; border-radius: 0; background: none; box-shadow: none; zoom: 1; }
+  .phone { width: 100%; height: 100vh; height: 100dvh; border-radius: 0; border: 0; }
+  .hw { display: none; }
+  /* a real phone has its own status bar and camera: don't draw a second one. Content starts under the phone's own bar */
+  .phone { --sb: max(8px, env(safe-area-inset-top, 0px)); }
+  .status, .island:not(.live) { display: none; }
+  .island.live { top: calc(var(--sb) + 6px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
+}
+/* live session in the Dynamic Island, on every page: lime dot left of the camera, time on the right */
+.island.live { width: 150px; margin-left: -75px; display: flex; align-items: center; justify-content: space-between; padding: 0 12px 0 13px; color: var(--white); pointer-events: auto; cursor: pointer; }
+.island.live i { width: 8px; height: 8px; border-radius: 50%; background: var(--lime); animation: pulse 1.6s ease-in-out infinite; }
+.island.live b { font-size: 13px; font-weight: 600; }
