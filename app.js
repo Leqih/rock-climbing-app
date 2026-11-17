@@ -1073,7 +1073,8 @@ function segMain(btn) {
   // the label repeats the time written on what you tapped, so the two always match
   const said = btn.textContent.match(/\d+:\d\d(?:\s*–\s*\d+:\d\d)?/)?.[0] || mmss(t);
   l.innerHTML = `${said} · 0.5× <span aria-hidden="true">✕</span>`; box.append(l);
-  const stop = next => { segStop = null; v.removeEventListener('timeupdate', tick); v.playbackRate = rate; l.remove(); btn.classList.remove('on');
+  const w = btn.dataset.say ? Object.assign(document.createElement('span'), { className: 'seg-say', textContent: btn.dataset.say }) : null; if (w) box.append(w);
+  const stop = next => { segStop = null; v.removeEventListener('timeupdate', tick); v.playbackRate = rate; l.remove(); w?.remove(); btn.classList.remove('on');
     if (!next && anSheet && back > 0 && scr.scrollTop < 2) setTimeout(() => anSheet?.go(back), 500); };
   segStop = stop;
   const tick = () => { if (v.currentTime >= b) { v.pause(); stop(); } };
@@ -1173,7 +1174,8 @@ function takeaway(T) {
     if (yes) fr.push({ s: at(yes.t0), tone: 'good', mark: yes.k, title: 'Foot moved first', sub: 'Do this more' });
     if (no) fr.push({ s: at(no.t0), tone: 'bad', mark: no.k, title: 'Hand moved alone', sub: 'Try a foot first' });
     return { sim: no ? feetSim(T, at(no.t0), no) : null, ...say('Use your feet more', '', 'Move a foot up before each reach.', no?.t0 ?? s.first, 'See this move', { frames: fr, head: 'Hands and feet', share: `${s.hands} hand, ${s.feet} foot`, bar: ticks(T, 'Hands', ['lw', 'rw']) + ticks(T, 'Feet', ['la', 'ra']) }, no ? { a: Math.max(0, no.t0 - 1), b: no.t + 1, mark: 'none', tone: 'bad' } : null) }; }
-  if (!s.longest) { const run = stretch(on, x => !moving(x)) || [s.first, s.first], still = mostBy(on, x => -Math.abs(x.t - (run[0] + run[1]) / 2)), secs = (run[1] - run[0]).toFixed(1);
+  if (!s.longest) { const ps = pauses(T).filter(m => m.i > 1 && m.gap > 0 && m.t0 < T.D * .92), lp = ps.length ? ps.reduce((a, b) => b.gap > a.gap ? b : a) : null;
+    const run = lp ? [lp.t0 - lp.gap, lp.t0] : stretch(on, x => !moving(x)) || [s.first, s.first], still = mostBy(on, x => -Math.abs(x.t - (run[0] + run[1]) / 2)), secs = (run[1] - run[0]).toFixed(1);
     return say('Take a rest on the way', '', 'Pick one good hold and shake out each arm.', run[0], 'See this pause', { frames: [{ s: still, tone: 'good', mark: 'none', title: 'Your longest pause', sub: `${secs} s` }],
       head: 'Moving and pausing', share: `Longest pause ${secs} s`, bar: band(T, x => moving(x) ? 'm' : 'g'), keys: swatch('g', 'Pause') + swatch('m', 'Moving') }, { a: run[0], b: Math.max(run[1], run[0] + 2), mark: 'none', tone: 'good' }); }
   const rest = on.filter(x => x.t >= s.longest.t && x.t < s.longest.t + s.longest.s), calm = rest.filter(x => !isOff(x)), best = (calm.length || rest.length) ? mostBy(calm.length ? calm : rest, bigArm) : on[0], far = mostBy(on, x => Math.abs(x.off));
@@ -1281,20 +1283,38 @@ function sumHero(T) {
       ${m.vis?.frames.length ? '' : `<button class="b-ghost an-see" type="button" ${clipAt(spa, spb, sp.mark, m.t ?? spa)}>${m.see} · ${mmss(m.t ?? spa)}</button>`}
       ${why ? `<details class="lm"><summary>Why? Learn more</summary>${why}</details>` : ''}</div></div>`;
 }
-// the whole climb as one strip: the parts in control and the parts to work on. Tap a part to watch it
-function ctlStrip(T) {
-  const on = climbed(T); if (on.length < 6) return '';
-  const q = quality(T).ok, rested = x => T.rests.some(r => x.t >= r.t0 && x.t < r.t1), arms = T.stats.restRead >= 50;
-  const bad = x => (q.balance && Math.abs(x.off) >= .35) || (arms && rested(x) && bigArm(x) != null && bigArm(x) < 120);
+// the whole climb as one strip, about the same thing as the tip above it: where it happened and where it didn't. The part the
+// tip is about is outlined. Tap a part to watch it, with a line saying what it is
+function ctlStrip(T, m) {
+  const on = climbed(T); if (on.length < 6 || m.title === 'Too little to judge') return '';
+  const isOff = x => Math.abs(x.off) >= .35, rested = x => T.rests.some(r => x.t >= r.t0 && x.t < r.t1), moving = x => x.now || T.moves.some(v => x.t >= v.t0 && x.t <= v.t);
+  const hands = T.moves.filter(v => v.k[1] === 'w'), feet = T.moves.filter(v => v.k[1] === 'a'), led = h => feet.some(f => f.t0 <= h.t0 && h.t0 - f.t0 < 1.2);
+  let M;
+  if (m.title === 'Rest on straighter arms') M = { tone: x => !rested(x) || bigArm(x) == null ? 'm' : bigArm(x) > 145 ? 'g' : 'b', g: 'Resting on straight arms', b: 'Resting on bent arms', m: 'Moving', why: () => 'Resting on bent arms: your muscles hold you, so you tire sooner' };
+  else if (m.title === 'Use your feet more') M = { min: .25, tone: x => { const h = hands.find(v => x.t >= v.t0 && x.t <= v.t); return h ? (led(h) ? 'g' : 'b') : feet.some(v => x.t >= v.t0 && x.t <= v.t) ? 'g' : 'm'; },
+    g: 'Foot first, then the hand', b: 'A hand moved with no foot first', m: 'Holding still', why: () => 'A hand moved with no foot first: your arm did the lifting' };
+  else if (m.title === 'Take a rest on the way') M = { gaps: true, g: 'A pause', m: 'Moving' };
+  else if (quality(T).ok.balance) M = { tone: x => isOff(x) ? 'b' : 'g', g: 'Hips over your feet', b: 'Hips out to one side', why: r => `Hips out to the ${r.off < 0 ? 'left' : 'right'}: your hands were holding you on` };
+  else return '';
   const runs = [];
-  on.forEach(x => { const k = bad(x) ? 'b' : 'g', r = runs[runs.length - 1]; if (r && r.k === k) r.b = x.t; else runs.push({ k, a: x.t, b: x.t }); });
-  // blips under 0.6 s join the part before them
-  const sm = []; runs.forEach(r => { const p = sm[sm.length - 1]; if (p && (p.k === r.k || r.b - r.a < .6)) p.b = r.b; else sm.push({ ...r }); });
-  const nb = sm.filter(r => r.k === 'b').length;
-  return `<div class="hl2 dk2"><h2>The whole climb</h2><span class="hint2">${nb ? n(nb, 'part to work on', 'parts to work on') : 'In control all the way'}</span></div>
-    <div class="stack"><div class="lt ctl"><div class="ctl-b">${sm.map(r => `<button type="button" class="${r.k}" style="flex-grow:${Math.max(.3, r.b - r.a).toFixed(2)}" ${clipAt(Math.max(0, r.a - .5), Math.min(T.D, Math.max(r.b + .5, r.a + 2)), r.k === 'b' ? 'hip' : 'none')} aria-label="${mmss(r.a)}–${mmss(r.b)}: ${r.k === 'b' ? 'Worth working on' : 'In control'}"></button>`).join('')}</div>
+  // pauses: the gaps between one move and the next, the same ones Where you stopped counts
+  if (M.gaps) { let t = on[0].t; pauses(T).filter(v => v.i > 1 && v.gap >= .5 && v.t0 < T.D * .92).forEach(v => { if (v.t0 - v.gap > t) runs.push({ k: 'm', a: t, b: v.t0 - v.gap, off: 0 }); runs.push({ k: 'g', a: v.t0 - v.gap, b: v.t0, off: 0 }); t = v.t0; });
+    runs.push({ k: 'm', a: t, b: on[on.length - 1].t, off: 0 }); }
+  else on.forEach(x => { const k = M.tone(x), r = runs[runs.length - 1]; if (r && r.k === k) { r.b = x.t; r.off += x.off || 0; } else runs.push({ k, a: x.t, b: x.t, off: x.off || 0 }); });
+  // blips shorter than this join the part before them
+  const sm = []; runs.forEach(r => { const p = sm[sm.length - 1]; if (p && (p.k === r.k || (!M.gaps && r.b - r.a < (M.min ?? .6)))) { p.b = r.b; if (p.k === r.k) p.off += r.off; } else sm.push({ ...r }); });
+  // a short still moment between two parts of the same kind joins them, so the strip shows stretches, not every move
+  if (M.min) for (let i = sm.length - 2; i > 0; i--) if (sm[i].k === 'm' && sm[i].b - sm[i].a < 1.2 && sm[i - 1].k === sm[i + 1].k) { sm[i - 1].b = sm[i + 1].b; sm.splice(i, 2); }
+  // the part the tip is about: the one that overlaps its moment most
+  const sp = m.span || { a: m.t - 1, b: m.t + 2 }, ov = r => Math.min(r.b, sp.b) - Math.max(r.a, sp.a);
+  const me = sm.filter(r => r.k !== 'm' && ov(r) > -.3).sort((x, y) => ov(y) - ov(x))[0];
+  const nb = sm.filter(r => r.k === 'b').length, ng = sm.filter(r => r.k === 'g').length;
+  const say = r => r.k === 'b' ? M.why(r) : M[r.k];
+  const keys = ['g', 'b', 'm'].filter(k => M[k] && sm.some(r => r.k === k));
+  return `<div class="hl2 dk2"><h2>The whole climb</h2><span class="hint2">${nb ? n(nb, 'part to work on', 'parts to work on') : M.b ? 'Not once on this climb' : ng ? n(ng, 'pause', 'pauses') : 'No pause on the way'}</span></div>
+    <div class="stack"><div class="lt ctl"><div class="ctl-b">${sm.map(r => `<button type="button" class="${r.k}${r === me ? ' ctl-me' : ''}" style="flex-grow:${Math.max(.3, r.b - r.a).toFixed(2)}" ${clipAt(Math.max(0, r.a - .5), Math.min(T.D, Math.max(r.b + .5, r.a + 2)), r.k === 'b' ? 'hip' : 'none')} data-say="${say(r)}" aria-label="${mmss(r.a)}–${mmss(r.b)}: ${say(r)}"></button>`).join('')}</div>
       <div class="vz-a num"><span>${mmss(on[0].t)}</span><span>${mmss(on[on.length - 1].t)}</span></div>
-      <p class="ctl-k"><span><u class="g"></u>In control: hips over your feet, arms not straining</span><span><u class="b"></u>Worth working on: tap it to watch</span></p></div></div>`;
+      <p class="ctl-k">${keys.map(k => `<span><u class="${k}"></u>${M[k]}</span>`).join('')}${me ? '<span><u class="ctl-me"></u>Outlined: the part the tip above is about</span>' : ''}<span class="ctl-t">Tap a part to watch it.</span></p></div></div>`;
 }
 // what else we counted, each with the moment it comes from
 function moreNums(T) {
@@ -1315,7 +1335,7 @@ function sumPanel(T, c, nextUp, q, top) {
   const la = legArm(T); if (la && la.steps.length) add('legs', 'Legs or arms', la.share == null ? 'Can’t tell from this video' : `Legs ${la.share}%, arms ${100 - la.share}%`, legCard(T));
   const pc = paceState(T); if (pc) add('pace', 'How you held up', (pc.match(/class="lt-h">([^<]*)</) || [])[1] || '', pc);
   add('nums', 'More numbers', `${n(T.stats.moves, 'move', 'moves')} · seen in ${T.stats.seen}% of the video`, moreNums(T));
-  return `<div class="sub" data-sub="">${top}${sumHero(T)}${ctlStrip(T)}
+  return `<div class="sub" data-sub="">${top}${sumHero(T)}${ctlStrip(T, takeaway(T))}
       ${tiles.length ? `<div class="hl2 dk2"><h2>Look closer</h2></div><div class="rows">${tiles.join('')}</div>` : ''}${nextUp}${qualityCard(q)}</div>${pages.join('')}`;
 }
 // the climb in order: every hand and foot move, numbered, with how long you paused before the next one. The longest pauses are
