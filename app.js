@@ -1388,17 +1388,18 @@ async function fixWire(pg) {
 }
 // Summary: the main page, and a page for each tile. Tiles open in place, ‹ Summary comes back
 function sumPanel(T, c, nextUp, q, top) {
-  const tile = (id, title, sub, tone) => `<button class="row sm-t ${tone}" type="button" data-act="sumgo" data-v="${id}"><span class="row-t"><strong>${title}</strong><span>${sub}</span></span>${ic.arr('#111111')}</button>`;
-  const pages = [], tiles = [], add = (id, title, sub, tone, html) => { tiles.push(tile(id, title, sub, tone)); pages.push(`<div class="sub" data-sub="${id}" hidden><button class="sub-bk" type="button" data-act="sumgo" data-v="">‹ Summary</button>${html}</div>`); };
+  // a tile is a picture of its clearest moment, with how many spots there are, so there's something to look at before you open it
+  const tile = (id, title, sub, tone, it, badge) => `<button class="sm-c ${tone}" type="button" data-act="sumgo" data-v="${id}"><span class="sm-i">${it ? `<img alt="" data-ft="${it.t.toFixed(2)}" data-fm="${it.mark}">` : ''}<b class="sm-n num">${badge}</b></span><strong>${title}</strong><span>${sub}</span></button>`;
+  const pages = [], tiles = [], add = (id, title, sub, tone, html, it, badge) => { tiles.push(tile(id, title, sub, tone, it, badge)); pages.push(`<div class="sub" data-sub="${id}" hidden><button class="sub-bk" type="button" data-act="sumgo" data-v="">‹ Summary</button>${html}</div>`); };
   const k = stuckAt(T, topOf(c)), st = stuckCard(T, c);
-  if (k && st) add('stuck', k.kind === 'end' ? 'Where you came off' : k.kind === 'late' ? 'Where you got stuck' : 'Where you stopped longest', `${k.gap.toFixed(1)} s at ${mmss(k.s.t)}`, 'one', st);
+  if (k && st) add('stuck', k.kind === 'end' ? 'Where you came off' : k.kind === 'late' ? 'Where you got stuck' : 'Where you stopped longest', `${k.gap.toFixed(1)} s at ${mmss(k.s.t)}`, 'one', st, { t: k.s.t, mark: 'none' }, `${k.gap.toFixed(1)}s`);
   fixes(T).forEach(g => { const nI = g.items.length, sub = nI ? n(nI, 'spot to work on', 'spots to work on') : g.cant ? 'Can’t tell from this video' : 'Nothing to fix here';
     const list = nI ? `<div class="fx-l">${g.items.map(fixItem).join('')}</div>`
       : `<div class="stack"><div class="lt"><span class="lt-h">${g.cant ? 'Can’t tell from this video' : 'Nothing to fix here'}</span><p class="tip-d">${g.cant ? g.cantWhy || 'We couldn’t see enough of you in this video.' : 'Nothing stood out in this part of your climbing. Keep doing it.'}</p></div></div>`;
-    add(g.id, g.title, sub, nI ? 'fix' : g.cant ? 'cant' : 'ok', `<div class="hl2 dk2"><h2>${g.title}</h2><span class="hint2">${sub}</span></div>${list}${nI ? '<p class="trs-l">Tap a picture to watch that moment.</p>' : ''}${g.more || ''}<div class="stack"><div class="lt">${learnMore(g.prin)}</div></div>`); });
+    add(g.id, g.title, sub, nI ? 'fix' : g.cant ? 'cant' : 'ok', `<div class="hl2 dk2"><h2>${g.title}</h2><span class="hint2">${sub}</span></div>${list}${nI ? '<p class="trs-l">Tap a picture to watch that moment.</p>' : ''}${g.more || ''}<div class="stack"><div class="lt">${learnMore(g.prin)}</div></div>`, g.items[0], nI || (g.cant ? '?' : '✓')); });
   pages.push(`<div class="sub" data-sub="nums" hidden><button class="sub-bk" type="button" data-act="sumgo" data-v="">‹ Summary</button>${moreNums(T)}</div>`);
   return `<div class="sub" data-sub="">${top}${(st => sumHero(T, st) + st)(ctlStrip(T, takeaway(T)))}
-      <div class="hl2 dk2"><h2>Look closer</h2></div><div class="rows">${tiles.join('')}</div>
+      <div class="hl2 dk2"><h2>Where to improve</h2></div><div class="sm-g">${tiles.join('')}</div>
       <button class="sub-lk" type="button" data-act="sumgo" data-v="nums">All the numbers ›</button>${nextUp}${qualityCard(q)}</div>${pages.join('')}`;
 }
 // the climb in order: every hand and foot move, numbered, with how long you paused before the next one. The longest pauses are
@@ -1672,7 +1673,7 @@ function viewClip(id) {
       segClose(); anSheet = null; segStop = null; segT = T; v.addEventListener('play', () => $('cpv')?.pause());
       if (state === 'idle' && !c.cut) trimWire(lv, v);
       v.playbackRate = speed;
-      if (two) { window.poseGate = quality(T).ok; window.posePlay(v, $('lvc'), T); tlWire(); kfWire(T, v.currentSrc || v.src); stuckWire(T, c, v.currentSrc || v.src); laWire(T, v); stripWire(v, T); stickWire(box, vh); followWire(box); }
+      if (two) { window.poseGate = quality(T).ok; window.posePlay(v, $('lvc'), T); tlWire(); kfWire(T, v.currentSrc || v.src); stuckWire(T, c, v.currentSrc || v.src); laWire(T, v); (g => g && fixWire(g))(document.querySelector('.sm-g')); stripWire(v, T); stickWire(box, vh); followWire(box); }
       if (state === 'ask' && c.auto) v.currentTime = c.auto.t;
       v.addEventListener('play', () => box.classList.add('playing'));
       ['pause', 'ended'].forEach(e => v.addEventListener(e, () => box.classList.remove('playing')));
