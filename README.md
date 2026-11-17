@@ -246,6 +246,22 @@ Put exported files in `labels/` and run `node tools/score.mjs` (add `--tol 0.5` 
 
 Random times find about 31%. **These are not independent:** the shipped network was trained on all 22 Way Up videos, these 11 included, so on new climbers and gyms expect at most the held-out scores above, and less with a moving phone. What they add is the pauses and the order, which nothing had measured: when a move is found, its neighbours come in the right order, and the gap between two moves is usually off by about a third of a second. With 5 samples a second, a pause under about half a second can't be told apart from no pause.
 
+### Techniques against the coach labels
+
+`node tools/style.mjs` works out how often each technique shows up in each of the 21 clips twice: once from Spotter's moves, once from the coach's landings, with the same rule (`styleOf` and `feetFirst` in `app.js`). A gap means Spotter missed or mistimed moves. The rank agreement says whether the climbers who do something most by the coach's landings also do it most by Spotter's, which is what the style profile ranks.
+
+| Technique | Coach | Spotter | Usual gap per clip | Rank agreement |
+|---|---|---|---|---|
+| Feet first | 67% | 63% | 9 points | 0.41 |
+| Cross | 30% | 21% | 16 points | 0.71 |
+| Match | 10% | 4% | 11 points | 0.14 |
+| High foot | 6% | 5% | 3 points | 0.56 |
+| Drop knee | 2% | 2% | 1 point | 0.76 |
+
+Feet first used to count a reach only when a foot started moving in the 1.2 s before the hand. That said 42% where the coach's landings say 67%, so nearly every climber looked like they pulled with their arms. It now counts a reach when a foot landed after the hand before it landed, with 0.4 s slack either side for timing: 63%. Match is the weakest: it needs both wrists in view at the landing, which leaves a few landings a clip, and Spotter misses the quick ones. Cross and match counts are small, so one landing moves a clip's rate a lot.
+
+What these labels can't check: they only say when a hand or foot landed, not how. Whether a knee really dropped, a foot was really high, the body side-on or an arm locked is still decided by the rules on Spotter's own pose at that moment, and nobody has checked those by eye. That needs someone to go through the detected moments and mark each one right or wrong.
+
 ## Arm angles
 
 An arm only gets an angle when shoulder, elbow and wrist all have confidence of at least 0.3 and both parts of the arm are at least 0.3 of the torso length on screen (`readArms` in `pose.js`). Otherwise the app shows no angle. On a far-off climber the wrist is a guess, which used to read as 9°. Conclusions about arms need at least half of the rest time readable; the whole-climb figure needs 30% of the climb. The thresholds were set by checking which readings looked impossible, not against measured angles.

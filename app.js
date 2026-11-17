@@ -1127,6 +1127,16 @@ function segOpen(btn) {
   tick();
 }
 // the picture for a conclusion: moments from the video, and the whole climb as a strip
+// feet first: a foot landed while this hand was on its way, that is after the hand before it landed, with 0.4 s slack either side
+// for timing. On the 21 climbs with coach labels, the same rule on the coach's landings says 67% of reaches are feet first, on ours 63%
+// (the old one, a foot starting within 1.2 s before the hand, said 42% and made everyone look like they pull with their arms)
+const ledMemo = new WeakMap();
+function feetFirst(T) {
+  if (ledMemo.has(T)) return ledMemo.get(T);
+  const h = T.moves.filter(v => v.k[1] === 'w').sort((a, b) => a.t - b.t), f = T.moves.filter(v => v.k[1] === 'a');
+  const fn = m => { const i = h.indexOf(m), p = i > 0 ? h[i - 1].t : -Infinity; return f.some(x => x.t > p - .4 && x.t < m.t + .4); };
+  ledMemo.set(T, fn); return fn;
+}
 const climbed = T => { const a = T.moves[0]?.t0 ?? 0, b = T.moves[T.moves.length - 1]?.t ?? T.D; return T.S.filter(s => s.p && s.t >= a && s.t <= b); };
 const bigArm = s => { const r = [s.el, s.er].filter(a => a != null); return r.length ? Math.max(...r) : null; }, footsSeen = s => Math.min(s.p[11][2], s.p[12][2]) > .7;
 const mostBy = (l, f) => l.reduce((b, s) => f(s) > f(b) ? s : b);
@@ -1175,7 +1185,7 @@ function takeaway(T) {
       then = foot > 2 * Math.abs(hip) ? `At ${mmss(back.t)} your ${Math.abs(rf) > Math.abs(lf) ? 'right' : 'left'} foot moved across and your hips were back over your feet.` : `At ${mmss(back.t)} your hips came back over your feet.`; }
     return { sim: hipSim(T, part, on, isOff), ...say('Keep your hips over your feet', `${outer ? `Your hips stayed ${right ? 'right' : 'left'} of your feet` : `Your hips stayed out to the ${right ? 'right' : 'left'}`} from <button class="t-at num" type="button" ${clipAt(run[0], Math.max(run[1], run[0] + 2), 'hip')}>${mmss(run[0])}–${mmss(run[1])}</button>.<small class="tip-n">Not always a mistake: you may be hanging off a hold or setting up the next move.</small>`, `<span>${then}</span> <span>Next try: before you reach, step your ${right ? 'right' : 'left'} foot out under your hips, or turn your ${right ? 'right' : 'left'} hip in to the wall.</span>`, run[0], 'See this stretch', { frames: [{ s: good, tone: 'good', mark: 'hip', title: 'Hips centred', sub: 'For comparison' }, { s: bad, tone: 'bad', mark: 'hip', title: side(bad), sub: 'Furthest here' }],
       head: 'Whole climb', share: `${s.hipsOver}% centred`, bar: band(T, hips), keys: swatch('g', 'Centred') + swatch('b', 'Off to one side') + `<span>Longest off ${mmss(run[0])}–${mmss(run[1])}</span>` }, { a: run[0], b: Math.max(run[1], run[0] + 2), mark: 'hip', tone: 'bad' }), nextLabel: 'What happened next' }; }
-  if (s.hands >= 5 && s.feet < s.hands * .6) { const hands = T.moves.filter(m => m.k[1] === 'w'), feet = T.moves.filter(m => m.k[1] === 'a'), led = h => feet.some(f => f.t0 <= h.t0 && h.t0 - f.t0 < 1.2), at = t => mostBy(on, x => -Math.abs(x.t - t));
+  if (s.hands >= 5 && s.feet < s.hands * .6) { const hands = T.moves.filter(m => m.k[1] === 'w'), feet = T.moves.filter(m => m.k[1] === 'a'), led = feetFirst(T), at = t => mostBy(on, x => -Math.abs(x.t - t));
     const yes = hands.find(led), no = hands.find(h => !led(h)), fr = [];
     if (yes) fr.push({ s: at(yes.t0), tone: 'good', mark: yes.k, title: 'Foot moved first', sub: 'Do this more' });
     if (no) fr.push({ s: at(no.t0), tone: 'bad', mark: no.k, title: 'Hand moved alone', sub: 'Try a foot first' });
@@ -1317,7 +1327,7 @@ function sumHero(T, strip, F, cid) {
 function ctlStrip(T, m) {
   const on = climbed(T); if (on.length < 6 || m.title === 'Too little to judge') return '';
   const isOff = x => Math.abs(x.off) >= .35, rested = x => T.rests.some(r => x.t >= r.t0 && x.t < r.t1), moving = x => x.now || T.moves.some(v => x.t >= v.t0 && x.t <= v.t);
-  const hands = T.moves.filter(v => v.k[1] === 'w'), feet = T.moves.filter(v => v.k[1] === 'a'), led = h => feet.some(f => f.t0 <= h.t0 && h.t0 - f.t0 < 1.2);
+  const hands = T.moves.filter(v => v.k[1] === 'w'), feet = T.moves.filter(v => v.k[1] === 'a'), led = feetFirst(T);
   let M;
   if (m.title === 'Rest on straighter arms') M = { tone: x => !rested(x) || bigArm(x) == null ? 'm' : bigArm(x) > 145 ? 'g' : 'b', g: 'Resting on straight arms', b: 'Resting on bent arms', m: 'Moving', why: () => 'Resting on bent arms: your muscles hold you, so you tire sooner' };
   else if (m.title === 'Use your feet more') M = { min: .25, tone: x => { const h = hands.find(v => x.t >= v.t0 && x.t <= v.t); return h ? (led(h) ? 'g' : 'b') : feet.some(v => x.t >= v.t0 && x.t <= v.t) ? 'g' : 'm'; },
@@ -1369,7 +1379,7 @@ function doneRight(T, kind, a, b) {
   const on = climbed(T).filter(x => x.t >= a && x.t <= b), at = t => on.length ? mostBy(on, x => -Math.abs(x.t - t)) : null;
   const feet = T.moves.filter(v => v.k[1] === 'a'), mid = (a + b) / 2;
   if (kind === 'hip') { const l = on.filter(x => footsSeen(x) && Math.abs(x.off) < .18); return l.length ? { s: mostBy(l, x => -Math.abs(x.t - mid)), mark: 'hip' } : null; }
-  if (kind === 'reach') { const h = T.moves.filter(v => v.k[1] === 'w' && v.t0 >= a && v.t0 <= b && feet.some(f => f.t0 <= v.t0 && v.t0 - f.t0 < 1.2)).sort((x, y) => Math.abs(x.t0 - mid) - Math.abs(y.t0 - mid))[0];
+  if (kind === 'reach') { const h = T.moves.filter(v => v.k[1] === 'w' && v.t0 >= a && v.t0 <= b && feetFirst(T)(v)).sort((x, y) => Math.abs(x.t0 - mid) - Math.abs(y.t0 - mid))[0];
     const s = h && at(h.t0); return s ? { s, mark: `reach:${h.k}` } : null; }
   if (kind === 'rest') { const rs = T.rests.filter(r => r.t1 > a && r.t0 < b && r.t1 - r.t0 >= 2.5).map(r => ({ r, xs: on.filter(x => x.t >= r.t0 && x.t < r.t1 && bigArm(x) != null && bigArm(x) >= 150) })).filter(o => o.xs.length);
     const o = rs.length ? mostBy(rs, o => o.r.t1 - o.r.t0) : null; return o ? { s: mostBy(o.xs, bigArm), mark: 'arm', dur: o.r.t1 - o.r.t0 } : null; }
@@ -1388,7 +1398,7 @@ function refFor(T, it, peers) {
 }
 function fixes(T, peers = []) {
   const st = T.stats, q = quality(T).ok, on = climbed(T), isOff = x => Math.abs(x.off) >= .35;
-  const hands = T.moves.filter(v => v.k[1] === 'w'), feet = T.moves.filter(v => v.k[1] === 'a'), led = h => feet.some(f => f.t0 <= h.t0 && h.t0 - f.t0 < 1.2);
+  const hands = T.moves.filter(v => v.k[1] === 'w'), feet = T.moves.filter(v => v.k[1] === 'a'), led = feetFirst(T);
   const near = t => on.length ? mostBy(on, x => -Math.abs(x.t - t)) : null, clip = (a, b) => [Math.max(0, a), Math.min(T.D, Math.max(b, a + 2))];
   // hard pulls: steps up where the arm did the lifting, and reaches with no foot first (a run of them is one spot)
   const pull = [], la = legArm(T);
@@ -2136,7 +2146,7 @@ function styleOf(T) {
   const feet = T.moves.filter(m => m.k[1] === 'a'), hands = T.moves.filter(m => m.k[1] === 'w');
   feet.forEach(m => { const s = at(m.t); if (!s) return; const i = m.k === 'la' ? 11 : 12, an = pt(s, i), kn = pt(s, i - 2), hy = (pt(s, 7).y + pt(s, 8).y) / 2, u = tor(s);
     if (an.v < .5) return; hit('high', an.y <= hy + .3 * u, s, m.k); if (kn.v >= .5) hit('drop', kn.y > an.y + .05 * u, s, m.k === 'la' ? 'lk' : 'rk'); });
-  hands.forEach(m => { const s = at(m.t); hit('foot', feet.some(f => f.t0 <= m.t0 && m.t0 - f.t0 < 1.2), at(m.t0), m.k); if (!s) return;
+  hands.forEach(m => { const s = at(m.t); hit('foot', feetFirst(T)(m), at(m.t0), m.k); if (!s) return;
     const l = pt(s, 5), r = pt(s, 6), u = tor(s);
     if (l.v >= .5 && r.v >= .5) { const d = Math.hypot(l.x - r.x, l.y - r.y); hit('match', d < .25 * u, s, m.k); hit('cross', d >= .25 * u && l.x > r.x + .1 * u, s, m.k); }
     const s2 = at((m.t0 + m.t) / 2), o = s2 && (m.k === 'lw' ? s2.er : s2.el); if (o != null) hit('lock', o < 90, s2, 'arm'); });
@@ -2228,7 +2238,7 @@ function nextPlan(T, c, F) {
     items.push({ k: 'Your goal on this route', h: k ? `Get past ${mmss(k.s.t)}` : 'Reach the top', d: k ? 'That’s where you stopped. Shake out before it, then climb that part feet first.' : 'Climb it to the top, resting on straight arms on the way.',
       act: k ? clipNear(k.s.t, T.D, 'none') : '', btn: k ? `Watch ${mmss(k.s.t)}` : '' }); }
   else { const L = GR.includes(r.grade) ? GR : VG, nx = ROUTES.map((x, i) => ({ x, i })).filter(o => L.indexOf(o.x.grade) > L.indexOf(r.grade)).sort((a, b) => L.indexOf(a.x.grade) - L.indexOf(b.x.grade))[0];
-    items.push({ k: 'Your next goal', h: nx ? `Try ${rname(nx.x)}` : 'Climb it again, smoother', d: nx ? `You topped ${rname(r)}. This is the next grade up.` : 'Fewer stops, and every reach feet first.',
+    items.push({ k: 'Your next goal', h: nx ? `Go for ${rname(nx.x)}` : 'Climb it again, smoother', d: nx ? `You topped ${rname(r)}. This is the next grade up.` : 'Fewer stops, and every reach feet first.',
       act: nx ? `data-act="to" data-to="route/${nx.i}"` : '', btn: nx ? 'See the route' : '' }); }
   if (!items.length) return '';
   return `<div class="hl2 dk2"><h2>Next session</h2></div><div class="stack"><div class="lt nxp">${items.map((x, i) => `<div class="nxp-i"><b class="nxp-n num">${i + 1}</b><span class="nxp-t"><em>${x.k}</em>
