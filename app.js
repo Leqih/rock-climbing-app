@@ -1459,7 +1459,7 @@ function sumPanel(T, c, nextUp, q, top) {
   pages.push(`<div class="sub" data-sub="nums" hidden><button class="sub-bk" type="button" data-act="sumgo" data-v="">‹ Summary</button>${moreNums(T)}</div>`);
   return `<div class="sub" data-sub="">${top}${(st => sumHero(T, st, F, c.id) + st)(ctlStrip(T, (m => { const it = heroSpot(m, F); return it && m.title === 'Good control' ? { ...m, title: { pull: 'Use your feet more', reach: 'Use your feet more', hip: 'Keep your hips over your feet', rest: 'Rest on straighter arms' }[it.kind] || m.title, span: { a: it.ab[0], b: it.ab[1] }, onlyBad: true } : m; })(takeaway(T))))}
       <div class="hl2 dk2"><h2>Where to improve</h2></div><div class="sm-g">${tiles.join('')}</div>${techCard(T)}
-      <button class="sub-lk" type="button" data-act="sumgo" data-v="nums">All the numbers ›</button>${nextUp}${qualityCard(q)}</div>${pages.join('')}`;
+      <button class="sub-lk" type="button" data-act="sumgo" data-v="nums">All the numbers ›</button>${nextPlan(T, c, F)}${nextUp.replace('<h2>Next</h2>', '<h2>Compare with others</h2>')}${qualityCard(q)}</div>${pages.join('')}`;
 }
 // the climb in order: every hand and foot move, numbered, with how long you paused before the next one. The longest pauses are
 // marked; tap a move to watch it
@@ -2215,6 +2215,25 @@ function techCard(T) {
       <span class="sty-t"><button class="tm-n" type="button" data-act="term" data-term="${o.m.id}">${o.m.name}<i aria-hidden="true">?</i></button><em>${howMany(o)}</em><span class="sty-d">${o.m.what}</span></span></div>`).join('')}</div>` : '<p class="tip-d">None of the moves we look for showed up in this climb.</p>'}
       ${not.length ? `<details class="lm"><summary>Not used this time · ${not.length}</summary>${not.map(o => `<div class="tm-no"><button class="tm-n" type="button" data-act="term" data-term="${o.m.id}">${o.m.name}<i aria-hidden="true">?</i></button><span class="sty-d">${o.m.tip}</span></div>`).join('')}</details>` : ''}
       <p class="an-n">Tap a name to see what it means. Spotter reads these from your body in the video, so now and then it is wrong.</p></div></div>`;
+}
+// Next session: three things to take to the gym, each one you can act on. What to change first (its first step), a move you
+// didn't use this climb (how, and a coaching video), and a goal on this route: past where you stopped, or the next grade up
+function nextPlan(T, c, F) {
+  const m = takeaway(T), it = heroSpot(m, F), R = styleOf(T).R, r = ROUTES[c.ri], items = [];
+  if (it) items.push({ k: m.title === 'Good control' ? 'Fine-tune' : 'Change this first', h: m.title === 'Good control' ? 'One spot to try' : m.title, d: it.steps[0].replace(' (right picture)', ''),
+    act: clipAt(it.ab[0], it.ab[1], it.mark.startsWith('reach') ? it.mark.split(':')[1] : it.mark, it.t), btn: `Watch ${mmss(it.t)}` });
+  const tid = ['high', 'side', 'drop', 'cross', 'rest', 'match', 'lock'].find(id => R[id]?.c >= 2 && !R[id].e);
+  if (tid) { const x = STY.find(y => y.id === tid); items.push({ k: 'Try a new move', h: x.name, term: tid, d: x.tip, q: x.q }); }
+  if (!topOf(c)) { const k = stuckAt(T, false);
+    items.push({ k: 'Your goal on this route', h: k ? `Get past ${mmss(k.s.t)}` : 'Reach the top', d: k ? 'That’s where you stopped. Shake out before it, then climb that part feet first.' : 'Climb it to the top, resting on straight arms on the way.',
+      act: k ? clipNear(k.s.t, T.D, 'none') : '', btn: k ? `Watch ${mmss(k.s.t)}` : '' }); }
+  else { const L = GR.includes(r.grade) ? GR : VG, nx = ROUTES.map((x, i) => ({ x, i })).filter(o => L.indexOf(o.x.grade) > L.indexOf(r.grade)).sort((a, b) => L.indexOf(a.x.grade) - L.indexOf(b.x.grade))[0];
+    items.push({ k: 'Your next goal', h: nx ? `Try ${rname(nx.x)}` : 'Climb it again, smoother', d: nx ? `You topped ${rname(r)}. This is the next grade up.` : 'Fewer stops, and every reach feet first.',
+      act: nx ? `data-act="to" data-to="route/${nx.i}"` : '', btn: nx ? 'See the route' : '' }); }
+  if (!items.length) return '';
+  return `<div class="hl2 dk2"><h2>Next session</h2></div><div class="stack"><div class="lt nxp">${items.map((x, i) => `<div class="nxp-i"><b class="nxp-n num">${i + 1}</b><span class="nxp-t"><em>${x.k}</em>
+    <strong>${x.term ? `<button class="tm-n" type="button" data-act="term" data-term="${x.term}">${x.h}<i aria-hidden="true">?</i></button>` : x.h}</strong><span class="nxp-d">${x.d}</span>
+    ${x.act || x.q ? `<span class="nxp-a">${x.act ? `<button class="nxp-b" type="button" ${x.act}>${x.btn} ›</button>` : ''}${x.q ? coachLink(x.q) : ''}</span>` : ''}</span></div>`).join('')}</div></div>`;
 }
 function viewProfile() {
   const done = clips.filter(c => c.an === 'done' && c.track), tops = ROUTES.filter((r, i) => mineOn(i).some(topOf)).length;

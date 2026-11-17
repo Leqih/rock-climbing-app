@@ -3313,3 +3313,16 @@ textarea.note:focus { outline: 2px solid var(--ink); outline-offset: 0; backgrou
 .tm-r > span > span { font-size: 14px; line-height: 1.4; color: #3a3a38; }
 .tm-tag { flex: none; padding: 2px 8px; border-radius: 999px; background: #C2FF01; color: #111; font-style: normal; font-size: 12px; font-weight: 800; }
 button.sty-i { padding: 0; border: 0; cursor: pointer; }
+
+/* Next session: three numbered things to take to the gym */
+.nxp { gap: 0; }
+.nxp-i { display: flex; gap: 12px; padding: 14px 0; border-top: 1px solid #e3e3e0; }
+.nxp-i:first-child { border-top: 0; padding-top: 2px; }
+.nxp-n { flex: none; display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: #111; color: #C4F52A; font-size: 14px; font-weight: 800; }
+.nxp-t { display: grid; gap: 4px; min-width: 0; }
+.nxp-t em { font-style: normal; font-size: 12px; font-weight: 700; color: #6b6b68; text-transform: uppercase; letter-spacing: .04em; }
+.nxp-t strong { font-size: 17px; font-weight: 800; }
+.nxp-d { font-size: 15px; line-height: 1.4; color: #3a3a38; }
+.nxp-a { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+.nxp-b { padding: 8px 14px; border: 0; border-radius: 999px; background: #C4F52A; color: #111; font: inherit; font-size: 14px; font-weight: 800; cursor: pointer; }
+.nxp-a .lm-v { margin: 0; }
