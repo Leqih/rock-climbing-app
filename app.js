@@ -1158,7 +1158,7 @@ function takeaway(T) {
   if (s.moves < 3) { const clear = on.length ? mostBy(on, x => x.p.reduce((v, q) => v + q[2], 0)) : null;
     return say('Too little to judge', `We only saw ${n(s.moves, 'hand or foot move', 'hand and foot moves')} in this video.`, 'Film a whole try, from the first hold to where you stop.', s.first ?? clear?.t ?? 0, 'See it in the video', clear && { frames: [{ s: clear, tone: 'good', mark: 'none', title: 'We saw you here', sub: `In ${s.seen}% of this video` }] }); }
   if (s.longest && s.restStraight != null && s.restRead >= 50 && s.restStraight < 60) { const r = on.filter(x => rested(x) && bigArm(x) != null), lo = -bigArm(mostBy(r, x => -bigArm(x))), bad = mostBy(r, x => -bigArm(x)), good = mostBy(r, bigArm);
-    return { sim: restSim(T, bad), ...say('Rest on straighter arms', '', 'At each rest, let one arm go straight and hang from it.', bad.t, 'See this rest', { frames: [{ s: good, tone: 'good', mark: 'arm', title: 'Your straightest rest', sub: 'You’ve done this' }, { s: bad, tone: 'bad', mark: 'arm', title: 'Your most bent rest', sub: `Arms at ${-lo}°` }],
+    return { sim: restSim(T, bad), ...say('Rest on straighter arms', `You rested on bent arms in ${100 - s.restStraight}% of your rests. Bent arms hold you with muscle, so you tire sooner.`, 'At each rest, let one arm go straight and hang from it.', bad.t, 'See this rest', { frames: [{ s: good, tone: 'good', mark: 'arm', title: 'Your straightest rest', sub: 'You’ve done this' }, { s: bad, tone: 'bad', mark: 'arm', title: 'Your most bent rest', sub: `Arms at ${-lo}°` }],
       head: 'Your rests', share: `${s.restStraight}% on straight arms`, bar: band(T, x => !rested(x) || bigArm(x) == null ? 'm' : bigArm(x) > 145 ? 'g' : 'b'), keys: swatch('g', 'Straight') + swatch('b', 'Bent') + swatch('m', 'Moving') }, (rr => rr ? { a: rr.t0, b: rr.t1, mark: 'none', tone: 'bad' } : null)(T.rests.find(q => bad.t >= q.t0 && bad.t < q.t1))) }; }
   if (s.hipsOver < 60 && bal) { const hipX = x => (x.p[7][0] + x.p[8][0]) / 2, past = x => { const h = hipX(x), l = x.p[11][0], r = x.p[12][0]; return h < Math.min(l, r) || h > Math.max(l, r); };
     const outer = stretch(on, x => isOff(x) && past(x)), run = outer || stretch(on, isOff) || [s.far.t, s.far.t], part = on.filter(x => x.t >= run[0] && x.t <= run[1]), bad = mostBy(part, x => Math.abs(x.off)), sure = on.filter(footsSeen), good = mostBy(sure.length ? sure : on, x => -Math.abs(x.off));
@@ -1173,10 +1173,10 @@ function takeaway(T) {
     const yes = hands.find(led), no = hands.find(h => !led(h)), fr = [];
     if (yes) fr.push({ s: at(yes.t0), tone: 'good', mark: yes.k, title: 'Foot moved first', sub: 'Do this more' });
     if (no) fr.push({ s: at(no.t0), tone: 'bad', mark: no.k, title: 'Hand moved alone', sub: 'Try a foot first' });
-    return { sim: no ? feetSim(T, at(no.t0), no) : null, ...say('Use your feet more', '', 'Move a foot up before each reach.', no?.t0 ?? s.first, 'See this move', { frames: fr, head: 'Hands and feet', share: `${s.hands} hand, ${s.feet} foot`, bar: ticks(T, 'Hands', ['lw', 'rw']) + ticks(T, 'Feet', ['la', 'ra']) }, no ? { a: Math.max(0, no.t0 - 1), b: no.t + 1, mark: 'none', tone: 'bad' } : null) }; }
+    return { sim: no ? feetSim(T, at(no.t0), no) : null, ...say('Use your feet more', `${n(s.hands, 'hand move', 'hand moves')}, only ${n(s.feet, 'foot move', 'foot moves')}. Your arms did the lifting your legs could have done.`, 'Move a foot up before each reach.', no?.t0 ?? s.first, 'See this move', { frames: fr, head: 'Hands and feet', share: `${s.hands} hand, ${s.feet} foot`, bar: ticks(T, 'Hands', ['lw', 'rw']) + ticks(T, 'Feet', ['la', 'ra']) }, no ? { a: Math.max(0, no.t0 - 1), b: no.t + 1, mark: 'none', tone: 'bad' } : null) }; }
   if (!s.longest) { const ps = pauses(T).filter(m => m.i > 1 && m.gap > 0 && m.t0 < T.D * .92), lp = ps.length ? ps.reduce((a, b) => b.gap > a.gap ? b : a) : null;
     const run = lp ? [lp.t0 - lp.gap, lp.t0] : stretch(on, x => !moving(x)) || [s.first, s.first], still = mostBy(on, x => -Math.abs(x.t - (run[0] + run[1]) / 2)), secs = (run[1] - run[0]).toFixed(1);
-    return say('Take a rest on the way', '', 'Pick one good hold and shake out each arm.', run[0], 'See this pause', { frames: [{ s: still, tone: 'good', mark: 'none', title: 'Your longest pause', sub: `${secs} s` }],
+    return say('Take a rest on the way', `Your longest stop was ${secs} s. You climbed the whole route without a real rest, so your arms never got to recover.`, 'Pick one good hold and shake out each arm.', run[0], 'See this pause', { frames: [{ s: still, tone: 'good', mark: 'none', title: 'Your longest pause', sub: `${secs} s` }],
       head: 'Moving and pausing', share: `Longest pause ${secs} s`, bar: band(T, x => moving(x) ? 'm' : 'g'), keys: swatch('g', 'Pause') + swatch('m', 'Moving') }, { a: run[0], b: Math.max(run[1], run[0] + 2), mark: 'none', tone: 'good' }); }
   const rest = on.filter(x => x.t >= s.longest.t && x.t < s.longest.t + s.longest.s), calm = rest.filter(x => !isOff(x)), best = (calm.length || rest.length) ? mostBy(calm.length ? calm : rest, bigArm) : on[0], far = mostBy(on, x => Math.abs(x.off));
   const arms = s.restStraight != null && s.restRead >= 50;
@@ -1274,14 +1274,15 @@ function legCard(T) {
     <details class="lm"><summary>How we tell</summary><p class="la-how">Each time your hips went up, we compared how much your knees straightened with how much your elbows bent. Steps where we couldn’t see both are marked ?.</p></details></div></div>`;
 }
 // the top of Summary: one thing to change next time, with its picture and what to do. Why it matters is behind Learn more
-function sumHero(T) {
+function sumHero(T, strip) {
   const m = takeaway(T); if (m.vis) m.vis.T = T.D;
   const sp = m.span || { a: Math.max(0, m.t - 1), b: m.t + 2, mark: 'none' }, spa = sp.a, spb = Math.min(T.D, Math.max(sp.b, spa + 2));
-  const why = `${m.why ? `<p class="tip-d">${m.why}</p>` : ''}${m.vis?.bar ? seeBlock({ ...m.vis, frames: [] }) : ''}${m.sim ? simBlock(m.sim) : ''}`;
-  return `<div class="stack"><div class="lt nx1"><span class="an-k1">Next time, change this first</span><span class="lt-h">${m.title}</span>
+  // the whole climb is drawn once, in the strip under this card; here only when there's no strip
+  const why = `${m.vis?.bar && !strip ? seeBlock({ ...m.vis, frames: [] }) : ''}${m.sim ? simBlock(m.sim) : ''}`;
+  return `<div class="stack"><div class="lt nx1"><span class="an-k1">${m.title === 'Good control' ? 'Keep doing this' : 'Next time, change this first'}</span><span class="lt-h">${m.title}</span>${m.why ? `<p class="tip-d nx1-why">${m.why}</p>` : ''}
       ${m.vis?.frames.length ? seeBlock({ ...m.vis, bar: '' }) : ''}<p class="an-nx nx1-do">${m.next}</p>
       ${m.vis?.frames.length ? '' : `<button class="b-ghost an-see" type="button" ${clipAt(spa, spb, sp.mark, m.t ?? spa)}>${m.see} · ${mmss(m.t ?? spa)}</button>`}
-      ${why ? `<details class="lm"><summary>Why? Learn more</summary>${why}</details>` : ''}</div></div>`;
+      ${why ? `<details class="lm"><summary>${m.sim ? 'See how it could look' : 'Learn more'}</summary>${why}</details>` : ''}</div></div>`;
 }
 // the whole climb as one strip, about the same thing as the tip above it: where it happened and where it didn't. The part the
 // tip is about is outlined. Tap a part to watch it, with a line saying what it is
@@ -1335,7 +1336,7 @@ function sumPanel(T, c, nextUp, q, top) {
   const la = legArm(T); if (la && la.steps.length) add('legs', 'Legs or arms', la.share == null ? 'Can’t tell from this video' : `Legs ${la.share}%, arms ${100 - la.share}%`, legCard(T));
   const pc = paceState(T); if (pc) add('pace', 'How you held up', (pc.match(/class="lt-h">([^<]*)</) || [])[1] || '', pc);
   add('nums', 'More numbers', `${n(T.stats.moves, 'move', 'moves')} · seen in ${T.stats.seen}% of the video`, moreNums(T));
-  return `<div class="sub" data-sub="">${top}${sumHero(T)}${ctlStrip(T, takeaway(T))}
+  return `<div class="sub" data-sub="">${top}${(st => sumHero(T, st) + st)(ctlStrip(T, takeaway(T)))}
       ${tiles.length ? `<div class="hl2 dk2"><h2>Look closer</h2></div><div class="rows">${tiles.join('')}</div>` : ''}${nextUp}${qualityCard(q)}</div>${pages.join('')}`;
 }
 // the climb in order: every hand and foot move, numbered, with how long you paused before the next one. The longest pauses are
