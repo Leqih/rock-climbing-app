@@ -1340,63 +1340,99 @@ function moreNums(T) {
     <p class="trs-l">We could see you in ${s.seen}% of this video. Tap a row to watch that moment.</p>${bodyStats(T)}`;
 }
 // Summary: the main page, and a page for each tile. Tiles open in place, ‹ Summary comes back
-// every spot worth working on, in three groups: hard pulls, feet and centre, rests and stamina. Each spot: when, a picture,
-// what's wrong, what to do. Only what we could see: a group we can't read says so
-function fixes(T) {
+// every spot worth working on, in three groups: hard pulls, feet and centre, rests and stamina. Each spot: your moment with the
+// problem drawn on it, next to the same thing done better (someone on this route at the same part of it, or you, elsewhere in
+// this climb), and up to three steps to get there. Only what we could see: a group we can't read says so
+const side = i => i === 11 || i === 'la' || i === 'lw' ? 'left' : 'right';
+const lowFoot = x => x.p[11][1] >= x.p[12][1] ? 'left' : 'right';
+// how far up the route a moment is: the share of the climb's moves made by then. Two climbers on one route line up by it
+const share = (T, t) => { const n = T.moves.length; return n ? T.moves.filter(m => m.t0 <= t).length / n : 0; };
+const atShare = (T, f) => { const ms = [...T.moves].sort((a, b) => a.t0 - b.t0); return ms.length ? ms[Math.min(ms.length - 1, Math.max(0, Math.round(f * ms.length) - 1))].t0 : 0; };
+// the same thing done right, in one climb, between two times: the moment and how to draw it
+function doneRight(T, kind, a, b) {
+  const on = climbed(T).filter(x => x.t >= a && x.t <= b), at = t => on.length ? mostBy(on, x => -Math.abs(x.t - t)) : null;
+  const feet = T.moves.filter(v => v.k[1] === 'a'), mid = (a + b) / 2;
+  if (kind === 'hip') { const l = on.filter(x => footsSeen(x) && Math.abs(x.off) < .18); return l.length ? { s: mostBy(l, x => -Math.abs(x.t - mid)), mark: 'hip' } : null; }
+  if (kind === 'reach') { const h = T.moves.filter(v => v.k[1] === 'w' && v.t0 >= a && v.t0 <= b && feet.some(f => f.t0 <= v.t0 && v.t0 - f.t0 < 1.2)).sort((x, y) => Math.abs(x.t0 - mid) - Math.abs(y.t0 - mid))[0];
+    const s = h && at(h.t0); return s ? { s, mark: `reach:${h.k}` } : null; }
+  if (kind === 'pull') { const st = (legArm(T)?.steps || []).filter(x => x.kind === 'leg' && x.t0 >= a && x.t0 <= b).sort((x, y) => Math.abs(x.t0 - mid) - Math.abs(y.t0 - mid))[0];
+    const s = st && at(st.t0 + (st.t1 - st.t0) / 2); return s ? { s, mark: 'arm' } : null; }
+  if (kind === 'rest') { const l = on.filter(x => T.rests.some(r => x.t >= r.t0 && x.t < r.t1) && bigArm(x) != null && bigArm(x) >= 150); return l.length ? { s: mostBy(l, x => -Math.abs(x.t - mid)), mark: 'arm' } : null; }
+  return null;
+}
+// someone on this route at the same part of it, done right; else you, elsewhere in this climb
+function refFor(T, it, peers) {
+  const f = share(T, it.t);
+  for (const x of [...peers].sort((p, q) => (q.top ? 1 : 0) - (p.top ? 1 : 0))) { const P = TRK[x.vid]; if (!P?.moves?.length) continue;
+    const r = doneRight(P, it.kind, atShare(P, f - .15), atShare(P, f + .15)); if (r) return { ...r, who: x.who, pv: x.i }; }
+  const own = doneRight(T, it.kind, 0, T.D); if (own && Math.abs(own.s.t - it.t) > 1.5) return { ...own, who: 'You' };
+  return null;
+}
+function fixes(T, peers = []) {
   const st = T.stats, q = quality(T).ok, on = climbed(T), isOff = x => Math.abs(x.off) >= .35;
   const hands = T.moves.filter(v => v.k[1] === 'w'), feet = T.moves.filter(v => v.k[1] === 'a'), led = h => feet.some(f => f.t0 <= h.t0 && h.t0 - f.t0 < 1.2);
   const near = t => on.length ? mostBy(on, x => -Math.abs(x.t - t)) : null, clip = (a, b) => [Math.max(0, a), Math.min(T.D, Math.max(b, a + 2))];
   // hard pulls: steps up where the arm did the lifting, and reaches with no foot first (a run of them is one spot)
   const pull = [], la = legArm(T);
-  (la?.steps || []).filter(x => x.kind === 'arm').forEach(x => pull.push({ t: x.t0, ab: clip(x.t0 - .5, x.t1 + .5), mark: 'arm', q: 'Your arm pulled you up here, not your legs.', d: 'Put a foot on a higher hold first, stand up on it, then reach.' }));
+  (la?.steps || []).filter(x => x.kind === 'arm').forEach(x => { const s = near(x.t0), ft = s ? lowFoot(s) : 'left';
+    pull.push({ kind: 'pull', t: x.t0, ab: clip(x.t0 - .5, x.t1 + .5), mark: 'arm', q: 'Your arm pulled you up here; your knees hardly straightened.',
+      steps: [`Put your ${ft} foot on a higher hold first`, 'Push down through it until the leg is straight', 'Only then reach: the arm just holds on'] }); });
   const lone = hands.filter(h => !led(h)), groups = [];
   lone.forEach(h => { const g = groups[groups.length - 1]; if (g && h.t0 - g[g.length - 1].t < 2.5) g.push(h); else groups.push([h]); });
   // a reach on its own may be a hold where the foot can't move; two or more in a row is a habit. Singles only when that's all there is
   const many = groups.filter(g => g.length > 1), use = many.length || pull.length ? many : groups.slice(0, 3);
-  use.forEach(g => { if (pull.some(x => Math.abs(x.t - g[0].t0) < 1.5)) return;
-    pull.push({ n: g.length, t: g[0].t0, ab: clip(g[0].t0 - 1, g[g.length - 1].t + .5), mark: g[0].k, q: g.length > 1 ? `${g.length} reaches in a row with no foot moving first.` : `Your ${LNAME[g[0].k]} reached with no foot moving first.`, d: 'Step a foot up first, then reach.' }); });
+  use.forEach(g => { if (pull.some(x => Math.abs(x.t - g[0].t0) < 1.5)) return; const s = near(g[0].t0), ft = s ? lowFoot(s) : 'left', hd = LNAME[g[0].k];
+    pull.push({ kind: 'reach', n: g.length, t: g[0].t0, ab: clip(g[0].t0 - 1, g[g.length - 1].t + .5), mark: `reach:${g[0].k}`,
+      q: g.length > 1 ? `${g.length} reaches in a row while your feet stayed put.` : `Your ${hd} reached while your feet stayed put.`,
+      steps: [`Lift your ${ft} foot to about knee height`, 'Stand up on it', `Then reach with your ${hd}`] }); });
   // the clearest five: arm pulls first, then the longest runs of reaches
-  pull.sort((x, y) => (y.mark === 'arm') - (x.mark === 'arm') || (y.n || 0) - (x.n || 0)).splice(5);
+  pull.sort((x, y) => (y.kind === 'pull') - (x.kind === 'pull') || (y.n || 0) - (x.n || 0)).splice(5);
   // feet and centre: each stretch of a second or more with the hips out to one side
   const feetC = [];
-  if (q.balance) { let r = null; const end = () => { if (r && r.b - r.a >= .8) { const w = mostBy(r.xs, x => Math.abs(x.off)), side = w.off < 0 ? 'left' : 'right';
-      feetC.push({ t: w.t, ab: clip(r.a - .5, r.b + .5), mark: 'hip', q: `Your hips were out to the ${side} for ${(r.b - r.a).toFixed(1)} s, so your hands were holding you on.`, d: `Step your ${side} foot out under your hips, or turn your ${side} hip in to the wall.`, w: r.b - r.a }); } r = null; };
+  if (q.balance) { let r = null; const end = () => { if (r && r.b - r.a >= .8) { const w = mostBy(r.xs, x => Math.abs(x.off)), sd = w.off < 0 ? 'left' : 'right';
+      feetC.push({ kind: 'hip', t: w.t, ab: clip(r.a - .5, r.b + .5), mark: 'hip', w: r.b - r.a, q: `Hips out to the ${sd} for ${(r.b - r.a).toFixed(1)} s: your hands were holding you on.`,
+        steps: [`Step your ${sd} foot across, under your hips`, 'Bring your hips back over your feet, close to the wall', 'Then make the next move'] }); } r = null; };
     on.forEach(x => { if (isOff(x)) { if (r) { r.b = x.t; r.xs.push(x); } else r = { a: x.t, b: x.t, xs: [x] }; } else end(); }); end();
     feetC.sort((x, y) => y.w - x.w).splice(5); }
   // rests and stamina: rests on a bent arm, no rest at all, slowing down at the top
   const rest = [], arms = st.restRead >= 50;
   if (arms) T.rests.filter(r => r.t1 - r.t0 >= 1).forEach(r => { const xs = on.filter(x => x.t >= r.t0 && x.t < r.t1 && bigArm(x) != null); if (!xs.length) return;
-    const w = mostBy(xs, x => -bigArm(x)), a = Math.round(bigArm(w)); if (a < 120) rest.push({ t: w.t, ab: clip(r.t0, r.t1), mark: 'arm', q: `You rested here on a bent arm (${a}°).`, d: 'Let the arm go straight and hang from it, hips low.' }); });
+    const w = mostBy(xs, x => -bigArm(x)), a = Math.round(bigArm(w)), sd = (w.el ?? 999) <= (w.er ?? 999) ? 'left' : 'right';
+    if (a < 120) rest.push({ kind: 'rest', t: w.t, ab: clip(r.t0, r.t1), mark: 'arm', q: `You rested here on a bent arm (${a}°).`, steps: ['Sink your hips down', `Let your ${sd} arm go straight and hang from it`, 'Shake out the other arm, then swap'] }); });
   const ps = pauses(T), gaps = ps.filter(m => m.i > 1 && m.gap > 0 && m.t0 < T.D * .92);
   if (!st.longest && gaps.length) { const g = gaps.reduce((x, y) => y.gap > x.gap ? y : x);
-    rest.push({ t: g.t0 - g.gap / 2, ab: clip(g.t0 - g.gap - .5, g.t0 + .5), mark: 'none', q: `Your longest stop was ${g.gap.toFixed(1)} s: no real rest on the way.`, d: 'Pick a good hold halfway up and shake out each arm.' }); }
+    rest.push({ kind: 'rest', t: g.t0 - g.gap / 2, ab: clip(g.t0 - g.gap - .5, g.t0 + .5), mark: 'none', q: `Your longest stop was ${g.gap.toFixed(1)} s: no real rest on the way.`, steps: ['Find a big hold about halfway up', 'Hang from it on a straight arm', 'Shake out each arm for five seconds'] }); }
   if (ps.length >= 6 && paceState(T).includes('You slowed down near the top')) { const a = ps[0].t0, t = a + (ps[ps.length - 1].t - a) * 2 / 3;
-    rest.push({ t, ab: clip(t, t + 4), mark: 'none', q: 'You slowed down in the last third: fewer moves a minute, longer pauses.', d: 'Shake out on a big hold before the top section.' }); }
-  const byT = l => l.sort((x, y) => x.t - y.t);
+    rest.push({ kind: 'slow', t, ab: clip(t, t + 4), mark: 'none', q: 'You slowed down in the last third: fewer moves a minute, longer pauses.', steps: ['Rest on a big hold before the top section', 'Read the top moves from there', 'Then climb them without stopping'] }); }
+  const done = l => l.sort((x, y) => x.t - y.t).map(it => ({ ...it, ref: refFor(T, it, peers) }));
   return [
-    { id: 'pull', title: 'Hard pulls', items: byT(pull), cant: st.hands < 3 && !la?.share, prin: 'feet', more: legCard(T) ? `<details class="lm"><summary>Legs or arms, step by step</summary>${legCard(T)}</details>` : '' },
-    { id: 'feet', title: 'Feet and centre', items: byT(feetC), cant: !q.balance, cantWhy: 'Your feet were often hidden in this video, so we can’t say where your weight was.', prin: 'hips' },
-    { id: 'rest', title: 'Rests and stamina', items: byT(rest), cant: !arms && !rest.length, cantWhy: 'Your arms were hard to read in this video, so we can’t say how you rested.', prin: 'arms', more: paceState(T) ? `<details class="lm"><summary>Your pace, start to top</summary>${paceState(T)}</details>` : '' }];
+    { id: 'pull', title: 'Hard pulls', items: done(pull), cant: st.hands < 3 && !la?.share, prin: 'feet', more: legCard(T) ? `<details class="lm"><summary>Legs or arms, step by step</summary>${legCard(T)}</details>` : '' },
+    { id: 'feet', title: 'Feet and centre', items: done(feetC), cant: !q.balance, cantWhy: 'Your feet were often hidden in this video, so we can’t say where your weight was.', prin: 'hips' },
+    { id: 'rest', title: 'Rests and stamina', items: done(rest), cant: !arms && !rest.length, cantWhy: 'Your arms were hard to read in this video, so we can’t say how you rested.', prin: 'arms', more: paceState(T) ? `<details class="lm"><summary>Your pace, start to top</summary>${paceState(T)}</details>` : '' }];
 }
-const fixItem = it => `<div class="fx"><button class="fx-p" type="button" ${clipAt(it.ab[0], it.ab[1], it.mark, it.t)} aria-label="Watch ${mmss(it.t)}"><img alt="" data-ft="${it.t.toFixed(2)}" data-fm="${it.mark}"><span class="num">${mmss(it.t)}</span></button>
-  <div class="fx-t"><p class="fx-q">${it.q}</p><p class="fx-d">${it.d}</p></div></div>`;
-// a page's pictures are drawn when it opens, one at a time, from the video itself
+// one spot: you (the problem drawn on it) next to the same done right, what's wrong, and the steps
+const fixItem = (it, cid) => { const r = it.ref;
+  const mine = `<button class="fx-p bad" type="button" ${clipAt(it.ab[0], it.ab[1], it.mark.startsWith('reach') ? it.mark.split(':')[1] : it.mark, it.t)} aria-label="Watch ${mmss(it.t)}"><img alt="" data-ft="${it.t.toFixed(2)}" data-fm="${it.mark}" data-tone="bad"><span><b>You</b> <i class="num">${mmss(it.t)}</i></span></button>`;
+  const good = r ? `<button class="fx-p good" type="button" ${r.pv != null ? `data-act="to" data-to="vs/${cid}-${r.pv}"` : clipNear(r.s.t, 9999, 'none')} aria-label="${r.pv != null ? `Watch ${r.who} next to you` : `Watch ${mmss(r.s.t)}`}"><img alt="" data-ft="${r.s.t.toFixed(2)}" data-fm="${r.mark}" data-tone="good"${r.pv != null ? ` data-pv="${r.pv}"` : ''}><span><b>${r.pv != null ? r.who : 'You'}</b> <i>${r.pv != null ? 'same part' : 'done right'}</i></span></button>` : '';
+  return `<div class="fx"><div class="fx-pair${r ? '' : ' one'}">${mine}${good}</div><p class="fx-q">${it.q}</p><ol class="fx-s">${it.steps.map(x => `<li>${x}</li>`).join('')}</ol></div>`; };
+// a page's pictures are drawn when it opens, one at a time, from the videos themselves (yours, or the other climber's)
 async function fixWire(pg) {
-  const v = $('lvv'), T = segT; if (!v || !T) return;
-  for (const im of pg.querySelectorAll('img[data-ft]:not([src])')) { const t = +im.dataset.ft, s = T.S.filter(x => x.p).reduce((a, x) => !a || Math.abs(x.t - t) < Math.abs(a.t - t) ? x : a, null);
-    if (s) { const u = await window.poseStill(v.currentSrc || v.src, T, s, im.dataset.fm, 'bad'); if (u && im.isConnected) im.src = u; } }
+  const v = $('lvv'); if (!v || !segT) return;
+  for (const im of pg.querySelectorAll('img[data-ft]:not([src])')) { const pv = im.dataset.pv, T = pv != null ? TRK[V[+pv].vid] : segT, src = pv != null ? vsrc(V[+pv].vid) : v.currentSrc || v.src;
+    if (!T) continue; const t = +im.dataset.ft, s = T.S.filter(x => x.p).reduce((a, x) => !a || Math.abs(x.t - t) < Math.abs(a.t - t) ? x : a, null);
+    if (s) { const u = await window.poseStill(src, T, s, im.dataset.fm, im.dataset.tone || 'bad'); if (u && im.isConnected) im.src = u; } }
 }
 // Summary: the main page, and a page for each tile. Tiles open in place, ‹ Summary comes back
 function sumPanel(T, c, nextUp, q, top) {
   // a tile is a picture of its clearest moment, with how many spots there are, so there's something to look at before you open it
-  const tile = (id, title, sub, tone, it, badge) => `<button class="sm-c ${tone}" type="button" data-act="sumgo" data-v="${id}"><span class="sm-i">${it ? `<img alt="" data-ft="${it.t.toFixed(2)}" data-fm="${it.mark}">` : ''}<b class="sm-n num">${badge}</b></span><strong>${title}</strong><span>${sub}</span></button>`;
+  const tile = (id, title, sub, tone, it, badge) => `<button class="sm-c ${tone}" type="button" data-act="sumgo" data-v="${id}"><span class="sm-i">${it ? `<img alt="" data-ft="${it.t.toFixed(2)}" data-fm="${it.mark}" data-tone="bad">` : ''}<b class="sm-n num">${badge}</b></span><strong>${title}</strong><span>${sub}</span></button>`;
   const pages = [], tiles = [], add = (id, title, sub, tone, html, it, badge) => { tiles.push(tile(id, title, sub, tone, it, badge)); pages.push(`<div class="sub" data-sub="${id}" hidden><button class="sub-bk" type="button" data-act="sumgo" data-v="">‹ Summary</button>${html}</div>`); };
   const k = stuckAt(T, topOf(c)), st = stuckCard(T, c);
   if (k && st) add('stuck', k.kind === 'end' ? 'Where you came off' : k.kind === 'late' ? 'Where you got stuck' : 'Where you stopped longest', `${k.gap.toFixed(1)} s at ${mmss(k.s.t)}`, 'one', st, { t: k.s.t, mark: 'none' }, `${k.gap.toFixed(1)}s`);
-  fixes(T).forEach(g => { const nI = g.items.length, sub = nI ? n(nI, 'spot to work on', 'spots to work on') : g.cant ? 'Can’t tell from this video' : 'Nothing to fix here';
-    const list = nI ? `<div class="fx-l">${g.items.map(fixItem).join('')}</div>`
+  fixes(T, peersOn(c.ri).filter(v => v.i !== c.v)).forEach(g => { const nI = g.items.length, sub = nI ? n(nI, 'spot to work on', 'spots to work on') : g.cant ? 'Can’t tell from this video' : 'Nothing to fix here';
+    const list = nI ? `<div class="fx-l">${g.items.map(it => fixItem(it, c.id)).join('')}</div>`
       : `<div class="stack"><div class="lt"><span class="lt-h">${g.cant ? 'Can’t tell from this video' : 'Nothing to fix here'}</span><p class="tip-d">${g.cant ? g.cantWhy || 'We couldn’t see enough of you in this video.' : 'Nothing stood out in this part of your climbing. Keep doing it.'}</p></div></div>`;
-    add(g.id, g.title, sub, nI ? 'fix' : g.cant ? 'cant' : 'ok', `<div class="hl2 dk2"><h2>${g.title}</h2><span class="hint2">${sub}</span></div>${list}${nI ? '<p class="trs-l">Tap a picture to watch that moment.</p>' : ''}${g.more || ''}<div class="stack"><div class="lt">${learnMore(g.prin)}</div></div>`, g.items[0], nI || (g.cant ? '?' : '✓')); });
+    add(g.id, g.title, sub, nI ? 'fix' : g.cant ? 'cant' : 'ok', `<div class="hl2 dk2"><h2>${g.title}</h2><span class="hint2">${sub}</span></div>${list}${nI ? '<p class="trs-l">Tap your picture to watch that moment; tap the other to watch it side by side.</p>' : ''}${g.more || ''}<div class="stack"><div class="lt">${learnMore(g.prin)}</div></div>`, g.items[0], nI || (g.cant ? '?' : '✓')); });
   pages.push(`<div class="sub" data-sub="nums" hidden><button class="sub-bk" type="button" data-act="sumgo" data-v="">‹ Summary</button>${moreNums(T)}</div>`);
   return `<div class="sub" data-sub="">${top}${(st => sumHero(T, st) + st)(ctlStrip(T, takeaway(T)))}
       <div class="hl2 dk2"><h2>Where to improve</h2></div><div class="sm-g">${tiles.join('')}</div>

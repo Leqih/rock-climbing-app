@@ -449,8 +449,15 @@
     ctx.strokeStyle = 'rgba(255,255,255,.75)'; ctx.lineWidth = px(3);
     BONES.forEach(([a, b]) => { if (q[a].v < .3 || q[b].v < .3) return; ctx.beginPath(); ctx.moveTo(q[a].x, q[a].y); ctx.lineTo(q[b].x, q[b].y); ctx.stroke(); });
     const dot = (o, r, c) => { ctx.beginPath(); ctx.arc(o.x, o.y, px(r), 0, 7); ctx.fillStyle = c; ctx.fill(); ctx.lineWidth = px(2.5); ctx.strokeStyle = '#111111'; ctx.stroke(); };
+    // an arrow for where to go: lime, outlined dark so it shows on any wall
+    const arrow = (a, b, c) => { const an = Math.atan2(b.y - a.y, b.x - a.x), hd = px(16), seg = (w, k) => { ctx.strokeStyle = k; ctx.lineWidth = px(w); ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y);
+      ctx.moveTo(b.x - hd * Math.cos(an - .5), b.y - hd * Math.sin(an - .5)); ctx.lineTo(b.x, b.y); ctx.lineTo(b.x - hd * Math.cos(an + .5), b.y - hd * Math.sin(an + .5)); ctx.stroke(); }; ctx.lineJoin = 'round'; seg(9, '#111111'); seg(5, c); };
     if (mark === 'hip') { const hm = mid(q[P.lh], q[P.rh]), am = mid(q[P.la], q[P.ra]);
-      ctx.strokeStyle = col; ctx.lineWidth = px(5); ctx.beginPath(); ctx.moveTo(hm.x, hm.y); ctx.lineTo(hm.x, am.y); ctx.lineTo(am.x, am.y); ctx.stroke(); dot(hm, 11, col); dot(am, 8, '#FFFFFF'); }
+      ctx.strokeStyle = col; ctx.lineWidth = px(5); ctx.beginPath(); ctx.moveTo(hm.x, hm.y); ctx.lineTo(hm.x, am.y); ctx.lineTo(am.x, am.y); ctx.stroke(); dot(hm, 11, col); dot(am, 8, '#FFFFFF');
+      if (tone !== 'good' && Math.abs(hm.x - am.x) > px(14)) arrow({ x: hm.x, y: hm.y - px(24) }, { x: am.x, y: hm.y - px(24) }, '#C2FF01'); }
+    else if (String(mark).startsWith('reach:')) { const h = q[P[String(mark).split(':')[1]]], lo = q[P.la].y >= q[P.ra].y ? q[P.la] : q[P.ra], hp = mid(q[P.lh], q[P.rh]), tl = dist(mid(q[P.ls], q[P.rs]), hp) || 1;
+      if (h && h.v >= .3) { ctx.beginPath(); ctx.arc(h.x, h.y, px(17), 0, 7); ctx.lineWidth = px(5); ctx.strokeStyle = col; ctx.stroke(); }
+      if (lo.v >= .3) { if (tone !== 'good') arrow(lo, { x: lo.x + (hp.x - lo.x) * .3, y: lo.y - tl * .5 }, '#C2FF01'); dot(lo, 9, tone === 'good' ? '#C2FF01' : '#FFFFFF'); } }
     else if (mark === 'arm') { const o = s.er == null || s.el >= s.er ? q[P.le] : q[P.re], a = `${arm(s)}°`; dot(o, 11, col);
       ctx.font = `600 ${px(26)}px sans-serif`; const tw = ctx.measureText(a).width, lx = clamp(o.x + px(16), x0 + px(6), x0 + w - tw - px(16)), ly = clamp(o.y - px(10), y0 + px(34), y0 + h - px(10));
       ctx.fillStyle = 'rgba(17,17,17,.8)'; ctx.fillRect(lx - px(6), ly - px(26), tw + px(12), px(34)); ctx.fillStyle = '#FFFFFF'; ctx.fillText(a, lx, ly); }
