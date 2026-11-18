@@ -3,7 +3,7 @@
 // The climbing videos are The Way Up (Maschek & Schedl, CC BY 4.0): ten climbers on the same two routes, filmed from the floor.
 // You are one of them; five others with full scans are the community. Their names, likes and comments are sample data.
 // Every number about a climb is measured from its video (video/<vid>.track.json, or a live scan in the browser).
-// Routes: #/videos (tab) · #/shelf/all|gym (a binder) · #/clip/<id> · #/vs/<id>-<v> · #/route/<i> · #/walls (Gyms tab) · #/gyms (map) · #/gym/<i> · #/friends (tab: For you) · #/friends/following · #/friends/friends (friends and plans; #/friends/plan opens it too)
+// Routes: #/videos (tab) · #/shelf/all|gym (a binder) · #/clip/<id> · #/vs/<id>-<v> · #/route/<i> · #/walls (Gyms tab) · #/gyms (map) · #/gym/<i> · #/friends (tab: friends' days, plans, partners; #/friends/friends and #/friends/plan too) · #/friends/following · #/friends/all (For you)
 // · #/scan (photo a route, its beta drawn on) · #/person/<name> · #/profile (tab) · #/session (log by hand, the session clock) · #/summary · #/watch · #/cam · #/setup
 // Back from v8 (2026-11-12): other gyms and the map, logging by hand, the session clock, the watch, the highlight reel, the share poster,
 // CSV export, friends with plans and a who's-free week, following, and portraits for the sample people
@@ -22,10 +22,29 @@ const mmss = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2
 const gym = { name: 'ARC Climbing Wall', addr: '201 E Peabody Dr, Champaign (UIUC)', img: 'gym-arc-1', pics: ['gym-arc-2', 'gym-arc-3'],
   hours: [[9, 22], [6, 23], [6, 23], [6, 23], [6, 23], [6, 22], [9, 22]], has: ['35.5 ft rope wall', 'Top rope', 'Bouldering Cave with a Kilter Board', 'Hangboards', 'Shoe rental'],
   src: 'campusrec.illinois.edu', note: 'Closed Nov 21–29 for Fall Break.', ll: [40.10039, -88.236] };
-// the two routes on the rope wall, named by hold colour. Grades are sample
+// the two routes on the rope wall, named by hold colour. Grades are sample, and so is when they were set (setAt)
+const DAY = 864e5, agoAt = t => Math.max(0, Math.floor((Date.now() - t) / DAY));
+// no: the route's number on its wall. box: the part of the photo the wall is in (the next wall shows at the edge), so a
+// route's holds are only looked for there. Blue and Yellow are sample routes (sample: true): their holds are the blue and
+// yellow ones in the same photo, found by colour, but no one has filmed them
+const ARCBOX = [140, 30, 410, 800];
 const ROUTES = [
-  { color: 'Green', hex: '#2E9E62', grade: '5.8', wall: 'Rope wall', img: 'wayup-p3-green', ok: true, votes: [6, 11, 4] },
-  { color: 'Orange', hex: '#F08A24', grade: '5.9', wall: 'Rope wall', img: 'wayup-p3-orange', ok: true, votes: [3, 9, 14] }];
+  { color: 'Green', hex: '#2E9E62', grade: '5.8', wall: 'Rope wall', img: 'wayup-p3-green', ok: true, votes: [6, 11, 4], setAt: Date.now() - 24 * DAY, no: 1, box: ARCBOX },
+  { color: 'Orange', hex: '#F08A24', grade: '5.9', wall: 'Rope wall', img: 'wayup-p3-orange', ok: true, votes: [3, 9, 14], setAt: Date.now() - 24 * DAY, no: 2, box: ARCBOX },
+  { color: 'Blue', hex: '#3F82CA', grade: '5.7', wall: 'Rope wall', img: 'wayup-p3-green', ok: true, votes: [0, 0, 0], setAt: Date.now() - 3 * DAY, no: 3, box: ARCBOX, sample: true },
+  { color: 'Yellow', hex: '#E3C43A', grade: '5.10', wall: 'Rope wall', img: 'wayup-p3-green', ok: true, votes: [0, 0, 0], setAt: Date.now() - 3 * DAY, no: 4, box: ARCBOX, sample: true }];
+/* Every gym keeps its routes after a reset. A route someone films at a gym becomes one of that gym's routes; when the gym
+   takes it down (offAt), it moves to the gym's Taken down list with its beta and every video on it, and a new route of the
+   same colour and grade is a new route. The routes you made, and which ones are down, stay on this phone */
+// saved before the sample routes were added (base 2): the routes you made sat at 2 and up, now at BASE_R and up, so your
+// saved videos on them move along by RSHIFT when they're restored
+const ROUTE_KEY = 'spotter-routes', BASE_R = ROUTES.length;
+let RSHIFT = 0, RBASE0 = BASE_R;
+try { const k = JSON.parse(localStorage.getItem(ROUTE_KEY) || 'null');
+  if (k && Array.isArray(k.add)) { RBASE0 = k.base ?? 2; RSHIFT = BASE_R - RBASE0; (k.off || []).forEach(([i, t]) => { if (ROUTES[i] && i < RBASE0) ROUTES[i].offAt = t; }); k.add.forEach(r => r && r.color && ROUTES.push(r)); } } catch {}
+const routeSave = () => { try { localStorage.setItem(ROUTE_KEY, JSON.stringify({ base: BASE_R, off: ROUTES.slice(0, BASE_R).map((r, i) => [i, r.offAt]).filter(x => x[1]), add: ROUTES.slice(BASE_R) })); } catch {} };
+const shiftRi = ri => ri != null && ri >= RBASE0 ? ri + RSHIFT : ri;
+const gyOf = r => r.gymId ?? 0, routesAt = gy => ROUTES.map((r, i) => i).filter(i => gyOf(ROUTES[i]) === gy);
 // every video in the world: [vid, who, route, topped, days ago, length in s]. "You" = the climber filmed as p2.
 // Topped is what the video's last frame shows: at the top, or lower on the wall when it ends
 const V = [
@@ -77,19 +96,21 @@ function gymGrading(g) {
       <p class="gr-w"><b>${leanWords(h)}</b> compared with other gyms</p>
       <p class="cap">${h ? `A ${ex} here is about a ${to} at the average gym. ` : `A ${ex} here is about a ${ex} anywhere. `}From ${cn} climbers who also climb at other gyms.</p></div>`;
 }
-// the route page's block: the gym's grade, what the climbers who topped it say, your vote, and the grade at the average gym
-function gradeBlock(i, topped) {
-  const r = ROUTES[i], q = votesOf(i), said = shiftG(r.grade, q.h), avg = shiftG(r.grade, q.h + gymLean(gym)), max = Math.max(1, ...q.v);
-  return `<div class="hl2 dk2"><h2>Grade</h2><span class="hint2">${n(q.n, 'vote', 'votes')}</span></div>
-    <div class="stack"><div class="lt gv">
-      <div class="gv-top"><span><i>The gym</i><b class="num">${r.grade}</b></span><span><i>Climbers who topped it</i><b class="num">${q.n >= 3 ? said : '—'}</b></span><span><i>Average gym</i><b class="num">${avg}</b></span></div>
-      <div class="gv-bars">${FEELS.map(([k, l], j) => `<div class="gv-r${myFeel[i] === k ? ' mine' : ''}"><span>${l}</span><i><b style="width:${q.v[j] / max * 100}%"></b></i><em class="num">${q.v[j]}</em></div>`).join('')}</div>
-      ${topped ? `<p class="gv-q">How did it feel to you?</p><div class="gv-seg" role="group" aria-label="How it felt">${FEELS.map(([k, l]) => `<button type="button" data-act="feel" data-ri="${i}" data-k="${k}" aria-pressed="${myFeel[i] === k}">${l}</button>`).join('')}</div>`
-        : '<p class="gv-q gv-no">Top it to vote. Only climbers who topped it are counted.</p>'}
-      <p class="la-how">${gym.name} grades ${leanWords(gymLean(gym)).toLowerCase().replace('graded ', '')}, from climbers who also climb elsewhere. That puts ${rname(r)} at about ${avg} at the average gym.</p></div></div>`;
+// on a route you topped: how it felt to you. The votes add up on the gym's Beta list (what climbers say the grade is), and
+// how the gym grades against other gyms is on its About tab, so the route page carries only your own say
+function feelBlock(i, topped) {
+  if (!topped) return '';
+  const r = ROUTES[i];
+  return `<div class="stack"><div class="lt gv"><p class="gv-q">How did ${rname(r)} feel to you?</p>
+      <div class="gv-seg" role="group" aria-label="How it felt">${FEELS.map(([k, l]) => `<button type="button" data-act="feel" data-ri="${i}" data-k="${k}" aria-pressed="${myFeel[i] === k}">${l}</button>`).join('')}</div>
+      <p class="cap">Only climbers who topped it vote. It shows on ${gyms[gyOf(r)].name}’s Beta list.</p></div></div>`;
 }
+// what the climbers who topped a route say its grade is, once 3 have voted: on the gym's Beta list
+const saidOf = ri => { const q = votesOf(ri), g = ROUTES[ri].grade; return q.n < 3 ? '' : q.h ? `Climbers say ${shiftG(g, q.h)}` : 'Climbers say the grade is right'; };
 const sw = r => `<span class="sw" style="background:${r.hex}"></span>`;
+const rpic = r => String(r.img).startsWith('mine-') && !MINE[r.img] ? pic(gyms[gyOf(r)]?.img || 'gym-arc-1') : pic(r.img);
 const dateOf = ago => { const d = new Date(); d.setHours(12, 0, 0, 0); d.setDate(d.getDate() - ago); return d; };
+const mday = ago => dateOf(ago).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 const dayLabel = ago => ago === 0 ? 'Today' : ago === 1 ? 'Yesterday' : ago < 7 ? dateOf(ago).toLocaleDateString('en-US', { weekday: 'long' }) : dateOf(ago).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 
 // the scans of other climbers' videos, fetched when a page needs them
@@ -361,6 +382,7 @@ const htile = l => `<button class="vt vt-h" type="button" data-act="to" data-to=
     ${ic.pen}<span class="vt-t">By hand</span>
     <span class="vt-b">${l.sent ? `${ic.check}${l.style || 'Topped'}` : n(l.tries, 'attempt', 'attempts')} · ${dayLabel(l.ago)}</span></button>`;
 const handOn = ri => logs.filter(l => l.ri === ri && (l.tries || l.sent));
+const glTop = ri => glogs.some(x => x.ri === ri && x.k !== 'Project');   // logged by hand on this route, topped
 // days logged by grade: no route and no video, one tile a day. Today's opens Log by hand
 const gdays = () => { const ds = [...new Set(glogs.map(x => x.ago))].sort((p, q) => p - q); if (!ds.length) return '';
   const rg = (xs, S) => { const ix = xs.filter(x => S.includes(x.g)).map(x => S.indexOf(x.g)); if (!ix.length) return ''; const lo = S[Math.min(...ix)], hi = S[Math.max(...ix)]; return lo === hi ? lo : `${lo}–${hi}`; };
@@ -386,22 +408,22 @@ const vgrade = (ago, xs) => { const rg = S => { const ix = xs.filter(x => S.incl
 // on a route's tab: the others who climbed it, as a green card in the grid
 const vpeers = i => { const ps = peersOn(i); return ps.length ? `<button class="vc vc-peer" type="button" data-act="to" data-to="route/${i}">
     <span class="pl-avs">${[...new Set(ps.map(w => w.who))].slice(0, 3).map(w => `<i>${avatar(w)}</i>`).join('')}</span><b>${n(ps.length, 'climber', 'climbers')} on it</b><span class="vc-go">Compare with them</span></button>` : ''; };
-const rcard = i => { const r = ROUTES[i], cs = mineOn(i), top = cs.some(topOf) || handOn(i).some(l => l.sent), ps = peersOn(i);
-  return `<button class="vc" type="button" data-act="to" data-to="route/${i}" aria-label="${rname(r)}">
-    <span class="vc-i rc"><img src="${pic(r.img)}" alt=""></span>
+const rcard = i => { const r = ROUTES[i], cs = mineOn(i), top = cs.some(topOf) || handOn(i).some(l => l.sent) || glTop(i), ps = peersOn(i);
+  return `<button class="vc${r.offAt ? ' rc-off' : ''}" type="button" data-act="to" data-to="route/${i}" aria-label="${rname(r)}">
+    <span class="vc-i rc"><img src="${rpic(r)}" alt="">${r.offAt ? `<em class="rc-tag">Taken down</em>` : ''}</span>
     <span class="vc-b"><span class="vc-r">${sw(r)}${rname(r)}</span><b class="${top ? 'on' : ''}">${cs.length ? (top ? 'Topped' : 'Not topped yet') : n(ps.length, 'climber', 'climbers')}</b>
     <span class="vc-d">${cs.length ? cs.map(x => `Try ${tryOf(x)}`).join(' · ') : 'filmed it'}</span></span></button>`; };
 // someone else on a route: a card with their face, how it went, and VS against your latest try
 const pcard = (x, last) => `<div class="vc pc"><button class="fr-f" type="button" data-act="to" data-to="person/${x.who}" aria-label="${x.who}’s page">${avatar(x.who)}</button>
     <span class="vc-b"><b>${x.who}</b><span class="vc-d">${peerLine(x)}</span></span>
-    ${last ? `<button class="pc-go" type="button" data-act="to" data-to="vs/${last.id}-${x.i}" aria-label="Compare your try with ${x.who}">VS</button>` : `<button class="pc-go w" type="button" data-act="fwatch" data-v="${x.i}">Watch</button>`}</div>`;
+    ${last ? `<button class="pc-go" type="button" data-act="to" data-to="vs/${last.id}-${x.i}" aria-label="Compare your try with ${x.who}">VS</button>` : `<button class="pc-go w" type="button" data-act="fwatch" data-v="${x.i}">Watch it</button>`}</div>`;
 // Home (the Videos tab) changes with where you are. One hero card on top, picked by sceneOf():
 //   live: climbing now → the clock, film a try, log by hand · done: just ended → how it went
 //   plan: a climb planned today → when, where, who · new: nothing yet → your album, empty, with film / import
 //   back: everything else → no card, the album is the top of the page
 // Under the hero: your album, only the videos you uploaded (other climbers live on Community).
 // ?scene=live|done|plan previews a scene without clicking through the flow.
-const vtops = () => ROUTES.filter((r, i) => mineOn(i).some(topOf) || handOn(i).some(l => l.sent)).length;
+const vtops = () => ROUTES.filter((r, i) => mineOn(i).some(topOf) || handOn(i).some(l => l.sent) || glTop(i)).length;
 const vlogged = () => logs.filter(l => l.tries || l.sent).length + glogs.length;
 const planOfToday = () => plans.find(q => q.d === 0 && q.who.includes('You'));
 const sceneOf = () => session === 'live' ? 'live' : sesDur > 0 ? 'done' : planOfToday() ? 'plan' : !clips.length && !vlogged() ? 'new' : 'back';
@@ -609,7 +631,8 @@ window.openVideo = openVideo;
 async function importFile(f) {
   if (!isVideo(f)) { toast('That isn’t a video'); return; }
   // you say where and which route, then post it or analyse it
-  const c = await addMine(f, { need: true, hidden: true }, 'Opening your video…'); if (!c) return;
+  const r = addRi != null ? ROUTES[addRi] : null;
+  const c = await addMine(f, r ? { ri: addRi, gy: gyOf(r), hidden: true } : { need: true, hidden: true }, 'Opening your video…'); if (!c) return;
   closeAll(); cTab = 'why'; go(`clip/${c.id}`);
   if (V[c.v].D > 240) toast('A long video takes a while to analyse. Trim it to the climb first if you can');
 }
@@ -668,6 +691,7 @@ async function restoreMine() {
     MINE[r.vid] = { src: URL.createObjectURL(f), pic: r.pic, name: r.name, at: r.at };
     // a day has passed since it was imported? then it's from that many days ago
     const ago = Math.max(0, Math.floor((Date.now() - (r.at || Date.now())) / 864e5));
+    if (RSHIFT) r.c.ri = shiftRi(r.c.ri);
     V.push({ i: V.length, vid: r.vid, img: r.vid, who: 'You', ri: r.c.ri ?? 0, top: false, ago, D: r.D, ar: r.ar, len: mmss(r.D), t: [0, r.D], credit: `Your video · ${esc(r.name || 'from your phone')}`, mine: true });
     const c = addClip(V.length - 1, { ...r.c, ago: r.c.ago ?? ago });
     // analysed before the skeleton was read 15 times a second: analyse it again, so it gets the closer-following body
@@ -772,8 +796,10 @@ const clipPick = c => c.pick || (c.need ? { gy: null, color: '', grade: '' } : {
 const pickDone = c => { const p = clipPick(c); return p.gy != null && !!p.color && !!p.grade; };
 // the route a gym, colour and grade make: the one already known, or a new one
 function routeFor(gy, color, grade, img) {
-  let ri = ROUTES.findIndex(r => (r.gymId ?? 0) === gy && r.color === color && r.grade === grade);
-  if (ri < 0) ri = ROUTES.push({ gymId: gy, color, hex: HOLD_COLORS[color], grade, wall: grade.startsWith('V') ? 'Boulder' : 'Rope wall', img, ok: true }) - 1;
+  // a taken-down route is never matched: the same colour and grade on the wall now is a new route
+  let ri = ROUTES.findIndex(r => gyOf(r) === gy && !r.offAt && r.color === color && r.grade === grade);
+  if (ri < 0) { const wall = grade.startsWith('V') ? 'Boulder' : 'Rope wall', no = Math.max(0, ...routesAt(gy).filter(i => ROUTES[i].wall === wall).map(i => ROUTES[i].no || 0)) + 1;
+    ri = ROUTES.push({ gymId: gy, color, hex: HOLD_COLORS[color], grade, wall, img, ok: true, setAt: Date.now(), no }) - 1; routeSave(); }
   return ri;
 }
 function setPick(c, k, val) {
@@ -835,27 +861,70 @@ async function analyse(c, seed) {
     c.auto = track?.first || null;
     if (c.auto && c.track) { c.tags = c.auto; c.an = 'done'; } else c.an = 'ask';
   }
-  if (here() || ['videos', 'shelf', 'day', 'algym', 'profile', 'route', 'vs', 'session'].includes(page)) render();
+  if (here() || ['videos', 'shelf', 'day', 'algym', 'profile', 'route', 'beta', 'wall', 'vs', 'session'].includes(page)) render();
 }
 const anState = cs => cs.some(x => x.hold) ? 'hold' : cs.some(x => x.an === 'ask') ? 'ask' : cs.some(x => (x.r || vidOf(x)) && x.an !== 'done') ? 'run' : 'done';
-// the track of this video, under it: each hand and foot over time, and every rest. Tap anywhere to go to that moment
-function timeline(T) {
-  const lane = (l, items) => `<div class="tl-r"><span>${l}</span><div>${items}</div></div>`, at = (t0, t1, cls) => `<i class="${cls}" style="left:${t0 / T.D * 100}%;width:${Math.max(.8, (t1 - t0) / T.D * 100)}%"></i>`;
-  const limb = k => T.moves.filter(m => m.k === k).map(m => at(m.t0, m.t, k === 'lw' || k === 'rw' ? 'h' : 'f')).join('');
-  return `<section class="glass tl">
-    <div class="tl-h"><b id="tl-now">Tap play</b><span class="tl-r2"><span class="num" id="tl-time">0:00 / ${mmss(T.D)}</span><button class="tl-sp num" type="button" data-act="spd" aria-label="Playback speed">${speed}×</button></span></div>
-    <div class="tl-g">${lane('Left hand', limb('lw'))}${lane('Right hand', limb('rw'))}${lane('Left foot', limb('la'))}${lane('Right foot', limb('ra'))}
-      ${lane('Rests', T.rests.map(r => at(r.t0, r.t1, r.straight > .5 ? 'rs' : 'rb')).join(''))}
-      <div class="tl-o" id="tlo" role="slider" aria-label="Go to a moment in the video"><i id="tlp"></i></div></div>
-    <p class="an-k tl-k"><span><i class="rs"></i>Rest, arms straight: saves strength</span><span><i class="rb"></i>Rest, arms bent: tires you faster</span></p>
-</section>`;
+// why a spot matters to you, by its group: what it costs you on the wall
+const MK_WHY = { pull: 'Pulling with your arms tires you far faster than pushing with your legs, so you fall off sooner.',
+  feet: 'While your hands hold you on, your forearms tire, and that’s what makes you fall.',
+  rest: 'Without a real rest your arms run out before the top.',
+  stuck: 'Every second stuck on the wall costs your forearms strength you need for the next move.' };
+// what a technique you used did for you on the wall
+const GOOD_WHY = { side: 'Your hand got further with less pull, so hard reaches cost you less.',
+  high: 'Your leg pushed you up instead of your arms pulling, so your arms last longer.',
+  drop: 'Your hips stayed close to the wall, so your feet held your weight on the steep part.',
+  cross: 'One move instead of two: less time hanging on your arms.',
+  match: 'You swapped hands without a big reach, so you stayed balanced.',
+  lock: 'Holding a bent arm still let you reach far from a small hold.',
+  rest: 'Resting on straight arms let your forearms recover before the hard part.' };
+// the marks on the timeline: every spot Summary's To work on lists, and every time you used a technique
+function tlMarks(T, c) {
+  const F = fixes(T, peersOn(c.ri).filter(v => v.i !== c.v)), k = stuckAt(T, topOf(c)), R = styleOf(T).R, out = [];
+  F.forEach(g => g.items.forEach(it => out.push({ k: 'fix', t: it.t, l: g.title, q: it.q, why: MK_WHY[g.id], next: it.steps?.[0] })));
+  if (k) out.push({ k: 'fix', t: k.s.t, l: k.kind === 'end' ? 'Where you came off' : 'Where you stopped longest', q: `You stopped here for ${k.gap.toFixed(1)} s.`, why: MK_WHY.stuck, next: 'Before you climb it again, work out this move from the ground.' });
+  STY.forEach(m => { const r = R[m.id]; if (!r || !r.e || (m.id === 'side' && !r.runs) || m.id === 'foot') return; (r.ev || []).forEach(e => out.push({ k: 'good', t: e.t, l: m.name, id: m.id, q: m.what, why: GOOD_WHY[m.id] || 'It saves your arms for the moves that matter.', next: 'Keep using it on harder routes.' })); });
+  return out.filter(m => m.t != null && m.t >= 0).sort((a, b) => a.t - b.t);
 }
-function tlWire() {
-  const o = $('tlo'), v = $('lvv'); if (!o || !v) return;
-  const go = e => { const b = o.getBoundingClientRect(); v.currentTime = Math.max(0, Math.min(1, (e.clientX - b.left) / b.width)) * (v.duration || 0); };
-  o.addEventListener('pointerdown', e => { o.setPointerCapture(e.pointerId); go(e); tlDrag = true; });
-  o.addEventListener('pointermove', e => { if (e.buttons) go(e); });
-  ['pointerup', 'pointercancel'].forEach(n => o.addEventListener(n, () => { tlDrag = false; }));
+// Body, one moment at a time: what to work on first, then what you did well (one card per technique). The page's video jumps
+// to the moment and loops it; the card says what happened, why it matters to you and what to do next time. Next, a dot,
+// or a swipe on the card moves on
+let stI = 0, stFor = null, stLoop = null;
+function stMarks(T, c) {
+  const mk = tlMarks(T, c), good = [];
+  mk.filter(m => m.k === 'good').forEach(m => { const g = good.find(x => x.id === m.id); if (g) g.n++; else good.push({ ...m, n: 1 }); });
+  return [...mk.filter(m => m.k === 'fix'), ...good];
+}
+const stCard = m => `<p class="st-k"><span>${m.k === 'fix' ? 'To work on' : 'Went well'}</span><b>${m.l}</b><span class="num">${mmss(m.t)}${m.n > 1 ? ` · ${n(m.n, 'time', 'times')}` : ''}</span></p>
+  ${m.q ? `<p class="st-q">${m.q}</p>` : ''}
+  ${m.why ? `<p class="st-w"><em>${m.k === 'fix' ? 'Why it matters' : 'Why it helps'}</em><span>${m.why}</span></p>` : ''}
+  ${m.next ? `<p class="st-x"><em>Next time</em><span>${m.next}</span></p>` : ''}
+  ${m.id ? `<button class="sub-lk st-t" type="button" data-act="term" data-term="${m.id}"><span>What is ${m.l}?</span> ›</button>` : ''}`;
+function stepCard(T, c) {
+  const ms = stMarks(T, c); window.stMs = ms;
+  if (stFor !== c.id) { stFor = c.id; stI = 0; } stI = Math.max(0, Math.min(stI, ms.length - 1));
+  if (!ms.length) return '<p class="cap">Nothing in this video to point out.</p>';
+  return `<section class="st">
+    <div class="st-dots">${ms.map((x, i) => `<button class="st-d ${x.k}" type="button" data-act="stgo" data-i="${i}" aria-current="${i === stI}" aria-label="${x.l}"></button>`).join('')}<span class="st-n num" id="st-n">${stI + 1} / ${ms.length}</span></div>
+    <div class="st-c ${ms[stI].k}" id="st-c">${stCard(ms[stI])}</div>
+    <div class="st-nav"><button class="b-ghost" type="button" data-act="stgo" data-d="-1"${stI ? '' : ' disabled'}>‹ Previous</button><button class="b-lime" type="button" data-act="stgo" data-d="1"${stI < ms.length - 1 ? '' : ' disabled'}>Next ›</button></div>
+  </section>`;
+}
+// show card i, and play its moment on the page's video: from a second before to two after, over and over
+function stShow(i, play = true) {
+  const ms = window.stMs || []; if (!ms.length) return; stI = Math.max(0, Math.min(ms.length - 1, i)); const m = ms[stI];
+  const c = $('st-c'); if (c) { c.className = `st-c ${m.k}`; c.innerHTML = stCard(m); }
+  const nn = $('st-n'); if (nn) nn.textContent = `${stI + 1} / ${ms.length}`;
+  document.querySelectorAll('.st-d').forEach((d, j) => d.setAttribute('aria-current', j === stI));
+  const nav = document.querySelectorAll('.st-nav button'); if (nav.length === 2) { nav[0].disabled = !stI; nav[1].disabled = stI >= ms.length - 1; }
+  const v = $('lvv'); if (!v) return; v.parentElement.dataset.mk = m.k;
+  stLoop = { a: Math.max(0, m.t - 1), b: m.t + 2 }; v.currentTime = stLoop.a; if (play) v.play().catch(() => {});
+}
+function stWire() {
+  const v = $('lvv'), c = $('st-c'); $('main').dataset.tab = cTab; if (!v) return;
+  if (!v.dataset.stw) { v.dataset.stw = '1'; v.addEventListener('timeupdate', () => { if (stLoop && cTab === 'body' && v.currentTime > stLoop.b) v.currentTime = stLoop.a; }); }
+  if (c) { let x0 = null; c.addEventListener('pointerdown', e => { x0 = e.clientX; });
+    c.addEventListener('pointerup', e => { if (x0 == null) return; const dx = e.clientX - x0; x0 = null; if (Math.abs(dx) > 40) stShow(stI + (dx < 0 ? 1 : -1)); }); }
+  if (cTab === 'body') stShow(stI, false);
 }
 // analysis: with the sheet down the video shows the whole picture. Pulling the sheet up zooms in on the climber, in step
 /* ---------- The video as the analysis: layers on it, a strip of frames ---------- */
@@ -1005,6 +1074,11 @@ function stickWire(box, full) {
   // the page's own pixels (the phone frame is scaled on screen). The video starts shrinking once it reaches the top
   // pulled up, the band moves down under the status bar (--sb), so the sheet's top stops that much lower too
   const SB = (() => { const d = document.createElement('div'); d.style.cssText = 'position:absolute;visibility:hidden;height:var(--sb)'; scr.appendChild(d); const v = d.offsetHeight; d.remove(); return v; })();
+  // where the band and the tab bar sit is measured with the page at its top, then the page goes back where it was. Scrolled,
+  // a stuck band reports where it's stuck, not where it sits; and the page is still scrolled as the page before it was (the
+  // list you opened this video from) until the route change resets it. Measured there, the video didn't shrink with the sheet.
+  // --sk too: the phone keeps the last page's, and pulled up (1) it moves the stuck band down under the status bar
+  const y0 = scr.scrollTop; scr.scrollTop = 0; phone?.style.setProperty('--sk', '0');
   const start = w.offsetTop;
   const geo = () => { const sum = cTab === 'why'; w.classList.toggle('sum', sum);
     MIN = sum ? 0 : MIN0; BAND = sum ? SLIM : MIN0 + STRIP + 8;
@@ -1012,7 +1086,7 @@ function stickWire(box, full) {
     // where the tabs sit in the page, measured once at the top: a stuck tab bar reports where it's stuck instead
     T0 ??= tabs.offsetTop; D = Math.max(start + 1, Math.round(T0 - BAND - SB));
     tabs.style.top = `calc(${BAND}px + var(--sk, 0) * var(--sb))`; };   // pulled up, the video sits under the status bar, not behind it
-  geo();
+  geo(); scr.scrollTop = y0;
   const pad = () => {   // enough page under the open tab for the sheet to go all the way up
     const free = m.offsetHeight - (parseFloat(m.style.paddingBottom) || 0) + sbH() + 120 - scr.clientHeight;
     const want = `${Math.max(0, Math.ceil(D - free))}px`;
@@ -1185,22 +1259,48 @@ function takeaway(T) {
       then = foot > 2 * Math.abs(hip) ? `At ${mmss(back.t)} your ${Math.abs(rf) > Math.abs(lf) ? 'right' : 'left'} foot moved across and your hips were back over your feet.` : `At ${mmss(back.t)} your hips came back over your feet.`; }
     return { sim: hipSim(T, part, on, isOff), ...say('Keep your hips over your feet', `${outer ? `Your hips stayed ${right ? 'right' : 'left'} of your feet` : `Your hips stayed out to the ${right ? 'right' : 'left'}`} from <button class="t-at num" type="button" ${clipAt(run[0], Math.max(run[1], run[0] + 2), 'hip')}>${mmss(run[0])}–${mmss(run[1])}</button>.<small class="tip-n">Not always a mistake: you may be hanging off a hold or setting up the next move.</small>`, `<span>${then}</span> <span>Next try: before you reach, step your ${right ? 'right' : 'left'} foot out under your hips, or turn your ${right ? 'right' : 'left'} hip in to the wall.</span>`, run[0], 'See this stretch', { frames: [{ s: good, tone: 'good', mark: 'hip', title: 'Hips centred', sub: 'For comparison' }, { s: bad, tone: 'bad', mark: 'hip', title: side(bad), sub: 'Furthest here' }],
       head: 'Whole climb', share: `${s.hipsOver}% centred`, bar: band(T, hips), keys: swatch('g', 'Centred') + swatch('b', 'Off to one side') + `<span>Longest off ${mmss(run[0])}–${mmss(run[1])}</span>` }, { a: run[0], b: Math.max(run[1], run[0] + 2), mark: 'hip', tone: 'bad' }), nextLabel: 'What happened next' }; }
-  if (s.hands >= 5 && s.feet < s.hands * .6) { const hands = T.moves.filter(m => m.k[1] === 'w'), feet = T.moves.filter(m => m.k[1] === 'a'), led = feetFirst(T), at = t => mostBy(on, x => -Math.abs(x.t - t));
+  // feet: how many reaches had a foot move first, not how many hand and foot moves there were. Counts are what the scan gets
+  // most wrong (40% of the hand moves it finds aren't in the coach labels), and footwork is about the order: step up, then reach.
+  // On the 21 coach-labelled climbs, the climbs under 50% here are 3 of the 4 lowest by the coaches' marks
+  const hands = T.moves.filter(m => m.k[1] === 'w'), led = feetFirst(T), ffp = hands.length ? Math.round(hands.filter(led).length / hands.length * 100) : 100;
+  if (hands.length >= 8 && ffp < 50) { const at = t => mostBy(on, x => -Math.abs(x.t - t));
     const yes = hands.find(led), no = hands.find(h => !led(h)), fr = [];
     if (yes) fr.push({ s: at(yes.t0), tone: 'good', mark: yes.k, title: 'Foot moved first', sub: 'Do this more' });
     if (no) fr.push({ s: at(no.t0), tone: 'bad', mark: no.k, title: 'Hand moved alone', sub: 'Try a foot first' });
-    return { sim: no ? feetSim(T, at(no.t0), no) : null, ...say('Use your feet more', `${n(s.hands, 'hand move', 'hand moves')}, only ${n(s.feet, 'foot move', 'foot moves')}. Your arms did the lifting your legs could have done.`, 'Move a foot up before each reach.', no?.t0 ?? s.first, 'See this move', { frames: fr, head: 'Hands and feet', share: `${s.hands} hand, ${s.feet} foot`, bar: ticks(T, 'Hands', ['lw', 'rw']) + ticks(T, 'Feet', ['la', 'ra']) }, no ? { a: Math.max(0, no.t0 - 1), b: no.t + 1, mark: 'none', tone: 'bad' } : null) }; }
-  if (!s.longest) { const ps = pauses(T).filter(m => m.i > 1 && m.gap > 0 && m.t0 < T.D * .92), lp = ps.length ? ps.reduce((a, b) => b.gap > a.gap ? b : a) : null;
+    return { sim: no ? feetSim(T, at(no.t0), no) : null, ...say('Use your feet more', `Only ${ffp}% of your reaches started with a foot move. On the others, your arms pulled you up.`, 'Before each reach, step onto a higher foothold and push down on it until the next hold comes to you.', no?.t0 ?? s.first, 'See this move', { frames: fr, head: 'Hands and feet', share: `${ffp}% foot first`, bar: ticks(T, 'Hands', ['lw', 'rw']) + ticks(T, 'Feet', ['la', 'ra']) }, no ? { a: Math.max(0, no.t0 - 1), b: no.t + 1, mark: 'none', tone: 'bad' } : null) }; }
+  // no rest: only on a long route. A short indoor route is usually best climbed straight to the top (coaching advice; no source
+  // gives a rule by length), and on The Way Up every climb that got this tip took 31–49 s, three of them to the top
+  if (!s.longest && climbS(T) >= REST_MIN) { const ps = pauses(T).filter(m => m.i > 1 && m.gap > 0 && m.t0 < T.D * .92), lp = ps.length ? ps.reduce((a, b) => b.gap > a.gap ? b : a) : null;
     const run = lp ? [lp.t0 - lp.gap, lp.t0] : stretch(on, x => !moving(x)) || [s.first, s.first], still = mostBy(on, x => -Math.abs(x.t - (run[0] + run[1]) / 2)), secs = (run[1] - run[0]).toFixed(1);
     return say('Take a rest on the way', `Your longest stop was ${secs} s. You climbed the whole route without a real rest, so your arms never got to recover.`, 'Pick one good hold and shake out each arm.', run[0], 'See this pause', { frames: [{ s: still, tone: 'good', mark: 'none', title: 'Your longest pause', sub: `${secs} s` }],
       head: 'Moving and pausing', share: `Longest pause ${secs} s`, bar: band(T, x => moving(x) ? 'm' : 'g'), keys: swatch('g', 'Pause') + swatch('m', 'Moving') }, { a: run[0], b: Math.max(run[1], run[0] + 2), mark: 'none', tone: 'good' }); }
-  const rest = on.filter(x => x.t >= s.longest.t && x.t < s.longest.t + s.longest.s), calm = rest.filter(x => !isOff(x)), best = (calm.length || rest.length) ? mostBy(calm.length ? calm : rest, bigArm) : on[0], far = mostBy(on, x => Math.abs(x.off));
-  const arms = s.restStraight != null && s.restRead >= 50;
-  if (!bal) return say('Good control', arms ? `You rested mostly on straight arms, and took a real rest on the way.` : `You took a real rest on the way.`, 'Nothing stands out across the whole climb. Open where you stopped, below, and compare that part with someone who topped it.', s.longest.t, 'See your best rest',
-    { frames: [{ s: best, tone: 'good', mark: bigArm(best) == null ? 'none' : 'arm', title: 'Your best rest', sub: `${s.longest.s.toFixed(1)} s` }] }, { a: s.longest.t, b: s.longest.t + s.longest.s, mark: 'none', tone: 'good' });
-  return { sim: isOff(far) ? hipSim(T, on.filter(isOff), on, isOff) : null, ...say('Good control', arms ? `You rested mostly on straight arms, and kept your hips over your feet for most of the climb.` : `You kept your hips over your feet for most of the climb.`, 'Nothing stands out across the whole climb. Open where you stopped, below, and compare that part with someone who topped it.', s.longest.t, 'See your best rest', { frames: [{ s: best, tone: 'good', mark: bigArm(best) == null ? 'hip' : 'arm', title: 'Your best rest', sub: `${s.longest.s.toFixed(1)} s` }, { s: far, tone: isOff(far) ? 'bad' : 'good', mark: 'hip', title: side(far), sub: isOff(far) ? 'Worth a look' : 'Still centred' }],
-    head: 'Whole climb', share: `${s.hipsOver}% centred`, bar: band(T, hips), keys: swatch('g', 'Centred') + swatch('b', 'Off to one side') }, { a: s.longest.t, b: s.longest.t + s.longest.s, mark: 'none', tone: 'good' }) };
+  // nothing stood out across the whole climb. Not topped: the part to work on is where you stopped (the top card then shows the
+  // spot just before it). Topped: what you did well, and the longest stop that wasn't a rest, to plan from the ground.
+  // (We tried the research measures of fluency too, time standing still and how far the hips wander: on these videos they
+  // didn't tell climbers apart, and camera moves made the fastest climber look the most wandering, so they give no advice)
+  // (no clear stop: your last move, where the video ends or you came off)
+  const lastMove = () => { const e = Math.max(...T.moves.map(m => m.t)); return on.length ? { s: mostBy(on, x => -Math.abs(x.t - e)), gap: T.D - e } : null; };
+  const ctx = ctxOf(T), k = ctx && !ctx.top ? stuckAt(T, false) || lastMove() : null;
+  if (k) return say('Work on where you stopped', `Nothing stood out across the whole climb, so work on the part where you stopped, at ${mmss(k.s.t)}.`, 'Watch how someone who topped it climbed that part, then plan those moves from the ground before your next try.', k.s.t, 'See where you stopped',
+    { frames: [{ s: k.s, tone: 'bad', mark: 'none', title: 'Where you stopped', sub: k.gap >= .5 ? `${k.gap.toFixed(1)} s` : 'Last move' }] }, { a: Math.max(0, k.s.t - 1), b: k.s.t + 2, mark: 'none', tone: 'bad' });
+  const lr = s.longest, rest = lr ? on.filter(x => x.t >= lr.t && x.t < lr.t + lr.s) : [], calm = rest.filter(x => !isOff(x)), best = rest.length ? mostBy(calm.length ? calm : rest, bigArm) : null, far = mostBy(on, x => Math.abs(x.off));
+  const arms = lr && s.restStraight != null && s.restRead >= 50;
+  const why = bal ? (arms ? `You rested mostly on straight arms, and kept your hips over your feet for most of the climb.` : `You kept your hips over your feet for most of the climb.`)
+    : lr ? (arms ? `You rested mostly on straight arms, and took a real rest on the way.` : `You took a real rest on the way.`) : ctx?.top ? 'You topped it, and nothing stood out across the whole climb.' : 'Nothing stood out across the whole climb.';
+  const kl = stuckAt(T, true), stop = kl && !T.rests.some(r => kl.s.t >= r.t0 - .5 && kl.s.t <= r.t1 + .5) ? kl : null;
+  const next = stop ? `Your longest stop was ${stop.gap.toFixed(1)} s, at ${mmss(stop.s.t)}. Next time, plan that part from the ground so you can climb straight through it.` : 'Next time, try the next grade up, or this one with fewer stops.';
+  const frames = [];
+  if (best) frames.push({ s: best, tone: 'good', mark: bigArm(best) == null ? (bal ? 'hip' : 'none') : 'arm', title: 'Your best rest', sub: `${lr.s.toFixed(1)} s` });
+  if (bal) frames.push({ s: far, tone: isOff(far) ? 'bad' : 'good', mark: 'hip', title: side(far), sub: isOff(far) ? 'Worth a look' : 'Still centred' });
+  else if (!best && stop) frames.push({ s: stop.s, tone: 'good', mark: 'none', title: 'Your longest stop', sub: `${stop.gap.toFixed(1)} s` });
+  const at = lr ? lr.t : stop ? stop.s.t : s.first ?? 0, sp = lr ? { a: lr.t, b: lr.t + lr.s, mark: 'none', tone: 'good' } : stop ? { a: Math.max(0, stop.s.t - 1), b: stop.s.t + 2, mark: 'none', tone: 'good' } : null;
+  return { sim: bal && isOff(far) ? hipSim(T, on.filter(isOff), on, isOff) : null, ...say('Good control', why, next, at, lr ? 'See your best rest' : 'See this stop',
+    { frames, ...(bal ? { head: 'Whole climb', share: `${s.hipsOver}% centred`, bar: band(T, hips), keys: swatch('g', 'Centred') + swatch('b', 'Off to one side') } : {}) }, sp) };
 }
+// which climb a track is: whether it topped and on which route, from your clip or the sample video. Null when we can't tell
+const ctxOf = T => { const c = clips.find(x => x.track === T); if (c) return { top: topOf(c), ri: c.ri }; const v = V.find(x => TRK[x.vid] === T); return v ? { top: v.top, ri: v.ri } : null; };
+// the shortest climb where we'd tell you to stop and rest on the way
+const REST_MIN = 90;
 const seeBlock = v => `${v.frames.length ? `<div class="kf-g n${v.frames.length}">${v.frames.map((f, i) => `<button class="kf" type="button" ${clipNear(f.s.t, v.T, f.mark)}><span class="kf-i"><img alt="" data-kf="${f.i ?? i}"></span><b><span class="num">${mmss(f.s.t)}</span> <span>${f.title}</span></b><em>${f.sub}</em></button>`).join('')}</div>` : ''}
     ${v.bar ? `<div class="vz"><div class="vz-h"><b>${v.head}</b><span>${v.share}</span></div>${v.bar}<div class="vz-a num"><span>0:00</span><span>${mmss(v.T)}</span></div>${v.keys ? `<div class="vz-l">${v.keys}</div>` : ''}</div>` : ''}`;
 // the frames come out of the video itself, one at a time, once the card is on the page
@@ -1304,56 +1404,25 @@ const learnMore = (k, body = '') => !PRIN[k] && !body ? '' : `<details class="lm
 function heroSpot(m, F) {
   const g = id => F?.find(x => x.id === id)?.items || [], one = l => l.length ? l[0] : null;
   return { 'Rest on straighter arms': one(g('rest').filter(i => !i.none && i.kind === 'rest')), 'Take a rest on the way': one(g('rest').filter(i => i.none)),
-    'Keep your hips over your feet': g('feet').length ? mostBy(g('feet'), i => i.w) : null, 'Use your feet more': g('pull').length ? mostBy(g('pull'), i => (i.kind === 'pull' ? 100 : 0) + (i.n || 1)) : null,
+    'Keep your hips over your feet': g('feet').length ? mostBy(g('feet'), i => i.w) : null,
+    // the spot just before where you stopped (up to 10 s before), if there is one
+    'Work on where you stopped': (l => l.length ? mostBy(l, i => i.t) : null)((F || []).flatMap(x => x.items).filter(i => i.t <= m.t + 1 && i.t >= m.t - 10)), 'Use your feet more': g('pull').length ? mostBy(g('pull'), i => (i.kind === 'pull' ? 100 : 0) + (i.n || 1)) : null,
     // the clearest spot of all: one with someone to compare with first, then an arm pull, the longest hips-out, a run of reaches
     'Good control': (l => l.length ? mostBy(l, i => (i.ref ? 1000 : 0) + (i.kind === 'pull' ? 300 : i.kind === 'hip' ? 200 + i.w * 10 : i.kind === 'reach' ? 100 + (i.n || 1) * 10 : 50)) : null)((F || []).flatMap(x => x.items)) }[m.title];
 }
-function sumHero(T, strip, F, cid) {
+function sumHero(T, F, cid) {
   const m = takeaway(T); if (m.vis) m.vis.T = T.D;
   const it = heroSpot(m, F);
   const good = m.title === 'Good control';
   const sp = m.span || { a: Math.max(0, m.t - 1), b: m.t + 2, mark: 'none' }, spa = sp.a, spb = Math.min(T.D, Math.max(sp.b, spa + 2));
   const fr = (m.vis?.frames || []).map((f, i) => ({ ...f, i })), bad = fr.filter(f => f.tone === 'bad'), shown = bad.length ? bad.slice(0, 1) : fr.slice(0, 1);
-  // Learn more: the two moments next to each other (less control, more control), then how it could look. The whole climb is
-  // drawn once, in the strip under this card; here only when there's no strip
-  const body = `${fr.length > 1 ? `<p class="lm-h">Side by side</p>${seeBlock({ ...m.vis, frames: fr, bar: '' })}` : ''}${m.vis?.bar && !strip ? seeBlock({ ...m.vis, frames: [] }) : ''}${m.sim ? simBlock(m.sim) : ''}`;
-  return `<div class="stack"><div class="lt nx1"><span class="an-k1">${m.title === 'Good control' ? 'Keep doing this' : 'Next time, change this first'}</span><span class="lt-h">${m.title}</span>${m.why ? `<p class="tip-d nx1-why">${m.why}</p>` : ''}
-      ${it ? `${good ? `<p class="lm-h">One spot to try next time</p><p class="fx-q">${it.q}</p>` : ''}${fixItem(it, cid, true)}` : `${shown.length ? seeBlock({ ...m.vis, frames: shown, bar: '' }) : ''}<p class="an-nx nx1-do">${m.next}</p>`}
+  // Learn more: the two moments next to each other (less control, more control), then how it could look
+  const body = `${fr.length > 1 ? `<p class="lm-h">Side by side</p>${seeBlock({ ...m.vis, frames: fr, bar: '' })}` : ''}${m.sim ? simBlock(m.sim) : ''}`;
+  if (good && !it) return '';   // nothing to change: Went well says so
+  return `<div class="stack"><div class="lt nx1"><span class="an-k1">${good ? 'One spot to try' : 'Change this first'}</span><span class="lt-h">${good ? it.q : m.title}</span>${!good && m.why ? `<p class="tip-d nx1-why">${m.why}</p>` : ''}
+      ${it ? fixItem(it, cid, true) : `${shown.length ? seeBlock({ ...m.vis, frames: shown, bar: '' }) : ''}<p class="an-nx nx1-do">${m.next}</p>`}
       ${shown.length || it ? '' : `<button class="b-ghost an-see" type="button" ${clipAt(spa, spb, sp.mark, m.t ?? spa)}>${m.see} · ${mmss(m.t ?? spa)}</button>`}
       ${learnMore(PRIN_OF[m.title], body)}</div></div>`;
-}
-// the whole climb as one strip, about the same thing as the tip above it: where it happened and where it didn't. The part the
-// tip is about is outlined. Tap a part to watch it, with a line saying what it is
-function ctlStrip(T, m) {
-  const on = climbed(T); if (on.length < 6 || m.title === 'Too little to judge') return '';
-  const isOff = x => Math.abs(x.off) >= .35, rested = x => T.rests.some(r => x.t >= r.t0 && x.t < r.t1), moving = x => x.now || T.moves.some(v => x.t >= v.t0 && x.t <= v.t);
-  const hands = T.moves.filter(v => v.k[1] === 'w'), feet = T.moves.filter(v => v.k[1] === 'a'), led = feetFirst(T);
-  let M;
-  if (m.title === 'Rest on straighter arms') M = { tone: x => !rested(x) || bigArm(x) == null ? 'm' : bigArm(x) > 145 ? 'g' : 'b', g: 'Resting on straight arms', b: 'Resting on bent arms', m: 'Moving', why: () => 'Resting on bent arms: your muscles hold you, so you tire sooner' };
-  else if (m.title === 'Use your feet more') M = { min: .25, tone: x => { const h = hands.find(v => x.t >= v.t0 && x.t <= v.t); return h ? (led(h) ? 'g' : 'b') : feet.some(v => x.t >= v.t0 && x.t <= v.t) ? 'g' : 'm'; },
-    g: 'Foot first, then the hand', b: 'A hand moved with no foot first', m: 'Holding still', why: () => 'A hand moved with no foot first: your arm did the lifting' };
-  else if (m.title === 'Take a rest on the way') M = { gaps: true, g: 'A pause', m: 'Moving' };
-  else if (quality(T).ok.balance) M = { tone: x => isOff(x) ? 'b' : 'g', g: 'Hips over your feet', b: 'Hips out to one side', why: r => `Hips out to the ${r.off < 0 ? 'left' : 'right'}: your hands were holding you on` };
-  else return '';
-  const runs = [];
-  // pauses: the gaps between one move and the next, the same ones Where you stopped counts
-  if (M.gaps) { let t = on[0].t; pauses(T).filter(v => v.i > 1 && v.gap >= .5 && v.t0 < T.D * .92).forEach(v => { if (v.t0 - v.gap > t) runs.push({ k: 'm', a: t, b: v.t0 - v.gap, off: 0 }); runs.push({ k: 'g', a: v.t0 - v.gap, b: v.t0, off: 0 }); t = v.t0; });
-    runs.push({ k: 'm', a: t, b: on[on.length - 1].t, off: 0 }); }
-  else on.forEach(x => { const k = M.tone(x), r = runs[runs.length - 1]; if (r && r.k === k) { r.b = x.t; r.off += x.off || 0; } else runs.push({ k, a: x.t, b: x.t, off: x.off || 0 }); });
-  // blips shorter than this join the part before them
-  const sm = []; runs.forEach(r => { const p = sm[sm.length - 1]; if (p && (p.k === r.k || (!M.gaps && r.b - r.a < (M.min ?? .6)))) { p.b = r.b; if (p.k === r.k) p.off += r.off; } else sm.push({ ...r }); });
-  // a short still moment between two parts of the same kind joins them, so the strip shows stretches, not every move
-  if (M.min) for (let i = sm.length - 2; i > 0; i--) if (sm[i].k === 'm' && sm[i].b - sm[i].a < 1.2 && sm[i - 1].k === sm[i + 1].k) { sm[i - 1].b = sm[i + 1].b; sm.splice(i, 2); }
-  // the part the tip is about: the one that overlaps its moment most
-  const sp = m.span || { a: m.t - 1, b: m.t + 2 }, ov = r => Math.min(r.b, sp.b) - Math.max(r.a, sp.a);
-  const me = sm.filter(r => r.k !== 'm' && (!m.onlyBad || r.k === 'b') && ov(r) > -.3).sort((x, y) => ov(y) - ov(x))[0];
-  const nb = sm.filter(r => r.k === 'b').length, ng = sm.filter(r => r.k === 'g').length;
-  const say = r => r.k === 'b' ? M.why(r) : M[r.k];
-  const keys = ['g', 'b', 'm'].filter(k => M[k] && sm.some(r => r.k === k));
-  return `<div class="hl2 dk2"><h2>The whole climb</h2><span class="hint2">${nb ? '' : M.b ? 'Not once on this climb' : ng ? n(ng, 'pause', 'pauses') : 'No pause on the way'}</span></div>
-    <div class="stack"><div class="lt ctl"><div class="ctl-b">${sm.map(r => `<button type="button" class="${r.k}${r === me ? ' ctl-me' : ''}" style="flex-grow:${Math.max(.3, r.b - r.a).toFixed(2)}" ${clipAt(Math.max(0, r.a - .5), Math.min(T.D, Math.max(r.b + .5, r.a + 2)), r.k === 'b' ? 'hip' : 'none')} data-say="${say(r)}" aria-label="${mmss(r.a)}–${mmss(r.b)}: ${say(r)}"></button>`).join('')}</div>
-      <div class="vz-a num"><span>${mmss(on[0].t)}</span><span>${mmss(on[on.length - 1].t)}</span></div>
-      <p class="ctl-k">${keys.map(k => `<span><u class="${k}"></u>${M[k]}</span>`).join('')}${me ? '<span><u class="ctl-me"></u>Outlined: the part the tip above is about</span>' : ''}<span class="ctl-t">Tap a part to watch it.</span></p></div></div>`;
 }
 // what else we counted, each with the moment it comes from
 function moreNums(T) {
@@ -1401,8 +1470,9 @@ function fixes(T, peers = []) {
   const hands = T.moves.filter(v => v.k[1] === 'w'), feet = T.moves.filter(v => v.k[1] === 'a'), led = feetFirst(T);
   const near = t => on.length ? mostBy(on, x => -Math.abs(x.t - t)) : null, clip = (a, b) => [Math.max(0, a), Math.min(T.D, Math.max(b, a + 2))];
   // hard pulls: steps up where the arm did the lifting, and reaches with no foot first (a run of them is one spot)
-  const pull = [], la = legArm(T);
-  (la?.steps || []).filter(x => x.kind === 'arm').forEach(x => { const s = near(x.t0), ft = s ? lowFoot(s) : 'left';
+  // (not in the first 2 s: leaving the ground often takes a pull, and that's no habit to fix)
+  const pull = [], la = legArm(T), t1 = span(T)[0] + 2;
+  (la?.steps || []).filter(x => x.kind === 'arm' && x.t0 >= t1).forEach(x => { const s = near(x.t0), ft = s ? lowFoot(s) : 'left';
     pull.push({ kind: 'pull', t: x.t0, ab: clip(x.t0 - .5, x.t1 + .5), mark: 'arm', q: 'Your arm pulled you up here; your knees hardly straightened.',
       steps: [`Put your ${ft} foot on a higher hold first`, 'Push down through it until the leg is straight', 'Only then reach: the arm just holds on'] }); });
   const lone = hands.filter(h => !led(h)), groups = [];
@@ -1412,7 +1482,7 @@ function fixes(T, peers = []) {
   use.forEach(g => { if (pull.some(x => Math.abs(x.t - g[0].t0) < 1.5)) return; const s = near(g[0].t0), ft = s ? lowFoot(s) : 'left', hd = LNAME[g[0].k];
     pull.push({ kind: 'reach', n: g.length, t: g[0].t0, ab: clip(g[0].t0 - 1, g[g.length - 1].t + .5), mark: `reach:${g[0].k}`,
       q: g.length > 1 ? `${g.length} reaches in a row while your feet stayed put.` : `Your ${hd} reached while your feet stayed put.`,
-      steps: [`Lift your ${ft} foot to about knee height`, 'Stand up on it', `Then reach with your ${hd}`] }); });
+      steps: [`Lift your ${ft} foot to about knee height`, 'Push down on it until the next hold comes to you', `Then reach with your ${hd}`] }); });
   // the clearest five: arm pulls first, then the longest runs of reaches
   pull.sort((x, y) => (y.kind === 'pull') - (x.kind === 'pull') || (y.n || 0) - (x.n || 0)).splice(5);
   // feet and centre: each stretch of a second or more with the hips out to one side
@@ -1428,7 +1498,7 @@ function fixes(T, peers = []) {
     const w = mostBy(xs, x => -bigArm(x)), a = Math.round(bigArm(w)), sd = (w.el ?? 999) <= (w.er ?? 999) ? 'left' : 'right';
     if (a < 120) rest.push({ kind: 'rest', t: w.t, ab: clip(r.t0, r.t1), mark: 'arm', q: `You rested here on a bent arm.`, steps: ['Sink your hips down', `Let your ${sd} arm go straight and hang from it`, 'Shake out the other arm, then swap'] }); });
   const ps = pauses(T), gaps = ps.filter(m => m.i > 1 && m.gap > 0 && m.t0 < T.D * .92);
-  if (!st.longest && gaps.length) { const g = gaps.reduce((x, y) => y.gap > x.gap ? y : x);
+  if (!st.longest && gaps.length && climbS(T) >= REST_MIN) { const g = gaps.reduce((x, y) => y.gap > x.gap ? y : x);
     const s0 = near(g.t0 - g.gap / 2); rest.push({ kind: 'rest', none: true, t: g.t0 - g.gap / 2, ab: clip(g.t0 - g.gap - .5, g.t0 + .5), mark: s0 && bigArm(s0) != null ? 'arm' : 'none', q: `Your longest stop was ${g.gap.toFixed(1)} s: no real rest on the way.`, steps: ['Find a big hold about halfway up', 'Hang from it on a straight arm', 'Shake out each arm for five seconds'] }); }
   if (ps.length >= 6 && paceState(T).includes('You slowed down near the top')) { const a = ps[0].t0, t = a + (ps[ps.length - 1].t - a) * 2 / 3;
     rest.push({ kind: 'slow', t, ab: clip(t, t + 4), mark: 'none', q: 'You slowed down in the last third: fewer moves a minute, longer pauses.', steps: ['Rest on a big hold before the top section', 'Read the top moves from there', 'Then climb them without stopping'] }); }
@@ -1454,6 +1524,50 @@ async function fixWire(pg) {
     if (!T?.S) continue; const t = +im.dataset.ft, s = T.S.filter(x => x.p).reduce((a, x) => !a || Math.abs(x.t - t) < Math.abs(a.t - t) ? x : a, null);
     if (s) { const u = await window.poseStill(src, T, s, im.dataset.fm, im.dataset.tone || 'bad'); if (u && im.isConnected) im.src = u; } }
 }
+/* ---------- Since your last try: the same route, the try before this one ----------
+   So an analysis isn't on its own: did the one thing Summary asked you to change last time change? Did you get further, stop
+   for less long, have fewer spots to work on? (From the interviews: "is it better than last time" is what makes it worth
+   filming again.) */
+// one number for each thing the top card can ask you to change, higher is better. Null when this video can't tell
+const FIXM = {
+  'Use your feet more': T => { const h = T.moves.filter(m => m.k[1] === 'w'); if (h.length < 3) return null; const led = feetFirst(T);
+    return { v: Math.round(h.filter(led).length / h.length * 100), u: '%', label: 'Reaches with a foot first', step: 10 }; },
+  'Keep your hips over your feet': T => quality(T).ok.balance ? { v: T.stats.hipsOver, u: '%', label: 'Hips over your feet', step: 10 } : null,
+  'Rest on straighter arms': T => T.stats.restStraight != null && T.stats.restRead >= 50 ? { v: T.stats.restStraight, u: '%', label: 'Rests on straight arms', step: 10 } : null,
+  // a real rest if there was one, else the longest pause: the same thing the top card measured
+  'Take a rest on the way': T => { const g = Math.max(0, ...pauses(T).filter(m => m.i > 1).map(m => m.gap));
+    return { v: +(T.stats.longest?.s ?? g).toFixed(1), u: ' s', label: 'Longest rest or pause', step: 1 }; },
+};
+const prevTry = c => mineOn(c.ri).filter(x => x !== c && tryOf(x) < tryOf(c) && x.an === 'done' && x.track && quality(x.track).level !== 'poor').pop();
+function tryCmp(c) {
+  const T = c.track, prev = T && quality(T).level !== 'poor' ? prevTry(c) : null; if (!prev) return '';
+  const P = prev.track, was = topOf(prev), now = topOf(c), rows = [];
+  // tone from the change: up is better. by: how much counts as a change
+  const tone = (a, b, by, lowerBetter) => { const d = (b - a) * (lowerBetter ? -1 : 1); return d >= by ? 'up' : d <= -by ? 'down' : 'same'; };
+  const add = (label, a, b, t, fix) => rows.push({ label, a, b, t, fix });
+  // how it went: topped, or how far up, or how fast
+  if (was !== now) add('Result', was ? 'Topped it' : 'Didn’t top', now ? 'Topped it' : 'Didn’t top', now ? 'up' : 'down');
+  else if (now) add('Climbing time', mmss(climbS(P)), mmss(climbS(T)), tone(climbS(P), climbS(T), 5, true));
+  else add('Hand moves before you came off', P.stats.hands, T.stats.hands, tone(P.stats.hands, T.stats.hands, 2));
+  // the one thing Summary asked you to change last time
+  const mP = takeaway(P), f = FIXM[mP.title], a = f?.(P), b = f?.(T);
+  if (a && b) add(a.label, `${a.v}${a.u}`, `${b.v}${b.u}`, tone(a.v, b.v, a.step), true);
+  // the longest stop on the way (coming off at the end is the top row already)
+  const kP = stuckAt(P, was), kT = stuckAt(T, now);
+  // (not when last time's tip was to rest more: there a longer stop is the point)
+  if (kP && kT && kP.kind !== 'end' && kT.kind !== 'end' && mP.title !== 'Take a rest on the way') add('Longest stop', `${kP.gap.toFixed(1)} s`, `${kT.gap.toFixed(1)} s`, tone(kP.gap, kT.gap, 1, true));
+  const spots = X => fixes(X).reduce((s, g) => s + g.items.length, 0), sP = spots(P), sT = spots(T);
+  add('Spots to work on', sP, sT, tone(sP, sT, 2, true));
+  const fx = rows.find(r => r.fix);
+  const said = `<span>Last time Summary said: ${mP.title}.</span>`;
+  const [head, sub] = !was && now ? ['Topped it this time', fx ? `${said} <span>${fx.t === 'up' ? 'That got better too.' : 'That’s still worth working on.'}</span>` : '']
+    : fx ? [fx.t === 'up' ? 'What you changed worked' : fx.t === 'down' ? 'Less of it than last time' : 'About the same as last time', `${said}${fx.t === 'up' ? '' : ' <span>Keep it as your focus on the next try.</span>'}`]
+    : [rows.filter(r => r.t === 'up').length > rows.filter(r => r.t === 'down').length ? 'Better than last time' : 'Since your last try', ''];
+  const word = { up: 'Better', same: 'Same', down: 'Less' };
+  return `<div class="stack"><div class="lt tc"><span class="an-k1">Since try ${tryOf(prev)} · ${dayLabel(agoOf(prev))}</span><span class="lt-h">${head}</span>${sub ? `<p class="tip-d tc-s">${sub}</p>` : ''}
+      <div class="tc-rs">${rows.map(r => `<div class="tc-r${r.fix ? ' fix' : ''}"><span class="tc-l">${r.label}</span><span class="tc-v num"><span class="tc-a">${r.a}</span><i aria-hidden="true">→</i><b>${r.b}</b></span><em class="tc-${r.t}">${word[r.t]}</em></div>`).join('')}</div>
+      <button class="sub-lk tc-o" type="button" data-act="to" data-to="clip/${prev.id}">Open try ${tryOf(prev)} ›</button></div></div>`;
+}
 // Summary: the main page, and a page for each tile. Tiles open in place, ‹ Summary comes back
 function sumPanel(T, c, nextUp, q, top) {
   // a tile is a picture of its clearest moment, with how many spots there are, so there's something to look at before you open it
@@ -1467,25 +1581,34 @@ function sumPanel(T, c, nextUp, q, top) {
       : `<div class="stack"><div class="lt"><span class="lt-h">${g.cant ? 'Can’t tell from this video' : 'Nothing to fix here'}</span><p class="tip-d">${g.cant ? g.cantWhy || 'We couldn’t see enough of you in this video.' : 'Nothing stood out in this part of your climbing. Keep doing it.'}</p></div></div>`;
     add(g.id, g.title, sub, nI ? 'fix' : g.cant ? 'cant' : 'ok', `<div class="hl2 dk2"><h2>${g.title}</h2><span class="hint2">${sub}</span></div>${list}${nI ? '<p class="trs-l">Tap a picture to watch that moment.</p>' : ''}${g.more || ''}<div class="stack"><div class="lt">${learnMore(g.prin)}</div></div>`, g.items[0], nI || (g.cant ? '?' : '✓')); });
   pages.push(`<div class="sub" data-sub="nums" hidden><button class="sub-bk" type="button" data-act="sumgo" data-v="">‹ Summary</button>${moreNums(T)}</div>`);
-  return `<div class="sub" data-sub="">${top}${(st => sumHero(T, st, F, c.id) + st)(ctlStrip(T, (m => { const it = heroSpot(m, F); return it && m.title === 'Good control' ? { ...m, title: { pull: 'Use your feet more', reach: 'Use your feet more', hip: 'Keep your hips over your feet', rest: 'Rest on straighter arms' }[it.kind] || m.title, span: { a: it.ab[0], b: it.ab[1] }, onlyBad: true } : m; })(takeaway(T))))}
-      <div class="hl2 dk2"><h2>Where to improve</h2></div><div class="sm-g">${tiles.join('')}</div>${techCard(T)}
-      <button class="sub-lk" type="button" data-act="sumgo" data-v="nums">All the numbers ›</button>${nextPlan(T, c, F)}${nextUp.replace('<h2>Next</h2>', '<h2>Compare with others</h2>')}${qualityCard(q)}</div>${pages.join('')}`;
+  // no whole-climb strip: it repeated the top card and the move list, and said nothing you could act on (removed 2026-11-17)
+  const spots = F.reduce((t, g) => t + g.items.length, 0) + (k && st ? 1 : 0);
+  return `<div class="sub" data-sub="">${top}${sumGood(T, c)}
+      ${sumHead('fix', 'To work on', spots ? n(spots, 'spot', 'spots') : '')}${sumHero(T, F, c.id)}<p class="sm-gk">Every spot, by part of your climbing</p><div class="sm-g">${tiles.join('')}</div>
+      ${nextPlan(T, c, F)}
+      <div class="sm-x">${nextUp.replace('<h2>Next</h2>', '<h2>Compare with others</h2>')}<button class="sub-lk" type="button" data-act="sumgo" data-v="nums">All the numbers ›</button></div>${qualityCard(q)}</div>${pages.join('')}`;
 }
 // the climb in order: every hand and foot move, numbered, with how long you paused before the next one. The longest pauses are
 // marked; tap a move to watch it
-const LIMB = { lw: 'LH', rw: 'RH', la: 'LF', ra: 'RF' };
+const LIMB = { lw: 'Left hand', rw: 'Right hand', la: 'Left foot', ra: 'Right foot' };
 function pauses(T) {
   const ms = [...T.moves].sort((p, q) => p.t0 - q.t0); let end = ms[0]?.t ?? 0;
   return ms.map((m, i) => { const g = i ? Math.max(0, m.t0 - end) : 0; end = Math.max(end, m.t); return { ...m, i: i + 1, gap: g }; });
 }
 function moveSeq(T) {
   const ms = pauses(T); if (!ms.length) return '';
-  const gaps = ms.slice(1).map(m => m.gap).sort((p, q) => p - q), med = gaps[Math.floor(gaps.length / 2)] || 0;
-  const long = new Set(ms.filter(m => m.gap >= 1.5).sort((p, q) => q.gap - p.gap).slice(0, 3).map(m => m.i)), top = ms.find(m => long.has(m.i) && m.gap === Math.max(...gaps));
-  return `<div class="hl2 dk2"><h2>Move by move</h2><span class="hint2">${n(ms.length, 'move', 'moves')}</span></div>
-    <div class="stack"><div class="lt mvq"><p class="mvq-s"><span><b>${med.toFixed(1)} s</b>usual pause</span>${top ? `<span><b>${top.gap.toFixed(1)} s</b>longest, before move ${top.i}</span>` : ''}</p>
+  const lane = (l, items) => `<div class="tl-r"><span>${l}</span><div>${items}</div></div>`, at = (t0, t1, cls) => `<i class="${cls}" style="left:${t0 / T.D * 100}%;width:${Math.max(.8, (t1 - t0) / T.D * 100)}%"></i>`;
+  const limb = k => T.moves.filter(m => m.k === k).map(m => at(m.t0, m.t, k === 'lw' || k === 'rw' ? 'h' : 'f')).join('');
+  const lanes = `<div class="tl-g mvq-g">${lane('Left hand', limb('lw'))}${lane('Right hand', limb('rw'))}${lane('Left foot', limb('la'))}${lane('Right foot', limb('ra'))}${lane('Rests', T.rests.map(r => at(r.t0, r.t1, r.straight > .5 ? 'rs' : 'rb')).join(''))}</div>
+    <p class="an-k tl-k"><span><i class="rs"></i>Rest, arms straight</span><span><i class="rb"></i>Rest, arms bent</span></p>`;
+  const gaps = ms.slice(1).map(m => m.gap), mx = Math.max(0, ...gaps);
+  const long = new Set(ms.filter(m => m.gap >= 1).sort((p, q) => q.gap - p.gap).slice(0, 3).map(m => m.i)), top = mx >= 1 ? ms.find(m => m.gap === mx) : null;
+  const hands = ms.filter(m => m.k === 'lw' || m.k === 'rw').length, feet = ms.length - hands;
+  const say = feet >= hands * .8 ? 'Your feet kept up with your hands: your legs did the climbing.' : 'Your hands moved more than your feet: move a foot up first, so your legs push you.';
+  return `<details class="lm mvq-d"><summary><span><b>Every move</b><span class="mvq-say">${say}</span><span><span>${n(hands, 'hand', 'hands')}</span> · <span>${n(feet, 'foot', 'feet')}</span>${top ? ` · <span>Longest stop ${top.gap.toFixed(1)} s</span>` : ''}</span></span></summary>
+    <div class="mvq">${lanes}
       <div class="mvq-l">${ms.map(m => `${m.gap >= 1 ? `<span class="mvq-p${long.has(m.i) ? ' long' : ''}">${m.gap.toFixed(1)}s</span>` : ''}<button type="button" class="mvq-m ${m.k === 'lw' || m.k === 'rw' ? 'h' : 'f'}" data-act="lvseek" data-t="${Math.max(0, m.t0 - .3).toFixed(2)}" aria-label="Move ${m.i}, ${m.name}, at ${mmss(m.t0)}"><b>${m.i}</b>${LIMB[m.k]}</button>`).join('')}</div>
-      <p class="an-k mvq-k"><span><i class="h"></i>Hand</span><span><i class="f"></i>Foot</span><span><i class="long"></i>Long pause</span></p></div></div>`;
+      <p class="an-k mvq-k"><span><i class="h"></i>Hand</span><span><i class="f"></i>Foot</span><span><i class="long"></i>Long stop</span></p></div></details>`;
 }
 // How clear a video is, and so which conclusions we can stand behind. Better to say nothing than to say something wrong:
 // each analysis is shown only when what it needs was seen well enough, and the video page says what was left out and why.
@@ -1625,12 +1748,19 @@ function paceState(T) {
     <div class="an-g pace">${['Start', 'Middle', 'Top'].map((l, k) => `<div><span>${l}</span><b>${Math.round(parts[k].rate)}<small>/min</small></b><em>${parts[k].gap.toFixed(1)} s pauses</em></div>`).join('')}</div></div></div>`;
 }
 // arms: over the whole climb when we can read them; otherwise only at rests, the moments you hold still (the Summary uses the same)
-const bodyStats = T => { const s = T.stats, all = s.armRead >= 30, rest = !all && s.restStraight != null && s.restRead >= 50;
-  return `<div class="hl2 dk2"><h2>Your whole climb</h2></div><div class="stack"><div class="lt"><div class="an-g"><div><span>${rest ? 'Arms straight, resting' : 'Arms straight'}</span><b>${all ? `${s.armsStraight}%` : rest ? `${s.restStraight}%` : '—'}</b></div><div><span>Hips over feet</span><b>${s.hipsOver}%</b></div><div><span>Moving</span><b>${s.moving}%</b></div></div>
-      <p class="an-n">Share of the time from your first move to your last, in this video.${all ? '' : rest ? ' Your arms only read clearly when you stop, so that one counts your rests.' : ' Too far from the camera to read your arms.'}</p>
-      <dl class="an-def"><dt>Arms straight</dt><dd>Hanging on straight arms uses your skeleton, not your muscles, so you tire later.</dd>
-        <dt>Hips over feet</dt><dd>Your weight is on your legs, which are stronger than your arms.</dd>
-        <dt>Moving</dt><dd>The rest of the time you were still: reading the route, resting or stuck.</dd></dl></div></div>`; };
+const movingPct = T => { const ms = pauses(T); if (ms.length < 2) return null; const span = Math.max(...ms.map(m => m.t)) - ms[0].t0;
+  return span > 0 ? Math.round((1 - ms.reduce((t, m) => t + m.gap, 0) / span) * 100) : null; };
+const bodyStats = T => { const s = T.stats, all = s.armRead >= 30, rest = !all && s.restStraight != null && s.restRead >= 50, mv = movingPct(T);
+  const v = (x, hi, lo) => x >= hi ? 'good' : x < lo ? 'fix' : 'ok';
+  const rows = [
+    { l: 'Hips over feet', x: s.hipsOver, k: v(s.hipsOver, 70, 50), say: { good: 'Your legs held your weight, so your forearms last longer', ok: 'Half the time your hands held you: your forearms tire first', fix: 'Your hands held you most of the time: that’s what tires you out' } },
+    mv != null && { l: 'Moving', x: mv, k: v(mv, 80, 60), say: { good: 'You kept going: less time hanging, more strength left', ok: 'A few stops. Fine on a good rest, costly on a hard move', fix: 'Lots of stops: each one on the wall costs you strength' } },
+    (all || rest) && { l: rest ? 'Arms straight, resting' : 'Arms straight', x: all ? s.armsStraight : s.restStraight, k: v(all ? s.armsStraight : s.restStraight, 60, 40), say: { good: 'You hung on your bones, so your forearms got to rest', ok: 'Straighter arms would let your forearms rest more', fix: 'Bent arms keep your forearms working: they tire fast' } }].filter(Boolean);
+  return `<div class="hl2 dk2"><h2>Your whole climb</h2></div><div class="stack"><div class="lt bs">${rows.map(r => `<div class="bs-r"><i class="sh-k ${r.k === 'ok' ? 'nm' : r.k}" aria-hidden="true">${{ good: '✓', ok: '·', fix: '!' }[r.k]}</i><span class="bs-t"><b>${r.l}</b><span>${r.say[r.k]}</span></span><b class="bs-v num">${r.x}%</b></div>`).join('')}
+      <details class="lm"><summary>Why these matter</summary><p class="an-n">Share of the time from your first move to your last, in this video.${all || rest ? '' : ' Too far from the camera to read your arms.'}</p>
+      <dl class="an-def"><dt>Hips over feet</dt><dd>Your weight is on your legs, which are stronger than your arms.</dd>
+        <dt>Moving</dt><dd>The rest of the time you were still: reading the route, resting or stuck.</dd>
+        ${all || rest ? '<dt>Arms straight</dt><dd>Hanging on straight arms uses your skeleton, not your muscles, so you tire later.</dd>' : ''}</dl></details></div></div>`; };
 function drawTag(c) {
   const tg = $('tg'); if (!tg) return;
   const fix = tagS.id === c.id, pts = fix ? tagS.pts : c.auto, next = TAGS[tagS.i];
@@ -1664,8 +1794,12 @@ function lostClip() { page = 'videos'; arg = ''; history.replaceState(null, '', 
 const peerLine = x => { const T = TRK[x.vid]; return `${x.top ? 'Topped' : 'Didn’t top'} · ${T ? `${mmss(climbS(T))} climbing · ${n(T.stats.moves, 'move', 'moves')}` : x.len} · ${dayLabel(x.ago)}`; };
 // the loop the app is for: see what to change, then go and try it. Every analysis and route page ends in the next try:
 // film it (or import it, once the sample camera roll is used up), or log it by hand if you're not filming.
+// a route's one button: Add a try, the same sheet as the + in the dock, with this route filled in. A route that's gone
+// can't be climbed, so it points to what's on the wall instead
 function nextTryCta(ri) {
-  return `<button class="b-ghost" type="button" data-act="to" data-to="session">Log by hand</button><button class="b-lime" type="button" data-act="film">${ic.rec}Film your next try</button>`;
+  const r = ROUTES[ri];
+  if (r?.offAt) return `<button class="b-lime" type="button" data-act="to" data-to="gym/${gyOf(r)}">See the routes on the wall</button>`;
+  return `<button class="b-lime" type="button" data-act="rlog" data-r="${ri}">${ic.add.replace('#FFFFFF', 'currentColor')}Add a try</button>`;
 }
 function viewClip(id) {
   const c = byId(id);
@@ -1703,7 +1837,6 @@ function viewClip(id) {
   // analysed: the video fills the screen, edge to edge, with the top of the analysis sheet showing under it to pull up
   const vh = two ? Math.round(Math.max(280, Math.min(room, (scrEl?.clientWidth || 402) / lv.ar))) : Math.max(280, Math.min(560, room));
   // what the video shows right now, as it plays: in Body, above the timeline
-  const live = two ? `<div class="lv-s${T.stats.armRead >= 30 ? '' : ' n2'}"><div><span>Hand and foot moves</span><b id="tl-moves">—</b></div>${T.stats.armRead >= 30 ? '<div><span>Arms now</span><b id="tl-arms">—</b></div>' : ''}<div><span>Hips now</span><b id="tl-hips">—</b></div></div>${T.stats.armRead >= 30 ? '<p class="lv-k">Arms: 180° is straight. Under 145° counts as bent.</p>' : ''}` : '';
   // Compare: everyone else filmed on this route, each one a tap from side by side
   const cmp = `<div class="hl2 dk2"><h2>Same route, other climbers</h2><span class="hint2">${n(peers.length, 'video', 'videos')}</span></div>
     <div class="rows">${peers.map(x => `<button class="row fr-p" type="button" data-act="to" data-to="vs/${c.id}-${x.i}"><span class="fr-f">${avatar(x.who)}</span><span class="row-t"><strong>${x.who}</strong><span>${peerLine(x)}</span></span>${ic.arr('#111111')}</button>`).join('')}</div>
@@ -1732,7 +1865,7 @@ function viewClip(id) {
   const nextUp = `<div class="hl2 dk2"><h2>Next</h2></div><div class="rows">
       ${betaRow(c.ri, T)}
       <button class="row" type="button" data-act="ctab" data-v="cmp"><span class="row-t"><strong>Watch it next to someone else</strong><span>${n(peers.length, 'other climber', 'other climbers')} on ${rname(r)}</span></span>${ic.arr('#111111')}</button></div>`;
-  const panels = two ? { why: (q => q.level === 'poor' ? `${postCard}${qualityCard(q)}${nextUp}` : sumPanel(T, c, nextUp, q, postCard))(quality(T)), body: `<div class="hl2 dk2"><h2>As it plays</h2></div>${live}${timeline(T)}${moveSeq(T)}${bodyStats(T)}`, cmp, info } : {};
+  const panels = two ? { why: (q => q.level === 'poor' ? `${postCard}${qualityCard(q)}${nextUp}` : sumPanel(T, c, nextUp, q, postCard + tryCmp(c)))(quality(T)), body: `${stepCard(T, c)}${moveSeq(T)}${bodyStats(T)}`, cmp, info } : {};
   return { photo: c.img, fit: state === 'ask' || state === 'idle', cta: '', after: () => {
       tagWire(c);
       const v = $('lvv'), box = v.parentElement;
@@ -1742,7 +1875,7 @@ function viewClip(id) {
       segClose(); anSheet = null; segStop = null; segT = T; v.addEventListener('play', () => $('cpv')?.pause());
       if (state === 'idle' && !c.cut) trimWire(lv, v);
       v.playbackRate = speed;
-      if (two) { window.poseGate = quality(T).ok; window.poseTagList = (R => ['high', 'drop', 'cross', 'match', 'lock', 'rest', 'side'].flatMap(id => (R[id].at || []).map(t => ({ t, id }))).sort((a, b) => a.t - b.t))(styleOf(T).R); window.posePlay(v, $('lvc'), T); tlWire(); kfWire(T, v.currentSrc || v.src); stuckWire(T, c, v.currentSrc || v.src); laWire(T, v); (g => g && fixWire(g))(document.querySelector('[data-pn="why"] > .sub[data-sub=""]')); stripWire(v, T); stickWire(box, vh); followWire(box); }
+      if (two) { window.poseGate = quality(T).ok; window.poseTagList = (R => ['high', 'drop', 'cross', 'match', 'lock', 'rest', 'side'].flatMap(id => (R[id].at || []).map(t => ({ t, id }))).sort((a, b) => a.t - b.t))(styleOf(T).R); window.posePlay(v, $('lvc'), T); stWire(); kfWire(T, v.currentSrc || v.src); stuckWire(T, c, v.currentSrc || v.src); laWire(T, v); (g => g && fixWire(g))(document.querySelector('[data-pn="why"] > .sub[data-sub=""]')); stripWire(v, T); stickWire(box, vh); followWire(box); }
       if (state === 'ask' && c.auto) v.currentTime = c.auto.t;
       v.addEventListener('play', () => box.classList.add('playing'));
       ['pause', 'ended'].forEach(e => v.addEventListener(e, () => box.classList.remove('playing')));
@@ -1867,33 +2000,178 @@ function pvPlay() {
 
 /* ---------- A route: your tries and everyone else's ---------- */
 const betaRow = (ri, T) => { const B = betaOf(ri), me = T && stepsOf(T).steps.length - 1, k = B && B.steps.length - 1;
+  // no one has filmed a climb to the top yet: nothing to open
+  if (!B) return `<div class="row"><span class="row-t"><strong>No beta here yet</strong><span>When someone films a climb to the top, their moves show here hold by hold</span></span></div>`;
+  if (B.x.who === 'You') return `<button class="row fr-p" type="button" data-act="rbeta" data-r="${ri}"><span class="fr-f">${avatar('You')}</span><span class="row-t"><strong>Your beta</strong><span>How you topped it, ${n(k, 'hand move', 'hand moves')}, hold by hold</span></span>${ic.arr('#111111')}</button>`;
   return `<button class="row fr-p" type="button" data-act="rbeta" data-r="${ri}"><span class="fr-f">${avatar(B ? B.x.who : 'Leo')}</span><span class="row-t"><strong>${T ? 'Your moves and the beta' : 'See the beta'}</strong>
     <span>${!B ? 'From a climber who topped it' : T && me >= 2 ? `You: ${n(me, 'hand move', 'hand moves')} · ${B.x.who}, to the top: ${k}` : T ? `${B.x.who} topped it in ${n(k, 'hand move', 'hand moves')}. See every hold` : `${n(k, 'hand move', 'hand moves')}, hold by hold · from how ${B.x.who} topped it`}</span></span>${ic.arr('#111111')}</button>`; };
+/* ---------- A wall, a route, its beta ----------
+   Like a gym's own route board: the gym → its walls → a wall's routes, numbered → a route (its holds outlined on the wall,
+   when it was set, who topped it, log it) → its beta (the videos of it, and the climb move by move) */
+const wallsAt = gy => [...new Set(routesAt(gy).map(i => ROUTES[i].wall))];
+const gradeIdx = g => GR.includes(g) ? GR.indexOf(g) : 100 + VG.indexOf(g);
+// a grade's colour on chips and numbers, easiest blue to hardest black, the way gyms tag grades
+const GCOL = ['#3F82CA', '#2E9E62', '#E3C43A', '#F08A24', '#D74D48', '#8F69B8', '#303030'];
+const gcol = g => { const L = GR.includes(g) ? GR : VG; return GCOL[Math.min(GCOL.length - 1, Math.max(0, L.indexOf(g) - (L === GR ? 1 : 0)))]; };
+// the wall's photo: the empty wall from the first frame of a video on it, else a route's own picture
+const wallPic = (gy, w) => { const rs = routesAt(gy).filter(i => ROUTES[i].wall === w), r = ROUTES[rs.find(i => !ROUTES[i].offAt) ?? rs[0]];
+  return WALL[r.img] || (String(r.img).startsWith('wayup') ? pic(r.img, 0) : rpic(r)); };
+// how many climbers topped it (you included), and the videos of a top: the beta
+const toppedBy = ri => new Set([...V.filter(x => x.ri === ri && x.top && x.who !== 'You').map(x => x.who), ...(mineOn(ri).some(topOf) || handOn(ri).some(l => l.sent) || glTop(ri) ? ['You'] : [])]).size;
+const betaVids = ri => [...V.filter(x => x.ri === ri && x.top && x.who !== 'You'), ...mineOn(ri).filter(topOf).map(c => V[c.v])];
+let shotN = 0;
+// a route's holds outlined on the wall, the rest of the wall dimmed. The view fits the holds; a thumb crops it to its box
+function routeShot(ri, cls = '') {
+  const r = ROUTES[ri], b = r.box, hs = needHolds(r.img, r.color).filter(h => !b || (h.x > b[0] && h.x < b[2] && h.y > b[1] && h.y < b[3]));
+  const src = WALL[r.img] || rpic(r), id = `rs${++shotN}`, f = v => v.toFixed(1), rad = h => Math.max(h.r * .9 + 6, 10);
+  let vx = 0, vy = 0, vw = 540, vh = 960;
+  if (hs.length) { const pad = 36, x0 = Math.min(...hs.map(h => h.x - rad(h))) - pad, x1 = Math.max(...hs.map(h => h.x + rad(h))) + pad, y0 = Math.min(...hs.map(h => h.y - rad(h))) - pad, y1 = Math.max(...hs.map(h => h.y + rad(h))) + pad;
+    vw = x1 - x0; vh = y1 - y0; if (vw / vh < 9 / 16) vw = vh * 9 / 16; else vh = vw * 16 / 9;
+    if (vh > 960) { vh = 960; vw = 540; }
+    vx = Math.max(0, Math.min(540 - vw, (x0 + x1 - vw) / 2)); vy = Math.max(0, Math.min(960 - vh, (y0 + y1 - vh) / 2)); }
+  const k = vw / 540, img = extra => `<image href="${src}" width="540" height="960" preserveAspectRatio="xMidYMid slice" ${extra}/>`;
+  return `<svg class="rshot${cls ? ' ' + cls : ''}" viewBox="${f(vx)} ${f(vy)} ${f(vw)} ${f(vh)}" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+    ${hs.length ? `<defs><mask id="${id}"><rect width="540" height="960" fill="#000"/>${hs.map(h => `<circle cx="${f(h.x)}" cy="${f(h.y)}" r="${f(rad(h))}" fill="#fff"/>`).join('')}</mask></defs>
+    ${img('style="filter:brightness(.42)"')}${img(`mask="url(#${id})"`)}${hs.map(h => `<circle cx="${f(h.x)}" cy="${f(h.y)}" r="${f(rad(h))}" fill="none" stroke="#fff" stroke-width="${f(4 * k)}"/>`).join('')}` : img('')}</svg>`;
+}
+// the gym's Beta tab: one card per wall, with what's new on it and how many routes at each grade. A gym nobody has
+// filmed at yet asks for the first one
+function gymRoutes(gy) {
+  const ws = wallsAt(gy);
+  if (!ws.length) return `<div class="rows"><button class="row" type="button" data-act="film" data-g="${gy}"><span class="row-t"><strong>No routes from here yet</strong><span>Film a climb here: its route and beta stay on this page, even after the gym resets it</span></span>${ic.arr('#111111')}</button></div>`;
+  return ws.map((w, k) => { const up = routesAt(gy).filter(i => ROUTES[i].wall === w && !ROUTES[i].offAt), fresh = up.filter(i => ROUTES[i].setAt && agoAt(ROUTES[i].setAt) <= 7);
+    const gs = [...new Set(up.map(i => ROUTES[i].grade))].sort((p, q) => gradeIdx(p) - gradeIdx(q));
+    return `<button class="gw" type="button" data-act="to" data-to="wall/${gy}-${k}">
+      <span class="gw-h"><b>${w}</b>${fresh.length ? `<em class="gw-new">New</em><span>${n(fresh.length, 'new route', 'new routes')}</span>` : `<span>${n(up.length, 'route', 'routes')}</span>`}<i aria-hidden="true">›</i></span>
+      ${gs.length ? `<span class="gw-c">${gs.map(g => `<span style="background:${gcol(g)}">${g} | ${up.filter(i => ROUTES[i].grade === g).length}</span>`).join('')}</span>` : ''}
+      <span class="gw-p"><img src="${wallPic(gy, w)}" alt=""></span></button>`; }).join('');
+}
+// one route in a wall's list: its number and grade colour, its holds, what climbers say, who topped it, and log it
+function wallRow(ri) {
+  const r = ROUTES[ri], tops = toppedBy(ri), b = betaVids(ri).length, said = saidOf(ri);
+  return `<div class="row wr${r.offAt ? ' off' : ''}"><button class="wr-m" type="button" data-act="to" data-to="route/${ri}">
+      <span class="wr-no"><b class="num">${r.no || ''}</b><i style="background:${gcol(r.grade)}"></i></span>
+      <span class="wr-i">${routeShot(ri, 'thumb')}</span>
+      <span class="row-t"><strong>${sw(r)}${rname(r)}</strong><span>${r.offAt ? `Taken down ${mday(agoAt(r.offAt))}` : said || `Gym grade ${r.grade}`}</span><span class="wr-n">${tops ? n(tops, 'climber topped it', 'climbers topped it') : r.offAt ? 'No one topped it' : '<em class="wr-first">No one has topped it. Be first</em>'}${b ? ` · Beta (${b})` : ''}${r.sample ? ' · Sample' : ''}</span></span></button>
+    ${r.offAt ? '' : `<button class="wr-go" type="button" data-act="rlog" data-r="${ri}" aria-label="Add a try on ${rname(r)}">${ic.add.replace('#FFFFFF', 'currentColor')}</button>`}</div>`;
+}
+function viewWall(a) {
+  const [gy, k] = String(a).split('-').map(Number), w = wallsAt(gy)[k];
+  if (!w) return lostClip();
+  const rs = routesAt(gy).filter(i => ROUTES[i].wall === w), up = rs.filter(i => !ROUTES[i].offAt).sort((p, q) => gradeIdx(ROUTES[p].grade) - gradeIdx(ROUTES[q].grade) || (ROUTES[p].no || 0) - (ROUTES[q].no || 0));
+  const gone = rs.filter(i => ROUTES[i].offAt).sort((p, q) => ROUTES[q].offAt - ROUTES[p].offAt);
+  return { html: `${bar(w)}<p class="sub-w">${gyms[gy].name} · ${n(up.length, 'route', 'routes')} on the wall · by grade</p>
+    <div class="wl-p"><img src="${wallPic(gy, w)}" alt=""></div>
+    ${up.length ? `<div class="rows wl">${up.map(wallRow).join('')}</div>` : '<p class="cap">None of the routes here is on the wall now.</p>'}
+    ${gone.length ? `<div class="sec"><h2>Taken down</h2><span class="sec-more">${gone.length}</span></div><div class="rows wl">${gone.map(wallRow).join('')}</div>` : ''}
+    ${rs.some(i => ROUTES[i].sample) ? '<p class="cap">Sample routes: their holds are real, found by colour in the photo, but no one has filmed them yet.</p>' : ''}
+    <p class="cap">Every route here stays, with its beta and videos, after the gym takes it down.</p>` };
+}
+/* A route's page, like the gym's route card: its holds outlined on the wall, where and when it was set, who topped it, its
+   beta (the videos, on their own page), whether it's still up, and log it */
 function viewRoute(a) {
   const i = +a, r = ROUTES[i];
   if (!r) return lostClip();
-  const peers = peersOn(i), mine = mineOn(i), last = lastOn(i), tops = peers.filter(x => x.top).length;
-  needTracks(peers);
+  const mine = mineOn(i), g = gyms[gyOf(r)], set = r.setAt ? agoAt(r.setAt) : Math.max(0, ...mine.map(agoOf)), tops = toppedBy(i), said = saidOf(i);
+  const bv = betaVids(i), B = betaOf(i), wk = wallsAt(gyOf(r)).indexOf(r.wall);
+  needTracks([betaFrom(i)].filter(Boolean));
+  const meTop = mine.some(topOf) || handOn(i).some(l => l.sent) || glTop(i), tries = mine.length + handOn(i).reduce((k, l) => k + l.tries, 0) + glogs.filter(x => x.ri === i).reduce((k, x) => k + (x.attempts || 1), 0);
+  // on the wall, or taken down: you say so when the gym resets it, and the route stays here with its beta and videos
+  const status = r.offAt ? `<div class="row rt-st off"><span class="row-t"><strong>Taken down ${mday(agoAt(r.offAt))}</strong><span>Its beta and every video on it stay at ${g.name}</span></span><button class="pj" type="button" data-act="ron" data-r="${i}">It’s back</button></div>`
+    : `<div class="row rt-st"><span class="row-t"><strong>On the wall</strong><span>${set ? `${n(set, 'day', 'days')} since it was set` : 'Set today'}</span></span><button class="pj" type="button" data-act="roff" data-r="${i}">Taken down?</button></div>`;
+  const beta = bv.length ? `<button class="row fr-p rt-b" type="button" data-act="rbeta" data-r="${i}"><span class="pl-avs">${[...new Set(bv.map(x => x.who))].slice(0, 3).map(w => `<i>${avatar(w)}</i>`).join('')}</span>
+      <span class="row-t"><strong>Beta (${bv.length})</strong><span>${B ? `${B.x.who === 'You' ? 'Your top' : `${B.x.who}’s top`}, move by move, and every video` : 'The videos of climbers who topped it'}</span></span>${ic.arr('#111111')}</button>`
+    : `<button class="row" type="button" data-act="film"><span class="row-t"><strong>No beta here yet</strong><span>Film yourself topping it and yours is the first</span></span>${ic.arr('#111111')}</button>`;
+  const you = tries ? `<button class="row" type="button" data-act="rbeta" data-r="${i}"><span class="row-t"><strong>${meTop ? 'You topped it' : 'Not topped yet'}</strong><span>${n(tries, 'try', 'tries')} · your videos are with the beta</span></span>${ic.arr('#111111')}</button>` : '';
   return { photo: r.img, cta: nextTryCta(i), html: `
     ${bar(rname(r))}
-    <div class="clip"><img src="${pic(r.img)}" alt=""><span class="shade"></span>
-      <span class="clip-l"><span class="pk-tag">${sw(r)}${rname(r)}</span><span>Top rope · ${r.wall} · ${gym.name}</span></span></div>
-    <div class="fold"></div>
-    <div class="hl2 dk2"><h2>Beta</h2></div>
-    <div class="rows">${betaRow(i)}</div>
-    ${gradeBlock(i, mine.some(topOf) || logs.some(l => l.ri === i && l.sent))}
+    <div class="cam sc9 rt-hero">${routeShot(i)}</div>
+    <div class="rt-card">
+      <p class="rt-at"><button type="button" data-act="to" data-to="wall/${gyOf(r)}-${wk}"><span>${g.name}</span> – <span>${r.wall}</span></button><span>Set ${mday(set)}</span></p>
+      <h1 class="rt-h"><span class="num">#${r.no || ''}</span> ${rname(r)}</h1>
+      <p class="rt-m"><span class="rt-ck" aria-hidden="true">✓</span>${n(tops, 'climber topped it', 'climbers topped it')}${said ? ` · ${said}` : ''}${r.sample ? ' · Sample route' : ''}</p>
+    </div>
+    ${r.offAt ? `<div class="rows rt-top">${status}</div>` : ''}
+    <div class="rows">${beta}${you}${r.offAt ? '' : status}</div>
+    ${feelBlock(i, meTop)}` };
+}
+// the beta, on its own page: whose top to read, the climb move by move on the wall, the video, your try against it, then
+// your videos and everyone else's on this route
+function viewBeta(a) {
+  const i = +a, r = ROUTES[i];
+  if (!r) return lostClip();
+  if (scanRi !== i) { scanRi = i; bstep = 0; betaV = null; }   // another route: its beta starts at the start
+  const peers = peersOn(i), mine = mineOn(i), last = lastOn(i), tops = peers.filter(x => x.top).length;
+  needTracks(peers);
+  const Bk = betaBlock(i), B = betaOf(i, betaV), tv = peers.filter(x => x.top);
+  const who = tv.length > 1 ? `<div class="fchips bw" role="group" aria-label="Whose beta">${tv.map(x => `<button type="button" data-act="bwho" data-v="${x.i}" aria-pressed="${!!B && B.x === x}">${x.who}</button>`).join('')}</div>` : '';
+  return { photo: r.img, cta: nextTryCta(i), html: `
+    ${bar(`Beta · ${rname(r)}`)}
+    ${who}
+    ${Bk ? Bk.top : `<div class="rows"><div class="row"><span class="row-t"><strong>No beta here yet</strong><span>When someone films a climb to the top, their moves show here hold by hold</span></span></div></div>`}
+    ${Bk ? `<div class="rows bsx-rows">${Bk.rows}</div>` : ''}
     <div class="sec"><h2>Your tries</h2>${mine.length ? `<span class="stg${mine.some(topOf) ? ' on' : ''}">${mine.some(topOf) ? 'Topped' : 'Not topped yet'}</span>` : ''}</div>
     ${mine.length ? `<div class="rgrid">${mine.slice().reverse().map(vcard).join('')}</div>`
       : '<div class="rows"><button class="row" type="button" data-act="film"><span class="row-t"><strong>Film a try</strong><span>Then watch it next to anyone below</span></span>' + ic.arr('#111111') + '</button></div>'}
-    <div class="sec"><h2>Climbers on it</h2><span class="sec-more">${tops} of ${peers.length} topped</span></div>
+    ${peers.length ? `<div class="sec"><h2>Climbers on it</h2><span class="sec-more">${tops} of ${peers.length} topped</span></div>
     <div class="rgrid">${peers.map(x => pcard(x, last)).join('')}</div>
-    <p class="cap"><span>${last ? `VS puts your latest try, try ${tryOf(last)}, next to theirs.` : 'Film or import a try on this route to compare it with theirs.'}</span> <span>Routes get reset: this one is on the wall as long as the gym keeps it.</span></p>` };
+    <p class="cap">${last ? `VS puts your latest try, try ${tryOf(last)}, next to theirs.` : 'Film or import a try on this route to compare it with theirs.'}</p>` : ''}` };
 }
 
 /* ---------- The gym ---------- */
+/* ---------- You at this gym: how many routes you've tried here, how many you topped, at which grades ----------
+   From everything you've recorded at the gym: your videos and hand logs on its routes (one route however many tries), and
+   every climb logged by grade. Routes get reset, so it counts the ones that are gone too. (Asked for after the interviews:
+   "how many routes and grades have I done here") */
+// the regular demo user's climbs on the sample days (SAMPLE_SES), one per climb that day: sample, like the days themselves
+const SAMPLE_GL = () => SAMPLE_SES.flatMap((s, j) => [...Array(s.climbs)].map((_, k) => {
+  const rope = s.kind === 'both' && k % 2 === 0, L = rope ? ['5.7', '5.8', '5.8', '5.9', '5.9', '5.10'] : s.gy === 0 ? ['V0', 'V1', 'V1', 'V2', 'V2', 'V3'] : ['V1', 'V2', 'V2', 'V3', 'V3', 'V4'];
+  // the top grade a project until the last two weeks, then sometimes topped; now and then one lower down not topped either
+  const i = (j * 7 + k * 13) % L.length, ago = keyAgo(s.d), sent = i === L.length - 1 ? ago <= 16 && Math.floor(k / 2) % 2 === 0 : (j + k) % 7 !== 0;
+  return { ago, gy: s.gy, g: L[i], k: sent ? 'Send' : 'Project' }; }));
+function gymClimbs(gy) {
+  const byRoute = new Map(), add = (ri, ago, sent) => { const o = byRoute.get(ri) || { ri, g: ROUTES[ri].grade, sent: false, ago: 99999 }; o.sent ||= sent; o.ago = Math.min(o.ago, ago); byRoute.set(ri, o); };
+  clips.filter(c => c.gy === gy).forEach(c => add(c.ri, agoOf(c), topOf(c)));
+  logs.filter(l => (l.tries || l.sent) && gyOf(ROUTES[l.ri]) === gy).forEach(l => add(l.ri, l.ago, l.sent));   // hand logs count at the route's gym
+  glogs.filter(x => x.ri != null && ROUTES[x.ri] && gyOf(ROUTES[x.ri]) === gy).forEach(x => add(x.ri, x.ago, gsent(x)));
+  const graded = [...glogs, ...SAMPLE_GL()].filter(x => x.gy === gy && x.ri == null).map(x => ({ g: x.g, sent: gsent(x), ago: x.ago }));
+  const days = new Set([...byRoute.values(), ...graded].map(x => x.ago).concat(clips.filter(c => c.gy === gy).map(agoOf), sesAll().filter(s => s.gy === gy).map(s => keyAgo(s.d))));
+  return { all: [...byRoute.values(), ...graded].map(x => ({ ...x, k: x.sent ? 'Send' : 'Project' })), days };
+}
+// you at this gym, at the top of its page: how many days and climbs, the routes you topped, and how much of each grade you
+// topped. Tap it for every climb here, in Videos (filtered to this gym). Nothing here yet: your home gym asks you to start
+function gymYou(gy) {
+  const { all, days } = gymClimbs(gy);
+  if (!all.length) return gy === 0 ? `<div class="rows gy-act"><button class="row hero" type="button" data-act="to" data-to="session"><span class="row-t"><strong>Climb here now</strong><span>Film a try or log one, with the session clock</span></span><span class="hero-go">Start</span></button></div>` : '';
+  const top = all.filter(x => x.sent), best = L => { const g = top.map(x => x.g).filter(g => L.includes(g)); return g.length ? L[Math.max(...g.map(x => L.indexOf(x)))] : null; };
+  const hard = [best(GR), best(VG)].filter(Boolean).join(' · ') || '—', last = Math.min(...days);
+  // routes get reset, so how much of a grade you've done is counted against what's on the wall now: one dot per route
+  // still up, in its colour, filled once you've topped it. Taken-down routes and climbs logged by grade only count above
+  const done = new Set(top.filter(x => x.ri != null).map(x => x.ri));
+  const up = routesAt(gy).filter(ri => !ROUTES[ri].offAt), upTop = up.filter(ri => done.has(ri)).length;
+  const set = [...VG, ...GR].map(g => [g, up.filter(ri => ROUTES[ri].grade === g)]).filter(([, q]) => q.length).map(([g, q]) => `<span class="gyu-gr"><b>${g}</b><span class="gyu-ds">${q.map(ri => { const r = ROUTES[ri]; return `<span class="gyu-d${done.has(ri) ? ' on' : ''}" style="--c:${r.hex}" title="${rname(r)}"></span>`; }).join('')}</span><span class="num">${q.filter(ri => done.has(ri)).length}/${q.length}</span></span>`).join('');
+  return `<button class="gyu" type="button" data-act="gyvids" data-gy="${gy}">
+    <span class="gyu-h"><b>You at ${gyms[gy].name}</b><span>${n(days.size, 'day', 'days')} · Last time ${dayLabel(last)}</span><i aria-hidden="true">›</i></span>
+    <span class="gyu-n"><span><b class="num">${all.length}</b><em>Climbs</em></span><span><b class="num">${top.length}</b><em>Topped</em></span><span><b class="num">${hard}</b><em>Hardest topped</em></span></span>
+    ${up.length ? `<span class="gyu-g"><em><span>On the wall now</span> · <span>You topped ${upTop}/${up.length}</span></em>${set}</span>` : ''}
+  </button>`;
+}
+// the climber whose top a route's beta is read from: Leo first, then anyone else who topped it
+const betaFrom = ri => { const ok = x => x.ri === ri && x.top; return V.find(x => x.who === 'Leo' && ok(x)) || V.find(x => x.who !== 'You' && ok(x)); };
+// the gym page below you at this gym: Beta and About, one at a time. It opens on Beta when the gym has routes, else on the
+// gym's info; the tab you pick stays while you're in the app
+const GYT = [['beta', 'Beta'], ['info', 'About']], gyTab = {};
+function gymTabs(gy, P) {
+  const ks = GYT.filter(([k]) => P[k]), t = P[gyTab[gy]] ? gyTab[gy] : routesAt(gy).length ? 'beta' : 'info';
+  return `<div class="fchips gytabs" role="tablist">${ks.map(([k, l]) => `<button type="button" role="tab" data-act="gytab" data-gy="${gy}" data-v="${k}" aria-pressed="${k === t}">${l}</button>`).join('')}</div>
+    ${ks.map(([k]) => `<div class="pn gy-pn" data-pn="${k}"${k === t ? '' : ' hidden'}>${P[k]}</div>`).join('')}`;
+}
+// a gym's notice (a closure, a holiday) at the top of its page, where you see it before you go
+const gymNotice = g => g.note ? `<div class="gy-note"><i aria-hidden="true">!</i><span>${g.note}</span></div>` : '';
 function viewGym(a) {
   if (+a > 0 && gyms[+a]) return viewOtherGym(+a);
   const op = gymOpen(gym), today = gym.hours[new Date().getDay()];
+  // top to bottom: is it open, what you can do here, how you're doing here, the routes to compare on, then the gym's details
   const pics = [gym.img, ...gym.pics];
   return { photo: 'gym-arc-3', html: `
     ${bar(gym.name)}
@@ -1901,11 +2179,9 @@ function viewGym(a) {
     <div class="fold"></div>
     <div class="gy-car" id="gycar">${pics.map(p => `<img src="${pic(p)}" alt="">`).join('')}</div>
     <div class="gy-dots" id="gydots">${pics.map((_, k) => `<i${k ? '' : ' class="on"'}></i>`).join('')}</div>
-    <div class="sec"><h2>Routes with videos</h2><span class="sec-more">rope wall</span></div>
-    <div class="rgrid">${ROUTES.map((r, i) => rcard(i)).join('')}</div>
-    <p class="cap">Only routes someone has filmed with Spotter. Routes get reset, so the wall may look different today.</p>
-    <div class="rows"><button class="row hero" type="button" data-act="to" data-to="session"><span class="row-t"><strong>Climb here now</strong><span>Film a try or log one, with the session clock</span></span><span class="hero-go">Start</span></button>
-      <button class="row" type="button" data-act="plan" data-g="0"><span class="row-t"><strong>Plan a session here</strong><span>Your friends see it and can join</span></span>${ic.arr('#111111')}</button></div>
+    ${gymNotice(gym)}
+    ${gymYou(0)}
+    ${gymTabs(0, { beta: gymRoutes(0), info: `
     <div class="gy-ab gy-wh">
       <div class="gy-ad">${ic.pin}<span><b>${gym.addr}</b><span>${gym.dist}</span></span><button class="gy-cp" type="button" data-act="gycopy" aria-label="Copy the address">Copy</button></div>
       <a class="gy-ad gy-web" href="https://${gym.src}" target="_blank" rel="noopener"><span><b>${gym.src}</b><span>Membership, belay class and hours</span></span><span aria-hidden="true">↗</span></a></div>
@@ -1913,8 +2189,8 @@ function viewGym(a) {
       <div class="gy-sh">Hours</div>
       ${weekHours(gym)}
       <div class="gy-sh">Here</div><div class="gy-has">${gym.has.map(h => `<span>${h}</span>`).join('')}</div>
-      <p class="cap"><span>${gym.note}</span> <span>From ${gym.src}, Nov 2026.</span></p></div>
-    ${gymGrading(gym)}`, after: carWire };
+      <p class="cap"><span>From ${gym.src}, Nov 2026.</span></p></div>
+    ${gymGrading(gym)}` })}`, after: carWire };
 }
 
 /* ---------- Community: every public video from this gym, one at a time ---------- */
@@ -2089,11 +2365,11 @@ function feedWire() {
   tok.onkeydown = e => { const k = { ArrowDown: 1, ArrowUp: -1 }[e.key]; if (k) { e.preventDefault(); goTo(feedAt + k); } };
 }
 function viewFriends(a) {
-  if (a === 'plan' || a === 'friends') return viewFriendsPlan();
+  if (!a || a === 'plan' || a === 'friends') return viewFriendsPlan();
   const mode = a === 'following' ? a : 'all';
   const entries = feedAll().map((post,i) => ({post,i})).filter(({post}) => mode === 'all' || (mode === 'following' ? follows.has(post.who) : invitedFriends.includes(post.who)));
   const top = `<div class="tok-top"><span class="tok-add-sp" aria-hidden="true"></span>${feedTabs(mode)}<button class="av sm" type="button" data-act="to" data-to="profile" aria-label="Your profile">${avatar('You')}</button></div>`;
-  const empty = `<div class="feed-empty"><strong>No videos from people you follow</strong><p>Follow climbers to see their videos here.</p><button type="button" data-act="to" data-to="friends">Explore videos</button></div>`;
+  const empty = `<div class="feed-empty"><strong>No videos from people you follow</strong><p>Follow climbers to see their videos here.</p><button type="button" data-act="to" data-to="friends/all">Explore videos</button></div>`;
   return { dark: true, tok: true, after: entries.length ? feedWire : undefined, html: `${top}${entries.length ? `<div class="tok" id="tok" tabindex="0"><div class="tok-in" id="tokin">${entries.map(({post,i}) => feedPost(post,i)).join('')}</div></div>` : empty}` };
 }
 
@@ -2212,36 +2488,34 @@ function termPane(k) {
 // what's on the video: every layer, what it shows
 const legendPane = () => pane(`<h2>What’s on the video</h2><div class="tm-l">${LAYERS.map(([k, l, d]) => [k === 'lock' ? 'armlock' : k, d]).filter(([k]) => TERMS[k]).map(([k, d]) => `<button type="button" class="tm-r" data-act="term" data-term="${k}">${lyrIcon(d)}<span><b>${TERMS[k].name}</b><span>${TERMS[k].what}</span></span></button>`).join('')}
   ${['high', 'lock', 'straight'].map(k => `<button type="button" class="tm-r" data-act="term" data-term="${k}"><i class="tm-tag">${TERMS[k].name}</i><span><span>${TERMS[k].what}</span></span></button>`).join('')}</div>`);
-// this climb's techniques: what you did (a picture, how often, what it is) and, folded, what you didn't, with how to try it
-function techCard(T) {
-  const st = styleOf(T), D = T.D;
-  const rows = STY.map(m => ({ m, r: st.R[m.id] })).filter(o => o.r.c >= 2);
-  const used = rows.filter(o => o.r.e > 0 && (o.m.id !== 'side' || o.r.runs)), not = rows.filter(o => !used.includes(o));
-  const howMany = o => o.m.id === 'side' ? n(o.r.runs, 'time', 'times') : o.m.id === 'foot' ? (o.r.e / o.r.c >= .6 ? 'Before most of your reaches' : o.r.e / o.r.c >= .3 ? 'Before about half your reaches' : 'Before a few of your reaches') : n(o.r.e, 'time', 'times');
-  if (!used.length && !not.length) return '';
-  return `<div class="hl2 dk2"><h2>Techniques in this climb</h2><button class="sub-lk tm-lg" type="button" data-act="legend">What’s on the video ›</button></div>
-    <div class="stack sty"><div class="lt">${used.length ? `<div class="sty-m">${used.sort((a, b) => b.r.e - a.r.e).map(o => `<div class="sty-r good">
-      ${o.r.ex ? `<button class="sty-i" type="button" ${clipNear(o.r.ex.t, D, o.r.ex.mark.length === 2 ? o.r.ex.mark : 'none')} aria-label="Watch ${mmss(o.r.ex.t)}"><img alt="" data-ft="${o.r.ex.t.toFixed(2)}" data-fm="${o.r.ex.mark}" data-tone="good"></button>` : ''}
-      <span class="sty-t"><button class="tm-n" type="button" data-act="term" data-term="${o.m.id}">${o.m.name}<i aria-hidden="true">?</i></button><em>${howMany(o)}</em><span class="sty-d">${o.m.what}</span></span></div>`).join('')}</div>` : '<p class="tip-d">None of the moves we look for showed up in this climb.</p>'}
-      ${not.length ? `<details class="lm"><summary>Not used this time · ${not.length}</summary>${not.map(o => `<div class="tm-no"><button class="tm-n" type="button" data-act="term" data-term="${o.m.id}">${o.m.name}<i aria-hidden="true">?</i></button><span class="sty-d">${o.m.tip}</span></div>`).join('')}</details>` : ''}
-      <p class="an-n">Tap a name to see what it means. Spotter reads these from your body in the video, so now and then it is wrong.</p></div></div>`;
+// Went well: the one thing Spotter liked most, then every technique you used, as a name you can tap. The sheet it opens says
+// what it is and shows your moment. The ones you didn't use are in Next time, as one new move to try
+function sumGood(T, c) {
+  const m = takeaway(T), st = styleOf(T);
+  const used = STY.map(x => ({ m: x, r: st.R[x.id] })).filter(o => o.r.c >= 2 && o.r.e > 0 && (o.m.id !== 'side' || o.r.runs)).sort((a, b) => b.r.e - a.r.e);
+  const howMany = o => o.m.id === 'side' ? n(o.r.runs, 'time', 'times') : o.m.id === 'foot' ? (o.r.e / o.r.c >= .6 ? 'Most reaches' : o.r.e / o.r.c >= .3 ? 'About half your reaches' : 'A few reaches') : n(o.r.e, 'time', 'times');
+  const lines = [topOf(c) ? `<li><b>You topped ${rname(ROUTES[c.ri])}</b></li>` : '', m.title === 'Good control' ? `<li><b>${m.title}</b>${m.why ? `<span>${m.why}</span>` : ''}</li>` : ''].join('');
+  if (!lines && !used.length) return '';
+  return `${sumHead('good', 'Went well', '')}<div class="stack"><div class="lt sg">${lines ? `<ul class="sg-l">${lines}</ul>` : ''}
+    ${used.length ? `<p class="sg-k">Techniques you used</p><div class="sg-c">${used.map(o => `<button class="sg-t" type="button" data-act="term" data-term="${o.m.id}"><b>${o.m.name}</b><em>${howMany(o)}</em></button>`).join('')}</div>
+    <p class="an-n">Tap one to see what it is and your moment. Spotter reads these from the video, so now and then it is wrong.</p>` : ''}</div></div>`;
 }
-// Next session: three things to take to the gym, each one you can act on. What to change first (its first step), a move you
-// didn't use this climb (how, and a coaching video), and a goal on this route: past where you stopped, or the next grade up
+// the three parts of Summary, each with its own mark, so you can tell where you are when you scroll
+const sumHead = (k, t, sub) => `<div class="hl2 dk2 sh"><h2><i class="sh-k ${k}" aria-hidden="true">${{ good: '✓', fix: '!', next: '→' }[k]}</i>${t}</h2>${sub ? `<span class="hint2">${sub}</span>` : ''}</div>`;
+// Next time: what to take to the gym. A move you didn't use this climb (how, and a coaching video), and a goal on this route:
+// past where you stopped, or the next grade up. What to change first is To work on, right above, so it isn't repeated here
 function nextPlan(T, c, F) {
-  const m = takeaway(T), it = heroSpot(m, F), R = styleOf(T).R, r = ROUTES[c.ri], items = [];
-  if (it) items.push({ k: m.title === 'Good control' ? 'Fine-tune' : 'Change this first', h: m.title === 'Good control' ? 'One spot to try' : m.title, d: it.steps[0].replace(' (right picture)', ''),
-    act: clipAt(it.ab[0], it.ab[1], it.mark.startsWith('reach') ? it.mark.split(':')[1] : it.mark, it.t), btn: `Watch ${mmss(it.t)}` });
+  const R = styleOf(T).R, r = ROUTES[c.ri], items = [];
   const tid = ['high', 'side', 'drop', 'cross', 'rest', 'match', 'lock'].find(id => R[id]?.c >= 2 && !R[id].e);
   if (tid) { const x = STY.find(y => y.id === tid); items.push({ k: 'Try a new move', h: x.name, term: tid, d: x.tip, q: x.q }); }
   if (!topOf(c)) { const k = stuckAt(T, false);
     items.push({ k: 'Your goal on this route', h: k ? `Get past ${mmss(k.s.t)}` : 'Reach the top', d: k ? 'That’s where you stopped. Shake out before it, then climb that part feet first.' : 'Climb it to the top, resting on straight arms on the way.',
       act: k ? clipNear(k.s.t, T.D, 'none') : '', btn: k ? `Watch ${mmss(k.s.t)}` : '' }); }
-  else { const L = GR.includes(r.grade) ? GR : VG, nx = ROUTES.map((x, i) => ({ x, i })).filter(o => L.indexOf(o.x.grade) > L.indexOf(r.grade)).sort((a, b) => L.indexOf(a.x.grade) - L.indexOf(b.x.grade))[0];
+  else { const L = GR.includes(r.grade) ? GR : VG, nx = ROUTES.map((x, i) => ({ x, i })).filter(o => gyOf(o.x) === gyOf(r) && !o.x.offAt && L.indexOf(o.x.grade) > L.indexOf(r.grade)).sort((a, b) => L.indexOf(a.x.grade) - L.indexOf(b.x.grade))[0];
     items.push({ k: 'Your next goal', h: nx ? `Go for ${rname(nx.x)}` : 'Climb it again, smoother', d: nx ? `You topped ${rname(r)}. This is the next grade up.` : 'Fewer stops, and every reach feet first.',
       act: nx ? `data-act="to" data-to="route/${nx.i}"` : '', btn: nx ? 'See the route' : '' }); }
   if (!items.length) return '';
-  return `<div class="hl2 dk2"><h2>Next session</h2></div><div class="stack"><div class="lt nxp">${items.map((x, i) => `<div class="nxp-i"><b class="nxp-n num">${i + 1}</b><span class="nxp-t"><em>${x.k}</em>
+  return `${sumHead('next', 'Next time', '')}<div class="stack"><div class="lt nxp">${items.map((x, i) => `<div class="nxp-i"><b class="nxp-n num">${i + 1}</b><span class="nxp-t"><em>${x.k}</em>
     <strong>${x.term ? `<button class="tm-n" type="button" data-act="term" data-term="${x.term}">${x.h}<i aria-hidden="true">?</i></button>` : x.h}</strong><span class="nxp-d">${x.d}</span>
     ${x.act || x.q ? `<span class="nxp-a">${x.act ? `<button class="nxp-b" type="button" ${x.act}>${x.btn} ›</button>` : ''}${x.q ? coachLink(x.q) : ''}</span>` : ''}</span></div>`).join('')}</div></div>`;
 }
@@ -2327,6 +2601,7 @@ function viewProfile() {
     <div class="fold"></div>
     ${prog ? `<div class="sec"><h2>Your routes</h2></div><div class="rgrid">${ROUTES.map((r, i) => i).filter(i => mineOn(i).length).map(rcard).join('')}</div>` : ''}
     ${styleCard()}
+    ${gearSection()}
     <div class="sec"><h2>Logbook</h2><button class="sec-more" type="button" data-act="to" data-to="session">${session === 'live' ? 'Open the session' : 'Start a session'}</button></div>
     ${logbook()}
     <div class="stack">
@@ -2644,15 +2919,18 @@ function viewGyms() {
   return { bare: true, map: true, html: '', overlay: `<div class="gmap" id="gmap">${window.L ? '' : '<p class="gm-off">The map needs an internet connection. The list works without one.</p>'}</div>
     <div class="gm-top" id="gmtop">${top}</div><div class="gm-bot" id="gmcard" data-count="${count}">${gymPinCard(count)}</div>`, after: () => drawGymMap(near) };
 }
-// one gym that isn't ARC: only what the gym itself publishes
+// one gym that isn't ARC: what the gym itself publishes, and the routes filmed there
 function viewOtherGym(i) {
-  const g = gyms[i], op = gymOpen(g), today = g.hours?.[new Date().getDay()], pics = [g.img, ...g.pics].filter(Boolean), price = g.pass ? g.pass.split(' · ')[0] : '';
+  const g = gyms[i], op = gymOpen(g), today = g.hours?.[new Date().getDay()], pics = [g.img, ...(g.pics || [])].filter(Boolean), price = g.pass ? g.pass.split(' · ')[0] : '';
   return { html: `
     ${bar(g.name)}
     ${pics.length ? `<div class="gy-car" id="gycar">${pics.map(p => `<img src="${pic(p)}" alt="">`).join('')}</div>` : `<div class="gy-noimg">${ic.pin}<b>${g.name}</b><span>${g.addr}</span></div>`}
     ${pics.length > 1 ? `<div class="gy-dots" id="gydots">${pics.map((_, k) => `<i${k ? '' : ' class="on"'}></i>`).join('')}</div>` : ''}
     <div class="gy-2"><div class="gy-t"><span class="${op.open ? 'on' : 'off'}">${op.unknown ? 'Hours' : op.open ? 'Open now' : 'Closed now'}</span><b class="num">${op.unknown ? 'On their site' : today ? `${clock(today[0])} – ${clock(today[1])}` : 'Closed today'}</b></div>
       <div class="gy-t"><span>Day pass</span><b>${price || 'On their site'}</b></div></div>
+    ${gymNotice(g)}
+    ${gymYou(i)}
+    ${gymTabs(i, { beta: gymRoutes(i), info: `
     <div class="gy-ab gy-wh">
       <div class="gy-ad">${ic.pin}<span><b>${g.addr}</b><button class="gy-lk" type="button" data-act="gymaps" data-i="${i}">Directions · ${g.dist} ↗</button></span>
         <button class="gy-cp" type="button" data-act="gycopy" data-i="${i}" aria-label="Copy the address">Copy</button></div>
@@ -2663,9 +2941,8 @@ function viewOtherGym(i) {
       ${g.has.length ? `<div class="gy-sh">Here</div><div class="gy-has">${g.has.map(h => `<span>${h}</span>`).join('')}</div>` : ''}
       <p class="cap">${i < 5 ? `From ${g.src}, Nov 2026.` : `From ${g.src} and OpenStreetMap, Nov 2026. Check with the gym before you go.`}</p></div>
     ${gymGrading(g)}
-    <div class="rows"><div class="row"><span class="row-t"><strong>No videos from here yet</strong><span>Spotter’s routes and side by sides are at ${gym.name} for now.</span></span></div></div>
     <a class="b-lime gy-cta" href="https://${g.src}" target="_blank" rel="noopener">${price ? `Buy a day pass · ${price}` : 'Buy a day pass'} <span aria-hidden="true">↗</span></a>
-    <p class="gy-cta-n">On ${g.src.replace(/\/.*$/, '')}, the gym’s own site</p>`, after: carWire };
+    <p class="gy-cta-n">On ${g.src.replace(/\/.*$/, '')}, the gym’s own site</p>` })}`, after: carWire };
 }
 function carWire() {
   const car = $('gycar'), dots = $('gydots'); if (!car || !dots) return;
@@ -2720,7 +2997,9 @@ const BDIR = ['right', 'up and right', 'up', 'up and left', 'left', 'down and le
 const betaOf = (ri, vi = null) => {
   const ask = vi != null ? V[vi] : null, ok = x => x && x.ri === ri && x.top && TRK[x.vid];
   const x = ok(ask) ? ask : [V.find(q => q.who === 'Leo' && q.ri === ri), ...V.filter(q => q.who !== 'You' && q.ri === ri)].find(ok);
-  return x ? { x, ask, T: TRK[x.vid], ...stepsOf(TRK[x.vid]) } : null; };
+  if (x) return { x, ask, T: TRK[x.vid], ...stepsOf(TRK[x.vid]) };
+  const own = clips.filter(c => c.ri === ri && c.track && topOf(c)).pop();
+  return own ? { x: V[own.v], ask, T: own.track, ...stepsOf(own.track) } : null; };
 const handWord = { lw: 'Left hand', rw: 'Right hand' };
 const moveSay = q => q.match ? `${handWord[q.hand]} matches the other hand` : `${handWord[q.hand]}: ${q.size ? q.size + ' ' : ''}reach ${q.dir}`;
 // a route's own holds, found in the photo by their colour: the video's first frame (the wall before the climber covers it),
@@ -2752,7 +3031,7 @@ function needHolds(img, color) {
     .catch(() => { HOLDS[key] = []; }).then(() => { if (page === at[0] && arg === at[1]) render(); });
   return []; }
 // the beta opened from a route or from your analysis: no camera, so no Retake
-let betaOnly = false, betaV = null;
+let betaV = null;
 // Find beta, with the real camera: photograph the wall, tap a hold of your route. Its colour says which route it is, and every
 // hold of that colour lights up on your photo. Then the route's beta, as the climber who topped it climbed it
 let scanStream = null, scanAsk = false, scanErr = '', scanCv = null, scanURL = '', scanPick = null, scanFound = [];
@@ -2840,12 +3119,11 @@ function viewScanCam() {
     <div class="scan-res" role="status"><strong>${say[0]}</strong><span>${say[1]}</span>${chips}
       <div class="scan-acts"><button class="b-ghost" type="button" data-act="scanretake">Retake</button>${r ? `<button class="b-lime" type="button" data-act="scango">See the beta</button>` : ''}</div></div>` };
 }
-function viewScan() {
-  needTracks(V.filter(q => q.ri === scanRi));
-  const r = ROUTES[scanRi], B = betaOf(scanRi, betaV), corners = '<path d="M24 80V24h56M460 24h56v56M516 880v56h-56M80 936H24v-56" fill="none" stroke="#FFFFFF" stroke-width="3"/>';
-  needTracks(V.filter(q => q.who === 'Leo'));
-  if (!scanShot) return viewScanCam();
-  if (!B) return { html: `${bar('Find beta')}<div class="scan-unavailable"><h1>Beta isn’t available yet</h1><p>We couldn’t load a recorded climb for this route.</p><button class="b-lime" type="button" data-act="rescan">Choose another route</button></div>` };
+// the beta at the top of a route's page: the wall photo with the route's holds, and the climb move by move (bstep). Below it,
+// the video it was read from and your own try against it. null while no one has a top on video (or it's still loading)
+function betaBlock(ri) {
+  const r = ROUTES[ri], B = betaOf(ri, betaV);
+  if (!B) return null;
   const N = B.steps.length - 1, st = B.steps[bstep], prev = B.steps[Math.max(0, bstep - 1)], pt = q => `${q[0].toFixed(0)} ${q[1].toFixed(0)}`;
   const hn = { lw: 'Left hand', rw: 'Right hand', B: 'Both hands' }, fn = { la: 'left foot', ra: 'right foot' };
   // the photo zooms to the climb: the box around every hand position, padded, kept at the frame's 9:16. Marks are sized for the
@@ -2871,37 +3149,38 @@ function viewScan() {
     </svg>`;
   const feet = st.feet.map(q => fn[q.k]).filter((f, i, l) => f !== l[i - 1]), who = B.x.who === 'You' ? 'you' : B.x.who, whose = B.x.who === 'You' ? 'your' : `${B.x.who}’s`;
   const title = bstep ? moveSay(st) : 'Start: both hands on';
-  const how = !bstep ? `Left hand on L, right hand on R: the first holds ${who} grabbed. The dashed circles are this route’s ${r.color.toLowerCase()} holds.`
-    : `${feet.length > 2 ? `Walk your feet up first: ${n(st.feet.length, 'step', 'steps')}, the white squares. ` : feet.length ? `${feet.join(', then ').replace(/^./, c => c.toUpperCase())} first (the white ${feet.length > 1 ? 'squares' : 'square'}). ` : 'Feet stay where they are. '}${st.match ? 'Then bring this hand onto the hold the other one is on.' : st.size === 'long' ? 'Then reach: one of the longest moves on this climb.' : st.size === 'short' ? 'Then a short move to the next hold.' : 'Then reach for the next hold.'}`;
+  // one sentence per span, so each reads as a whole in either language
+  const how = !bstep ? `<span>Left hand on L, right hand on R: the first holds ${who} grabbed.</span> <span>The dashed circles are this route’s holds.</span>`
+    : `<span>${feet.length > 2 ? `Walk your feet up first: ${n(st.feet.length, 'step', 'steps')}, the white squares.` : feet.length ? `${feet.join(', then ').replace(/^./, c => c.toUpperCase())} first (the white ${feet.length > 1 ? 'squares' : 'square'}).` : 'Feet stay where they are.'}</span> <span>${st.match ? 'Then bring this hand onto the hold the other one is on.' : st.size === 'long' ? 'Then reach: one of the longest moves on this climb.' : st.size === 'short' ? 'Then a short move to the next hold.' : 'Then reach for the next hold.'}</span>`;
   const hands = N, foots = B.feet;
   // the beta came from somewhere else than the video you opened it from: say why
   const swap = B.ask && B.ask !== B.x ? `<p class="beta-caveat">${B.ask.who === 'You' ? 'You' : B.ask.who} didn’t top it on that video, so this is ${whose} send.</p>` : '';
   // your own try on this route, read the same way: how many moves, and the first one that went another way
-  const myT = B.x.who === 'You' ? null : V.filter(q => q.who === 'You' && q.ri === scanRi).map(q => TRK[q.vid]).filter(Boolean).pop();
+  const myT = B.x.who === 'You' ? null : V.filter(q => q.who === 'You' && q.ri === ri).map(q => TRK[q.vid]).filter(Boolean).pop();
   // matches are compared out: the reaches between holds are what makes a line, so the first reach that differs is where you split
   const mine = myT && stepsOf(myT).steps, reach = s => s.map((q, i) => [q, i]).filter(([q, i]) => i && !q.match);
   const mR = mine && reach(mine), bR = reach(B.steps), k = mR ? mR.findIndex(([q], j) => bR[j] && (q.hand !== bR[j][0].hand || q.dir !== bR[j][0].dir)) : -1;
   const diff = k >= 0 && k < bR.length ? bR[k][1] : -1, myDiff = k >= 0 ? mR[k][0] : null;
   // your try as a row like the others: how many moves against this beta, and a tap goes straight to where you split
   const vsYou = mine ? `<button class="row" type="button" data-act="bgo" data-s="${diff > 0 ? diff : 0}"><span class="row-t"><strong>Your try: ${n(mine.length - 1, 'move', 'moves')}, ${who === 'you' ? 'this one' : who} ${N}</strong><span>${diff > 0 ? `You split at move ${diff}. Show it` : mine.length - 1 > N ? 'Same line, with extra moves' : 'Same line'}</span></span>${ic.arr('#111111')}</button>` : '';
-  const vsLine = myDiff && diff > 0 ? `<p class="bsx-you">Here you split: your ${moveSay(myDiff).toLowerCase().replace(':', ' went').replace('reach ', '')}; ${who === 'you' ? 'you' : who}’s ${moveSay(B.steps[diff]).toLowerCase().replace(':', ' went').replace('reach ', '')}.</p>` : '';
-  return { html: `
-    ${bar(`Movement reference · ${rname(r)}`)}${swap}
+  const vsLine = myDiff && diff > 0 ? `<p class="bsx-you"><b>Here you went another way.</b> <span>You</span>: <span>${moveSay(myDiff)}</span>. <span>${B.x.who}</span>: <span>${moveSay(B.steps[diff])}</span>.</p>` : '';
+  return { top: `${swap}
     <div class="cam sc9">
       ${svg}
-      <span class="pk-tag scan-tag">${sw(r)}${rname(r)} · ${hands} hand, ${foots} foot moves</span>
+      <span class="pk-tag scan-tag">${sw(r)}<span>${rname(r)}</span> · <span>${hands} hand, ${foots} foot moves</span></span>
     </div>
     <section class="bsx">
       <div class="bsx-h"><span>${bstep ? `Move ${bstep} <em>/ ${N}</em>` : 'Before you start'}</span>
         <span class="bsx-ctl"><button type="button" data-act="bstep" data-d="-1" aria-label="Previous move"${bstep ? '' : ' disabled'}>‹</button><button type="button" data-act="bstep" data-d="1" aria-label="Next move"${bstep < N ? '' : ' disabled'}>›</button></span></div>
       <div class="bsx-prog">${B.steps.map((_, i) => `<button type="button" data-act="bgo" data-s="${i}" aria-label="${i ? `Move ${i}` : 'Start'}"${i === bstep ? ' class="on"' : i < bstep ? ' class="done"' : ''}></button>`).join('')}</div>
       <p class="bsx-t">${title}</p><p class="bsx-d">${how}</p>${bstep === diff ? vsLine : ''}
-    </section>
-    <div class="rows bsx-rows">
-      <button class="row fr-p" type="button" data-act="fwatch" data-v="${B.x.i}"><span class="fr-f">${avatar(B.x.who)}</span><span class="row-t"><strong>${B.x.who === 'You' ? 'This is how you climbed it' : `This is how ${B.x.who} climbed it`}</strong><span>Topped in ${mmss(climbS(B.T))} · read from the video. Watch it</span></span>${ic.arr('#111111')}</button>${vsYou}
-      <button class="row" type="button" data-act="to" data-to="route/${scanRi}"><span class="row-t"><strong>Other climbers on ${rname(r)}</strong><span>${n(peersOn(scanRi).length, 'video', 'videos')} · your own way may differ</span></span>${ic.arr('#111111')}</button>
-    </div><div class="sc-end"></div>`,
-    cta: betaOnly ? `<button class="b-lime" type="button" data-act="film">${ic.rec}Film a try on it</button>` : `<button class="b-ghost" type="button" data-act="rescan">Choose another</button><button class="b-lime" type="button" data-act="film">${ic.rec}Film a try on it</button>` };
+    </section>`,
+    rows: `<button class="row fr-p" type="button" data-act="fwatch" data-v="${B.x.i}"><span class="fr-f">${avatar(B.x.who)}</span><span class="row-t"><strong>${B.x.who === 'You' ? 'This is how you climbed it' : `This is how ${B.x.who} climbed it`}</strong><span>Topped in ${mmss(climbS(B.T))} · read from the video. Watch it</span></span>${ic.arr('#111111')}</button>${vsYou}` };
+}
+// the scan camera: photograph a wall, tap your route's hold, and its page opens with the beta
+function viewScan() {
+  needTracks(V.filter(q => q.who === 'Leo'));
+  return viewScanCam();
 }
 
 /* ---------- Logging by hand and the session clock ---------- */
@@ -2958,19 +3237,28 @@ function openClock() {
 // "+" opens a bottom sheet styled after the sign-in popup in the team's references: a lime starburst badge with the
 // mascot over its top edge, a lime wash behind the title, one row per way to add a try (sticker icon, what it is,
 // a round go button), and a round × in the corner
-function openAdd() {
+let addRi = null;   // the route the sheet was opened on: film, import and log go to it
+function openAdd(ri = null) {
+  addRi = ri; const r = ri != null ? ROUTES[ri] : null;
   const v = nextRoll(), go = '<b class="add-go" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg></b>';
   // one big tile for the way you'd most likely add a try (Film; Import once the sample tries are all filmed),
   // then three small tiles under it. A way you can't use right now sits in the small row, greyed, saying why.
-  const opts = [
+  // on a route: the same three ways in, filled in with it (Log by hand opens the usual flow at "How did it go?")
+  const opts = r ? [
+    { act: `data-act="film" data-ri="${ri}"`, k: 'k-lime', icon: ic.rec, t: 'Film', d: 'With your phone’s camera', tag: 'Best' },
+    { act: `data-act="upload" data-ri="${ri}"`, k: 'k-orange', icon: ic.up, t: 'Import', d: 'A video from your camera roll' },
+    { act: `data-act="glroute" data-ri="${ri}"`, k: 'k-white', icon: ic.pen, t: 'Log by hand', d: 'No video needed' }] : [
     { act: 'data-act="film"', k: 'k-lime', icon: ic.rec, t: 'Film', d: 'With your phone’s camera', tag: 'Best' },
     { act: 'data-act="upload"', k: 'k-orange', icon: ic.up, t: 'Import', d: 'A video from your camera roll' },
     { act: 'data-act="to" data-to="session"', k: 'k-white', icon: ic.pen, t: 'Log by hand', d: 'No video needed' },
-    { act: 'data-act="scan"', k: 'k-ink', icon: ic.scan, t: 'Scan a wall', d: 'See a route\'s beta', tag: 'New' }];
+    { act: 'data-act="scan"', k: 'k-ink', icon: ic.scan, t: 'Scan a wall', d: 'See a route\'s beta', tag: 'New' },
+    // check in at the gym without filming or logging every climb (interview 2): the day still counts for friends and gear
+    session === 'live' ? { act: 'data-act="lgend"', k: 'k-white', icon: SES_IC, t: 'End session', d: `Climbing now · ${clk(sesSecs())}` }
+      : { act: 'data-act="sesgo"', k: 'k-white', icon: SES_IC, t: 'Start a session', d: 'Just the time. Counts for your gear' }];
   // a plain action sheet: title, then one row per way in. The first available one is lime; one that is off stays, greyed.
   const chev = '<svg class="ax-c" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>';
   const first = opts.find(o => !o.off);
-  pane(`<div class="ax"><h2 class="ax-h">Add a try</h2>
+  pane(`<div class="ax"><h2 class="ax-h">Add a try</h2>${r ? `<p class="ax-on">${sw(r)}<b>${rname(r)}</b><span>${gyms[gyOf(r)].name} · ${r.wall}</span></p>` : ''}
     <div class="ax-l">${[...opts.filter(o => !o.off), ...opts.filter(o => o.off)].map(o => `<button class="ax-r${o === first ? ' ax-1' : ''}" type="button" ${o.off ? 'disabled' : o.act}>
       <i class="ax-i ${o.k}">${o.icon}</i><span class="ax-t"><strong>${o.t}${o.tag && !o.off ? `<em>${o.tag}</em>` : ''}</strong><span>${o.d}</span></span>${o.off ? '' : chev}</button>`).join('')}</div>
     </div>`);
@@ -2987,7 +3275,7 @@ function loadGradeLogs() {
     const saved = JSON.parse(localStorage.getItem('spotter-grade-logs') || '[]');
     if (!Array.isArray(saved)) return;
     const now = new Date(), today = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
-    saved.forEach(x => { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(x.date || ''); if (!m || !gyms[x.gy] || !['Flash','Send','Project'].includes(x.k) || ![...GR,...VG].includes(x.g)) return; const ago = Math.floor((today - Date.UTC(+m[1], +m[2]-1, +m[3])) / 86400000); if (ago >= 0) glogs.push({ago,gy:x.gy,ty:x.ty,g:x.g,k:x.k,color:typeof x.color === 'string' && Object.hasOwn(HOLD_COLORS,x.color) ? x.color : '',attempts:Math.max(1, Math.min(99, +x.attempts || 1))}); });
+    saved.forEach(x => { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(x.date || ''); if (!m || !gyms[x.gy] || !['Flash','Send','Project'].includes(x.k) || ![...GR,...VG].includes(x.g)) return; const ago = Math.floor((today - Date.UTC(+m[1], +m[2]-1, +m[3])) / 86400000); if (ago >= 0) glogs.push({ago,gy:x.gy,ty:x.ty,g:x.g,k:x.k,color:typeof x.color === 'string' && Object.hasOwn(HOLD_COLORS,x.color) ? x.color : '',attempts:Math.max(1, Math.min(99, +x.attempts || 1)),...(Number.isInteger(x.ri) && ROUTES[shiftRi(x.ri)] ? {ri:shiftRi(x.ri)} : {})}); });
   } catch (_) { /* Keep the log usable if browser storage is unavailable. */ }
 }
 function saveGradeLogs() { try { localStorage.setItem('spotter-grade-logs', JSON.stringify(glogs.map(x => ({...x, date: logDateKey(dateOf(x.ago))})))); return true; } catch (_) { return false; } }
@@ -3008,6 +3296,7 @@ function todayGym() {
 function setTodayGym(i) { try { localStorage.setItem(TODAY_GYM_KEY, JSON.stringify({ i, d: new Date().toDateString() })); } catch {} }
 let glGym = null, glTy = 'Top rope', glOpen = false, glHit = null, glGrade = null, glResult = null, glStep = 0, glAttempts = 1, glColor = '';
 let glLocation = 'idle', glPosition = null, glGymChosen = false;
+let glRi = null;   // logging a route you opened (its gym, kind, grade and colour are known): the flow starts at "How did it go?"
 // where each grade's rock sits, in a 340 × 460 box: x, y, width and height radius
 const GB = { '5.12+': [128, 62, 88, 46], '5.11': [252, 150, 64, 60], '5.10': [90, 172, 64, 68], '5.9': [222, 266, 74, 58], '5.8': [88, 306, 64, 58], '5.7': [240, 374, 64, 50], '5.6': [112, 406, 58, 44],
   'V8+': [130, 58, 86, 42], V7: [252, 128, 62, 52], V6: [82, 148, 60, 54], V5: [190, 216, 64, 50], V4: [68, 264, 56, 52], V3: [262, 284, 58, 52], V2: [150, 334, 60, 46], V1: [62, 396, 52, 44], V0: [232, 398, 64, 46] };
@@ -3021,7 +3310,7 @@ const rock = (cx, cy, rx, ry, sd) => { const P = [...Array(7)].map((_, k) => { c
 const gbars = xs => { const bd = [...VG, ...GR].map(g => [g, xs.filter(x => x.g === g)]).filter(([, q]) => q.length), mx = Math.max(1, ...bd.map(([, q]) => q.length));
   return bd.map(([g, q]) => { const t = q.filter(gsent).length; return `<div class="gl-b"><b>${g}</b><span class="gl-bar"><i class="s" style="width:${t / mx * 100}%"></i><i style="width:${(q.length - t) / mx * 100}%"></i></span><b class="num">${q.length}</b></div>`; }).join(''); };
 function glAdd(g, k) {
-  glogs.push({ ago: 0, gy: glGym, ty: glTy, g, k, color: glColor, attempts: glAttempts }); glHit = g; render(); toast(`${g} · ${KL[k]}`);
+  glogs.push({ ago: 0, gy: glGym, ty: glTy, g, k, color: glColor, attempts: glAttempts, ...(glRi != null ? { ri: glRi } : {}) }); glHit = g; render(); toast(`${g} · ${KL[k]}`);
   setTimeout(() => { glHit = null; document.querySelector('.gb.hit')?.classList.remove('hit'); }, 450);
 }
 function glDistance(lat1, lon1, lat2, lon2) {
@@ -3058,7 +3347,8 @@ function viewSession() {
   const wall = `<div class="gl-map"><svg viewBox="0 0 340 460" aria-label="Choose a climbing grade"><defs><pattern id="gldot" width="34" height="34" patternUnits="userSpaceOnUse"><circle cx="17" cy="17" r="1.6" fill="rgba(17,17,17,.12)"/></pattern></defs><rect width="340" height="460" fill="url(#gldot)"/>${PEB.map(([x,y,rx,ry],i) => `<path class="peb" d="${rock(x,y,rx,ry,i*2.1+1)}"/>`).join('')}${grades.slice().reverse().map((g,i) => { const [x,y,rx,ry] = GB[g]; return `<g class="gb${glGrade === g ? ' selected' : ''}" data-g="${g}" role="button" tabindex="0" aria-label="${g}" aria-pressed="${glGrade === g}"><path d="${rock(x,y,rx,ry,i*1.7+.4)}"/><text x="${x}" y="${y+11}">${g}</text></g>`; }).join('')}</svg></div>`;
   const list = glogs.map((x,i) => [x,i]).filter(([x]) => x.ago === 0).reverse().map(([x,i]) => `<div class="log-entry"><div class="log-entry-main"><span class="log-entry-grade">${x.g}</span><span><strong>${x.ty}</strong><small>${gyms[x.gy].name}</small></span><button type="button" data-act="gldel" data-i="${i}" aria-label="Remove ${x.g}">×</button></div><div class="log-entry-results" aria-label="Change result">${['Flash','Send','Project'].map(k => `<button type="button" data-act="glk" data-i="${i}" data-k="${k}" aria-pressed="${x.k === k}">${KL[k]}</button>`).join('')}</div></div>`).join('');
   const first = `<div class="log-step-title"><h1>Pick your climb<span>✦</span></h1></div><button class="rock-gym" type="button" data-act="glgym">${ic.pin}<span>${G ? G.name + (!glGymChosen && glPosition ? ' · estimated' : '') : glLocation === 'loading' ? 'Finding your gym…' : 'Choose a gym'}</span><b>⌄</b></button><div class="rock-types">${tys.map(r => `<button type="button" data-act="glrope" data-v="${r}" aria-pressed="${glTy === r}">${r}</button>`).join('')}</div><div class="rock-wall">${wall}<p>${glGrade ? `<b>${glGrade}</b> selected` : 'Tap a hold to select your grade'}</p></div>`;
-  const second = `<div class="log-step-title"><h1>How did it go?<span>✦</span></h1></div><div class="log-climb-summary"><span class="log-entry-grade">${glGrade || ''}</span><div><strong>${glTy}</strong><small>${G?.name || ''}</small></div><button type="button" data-act="glback">Edit</button></div><button class="manual-color" type="button" data-act="glcolor"><span>${glColor ? `<i style="--hold:${HOLD_COLORS[glColor]}"></i>${glColor}` : 'Choose hold colour'}</span><b>⌄</b></button><div class="log-outcomes">${[['Flash','Finished on your first try','✦'],['Send','Finished after more than one try','✓'],['Project','Still working on it','↗']].map(([k,desc,icon]) => `<button type="button" data-act="glresult" data-k="${k}" aria-pressed="${glResult === k}"><span class="log-outcome-icon">${icon}</span><span><strong>${KL[k]}</strong><small>${desc}</small></span><i aria-hidden="true">${glResult === k ? '✓' : ''}</i></button>`).join('')}</div><div class="log-attempts"><span><strong>Attempts</strong><small>How many tries for this climb?</small></span><button type="button" data-act="glattempt" data-d="-1" aria-label="Fewer attempts">−</button><b>${glAttempts}</b><button type="button" data-act="glattempt" data-d="1" aria-label="More attempts">＋</button></div>`;
+  const R = glRi != null ? ROUTES[glRi] : null;
+  const second = `<div class="log-step-title"><h1>How did it go?<span>✦</span></h1></div>${R ? `<div class="log-climb-summary"><span class="log-entry-grade">${R.grade}</span><div><strong>${sw(R)}${rname(R)}</strong><small><span>${G?.name || ''}</span> · <span>${R.wall}</span></small></div></div>` : `<div class="log-climb-summary"><span class="log-entry-grade">${glGrade || ''}</span><div><strong>${glTy}</strong><small>${G?.name || ''}</small></div><button type="button" data-act="glback">Edit</button></div><button class="manual-color" type="button" data-act="glcolor"><span>${glColor ? `<i style="--hold:${HOLD_COLORS[glColor]}"></i>${glColor}` : 'Choose hold colour'}</span><b>⌄</b></button>`}<div class="log-outcomes">${[['Flash','Finished on your first try','✦'],['Send','Finished after more than one try','✓'],['Project','Still working on it','↗']].map(([k,desc,icon]) => `<button type="button" data-act="glresult" data-k="${k}" aria-pressed="${glResult === k}"><span class="log-outcome-icon">${icon}</span><span><strong>${KL[k]}</strong><small>${desc}</small></span><i aria-hidden="true">${glResult === k ? '✓' : ''}</i></button>`).join('')}</div><div class="log-attempts"><span><strong>Attempts</strong><small>How many tries for this climb?</small></span><button type="button" data-act="glattempt" data-d="-1" aria-label="Fewer attempts">−</button><b>${glAttempts}</b><button type="button" data-act="glattempt" data-d="1" aria-label="More attempts">＋</button></div>`;
   const third = `<div class="log-step-title"><h1>Your session<span>✦</span></h1></div><div class="log-today-head"><h2>Today’s climbs</h2><span>${n(es.length,'climb','climbs')}</span></div>${es.length ? list : '<p class="log-empty">No climbs added yet.</p>'}<button class="log-another" type="button" data-act="glanother"><span>＋</span> Add another climb</button>`;
   const cta = glStep === 0 ? `<button class="b-lime" type="button" data-act="glnext"${glGrade && G ? '' : ' disabled'}>Continue${glGrade ? ` · ${glGrade}` : ''}</button>` : glStep === 1 ? `<button class="b-lime" type="button" data-act="glconfirm"${glResult && glColor ? '' : ' disabled'}>Add climb</button>` : `<button class="b-lime" type="button" data-act="glsave"${es.length ? '' : ' disabled'}>Save session${es.length ? ` · ${n(es.length,'climb','climbs')}` : ''}</button>`;
   return { html: header + `<div class="rock-log log-wizard">${glStep === 0 ? first : glStep === 1 ? second : third}</div>`, cta, after: () => { if (glLocation === 'idle') glLocate(); document.querySelectorAll('.gb').forEach(el => { const select = () => { glGrade = el.dataset.g; render(); }; el.addEventListener('click', select); el.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); select(); } }); }); } };
@@ -3113,6 +3403,7 @@ function viewSummary() {
     <p class="sub-w">${es.length || !gd.length ? gym.name : gwhere(gd)} · ${dateOf(0).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</p>
     <section class="glass trio sm-card"><div><b class="num">${clk(sesDur)}</b><span>time</span></div><div><b class="num">${allT}</b><span>${allT === 1 ? 'try' : 'tries'}</span></div><div><b class="num">${allS}</b><span>${allS === 1 ? 'send' : 'sends'}</span></div></section>
     ${best ? `<div class="sm-best"><span>Hardest send</span><b>${best[1]}</b></div>` : ''}
+    ${sesAbout()}
     <div class="fold"></div>
     ${next}
     ${gd.length ? `<div class="hl2 dk2"><h2>By grade</h2><span class="hint2">${n(gd.length, 'climb', 'climbs')} · only you see these</span></div><section class="gl-sum">${gbars(gd)}</section>` : ''}
@@ -3205,9 +3496,10 @@ const plans = user === 'regular' ? [{ by: 'Noor', g: 0, d: 1, h: 18, who: ['Noor
   if (sc === 'plan') plans.unshift({ by: 'You', g: 0, d: 0, h: Math.min(h + 2, 21), who: ['You', 'Noor', 'Leo'] }); }
 const dayName = d => d === 0 ? 'Today' : d === 1 ? 'Tomorrow' : ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][(new Date().getDay() + d) % 7];
 const names = ws => ws.length < 3 ? ws.join(' and ') : `${ws.slice(0, -1).join(', ')} and ${ws[ws.length - 1]}`;
-const feedTabs = mode => `<nav class="tok-tabs feed-tabs" aria-label="Community">${[['all','For you','friends'],['following','Following','friends/following'],['friends','Friends','friends/friends']].map(([key,label,to]) => `<button type="button" data-act="feedmode" data-to="${to}"${mode === key ? ' aria-current="page"' : ''}>${label}</button>`).join('')}</nav>`;
+// Friends comes first: in the interviews, climbers wanted their friends' days, not strangers' videos (2026-11-16)
+const feedTabs = mode => `<nav class="tok-tabs feed-tabs" aria-label="Community">${[['friends','Friends','friends'],['following','Following','friends/following'],['all','For you','friends/all']].map(([key,label,to]) => `<button type="button" data-act="feedmode" data-to="${to}"${mode === key ? ' aria-current="page"' : ''}>${label}</button>`).join('')}</nav>`;
 function viewFriendsPlan() {
-  const fr = [...invitedFriends];
+  const fr = friendList();
   const row = `<div class="fr-row">${fr.map(w => `<button type="button" data-act="to" data-to="person/${w}"><span class="fr-f">${avatar(w)}</span><span>${w}</span></button>`).join('')}
       <button type="button" data-act="fadd"><span class="fr-f fr-add">${ic.plus}</span><span>Add</span></button></div>`;
   const ps = plans.filter(p => p.by === 'You' || fr.includes(p.by));
@@ -3223,15 +3515,186 @@ function viewFriendsPlan() {
   return { photo: 'gym-arc-1', html: `
     <div class="tok-top lt-top"><span class="tok-add-sp" aria-hidden="true"></span>${feedTabs('friends')}<button class="av sm" type="button" data-act="to" data-to="profile" aria-label="Your profile">${avatar('You')}</button></div>
     <div class="fold"></div>
-    <div class="hl2 dk2"><h2>Friends</h2>${fr.length ? `<span class="hint2">${n(fr.length, 'friend', 'friends')}</span>` : ''}</div>
-    ${fr.length ? '' : '<div class="fr-first"><strong>Climb with friends</strong><p>Add a friend to plan sessions together, join theirs and see their climbs.</p><button class="b-lime" type="button" data-act="fadd">Add a friend</button></div>'}
-    ${fr.length ? row : ''}
+    ${fr.length ? `<div class="hl2 dk2"><h2>Friends</h2><span class="hint2">${n(fr.length, 'friend', 'friends')}</span></div>${row}` : ''}
+    ${daysSection()}
     <div class="hl2 dk2"><h2>Upcoming plans</h2><button class="gy-mapb" type="button" data-act="plan">Create plan</button></div>
     <div class="pls">${ps.length ? ps.slice().sort((a, b) => a.d - b.d || a.h - b.h).map(card).join('') : `<p class="cap">No plans yet. Create a plan so friends can join.</p>`}</div>
+    ${partnerSection()}
     <div class="hl2 dk2"><h2>Friends’ climbs</h2>${theirs.length ? `<span class="hint2">${n(theirs.length, 'video', 'videos')}</span>` : ''}</div>
     ${vids}
 ` };
 }
+
+/* ---------- Climbing days, gear and belay partners (user interviews 1–2, 2026-11-16) ----------
+   Interview 2 wanted it the way Strava does it: start when you get to the gym, stop when you leave, a rough count, and
+   friends' days (which gym, when, how long) instead of strangers' videos. Also how long your shoes and harness have been
+   on the wall, when to resole, and when they've paid for themselves against renting. And top rope needs a partner. */
+const SES_KEY = 'spotter-sessions', GEAR_KEY = 'spotter-gear', PARTNER_KEY = 'spotter-partner';
+const todayKey = () => logDateKey(dateOf(0));
+const keyAgo = k => Math.round((dateOf(0) - new Date(`${k}T12:00:00`)) / 864e5);
+let mySes = []; try { const s = JSON.parse(localStorage.getItem(SES_KEY) || '[]'); if (Array.isArray(s)) mySes = s.filter(x => x && x.d); } catch {}
+const sesSave = () => { try { localStorage.setItem(SES_KEY, JSON.stringify(mySes)); } catch {} };
+// the regular demo user's past days: days ago, gym, start hour, minutes, climbs, rope that day
+const SAMPLE_SES = user === 'regular' ? [[2, 0, 18, 85, 9, 1], [5, 0, 17.5, 70, 7, 1], [7, 1, 19, 60, 6, 0], [9, 0, 18, 95, 11, 1], [12, 0, 18.5, 80, 8, 1], [14, 1, 17, 65, 6, 0],
+  [16, 0, 18, 90, 10, 1], [19, 0, 18, 75, 8, 1], [21, 1, 19, 60, 5, 0], [23, 0, 18, 85, 9, 1], [26, 0, 17.5, 70, 7, 1], [28, 0, 18, 80, 8, 1], [30, 0, 18, 90, 9, 1],
+  [33, 1, 19, 60, 6, 0], [35, 0, 18, 75, 8, 1], [37, 0, 17, 85, 9, 1], [40, 0, 18, 70, 7, 1], [42, 0, 18, 95, 10, 1]]
+  .map(([ago, gy, h, m, k, r]) => ({ d: logDateKey(dateOf(ago)), gy, h, secs: m * 60, climbs: k, kind: r ? 'both' : 'b' })) : [];
+const SES_IC = '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#111111" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M10 2h4"/></svg>';
+const sesAll = () => [...SAMPLE_SES, ...mySes].sort((a, b) => a.d < b.d ? -1 : a.d > b.d ? 1 : 0);
+const sesToday = () => [...mySes].reverse().find(s => s.d === todayKey());
+// End session keeps the day: when, where, how long, what you logged. What you climbed is guessed from the log, or asked on the summary
+function sesRecord() {
+  const d0 = dayLog(0), g0 = gday(0), st = lgStart ? new Date(lgStart) : new Date();
+  const rope = d0.some(e => e.tries) || g0.some(x => x.ty === 'Top rope'), bould = g0.some(x => x.ty === 'Boulder');
+  mySes.push({ d: todayKey(), gy: todayGym() ?? glGym ?? 0, h: st.getHours() + st.getMinutes() / 60, secs: sesDur,
+    climbs: d0.reduce((s, e) => s + e.tries, 0) + g0.length, kind: rope && bould ? 'both' : rope ? 'r' : bould ? 'b' : null });
+  sesSave();
+}
+const hm = h => { const H = Math.floor(h) % 24, M = Math.round((h - Math.floor(h)) * 60) % 60; return `${H % 12 || 12}:${String(M).padStart(2, '0')}`; };
+const span2 = (h, secs) => { const e = h + secs / 3600; return `${hm(h)}–${hm(e)} ${e % 24 < 12 ? 'AM' : 'PM'}`; };
+const ROUGH = ['1–5', '6–10', '11–15', '16+'], KINDS = [['b', 'Bouldering'], ['r', 'Top rope'], ['both', 'Both']];
+
+// friends' climbing days (sample): who, days ago, gym, start hour, minutes, climbs, hardest, photo
+const FDAYS = [['Noor', 0, 0, 17, 95, 11, '5.10+', 'gym-arc-2'], ['Leo', 1, 3, 18.5, 70, 8, 'V4', 'gym-horizon-1'], ['Noor', 2, 0, 18, 80, 9, '5.10', 'gym-arc-3'],
+  ['Sam', 2, 1, 19, 110, 14, 'V6', 'gym-boneyard-1'], ['Leo', 4, 0, 17.5, 60, 6, '5.9', 'gym-arc-1'], ['Mia', 5, 1, 12, 75, 9, 'V3', 'gym-boneyard-1']]
+  .map(([who, ago, gy, h, m, k, top, img]) => ({ who, ago, gy, h, secs: m * 60, climbs: k, top, img }));
+const friendList = () => [...new Set([...invitedFriends, ...follows])];
+function dayCard(x) {
+  const g = gyms[x.gy] || gym, k = x.climbs || x.rough;
+  return `<div class="fd"><div class="fd-h"><button class="fd-a" type="button" data-act="to" data-to="${x.who === 'You' ? 'profile' : `person/${x.who}`}" aria-label="${x.who}">${avatar(x.who)}</button>
+      <span class="row-t"><strong>${x.who}</strong><span>${dayLabel(x.ago)} · ${span2(x.h, x.secs)}</span></span></div>
+    <span class="fd-g">${ic.pin}<span>${g.name}</span></span>
+    <div class="fd-n"><span><b class="num">${clk(x.secs)}</b><i>time</i></span>${k ? `<span><b class="num">${k}</b><i>climbs</i></span>` : ''}${x.top ? `<span><b class="num">${x.top}</b><i>hardest</i></span>` : ''}</div>
+    ${x.img ? `<img class="fd-p" src="${pic(x.img)}" alt="" loading="lazy">` : ''}</div>`;
+}
+function daysSection() {
+  const fr = friendList(), mine = sesAll().filter(s => keyAgo(s.d) < 7).map(s => ({ who: 'You', ago: keyAgo(s.d), gy: s.gy, h: s.h ?? 18, secs: s.secs, climbs: s.climbs, rough: s.rough }));
+  const xs = [...FDAYS.filter(x => fr.includes(x.who)), ...mine].sort((a, b) => a.ago - b.ago || b.h - a.h).slice(0, 8);
+  const head = `<div class="hl2 dk2"><h2>Climbing days</h2><span class="hint2">this week</span></div>`;
+  if (!xs.length) return `${head}<div class="fr-first"><strong>See where your friends climb</strong><p>${fr.length ? 'Your friends haven’t climbed this week yet.' : 'Add friends to see their climbing days here: which gym, when and for how long.'} Start a session at the gym and they see yours.</p>
+    <div class="two">${fr.length ? '' : '<button class="b-ghost" type="button" data-act="fadd">Add a friend</button>'}<button class="b-lime" type="button" data-act="sesgo">Start a session</button></div></div>`;
+  return `${head}<div class="fds">${xs.map(dayCard).join('')}</div>`;
+}
+
+// looking for a top-rope partner: who, gym, days of the week (0 = Sunday), times, grades, a note (sample)
+const PARTNERS = [['Kai', 0, [2, 4], ['Evening'], '5.10–5.11', 'Lead and top rope. Happy to climb with newer climbers.'], ['Rosa', 0, [6, 0], ['Morning'], '5.7–5.9', 'Passed my belay check last month.'],
+  ['Jun', 0, [1, 3], ['Evening'], '5.9–5.10', 'Usually there after 6.'], ['Ben', 4, [5], ['Afternoon'], '5.8–5.9', '']]
+  .map(([who, gy, days, times, grade, note]) => ({ who, gy, days, times, grade, note }));
+let myPartner = null; try { const p = JSON.parse(localStorage.getItem(PARTNER_KEY) || 'null'); if (p && Array.isArray(p.days)) myPartner = p; } catch {}
+const WD = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'], TIMES = ['Morning', 'Afternoon', 'Evening'], PGRADES = ['5.6–5.8', '5.9–5.10', '5.11+'];
+const whenLine = p => [...[...p.days].sort((a, b) => a - b).map(d => WD[d]), ...p.times].join(' · ');
+const ropeGyms = () => gyms.map((g, i) => [g, i]).filter(([g]) => kinds(g).includes('Top rope'));
+function partnerSection() {
+  const home = homeGy != null && gyms[homeGy] && kinds(gyms[homeGy]).includes('Top rope') ? homeGy : 0;
+  const at = myPartner?.gy ?? home, g = gyms[at], others = PARTNERS.filter(p => p.gy === at);
+  const row = p => `<div class="pt-r"><button class="fd-a" type="button" data-act="to" data-to="person/${p.who}" aria-label="${p.who}">${avatar(p.who)}</button>
+      <span class="row-t"><strong>${p.who} · ${p.grade}</strong><span>${whenLine(p)}</span>${p.note ? `<span class="pt-n">${esc(p.note)}</span>` : ''}</span>
+      <button class="pj" type="button" data-act="pthi" data-w="${p.who}">Say hi</button></div>`;
+  return `<div class="hl2 dk2"><h2>Top-rope partners</h2><span class="hint2">${g.name}</span></div>
+    <p class="cap pt-cap">Top rope takes two. Climbers here who are free to belay, like the board by the gym door.</p>
+    <div class="pts">${myPartner ? `<div class="pt-r pt-me"><span class="fd-a">${avatar('You')}</span><span class="row-t"><strong>You · ${myPartner.grade}</strong><span>${whenLine(myPartner)}</span></span>
+        <button class="pj" type="button" data-act="ptpost">Edit</button></div>` : ''}
+      ${others.map(row).join('') || '<p class="cap">No one has posted here yet.</p>'}</div>
+    ${myPartner ? '' : '<div class="two one"><button class="b-ghost" type="button" data-act="ptpost">Post when you’re free</button></div>'}`;
+}
+let ptd = null;
+function drawPartner() {
+  const chip = (act, v, label, on) => `<button type="button" data-act="${act}" data-v="${v}" aria-pressed="${on}">${label}</button>`;
+  const ok = ptd.days.length && ptd.times.length;
+  pane(`<h2>Find a belay partner</h2><span class="sub">Climbers at the gym see when you’re free and can say hi.</span>
+    <p class="fr-h">Where</p><div class="fchips">${ropeGyms().map(([x, i]) => chip('ptg', i, x.name, i === ptd.gy)).join('')}</div>
+    <p class="fr-h">Days</p><div class="fchips">${[1, 2, 3, 4, 5, 6, 0].map(d => chip('ptd', d, WD[d], ptd.days.includes(d))).join('')}</div>
+    <p class="fr-h">Times</p><div class="fchips">${TIMES.map(t => chip('ptt', t, t, ptd.times.includes(t))).join('')}</div>
+    <p class="fr-h">What you climb</p><div class="fchips">${PGRADES.map(t => chip('ptr', t, t, ptd.grade === t)).join('')}</div>
+    <div class="two${myPartner ? '' : ' one'}">${myPartner ? '<button class="b-ghost" type="button" data-act="ptdel">Take it down</button>' : ''}<button class="b-lime" type="button" data-act="ptsave"${ok ? '' : ' disabled'}>${myPartner ? 'Save changes' : 'Post'}</button></div>`);
+}
+function partnerHi(w) {
+  const p = PARTNERS.find(x => x.who === w);
+  pane(`<h2>Say hi to ${w}</h2><span class="sub">${p ? whenLine(p) : ''}</span>
+    <form id="pt-hi"><label class="fr-h" for="pt-hi-t">Message</label><div class="plan-message-row"><input id="pt-hi-t" maxlength="240" required value="${document.documentElement.lang === 'zh-Hans' ? `${w}，你好！我在找顶绳搭档，要一起爬吗？` : `Hi ${w}! I’m looking for a top-rope partner. Want to climb together?`}"><button class="pj" type="submit">Send</button></div></form>
+    <p class="hint">Messages are a demo in this prototype: nothing is sent.</p>`);
+  $('pt-hi').addEventListener('submit', e => { e.preventDefault(); closeAll(); toast(`Sent to ${w}`); });
+}
+
+// gear: shoes and harnesses, counted in days on the wall since you got them. A harness only counts days with rope
+let gear = null; try { const g = JSON.parse(localStorage.getItem(GEAR_KEY) || 'null'); if (Array.isArray(g)) gear = g; } catch {}
+if (!gear) gear = user === 'regular' ? [{ id: 1, kind: 'shoes', name: 'Everyday shoes', since: logDateKey(dateOf(44)), price: 110, rent: 5, life: 60 },
+  { id: 2, kind: 'harness', name: 'Harness', since: logDateKey(dateOf(40)), price: 65, rent: 5 }] : [];
+const gearSave = () => { try { localStorage.setItem(GEAR_KEY, JSON.stringify(gear)); } catch {} };
+const GKIND = { shoes: 'Shoes', harness: 'Harness', other: 'Other' };
+const gearUse = g => { const xs = sesAll().filter(s => s.d >= g.since && (g.kind !== 'harness' || s.kind !== 'b'));
+  return { days: xs.length, secs: xs.reduce((t, s) => t + (s.secs || 0), 0) }; };
+const hrs = s => s < 3600 ? n(Math.round(s / 60), 'minute', 'minutes') : `${(s / 3600).toFixed(s < 36000 ? 1 : 0)} h`;
+function gearCard(g) {
+  const u = gearUse(g), need = g.price && g.rent ? Math.ceil(g.price / g.rent) : 0, life = g.kind === 'shoes' ? g.life || 60 : 0;
+  const pct = life ? Math.min(100, u.days / life * 100) : need ? Math.min(100, u.days / need * 100) : 0;
+  const left = life - u.days;
+  const wear = !life ? '' : left > 10 ? `About ${left} climbing days left before a resole, as a rough guide. Check the rubber at the toe.`
+    : left > 0 ? `Time to look at them: thin rubber at the toe means a resole soon.` : `Past ${life} climbing days. Check the toes for a resole.`;
+  const paid = !need ? '' : u.days >= need ? `Paid for itself: $${(g.price / u.days).toFixed(2)} a day now, against $${g.rent} to rent.` : `${n(need - u.days, 'more day', 'more days')} and it’s paid for itself, against $${g.rent} to rent.`;
+  return `<button class="gr${life && left <= 10 ? ' warn' : ''}" type="button" data-act="gearopen" data-i="${g.id}">
+    <span class="gr-h"><strong>${esc(g.name)}</strong>${g.name === GKIND[g.kind] ? '' : `<em>${GKIND[g.kind] || 'Gear'}</em>`}</span>
+    <span class="gr-n"><b class="num">${u.days}</b><span>${g.kind === 'harness' ? (u.days === 1 ? 'rope day' : 'rope days') : u.days === 1 ? 'climbing day' : 'climbing days'} · ${hrs(u.secs)}</span></span>
+    ${life || need ? `<span class="gr-bar"><i style="width:${pct}%"></i></span>` : ''}
+    ${wear ? `<span class="gr-t">${wear}</span>` : ''}${paid ? `<span class="gr-t">${paid}</span>` : ''}</button>`;
+}
+function gearSection() {
+  return `<div class="sec"><h2>Gear</h2><button class="sec-more" type="button" data-act="gearopen">Add gear</button></div>
+    ${gear.length ? `<div class="grs">${gear.map(gearCard).join('')}</div><p class="cap">Counted from your sessions since you got each one. Start a session at the gym so they count.</p>`
+      : `<div class="lt gr-e"><p class="tip-d">Add your shoes or harness. Spotter counts the days they’ve climbed, tells you when to check the shoes for a resole, and when they’ve paid for themselves against renting.</p></div>`}`;
+}
+function openGear(id) {
+  const g = gear.find(x => x.id === id), k = g?.kind || 'shoes';
+  pane(`<h2>${g ? esc(g.name) : 'Add gear'}</h2><span class="sub">${g ? 'Change it, or take it off your list.' : 'Counted from your sessions since the day you got it.'}</span>
+    <form id="gear-f" class="gear-f">
+      <p class="fr-h">What</p><div class="fchips" role="group" aria-label="Kind">${Object.entries(GKIND).map(([v, l]) => `<button type="button" data-kind="${v}" aria-pressed="${v === k}">${l}</button>`).join('')}</div>
+      <label class="fr-h" for="gear-n">Name</label><input id="gear-n" maxlength="40" required value="${esc(g?.name || '')}" placeholder="Your first shoes">
+      <label class="fr-h" for="gear-d">First climbed in them</label><input id="gear-d" type="date" required max="${todayKey()}" value="${g?.since || todayKey()}">
+      <div class="gear-2"><span><label class="fr-h" for="gear-p">Price, $</label><input id="gear-p" type="number" min="0" step="1" inputmode="numeric" value="${g?.price ?? ''}" placeholder="110"></span>
+        <span><label class="fr-h" for="gear-r">Rental here, $</label><input id="gear-r" type="number" min="0" step="0.5" inputmode="decimal" value="${g?.rent ?? 5}"></span></div>
+      <span class="gear-life"${k === 'shoes' ? '' : ' hidden'}><label class="fr-h" for="gear-l">Remind me after this many climbing days</label><input id="gear-l" type="number" min="10" max="400" step="5" inputmode="numeric" value="${g?.life || 60}"></span>
+      <div class="two${g ? '' : ' one'}">${g ? `<button class="b-ghost" type="button" data-act="geardel" data-i="${g.id}">Remove</button>` : ''}<button class="b-lime" type="submit">${g ? 'Save changes' : 'Add gear'}</button></div>
+    </form>`);
+  const f = $('gear-f');
+  f.querySelectorAll('[data-kind]').forEach(b => b.addEventListener('click', () => {
+    f.querySelectorAll('[data-kind]').forEach(x => x.setAttribute('aria-pressed', x === b)); f.querySelector('.gear-life').hidden = b.dataset.kind !== 'shoes'; }));
+  f.addEventListener('submit', e => {
+    e.preventDefault();
+    const kind = f.querySelector('[data-kind][aria-pressed="true"]').dataset.kind, num = id => { const v = parseFloat($(id).value); return Number.isFinite(v) && v >= 0 ? v : 0; };
+    const x = { id: g?.id ?? Math.max(0, ...gear.map(y => y.id)) + 1, kind, name: $('gear-n').value.trim() || GKIND[kind], since: $('gear-d').value || todayKey(), price: num('gear-p'), rent: num('gear-r'), ...(kind === 'shoes' ? { life: Math.max(10, num('gear-l') || 60) } : {}) };
+    if (g) gear[gear.indexOf(g)] = x; else gear.push(x);
+    gearSave(); closeAll(); render(); toast(g ? 'Gear saved' : `${x.name} added`);
+  });
+}
+// the session summary: what you climbed today and a rough count when nothing was logged one by one, and what today added to your gear
+function sesAbout() {
+  const s = sesToday(); if (!s) return '';
+  const chip = (act, v, label, on) => `<button type="button" data-act="${act}" data-v="${v}" aria-pressed="${on}">${label}</button>`;
+  const shoes = gear.filter(g => g.kind === 'shoes' || (g.kind === 'harness' && s.kind && s.kind !== 'b'));
+  return `<div class="hl2 dk2"><h2>About today</h2><span class="hint2">for your friends and your gear</span></div>
+    <div class="lt ses-q"><p class="fr-h">What did you climb?</p><div class="fchips">${KINDS.map(([v, l]) => chip('seskind', v, l, s.kind === v)).join('')}</div>
+      ${s.climbs ? '' : `<p class="fr-h">About how many climbs?</p><div class="fchips">${ROUGH.map(v => chip('sesrough', v, v, s.rough === v)).join('')}</div>`}
+      ${shoes.length ? `<p class="tip-d ses-g">${shoes.map(g => `<span>${esc(g.name)}</span>: <span>${n(gearUse(g).days, 'day', 'days')}</span>`).join('<span> · </span>')}</p>` : ''}</div>`;
+}
+const interviewActions = {
+  // every climb at this gym: Videos, filtered to it
+  gyvids: b => { alGym = +b.dataset.gy; alRoute = null; alOpen = null; go('videos'); },
+  gytab: b => { const v = b.dataset.v; gyTab[+b.dataset.gy] = v; document.querySelectorAll('.gytabs button').forEach(x => x.setAttribute('aria-pressed', x.dataset.v === v)); document.querySelectorAll('.gy-pn').forEach(p => { p.hidden = p.dataset.pn !== v; }); },
+  sesgo: () => { closeAll(); if (session !== 'live') lgClock(); go('videos'); },
+  seskind: b => { const s = sesToday(); if (!s) return; s.kind = b.dataset.v; sesSave(); render(); },
+  sesrough: b => { const s = sesToday(); if (!s) return; s.rough = s.rough === b.dataset.v ? undefined : b.dataset.v; sesSave(); render(); },
+  gearopen: b => openGear(b.dataset.i ? +b.dataset.i : undefined),
+  geardel: b => { const i = gear.findIndex(x => x.id === +b.dataset.i); if (i < 0) return; const [x] = gear.splice(i, 1); gearSave(); closeAll(); render(); toast(`${x.name} removed`); },
+  ptpost: () => { const home = homeGy != null && gyms[homeGy] && kinds(gyms[homeGy]).includes('Top rope') ? homeGy : 0;
+    ptd = myPartner ? { ...myPartner, days: [...myPartner.days], times: [...myPartner.times] } : { gy: home, days: [], times: [], grade: PGRADES[1] }; drawPartner(); },
+  ptg: b => { ptd.gy = +b.dataset.v; drawPartner(); },
+  ptd: b => { const d = +b.dataset.v; ptd.days = ptd.days.includes(d) ? ptd.days.filter(x => x !== d) : [...ptd.days, d]; drawPartner(); },
+  ptt: b => { const t = b.dataset.v; ptd.times = ptd.times.includes(t) ? ptd.times.filter(x => x !== t) : [...ptd.times, t]; drawPartner(); },
+  ptr: b => { ptd.grade = b.dataset.v; drawPartner(); },
+  ptsave: () => { const had = !!myPartner; myPartner = ptd; try { localStorage.setItem(PARTNER_KEY, JSON.stringify(myPartner)); } catch {} closeAll(); render(); toast(had ? 'Saved' : `Posted at ${gyms[myPartner.gy].name}`); },
+  ptdel: () => { myPartner = null; try { localStorage.removeItem(PARTNER_KEY); } catch {} closeAll(); render(); toast('Taken down'); },
+  pthi: b => partnerHi(b.dataset.w),
+};
 let inviteStream = null;
 function stopInviteCamera() {
   if (inviteStream) inviteStream.getTracks().forEach(track => track.stop());
@@ -3339,17 +3802,23 @@ const moreActions = {
   // logging and the session
   rtry: b => { const ri = +b.dataset.r; lgClock(); logOf(0, ri).tries++; render(); toast(`${rname(ROUTES[ri])} · attempt ${dayLog(0).find(e => e.ri === ri).tries} today`); },
   rsend: b => openSheet(+b.dataset.r),
-  scan: () => { closeAll(); betaOnly = false; betaV = null; scanShot = false; bstep = 0; scanURL = ''; scanCv = null; scanPick = null; scanErr = ''; scanRi = ROUTES.findIndex((r, i) => V.some(x => x.who === 'Leo' && x.ri === i) && !mineOn(i).some(topOf)); if (scanRi < 0) scanRi = 0; go('scan'); },
+  scan: () => { closeAll(); betaV = null; scanShot = false; bstep = 0; scanURL = ''; scanCv = null; scanPick = null; scanErr = ''; scanRi = ROUTES.findIndex((r, i) => V.some(x => x.who === 'Leo' && x.ri === i) && !mineOn(i).some(topOf)); if (scanRi < 0) scanRi = 0; go('scan'); },
   scanri: b => { scanRi = +b.dataset.i; render(); },
-  rbeta: b => { betaOnly = true; betaV = b.dataset.v != null ? +b.dataset.v : null; scanRi = +b.dataset.r; scanShot = true; bstep = 0; go('scan'); },
-  snap: () => { scanShot = true; bstep = 0; render(); },
+  roff: b => { const r = ROUTES[+b.dataset.r]; r.offAt = Date.now(); routeSave(); render(); toast('Moved to Taken down. Its beta stays'); },
+  ron: b => { const r = ROUTES[+b.dataset.r]; delete r.offAt; routeSave(); render(); toast('Back on the wall'); },
+  // the beta is on the route's page, at the top: open it there at the start
+  // the beta has its own page: open it at the start
+  rbeta: b => { betaV = b.dataset.v != null ? +b.dataset.v : null; scanRi = +b.dataset.r; bstep = 0; go(`beta/${scanRi}`); },
+  bwho: b => { betaV = +b.dataset.v; bstep = 0; const y = document.querySelector('.screen').scrollTop; render(); document.querySelector('.screen').scrollTop = y; },
+  rlog: b => openAdd(+b.dataset.r),
+  snap: () => { betaV = null; bstep = 0; scanStop(); go(`beta/${scanRi}`); },
   rescan: () => { scanShot = false; render(); },
   scansnap: () => { const v = $('scv'); if (!v || !v.videoWidth) return; scanTake(v, v.videoWidth, v.videoHeight); },
   scanphotos: () => scanPhotos(),
   scancolor: b => scanColor(b.dataset.k),
   scanretake: () => { scanURL = ''; scanCv = null; scanPick = null; scanFound = []; render(); },
   scantry: () => { scanErr = ''; scanStop(); render(); },
-  scango: () => { if (!scanPick || scanPick.ri < 0) return; scanRi = scanPick.ri; scanShot = true; bstep = 0; render(); },
+  scango: () => { if (!scanPick || scanPick.ri < 0) return; scanRi = scanPick.ri; betaV = null; bstep = 0; scanStop(); go(`beta/${scanRi}`); },
   bgo: b => { const y = document.querySelector('.screen').scrollTop; bstep = +b.dataset.s; render(); document.querySelector('.screen').scrollTop = y; },
   bstep: b => { const B = betaOf(scanRi, betaV); if (!B) return; bstep = Math.max(0, Math.min(B.steps.length - 1, bstep + +b.dataset.d)); const y = document.querySelector('.screen').scrollTop; render(); document.querySelector('.screen').scrollTop = y; },
   glopen: () => { glOpen = !glOpen; render(); },
@@ -3360,18 +3829,21 @@ const moreActions = {
   glattempt: b => { glAttempts = Math.max(1, Math.min(99, glAttempts + +b.dataset.d)); if (glAttempts > 1 && glResult === 'Flash') glResult = null; render(); },
   glnext: () => { if (glGrade && glGym !== null) { glStep = 1; document.querySelector('.screen').scrollTop = 0; render(); } },
   glconfirm: () => { if (glGrade && glResult && glColor) { glStep = 2; document.querySelector('.screen').scrollTop = 0; glAdd(glGrade, glResult); } },
-  glanother: () => { glStep = 0; glGrade = null; glResult = null; glAttempts = 1; glColor = ''; document.querySelector('.screen').scrollTop = 0; render(); },
-  glback: () => { if (glStep) { glStep--; document.querySelector('.screen').scrollTop = 0; render(); } else { actions.back(); } },
+  glanother: () => { glRi = null; glStep = 0; glGrade = null; glResult = null; glAttempts = 1; glColor = ''; document.querySelector('.screen').scrollTop = 0; render(); },
+  glback: () => { if (glRi != null && glStep === 1) { glRi = null; glStep = 0; glGrade = null; glResult = null; glColor = ''; actions.back(); return; } if (glStep) { glStep--; document.querySelector('.screen').scrollTop = 0; render(); } else { actions.back(); } },
   gladd: () => { if (glGrade) glAdd(glGrade, glResult); },
   glgym: () => openGymPick(),
+  // Log by hand from a route: the same flow, at "How did it go?", with the route's gym, kind, grade and colour
+  glroute: b => { const ri = +b.dataset.ri, r = ROUTES[ri]; closeAll(); glRi = ri; glGym = gyOf(r); glGymChosen = true; setTodayGym(glGym);
+    glTy = /boulder/i.test(r.wall) ? 'Boulder' : 'Top rope'; glGrade = r.grade; glColor = r.color; glResult = null; glAttempts = 1; glStep = 1; go('session'); },
   gllocate: () => { const cam = page === 'cam'; glLocate(); openGymPick(cam ? 'cam' : 'gl'); },
   glgy: b => { const i = +b.dataset.i; setTodayGym(i); const cc = clipOf(b.dataset.context); if (cc) { setPick(cc, 'gy', i); return; } if (b.dataset.context === 'cam') camGym = i; else { glGym = i; glGymChosen = true; } closeAll(); render(); },
   glk: b => { const x = glogs[+b.dataset.i]; x.k = b.dataset.k; if (x.k === 'Flash') x.attempts = 1; render(); },
   gldel: b => { const [x] = glogs.splice(+b.dataset.i, 1); if (!gday(0).length) glOpen = false; render(); toast(`Removed · ${x.g} · ${KL[x.k]}`); },
   glundo: () => { const i = glogs.map(x => x.ago).lastIndexOf(0); if (i < 0) return; const [x] = glogs.splice(i, 1); if (!gday(0).length) glOpen = false; render(); toast(`Removed · ${x.g} · ${KL[x.k]}`); },
-  glsave: () => { glOpen = false; glStep = 0; glGrade = null; glResult = null; const saved = saveGradeLogs(); closeAll(); go('videos'); toast(saved ? 'Climbs saved' : 'Climbs kept for this session only'); },
+  glsave: () => { glRi = null; glOpen = false; glStep = 0; glGrade = null; glResult = null; const saved = saveGradeLogs(); closeAll(); go('videos'); toast(saved ? 'Climbs saved' : 'Climbs kept for this session only'); },
   glrecord: b => { const x = glogs[+b.dataset.i]; if (!x) return; pane(`<div class="manual-detail manual-detail-v2"><div class="manual-detail-head"><span class="manual-detail-grade">${x.g}</span><div><small>CLIMB DETAILS</small><h2>${x.ty}</h2><p>${x.k} · ${n(x.attempts || 1, 'attempt', 'attempts')}</p></div></div><div class="manual-detail-rows"><div><span>Grade</span><strong>${x.g}</strong></div><div><span>Route colour</span><strong>${x.color ? `<i style="--hold:${HOLD_COLORS[x.color]}"></i>${x.color}` : 'Not recorded'}</strong></div><div><span>Gym</span><strong>${gyms[x.gy].name}</strong></div><div><span>Date</span><strong>${dayLabel(x.ago)}</strong></div></div><small>Logged by hand</small></div>`); },
-  lgend: () => { sesDur = sesSecs(); session = 'none'; lgStart = null; closeAll(); island(); go('summary'); },
+  lgend: () => { sesDur = sesSecs(); sesRecord(); session = 'none'; lgStart = null; closeAll(); island(); go('summary'); },
   island: () => openClock(),
   bkd: b => { if (b.dataset.k === '') return; bookAt = +b.dataset.k; render(); },
   shide: b => { const e = dayLog(0).find(x => x.ri === +b.dataset.i); if (!e) return;
@@ -3412,8 +3884,8 @@ const moreActions = {
 };
 
 /* ---------- shell: routing, render, sheets ---------- */
-const views = { pick: viewPick, setup: viewSetup, videos: viewVideos, day: viewDay, algym: viewAlGym, ob: viewOb, shelf: viewShelf, clip: viewClip, vs: viewVs, route: viewRoute, walls: viewGymsTab, gyms: viewGyms, gym: viewGym, friends: viewFriends, person: viewPerson, profile: viewProfile, cam: viewCam, session: viewSession, logc: viewSession, scan: viewScan, summary: viewSummary, watch: viewWatch, review: viewReview };
-const tabOf = { videos: 'videos', shelf: 'videos', clip: 'videos', vs: 'videos', cam: 'videos', route: 'walls', walls: 'walls', gyms: 'walls', gym: 'walls', session: 'videos', logc: 'videos', scan: 'walls', summary: 'profile', watch: 'profile', friends: 'friends', person: 'friends', profile: 'profile' };
+const views = { pick: viewPick, setup: viewSetup, videos: viewVideos, day: viewDay, algym: viewAlGym, ob: viewOb, shelf: viewShelf, clip: viewClip, vs: viewVs, route: viewRoute, wall: viewWall, beta: viewBeta, walls: viewGymsTab, gyms: viewGyms, gym: viewGym, friends: viewFriends, person: viewPerson, profile: viewProfile, cam: viewCam, session: viewSession, logc: viewSession, scan: viewScan, summary: viewSummary, watch: viewWatch, review: viewReview };
+const tabOf = { videos: 'videos', shelf: 'videos', clip: 'videos', vs: 'videos', cam: 'videos', route: 'walls', wall: 'walls', beta: 'walls', walls: 'walls', gyms: 'walls', gym: 'walls', session: 'videos', logc: 'videos', scan: 'walls', summary: 'profile', watch: 'profile', friends: 'friends', person: 'friends', profile: 'profile' };
 const tabs = ['videos', 'walls', 'friends', 'profile'];
 const dock = document.querySelector('.dock');
 function readHash() { const [p = '', a = ''] = location.hash.replace(/^#\/?/, '').split('/'); page = views[p] ? p : 'videos'; try { arg = decodeURIComponent(a); } catch (_) { arg = a; } }
@@ -3481,7 +3953,8 @@ const actions = {
   revexp: () => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(Object.values(rev), null, 1)], { type: 'application/json' })); a.download = 'spotter-review.json'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000); },
   revclr: () => { if (!confirm('Clear every answer on this page?')) return; rev = {}; revSave(); revAt = 0; render(); },
   legend: () => legendPane(),
-  lvseek: b => { const v = $('lvv'); if (!v) return; v.currentTime = +b.dataset.t; v.play().catch(() => {});
+  stgo: b => stShow(b.dataset.d != null ? stI + +b.dataset.d : +b.dataset.i),
+  lvseek: b => { const v = $('lvv'); if (!v) return; stLoop = null; v.currentTime = +b.dataset.t; v.play().catch(() => {});
     document.querySelectorAll('.mvq-m.on').forEach(x => x.classList.remove('on')); b.classList.add('on'); },
   status: () => pane(`<h2>Your status</h2><span class="sub">Friends see it on your profile, next to your home gym.</span>
     <div class="stt-l">${STATUS.map(([k, l]) => `<button type="button" class="stt-o${k ? ` is-${k}` : ''}" data-act="setstatus" data-s="${k}" aria-pressed="${k === myStatus}"><i></i>${l}${k === myStatus ? ic.check : ''}</button>`).join('')}</div>`),
@@ -3510,8 +3983,10 @@ const actions = {
   close: () => closeAll(),
   feedmode: b => { feedAt = 0; go(b.dataset.to); },
   // add
-  film: () => { closeAll(); filming = false; camStep = 'frame'; camRoute = null; camGym = todayGym(); camColor = ''; camGrade = ''; camRes = null; camFeel = null; go('cam'); },
-  upload: () => { if (page === 'setup') { history.replaceState(null, '', '#/videos'); readHash(); render(); } openUpload(); },
+  // from a route's sheet: the camera starts with its gym, colour and grade set, so the video lands on that route
+  film: b => { const r = b?.dataset?.ri != null ? ROUTES[+b.dataset.ri] : null; addRi = r ? +b.dataset.ri : null;
+    closeAll(); filming = false; camStep = 'frame'; camRoute = null; camGym = r ? gyOf(r) : b?.dataset?.g != null ? +b.dataset.g : todayGym(); camColor = r ? r.color : ''; camGrade = r ? r.grade : ''; camRes = null; camFeel = null; go('cam'); },
+  upload: b => { addRi = b?.dataset?.ri != null ? +b.dataset.ri : page === 'cam' ? addRi : null; if (page === 'setup') { history.replaceState(null, '', '#/videos'); readHash(); render(); } openUpload(); },
   upick: b => { const i = +b.dataset.i; upSel.has(i) ? upSel.delete(i) : upSel.add(i); drawRoll(); },
   upnext: () => { const s = [...upSel]; if (s.length) importPicks(s); },
   campicker: b => openCameraPicker(b.dataset.kind),
@@ -3547,15 +4022,16 @@ const actions = {
     const ext = camBlob.type.includes('webm') ? 'webm' : 'mp4', d = new Date();
     const f = new File([camBlob], `climb-${d.toISOString().slice(0, 16).replace(/[:T]/g, '-')}.${ext}`, { type: camBlob.type });
     // what you set before filming is the route; you post it or analyse it from its page
-    const ri = routeFor(camGym, camColor, camGrade, 'gym-arc-1');
+    const ri = routeFor(camGym, camColor, camGrade, gyms[camGym].img || 'gym-arc-1');
     const c = await addMine(f, { ri, gy: camGym, res: camRes, hidden: true }, 'Saving your climb…'); if (!c) return;
+    if (ri >= BASE_R && !mineOn(ri).some(x => x !== c)) { ROUTES[ri].img = V[c.v].vid; routeSave(); }   // a new route's picture: this climb
     if (camFeel && camRes !== 'Project') { myFeel[ri] = camFeel; feelSave(); }
     camDrop(); camStep = 'frame'; camRoute = null; camGym = null; camColor = ''; camGrade = ''; camRes = null; camFeel = null; cTab = 'why'; go(`clip/${c.id}`); toast('Climb saved');
   },
   clpick: b => { const c = byId(b.dataset.c), k = b.dataset.k; if (!c) return; if (k === 'gy') openGymPick(`clip:${c.id}`); else if (k === 'color') openHoldColors(`clip:${c.id}`); else openClipGrade(c); },
   clpgrade: b => { const c = byId(b.dataset.c); if (c) setPick(c, 'grade', b.dataset.grade); },
   // posting shares the video in Community; the analysis stays yours
-  clpost: b => { const c = byId(b.dataset.i); if (!c) return; if (!c.hidden) { feedAt = Math.max(0, feedAll().findIndex(p => p.c === c)); go('friends'); return; }
+  clpost: b => { const c = byId(b.dataset.i); if (!c) return; if (!c.hidden) { feedAt = Math.max(0, feedAll().findIndex(p => p.c === c)); go('friends/all'); return; }
     if (!pickDone(c)) { toast('Choose the gym, grade and colour first'); return; }
     c.hidden = false; saveSoon(); render(); toast('Posted to Community'); },
   clres: b => { const c = byId(b.dataset.c); if (!c) return; c.res = c.res === b.dataset.k ? undefined : b.dataset.k; if (!c.res) delete c.res; saveSoon(); render(); },
@@ -3576,8 +4052,8 @@ const actions = {
     setTimeout(() => { if (anSheet?.top) document.querySelector('.screen').scrollTop = anSheet.top(); }, 20);
     const pg = document.querySelector(`[data-pn="why"] > .sub[data-sub="${v}"]`); if (pg && v) fixWire(pg); },
   lvreplay: () => { const v = $('lvv'); anSheet?.go(0); if (v) { v.currentTime = 0; v.play().catch(() => {}); } },
-  ctab: b => { cTab = b.dataset.v; setTimeout(() => $('main').dispatchEvent(new Event('tabchange'))); document.querySelectorAll('.ctabs button').forEach(x => x.setAttribute('aria-pressed', x.dataset.v === cTab)); document.querySelectorAll('.pn').forEach(p => { p.hidden = p.dataset.pn !== cTab; }); },
-  spd: b => { speed = { 1: .5, .5: .25, .25: 1 }[speed] || 1; const v = $('lvv'); if (v) v.playbackRate = speed; b.textContent = `${speed}×`; },   // 1× → 0.5× → 0.25×
+  ctab: b => { cTab = b.dataset.v; $('main').dataset.tab = cTab; if (cTab === 'body') setTimeout(() => stShow(stI)); else { stLoop = null; const cl = $('lvv')?.parentElement; if (cl) cl.dataset.mk = ''; } setTimeout(() => $('main').dispatchEvent(new Event('tabchange'))); document.querySelectorAll('.ctabs button').forEach(x => x.setAttribute('aria-pressed', x.dataset.v === cTab)); document.querySelectorAll('.pn').forEach(p => { p.hidden = p.dataset.pn !== cTab; }); },
+  spd: b => { speed = { 1: .5, .5: .25, .25: 1 }[speed] || 1; const v = $('lvv'); if (v) v.playbackRate = speed; document.querySelectorAll('[data-act="spd"]').forEach(x => { x.textContent = `${speed}×`; }); },   // 1× → 0.5× → 0.25×
   segplay: b => $('lvv') && document.querySelector('.lv-w.two') ? segMain(b) : segOpen(b),
   segtoggle: () => { const v = $('cpv'); if (!v || !seg) return; if (seg.over) segAgain(); else if (v.paused) v.play().catch(() => {}); else v.pause(); },
   segagain: segAgain,
@@ -3591,8 +4067,9 @@ const actions = {
   tagdone: b => { const c = byId(b.dataset.i); confirmed(c, { ...tagS.pts, t: c.auto?.t ?? 0 }, true); },
   retag: b => { const c = byId(b.dataset.i); c.tags = null; c.an = 'ask'; tagS = { id: null, i: 0, pts: {} }; render(); document.querySelector('.screen').scrollTo(0, 0); },
   croute: b => { const c = byId(b.dataset.i);
-    pane(`<h2>Which route is this?</h2><span class="sub">${gym.name} · rope wall</span>
-      <div class="rows">${ROUTES.map((r, i) => `<button class="row" type="button" data-act="cset" data-c="${c.id}" data-i="${i}"><span class="row-t"><strong>${sw(r)}${rname(r)}</strong><span>${n(mineOn(i).filter(x => x !== c).length, 'other try', 'other tries')} of yours</span></span>${i === c.ri ? ic.check : ''}</button>`).join('')}</div>`); },
+    const gy = c.gy ?? gyOf(ROUTES[c.ri]), rs = routesAt(gy).filter(i => !ROUTES[i].offAt || i === c.ri);
+    pane(`<h2>Which route is this?</h2><span class="sub">${gyms[gy].name}</span>
+      <div class="rows">${rs.map(i => [ROUTES[i], i]).map(([r, i]) => `<button class="row" type="button" data-act="cset" data-c="${c.id}" data-i="${i}"><span class="row-t"><strong>${sw(r)}${rname(r)}</strong><span>${n(mineOn(i).filter(x => x !== c).length, 'other try', 'other tries')} of yours</span></span>${i === c.ri ? ic.check : ''}</button>`).join('')}</div>`); },
   garea: () => pane(`<h2>Choose a city</h2><label class="gt-city-search">${ic.search}<input id="citysearch" type="search" placeholder="Search cities" aria-label="Search cities" autocomplete="off"></label>
       <div class="rows"><button class="row" type="button" data-act="gaset" data-a="near">${ic.pin}<span class="row-t"><strong>Near you</strong><span>From where you are now · every gym by distance</span></span>${gArea === 'near' ? ic.check : ''}</button>
       </div>${REGIONS.map(rg => `<h3 class="gt-rg">${rg}</h3><div class="rows">${citiesIn(rg).map(([a, k]) => `<button class="row" type="button" data-act="gaset" data-a="${a}"><span class="row-t"><strong>${a}</strong><span>${n(k, 'gym', 'gyms')}</span></span>${gArea === a ? ic.check : ''}</button>`).join('')}</div>`).join('')}`),
@@ -3611,7 +4088,7 @@ const actions = {
   cgset: b => { const c = byId(b.dataset.c); c.gy = +b.dataset.i; closeAll(); render(); toast(`At ${gyms[c.gy].name}`); },
   cset: b => { const c = byId(b.dataset.c); c.ri = +b.dataset.i; closeAll(); render(); toast(`Moved to ${rname(ROUTES[c.ri])} · try ${tryOf(c)}`); },
   vhide: b => { const c = byId(b.dataset.i); c.hidden = !c.hidden; render(); toast(c.hidden ? 'Hidden · only you can see it' : 'Public · in Community'); },
-  seepost: b => { const c = byId(b.dataset.i); feedAt = Math.max(0, feedAll().findIndex(p => p.c === c)); go('friends'); },
+  seepost: b => { const c = byId(b.dataset.i); feedAt = Math.max(0, feedAll().findIndex(p => p.c === c)); go('friends/all'); },
   vdel: b => { const c = byId(b.dataset.i);
     pane(`<h2>Delete this video?</h2><span class="sub">${rname(ROUTES[c.ri])} · try ${tryOf(c)}. Its analysis and comments go too. The video stays in your camera roll.</span>
       <div class="two"><button class="b-ghost" type="button" data-act="close">Keep</button><button class="b-lime" type="button" data-act="vdelyes" data-i="${c.id}">Delete</button></div>`); },
@@ -3696,11 +4173,11 @@ const actions = {
   cmat: b => { cmAt = !cmAt; feedComments(+b.dataset.i, ask.querySelector('[data-cm]').value); },
   // a time in a comment: close the comments and play the video from there
   cmt: b => { const v = document.querySelector(`.ts[data-i="${b.dataset.i}"] video`); closeAll(); if (!v) return; v.currentTime = (+v.dataset.a || 0) + +b.dataset.t; delete v.dataset.stop; v.play().catch(() => {}); },
-  pvid: b => { const k = +b.dataset.v; feedAt = Math.max(0, feedAll().findIndex(p => p.v === k && !p.c)); go('friends'); },
+  pvid: b => { const k = +b.dataset.v; feedAt = Math.max(0, feedAll().findIndex(p => p.v === k && !p.c)); go('friends/all'); },
   // profile
   newpub: () => { newPublic = !newPublic; render(); toast(newPublic ? 'New videos will be public' : 'New videos will be only for you'); }
 };
-Object.assign(actions, moreActions);
+Object.assign(actions, moreActions, interviewActions);
 // the Log send sheet: one pick per row, then Save
 [['feltOpts', 'aria-pressed'], ['filmOpts', 'aria-pressed']].forEach(([id, at]) => $(id).addEventListener('click', e => {
   const b = e.target.closest('button'); if (!b) return; $(id).querySelectorAll('button').forEach(x => x.setAttribute(at, x === b)); }));

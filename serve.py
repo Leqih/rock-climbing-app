@@ -50,6 +50,13 @@ class RangeHandler(SimpleHTTPRequestHandler):
     def end_headers(self):
         if not self.headers.get('Range'):
             self.send_header('Accept-Ranges', 'bytes')
+        # the page and its code always come fresh: back, forward and reload otherwise show an old version from the
+        # browser's cache (no-store, since back/forward ignore no-cache). Videos and pictures stay cacheable
+        p = self.path.split('?')[0].split('#')[0]
+        if p.endswith('/') or p.endswith('.html'):
+            self.send_header('Cache-Control', 'no-store')
+        elif p.endswith(('.js', '.css', '.json')):
+            self.send_header('Cache-Control', 'no-cache')
         super().end_headers()
 
 
