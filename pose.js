@@ -793,9 +793,14 @@
     const cv = ctx.canvas, bw = cv.clientWidth || T.W, bh = cv.clientHeight || T.H, dpr = Math.min(3, window.devicePixelRatio || 1);
     if (cv.width !== Math.round(bw * dpr) || cv.height !== Math.round(bh * dpr)) { cv.width = Math.round(bw * dpr); cv.height = Math.round(bh * dpr); }
     ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, cv.width, cv.height);
-    const V = window.poseView || { z: 1, ax: 0, ay: 0 }, k = bw / T.W, z = V.z;
+    const V = window.poseView || { z: 1, ax: 0, ay: 0 }, z = V.z;
+    // the video beside the canvas fills its box the way its CSS says: cover crops the sides (or top and bottom) when the box
+    // isn't the video's shape, contain leaves bars. Fit the drawing the same way, or the body lands beside the climber
+    const vid = cv.parentElement?.querySelector('video'), fit = vid ? getComputedStyle(vid).objectFit : 'fill';
+    const sx = bw / T.W, sy = bh / T.H, k = fit === 'cover' ? Math.max(sx, sy) : fit === 'contain' ? Math.min(sx, sy) : sx;
+    const ox = fit === 'cover' || fit === 'contain' ? (bw - T.W * k) / 2 : 0, oy = fit === 'cover' || fit === 'contain' ? (bh - T.H * k) / 2 : 0;
     // CSS: the shift, then the zoom from the top-left corner (.clip.zoom video { transform-origin: 0 0 })
-    ctx.setTransform(dpr * z * k, 0, 0, dpr * z * k, dpr * V.ax * bw, dpr * V.ay * bh);
+    ctx.setTransform(dpr * z * k, 0, 0, dpr * z * k, dpr * (V.ax * bw + z * ox), dpr * (V.ay * bh + z * oy));
     return z * k;
   }
   // a colour or a caption changes only once the new one has lasted a moment, and a caption stays up long enough to read.
@@ -892,21 +897,24 @@
     const torsoOf = q => Math.hypot(((q[1][0] + q[2][0]) - (q[7][0] + q[8][0])) / 2 * W, ((q[1][1] + q[2][1]) - (q[7][1] + q[8][1])) / 2 * H);
     const tz = out.map(q => q && [1, 2, 7, 8].every(i => q[i][2] >= .5) ? torsoOf(q) : null);
     const tor = k => { const w = tz.slice(Math.max(0, k - 10), k + 11).filter(Boolean).sort((x, y) => x - y); return w.length ? w[w.length >> 1] : H * .06; };
-    // left and right swapped: the model sometimes trades your two hands (or feet) for a frame. Keep each on the side
-    // nearest where it just was
-    let prev = null;
-    for (let k = 0; k < n; k++) { const q = out[k]; if (!q) continue;
-      if (prev) [[3, 4, 5, 6], [9, 10, 11, 12]].forEach(([l1, r1, l2, r2]) => {
-        if (![l1, r1, l2, r2].every(i => q[i][2] >= OK && prev[i][2] >= OK)) return;
-        const same = d(q, l2, prev, l2) + d(q, r2, prev, r2) + d(q, l1, prev, l1) + d(q, r1, prev, r1);
-        const cross = d(q, l2, prev, r2) + d(q, r2, prev, l2) + d(q, l1, prev, r1) + d(q, r1, prev, l1);
-        if (cross < same * .6) [[l1, r1], [l2, r2]].forEach(([x, y]) => { const t = q[x]; q[x] = q[y]; q[y] = t; }); });
-      prev = q; }
-    // parts of a limb the wrong length: the joint out from there can't be trusted, nor anything past it
+    // left and right swapped: the model sometimes trades your two hands (or feet) for a single frame. Swap back only a frame
+    // that is crossed against both the frame before and the frame after, as the model read them (not as fixed here): checked
+    // against the fixed frame, one wrong swap made the next frame look crossed too, and the whole rest of the climb flipped
+    const raw = out.map(q => q && q.map(o => [...o]));
+    for (let k = 1; k < n - 1; k++) { const q = out[k], a = raw[k - 1], b = raw[k + 1]; if (!q || !a || !b) continue;
+      [[3, 4, 5, 6], [9, 10, 11, 12]].forEach(([l1, r1, l2, r2]) => {
+        if (![l1, r1, l2, r2].every(i => q[i][2] >= OK && a[i][2] >= OK && b[i][2] >= OK)) return;
+        const flip = r => { const same = d(q, l2, r, l2) + d(q, r2, r, r2) + d(q, l1, r, l1) + d(q, r1, r, r1);
+          const cross = d(q, l2, r, r2) + d(q, r2, r, l2) + d(q, l1, r, r1) + d(q, r1, r, l1); return cross < same * .5; };
+        if (flip(a) && flip(b)) [[l1, r1], [l2, r2]].forEach(([x, y]) => { const t = q[x]; q[x] = q[y]; q[y] = t; }); }); }
+    // parts of a limb the wrong length: the joint out from there can't be trusted, nor anything past it. A part the model
+    // sees clearly at both ends gets far more room: with the phone low on the floor an arm reaching up is foreshortened and
+    // a leg below looks long, and throwing those out left the drawing without the limb the climber was moving
+    const room = (q, i, j, [mn, mx]) => q[i][2] >= .5 && q[j][2] >= .5 ? [mn * .5, mx * 1.6] : [mn, mx];
     for (let k = 0; k < n; k++) { const q = out[k]; if (!q) continue; const L = tor(k);
       BONELEN.forEach(([r, m, e, up, lo]) => {
-        if (q[r][2] >= OK && q[m][2] >= OK) { const x = d(q, r, q, m) / L; if (x < up[0] || x > up[1]) { q[m][2] = 0; q[e][2] = 0; return; } }
-        if (q[m][2] >= OK && q[e][2] >= OK) { const x = d(q, m, q, e) / L; if (x < lo[0] || x > lo[1]) q[e][2] = 0; } }); }
+        if (q[r][2] >= OK && q[m][2] >= OK) { const x = d(q, r, q, m) / L, [a, b] = room(q, r, m, up); if (x < a || x > b) { q[m][2] = 0; q[e][2] = 0; return; } }
+        if (q[m][2] >= OK && q[e][2] >= OK) { const x = d(q, m, q, e) / L, [a, b] = room(q, m, e, lo); if (x < a || x > b) q[e][2] = 0; } }); }
     // a joint far from both its neighbours (more than a torso) is a misread too
     for (let k = 1; k < n - 1; k++) { const a = out[k - 1], q = out[k], b = out[k + 1]; if (!a || !q || !b) continue; const L = tor(k);
       for (let j = 0; j < J; j++) { if (q[j][2] < OK || a[j][2] < OK || b[j][2] < OK) continue;
@@ -926,15 +934,19 @@
         else if (a >= 0 && k - a <= 2) out[k][j] = [out[a][j][0], out[a][j][1], .45]; } }
     // smoothing over five samples (1 2 3 2 1), joint by joint, where they're seen: the model's guess wobbles frame to frame
     // hands move fastest, so they take only the samples either side (0 1 2 1 0): wider, they trail a quick reach
+    // A joint the model sees clearly moves at most a tenth of a torso from where it was seen: smoothing is for the wobble,
+    // and pulled further it trails a quick move and the drawing lags off the climber
     const wt = [1, 2, 3, 2, 1], wtHand = [0, 1, 2, 1, 0];
     const sm = out.map((q, k) => q && q.map((o, j) => { if (o[2] < OK) return o; let x = 0, y = 0, w = 0; const ws = j === 5 || j === 6 ? wtHand : wt;
       for (let z = -2; z <= 2; z++) { const r = out[k + z]; if (!r || r[j][2] < OK || !ws[z + 2]) continue; x += r[j][0] * ws[z + 2]; y += r[j][1] * ws[z + 2]; w += ws[z + 2]; }
-      return [x / w, y / w, o[2]]; }));
+      x /= w; y /= w;
+      if (o[2] >= .5) { const lim = .1 * tor(k), dd = Math.hypot((x - o[0]) * W, (y - o[1]) * H); if (dd > lim) { x = o[0] + (x - o[0]) * lim / dd; y = o[1] + (y - o[1]) * lim / dd; } }
+      return [x, y, o[2]]; }));
     // last: each part of a limb kept within a body's proportions, in the direction it points, so filling and smoothing
-    // can't stretch an arm or fold it to nothing
+    // can't stretch an arm or fold it to nothing. Seen clearly at both ends, it keeps the room the length check gave it
     sm.forEach((q, k) => { if (!q) return; const L = tor(k);
-      BONELEN.forEach(([r, m, e, up, lo]) => { [[r, m, up], [m, e, lo]].forEach(([i, j, [mn, mx]]) => {
-        if (q[i][2] < OK || q[j][2] < OK) return; const dx = (q[j][0] - q[i][0]) * W, dy = (q[j][1] - q[i][1]) * H, l = Math.hypot(dx, dy);
+      BONELEN.forEach(([r, m, e, up, lo]) => { [[r, m, up], [m, e, lo]].forEach(([i, j, lim]) => {
+        if (q[i][2] < OK || q[j][2] < OK) return; const [mn, mx] = room(q, i, j, lim), dx = (q[j][0] - q[i][0]) * W, dy = (q[j][1] - q[i][1]) * H, l = Math.hypot(dx, dy);
         const want = Math.min(mx, Math.max(mn, l / L)) * L; if (Math.abs(want - l) < .5) return;
         if (l < 1e-3) { q[j][2] = 0; return; }   // no direction to keep
         const g = want / l, ox = q[j][0], oy = q[j][1]; q[j] = [q[i][0] + dx * g / W, q[i][1] + dy * g / H, q[j][2]];
