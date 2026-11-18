@@ -3604,3 +3604,141 @@ button.sty-i { padding: 0; border: 0; cursor: pointer; }
 .st-t { align-self: flex-start; }
 .st-nav { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
 .st-nav button:disabled { opacity: .35; }
+
+/* every sheet has a close button: a tall sheet covers the backdrop you'd tap to close it */
+.pane-x { position: sticky; top: 0; float: right; z-index: 3; display: grid; place-items: center; width: 36px; height: 36px; margin: 0 -8px 0 8px; padding: 0; border: 0; border-radius: 50%; background: var(--g100, #efefef); cursor: pointer; }
+.pane-x svg { width: 18px; height: 18px; fill: none; stroke: var(--ink); stroke-width: 2.2; stroke-linecap: round; }
+.gt-none { margin: 12px 4px 0; }
+/* a double tap is a tap, not a zoom */
+html, body { touch-action: manipulation; }
+
+.need-b { align-self: flex-start; margin-top: 4px; }
+.fx .need-b { display: inline-block; margin-top: 8px; }
+
+/* Profile: below the ID card, each section is a card you open */
+.pf-c { margin: 10px 0 0; border-radius: var(--r-l); background: #fff; }
+.pf-c > summary { display: flex; align-items: center; gap: 12px; padding: 16px; cursor: pointer; list-style: none; }
+.pf-c > summary::-webkit-details-marker { display: none; }
+.pc-t { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1; }
+.pc-t b { font-size: 17px; font-weight: 800; }
+.pc-t span { font-size: 13px; color: var(--mid); }
+.pc-c { flex: none; width: 10px; height: 10px; border-right: 2px solid var(--ink); border-bottom: 2px solid var(--ink); transform: rotate(45deg) translateY(-3px); transition: transform .2s; }
+.pf-c[open] .pc-c { transform: rotate(-135deg) translateY(-3px); }
+.pc-b { padding: 0 16px 16px; }
+.pc-b .stack, .pc-b .rows, .pc-b .rgrid, .pc-b .grs { margin-left: 0; margin-right: 0; padding-left: 0; padding-right: 0; }
+.pc-a { display: block; margin: 0 0 10px auto; }
+.sty-ks { display: flex; flex-wrap: wrap; gap: 6px; }
+.sty-ks button { height: 32px; padding: 0 12px; border: 1px solid rgba(17, 17, 17, .15); border-radius: 999px; background: #fff; font-size: 13px; font-weight: 700; cursor: pointer; }
+.sty-ks button[aria-pressed="true"] { background: var(--ink); color: #fff; border-color: var(--ink); }
+.sty-ch { flex: none; font-size: 13px; font-weight: 700; color: var(--mid); }
+
+/* Social: the full-screen player's top, friends' days, partners */
+.tok-bk { display: grid; place-items: center; width: 40px; height: 40px; color: var(--white); }
+.tok-ttl { font-size: 16px; font-weight: 600; color: var(--white); text-shadow: 0 1px 3px rgba(17, 17, 17, .5); }
+.fd-s { margin: 6px 0 0; font-size: 13px; color: var(--mid); }
+.fd-r { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 10px; }
+.fd-r em { font-style: normal; font-size: 12px; font-weight: 700; color: var(--mid); width: 100%; }
+.fd-rt { display: flex; align-items: center; gap: 8px; padding: 4px 12px 4px 4px; border-radius: 999px; background: var(--g100, #f1f1f1); font-size: 13px; font-weight: 700; }
+.fd-rt img { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; }
+.fd-you { display: block; width: 100%; margin-top: 10px; padding: 10px 12px; border-radius: 12px; background: var(--ink); color: #fff; font-size: 13px; font-weight: 700; line-height: 1.4; text-align: left; }
+.pz-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.pz-tags i { white-space: nowrap; font-style: normal; padding: 2px 8px; border-radius: 999px; background: var(--g100, #f1f1f1); font-size: 12px; font-weight: 600; color: var(--ink); }
+.pz-tags i.w { background: rgba(46, 158, 98, .14); color: #1d6b42; }
+.pzs { display: grid; gap: 10px; }
+.pz { display: flex; flex-direction: column; gap: 6px; padding: 14px; border-radius: var(--r-l); background: #fff; }
+.pz p { margin: 0; }
+.pz-h { display: flex; align-items: flex-start; gap: 10px; }
+.pz-h .row-t { flex: 1; min-width: 0; }
+.pz-n { font-size: 14px; line-height: 1.4; }
+
+/* contacts on a post or a friend's page, and where you fill yours in */
+.pz-cts { display: grid; gap: 6px; margin-top: 4px; }
+.pz-ct { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 12px; background: var(--g100, #f1f1f1); color: var(--ink); text-decoration: none; text-align: left; font: inherit; }
+.pz-ct em { font-style: normal; font-size: 12px; font-weight: 700; color: var(--mid); min-width: 70px; }
+.pz-ct b { font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pz-ct span { font-size: 13px; font-weight: 700; }
+.pt-cts { display: grid; gap: 6px; }
+.pt-ct { display: grid; grid-template-columns: 90px 1fr; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; }
+.pt-ct-c { margin: -4px 0 6px; }
+
+/* your level and contacts on your profile */
+.ph-tags { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; margin: 4px 0 10px; }
+.ph-tags .pz-tags { justify-content: flex-start; margin: 0; }
+.ph-card { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px; border-radius: 999px; background: rgba(17, 17, 17, .08); font-size: 13px; font-weight: 700; }
+.ph-card svg { width: 14px; height: 14px; }
+
+.soc-seg { margin: 4px 0 6px; }
+
+/* Friends: one-line days, cheers, a friend's move on its own */
+.fd-ls { margin-top: 10px; }
+.fd-l .fd-a { width: 36px; height: 36px; flex: none; }
+.mv-box { position: relative; overflow: hidden; width: 100%; aspect-ratio: 4 / 5; max-height: 50vh; margin: 12px 0; border-radius: 14px; background: #111; }
+.mv-box video { position: absolute; left: 0; top: 0; width: 100%; height: 100%; object-fit: cover; }
+.mv-try { display: flex; flex-direction: column; gap: 2px; margin: 8px 0 0; font-size: 14px; line-height: 1.45; }
+.mv-try em { font-style: normal; font-size: 12px; font-weight: 700; color: var(--mid); }
+.mv-try span { font-weight: 700; }
+
+/* Find partners: posts for a session at the gym */
+.pst-w { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; margin-top: 2px !important; font-size: 15px; }
+.pst-w b { font-weight: 800; }
+.pst-w span { color: var(--mid); font-size: 14px; }
+.pst.mine { box-shadow: inset 0 0 0 2px var(--ink); }
+.pst-fr { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 700; color: #1d6b42; }
+.pst-fr svg { width: 14px; height: 14px; }
+.pp-lock { margin: 14px 0 0; }
+
+/* Friends: requests, who's climbing now, the week's race, you and a friend side by side */
+.fd-now { display: inline-flex; align-items: center; gap: 5px; color: #1d6b42; font-weight: 700; }
+.fd-now i { width: 8px; height: 8px; border-radius: 50%; background: #2e9e62; box-shadow: 0 0 0 3px rgba(46, 158, 98, .2); }
+.fd-live { box-shadow: inset 0 0 0 2px rgba(46, 158, 98, .5); }
+.fd-rt small { font-size: 11px; font-weight: 700; color: var(--mid); }
+.fd-rt.top small { color: #1d6b42; }
+.fd-no .row-t > span { color: var(--mid); }
+.wkb { display: grid; gap: 2px; padding: 6px; border-radius: var(--r-l); background: #fff; }
+.wkb-r { display: grid; grid-template-columns: 40px 1fr auto; align-items: center; gap: 10px; padding: 10px 8px; border-radius: 12px; text-align: left; }
+.wkb-r .row-t { min-width: 0; }
+.wkb-r .row-t > span { font-size: 13px; color: var(--mid); }
+.wkb-r .row-t > .fd-now { display: flex; margin-top: 2px; font-size: 12px; }
+.wkb-r .row-t > .wkb-mv { margin-top: 3px; font-size: 12px; color: #1d6b42; }
+.wkb-mv em { font-style: normal; font-weight: 600; }
+.wkb-mv b { font-weight: 800; }
+.wkb-r.you { background: rgba(194, 255, 1, .35); }
+.wkb-r .fd-a { width: 40px; height: 40px; }
+.wkb-r b { font-size: 15px; min-width: 42px; text-align: right; }
+.wkb-so { margin: 8px 2px 0; font-size: 14px; font-weight: 700; line-height: 1.4; }
+.gear-f .pt-ct input { padding: 10px 12px; }
+.gear-f .pt-ct-c { margin: -4px 0 6px; }
+.pp-rm { display: block; margin: 22px auto 0; padding: 8px 12px; font-size: 13px; font-weight: 700; color: var(--mid); }
+.pzs { margin-top: 10px; padding-bottom: 72px; }
+.pz-h { align-items: center; }
+.pz-ago { flex: none; font-size: 12px; color: var(--mid); }
+.pz-del { flex: none; font-size: 13px; font-weight: 700; color: var(--mid); }
+.pz-cms { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 2px; }
+.pz-cm { display: inline-flex; align-items: center; height: 30px; padding: 0 12px; border-radius: 999px; background: var(--g100, #f1f1f1); color: var(--ink); font: inherit; font-size: 13px; font-weight: 700; text-decoration: none; }
+/* new post: a floating + above the dock, bottom right */
+.cta:has(> .pz-fab) { left: auto; right: 20px; bottom: 108px; }
+.pz-fab { display: grid; place-items: center; width: 56px; height: 56px; border-radius: 50%; background: var(--ink); box-shadow: 0 8px 22px rgba(17, 17, 17, .22); }
+.pz-fab svg { width: 26px; height: 26px; stroke: #fff; stroke-width: 2.2; }
+
+/* a friend's page: name, one grey line, contacts as chips; the new move as one card; you and them as a plain table */
+.pp-h > div { min-width: 0; }
+.pp-h .pz-cms { margin-top: 10px; }
+.mvcs { display: grid; gap: 8px; }
+.mvc { display: flex; align-items: center; gap: 12px; width: 100%; padding: 10px; border-radius: var(--r-l); background: #fff; color: var(--ink); text-align: left; font: inherit; }
+.mvc-im { position: relative; flex: none; width: 64px; height: 80px; border-radius: 10px; overflow: hidden; background: #111; }
+.mvc-im img { width: 100%; height: 100%; object-fit: cover; }
+.mvc-im i { position: absolute; inset: 0; display: grid; place-items: center; }
+.mvc-im i svg { width: 22px; height: 22px; padding: 6px; box-sizing: content-box; border-radius: 50%; background: rgba(255, 255, 255, .9); }
+.mvc-t { display: grid; gap: 3px; min-width: 0; }
+.mvc-t em { font-style: normal; font-size: 12px; color: var(--mid); }
+.mvc-t b { font-size: 16px; font-weight: 800; }
+.mvc-t > span { font-size: 13px; line-height: 1.4; }
+.cmp { display: grid; padding: 6px 14px 14px; border-radius: var(--r-l); background: #fff; }
+.cmp-r { display: grid; grid-template-columns: 1fr 76px 76px; align-items: center; padding: 9px 0; border-bottom: 1px solid rgba(17, 17, 17, .06); }
+.cmp-r em { font-style: normal; font-size: 13px; color: var(--mid); }
+.cmp-r b { text-align: center; font-size: 15px; font-weight: 600; color: var(--mid); white-space: nowrap; }
+.cmp-r b.up { font-weight: 800; color: var(--ink); }
+.cmp-h > span { display: grid; justify-items: center; gap: 3px; }
+.cmp-h .fd-a { width: 30px; height: 30px; }
+.cmp-h i { font-style: normal; font-size: 12px; font-weight: 700; max-width: 72px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cmp .wkb-so { margin: 12px 0 0; }
