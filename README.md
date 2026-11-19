@@ -268,6 +268,32 @@ Open the app at `#/review` (for example `https://chalk-prototype-omega.vercel.ap
 
 Spotter finds few drop knees (8), lock-offs (7) and matches (3) across all the climbs, so those numbers will stay rough.
 
+## Telling routes apart (prototype, outside the app)
+
+The app still pairs videos of the same route by hand. `tools/route_match.py` tries to do it from the video: one frame of the wall is the map, each hand landing in a clip's scan is carried onto it (SIFT features with the climber blanked out, a homography fitted with RANSAC, since the wall is flat), and two climbs are on the same route when most of one's landings fall within 2% of the wall's height of the other's. It needs no hold detector and no colours. That matters here, because this wall is set so densely in every colour that the colour under a hand doesn't say which route it is.
+
+```bash
+pip install opencv-python numpy
+python tools/route_match.py
+```
+
+On the 21 Way Up clips, with `wayup-p1-green` at 13.6 s as the map, the nearest other clip was on the same route for all 21. On average two clips on the same route share 43% of their landings, and two on different routes 26%. The closest calls are `wayup-p5-green` (0.53 to its own route, 0.49 to the other) and `wayup-p5-orange` (0.54 against 0.50). About a third of the landings are left out, because the pose model is less than 0.3 sure of both the fingertip and the wrist. `--conf 0.1` keeps most of them, but `wayup-p5-green` then comes out on the wrong route (20 of 21).
+
+What this doesn't show yet: there are only two routes, on one wall, and the map comes from the same set of videos. It still needs a second gym, routes that share more holds, and a map taken from a separate photo of the wall. A few landings fall off the wall, next to people standing at the bottom right. `tools/out/route_match.jpg` draws every landing on the map, coloured by route. `tools/out/landings.json` holds them, as fractions of the map.
+
+The next step is a hold detector, so a landing snaps to a hold and a climb becomes a sequence of hold ids. Two tries could then be lined up move by move. `tools/holds_train.py` trains YOLO11 on Roboflow's "Climbing Holds and Volumes" (Blackcreed, CC BY 4.0, 1,717 images). Download it in the YOLOv11 format after signing in to Roboflow, and unzip it into `data/holds/`. Its `try` command draws what the detector finds on a frame of our own wall. It hasn't been run yet.
+
+## What to try next
+
+Profile, under your level, and the session summary, under the hardest send, say which grade to try next and about how many tries it will take. The idea comes from DYNO, a hackathon tracker for beginner boulderers. Its code has no licence, so none of it is used. The method here is our own and needs no outside data, only your log (`nextUp` in `app.js`):
+
+- Every climb counts once, with the tries it took to top it. A climb logged by grade uses its Attempts (a Flash is 1). A route uses its tries by hand and on video, counted up to the first top. A climb not topped yet counts the tries so far.
+- Boulders (V grades) and rope routes (5.x) are counted apart, each on its own line when you do both.
+- Your grade is the hardest one you've topped, and its tries are the median of your tops at that grade. The next grade is guessed at those tries times how much more the last step up cost you (median against median). That factor is kept between 1.5× and 3×, so one lucky or stuck climb can't run away with it, and the line says so whenever it was clamped. With no lower grade topped yet, it guesses 2×. If you've already put more tries than that into a climb at the next grade, the guess is raised to one more than those tries.
+- With nothing topped yet, it names the easiest climb you're working on. At the top grade (V8+, 5.12+), it says to keep going.
+
+On the regular demo (`?view=regular`) it reads: try 5.10, about 6 tries. Green 5.8 and Orange 5.9 each took 4 tries, so the factor comes out at 1× and the guess uses 1.5×. Nobody has checked these guesses against what climbers actually go on to do. That needs logs over several weeks.
+
 ## Arm angles
 
 An arm only gets an angle when shoulder, elbow and wrist all have confidence of at least 0.3 and both parts of the arm are at least 0.3 of the torso length on screen (`readArms` in `pose.js`). Otherwise the app shows no angle. On a far-off climber the wrist is a guess, which used to read as 9°. Conclusions about arms need at least half of the rest time readable; the whole-climb figure needs 30% of the climb. The thresholds were set by checking which readings looked impossible, not against measured angles.

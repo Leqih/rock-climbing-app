@@ -612,6 +612,13 @@ const ZH = {
   "Keep it as your focus on the next try.": "下次尝试继续把它当重点。",
   "Result": "结果", "Hand moves before you came off": "掉下前的手部动作", "Reaches with a foot first": "先动脚再伸手",
   "Rests on straight arms": "直臂休息", "Longest rest or pause": "最长休息或停顿", "Longest stop": "最长停顿", "Spots to work on": "待改进处", "Better": "进步", "Same": "持平", "Less": "退步",
+  // what to try next (nextUp in app.js)
+  "Try next: {}": "下一步试试：{}", "Keep going at {}": "继续爬 {}", "Top your first {}": "先完攀第一条 {}", "About {} tries": "大约要试 {} 次",
+  "{} took you 1 try": "{} 你试 1 次就完攀了", "{} took you {} tries": "{} 你一般要试 {} 次", "Each grade up has taken you about {}× the tries": "每升一级，尝试次数大约变成 {} 倍",
+  "Guessing twice the tries, until you top two grades": "完攀过两个难度之前，先按两倍估计",
+  "{} took you no more tries than {}, so guessing a little more": "{} 没比 {} 多花次数，所以估计稍多一点", "{} took you over 3× the tries of {}, so guessing 3×": "{} 花的次数是 {} 的 3 倍多，所以按 3 倍估计", "You’ve put 1 try into one already": "已经有一条试了 1 次",
+  "You’ve put {} tries into one already": "已经有一条试了 {} 次", "1 try so far": "目前试了 1 次", "{} tries so far": "目前试了 {} 次",
+  "A guess from your own log. The more you log, the closer it gets.": "根据你自己的记录估计。记得越多，越准。", "Next time": "下次", "about {} tries": "大约试 {} 次",
 };
 // a beta move in words (moveSay in app.js): each hand, how far, which way
 { const H = { 'Left hand': '左手', 'Right hand': '右手' }, Z = { '': '', long: '大幅', short: '小幅' },

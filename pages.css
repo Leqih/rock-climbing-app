@@ -2989,6 +2989,14 @@ textarea.note:focus { outline: 2px solid var(--ink); outline-offset: 0; backgrou
 .gr-sc i em { position: absolute; top: -3px; bottom: -3px; border-radius: 999px; background: rgba(17,17,17,.14); }
 .gr-sc i b { z-index: 1; }
 .pf-lv { margin-top: 12px; }
+/* what to try next, under your level: the grade and the tries, and Boulder / Top rope when you do both */
+.pf-nx { margin-top: 12px; }
+.pf-nx .row-t strong { display: flex; align-items: baseline; gap: 8px; }
+.pf-nx .nx-d { font-size: 12px; font-weight: 600; color: var(--mid); }
+.pf-nx .cap { margin: 6px 4px 0; }
+.sm-nx { margin-top: 6px; }
+.sm-nx b { font-size: 17px; }
+.sm-nx b span { font-size: inherit; font-weight: inherit; color: inherit; }
 
 /* About this climb: the result and how the grade felt, as small pills inside the list */
 .ce-res { cursor: default; flex-wrap: wrap; padding-top: 8px; padding-bottom: 8px; }

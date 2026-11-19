@@ -2,3 +2,8 @@ serve.py
 .claude
 .impeccable
 server
+tools/out
+tools/*.py
+data
+runs
+.venv

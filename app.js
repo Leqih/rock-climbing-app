@@ -2638,6 +2638,7 @@ function viewProfile() {
       </section>${top ? (() => { const g0 = gyms[top.gy ?? 0] || gym, vh = votesOf(top.ri).h, said = shiftG(ROUTES[top.ri].grade, vh), avg = shiftG(ROUTES[top.ri].grade, vh + gymLean(g0));
         return `<div class="rows pf-lv"><button class="row" type="button" data-act="to" data-to="route/${top.ri}"><span class="row-t"><strong>Your level ≈ ${avg} at the average gym</strong>
           <span>Your hardest send, ${rname(ROUTES[top.ri])}, is a ${said} by climbers’ votes. ${g0.name} grades ${leanWords(gymLean(g0)).toLowerCase().replace('graded ', '')}.</span></span>${ic.arr('#111111')}</button></div>`; })() : ''}`; })()}
+    ${nextRows()}
     ${session === 'live' ? `<section class="recap solid"><span class="sub">Climbing now · ${gym.name}</span><b class="num" id="prclk">${clk(sesSecs())}</b><span class="sub">${n(dayLog(0).reduce((s, e) => s + e.tries, 0) + gday(0).length, 'try', 'tries')} · ${n(dayLog(0).filter(e => e.sent).length + gday(0).filter(gsent).length, 'send', 'sends')} today</span><button class="pr-end" type="button" data-act="lgend">End session</button></section>` : ''}
     <div class="fold"></div>
     ${prog ? fcard('routes', 'Your routes', `${n(ROUTES.filter((r, i) => mineOn(i).length).length, 'route', 'routes')} · ${tops} topped`, `<div class="rgrid">${ROUTES.map((r, i) => i).filter(i => mineOn(i).length).map(rcard).join('')}</div>`) : ''}
@@ -3235,6 +3236,59 @@ function dayLog(ago) {
     const tries = (l?.tries || 0) + cs.length, sent = !!l?.sent || cs.some(topOf);
     return { r, ri, tries, sent, style: l?.style || (sent ? (tries <= 1 ? 'Flash' : 'Redpoint') : ''), hand: !!l && !cs.length, cs, l }; }).filter(e => e.tries || e.sent);
 }
+/* ---------- What to try next: the next grade, and about how many tries it will take you ----------
+   The idea is DYNO's (a beginner bouldering tracker that predicts tries per grade), the method our own, with no outside
+   data: only your log. Each grade you've topped took you some number of tries; the next grade is guessed from how much
+   more the last step up cost you. Boulders (V grades) and rope routes (5.x) are counted apart. */
+// every climb you've tried, once each, with the tries it took to top it (or the tries so far, if not yet)
+function climbsByTries() {
+  const out = [], at = g => VG.includes(g) ? ['b', VG.indexOf(g)] : GR.includes(g) ? ['r', GR.indexOf(g)] : null;
+  glogs.forEach(x => { const a = at(x.g); if (a) out.push({ d: a[0], i: a[1], tries: x.k === 'Flash' ? 1 : Math.max(1, x.attempts || 1), sent: gsent(x) }); });
+  ROUTES.forEach((r, ri) => {   // a route: by hand and on video, oldest day first, counted up to the first top
+    const a = at(r.grade); if (!a) return;
+    const ev = [...logs.filter(l => l.ri === ri && (l.tries || l.sent)).map(l => ({ ago: l.ago, id: -1, tries: l.tries, top: l.sent })),
+      ...clips.filter(c => c.ri === ri).map(c => ({ ago: agoOf(c), id: c.id, tries: 1, top: topOf(c) }))].sort((p, q) => q.ago - p.ago || p.id - q.id);
+    let tries = 0, sent = false;
+    for (const e of ev) { tries += e.tries; if (e.top) { sent = true; break; } }
+    if (ev.length) out.push({ d: a[0], i: a[1], tries: Math.max(1, tries), sent });
+  });
+  return out;
+}
+// per kind of climbing you've logged: { d, g, est } and how it was worked out
+function nextUp() {
+  const all = climbsByTries();
+  return ['b', 'r'].map(d => {
+    const L = d === 'b' ? VG : GR, xs = all.filter(x => x.d === d), sends = xs.filter(x => x.sent);
+    if (!xs.length) return null;
+    if (!sends.length) { const p = xs.reduce((a, b) => b.i < a.i ? b : a); return { d, g: L[p.i], first: true, spent: p.tries }; }
+    // the median tries to top a grade, so one climb that took forever doesn't decide it
+    const mid = i => { const t = sends.filter(x => x.i === i).map(x => x.tries).sort((a, b) => a - b); return t.length ? (t[(t.length - 1) >> 1] + t[t.length >> 1]) / 2 : null; };
+    const top = Math.max(...sends.map(x => x.i)), here = mid(top), below = mid(top - 1);
+    // how much more the last step up cost you, kept between 1.5× and 3× so one lucky or stuck climb doesn't run away with it;
+    // with no grade below to compare, twice the tries
+    const raw = below ? here / below : null, k = raw ? Math.min(3, Math.max(1.5, raw)) : 2;
+    const ni = Math.min(top + 1, L.length - 1), proj = xs.filter(x => !x.sent && x.i === ni), spent = proj.length ? Math.max(...proj.map(x => x.tries)) : 0;
+    const est = ni === top ? Math.max(1, Math.round(here)) : Math.max(2, Math.round(here * k), spent + 1);
+    return { d, g: L[ni], top: L[top], below: below ? L[top - 1] : null, here: Math.max(1, Math.round(here)), raw, k: Math.round(k * 10) / 10, est, spent, same: ni === top };
+  }).filter(Boolean);
+}
+// the lines of one guess, in plain words
+function nextWords(x) {
+  if (x.first) return { head: `Top your first ${x.g}`, sub: [x.spent === 1 ? '1 try so far' : `${x.spent} tries so far`] };
+  return { head: x.same ? `Keep going at ${x.g}` : `Try next: ${x.g}`, sub: [
+    `About ${x.est} tries`,
+    x.here === 1 ? `${x.top} took you 1 try` : `${x.top} took you ${x.here} tries`,
+    ...(x.same ? [] : [!x.raw ? 'Guessing twice the tries, until you top two grades'
+      : x.raw < 1.5 ? `${x.top} took you no more tries than ${x.below}, so guessing a little more`
+      : x.raw > 3 ? `${x.top} took you over 3× the tries of ${x.below}, so guessing 3×`
+      : `Each grade up has taken you about ${x.k}× the tries`]),
+    ...(x.spent ? [x.spent === 1 ? 'You’ve put 1 try into one already' : `You’ve put ${x.spent} tries into one already`] : [])] };
+}
+const nextRows = () => { const xs = nextUp(); if (!xs.length) return '';
+  return `<div class="rows pf-nx">${xs.map(x => { const w = nextWords(x);
+    return `<div class="row"><span class="row-t"><strong><span>${w.head}</span>${xs.length > 1 ? `<span class="nx-d">${x.d === 'b' ? 'Boulder' : 'Top rope'}</span>` : ''}</strong>
+      <span>${w.sub.map(s => `<span>${s}</span>`).join('<span> · </span>')}</span></span></div>`; }).join('')}
+    <p class="cap">A guess from your own log. The more you log, the closer it gets.</p></div>`; };
 const logDays = () => [...new Set([...logs.filter(l => l.tries || l.sent).map(l => l.ago), ...clips.map(agoOf), ...glogs.map(x => x.ago)])].sort((a, b) => b - a);
 let session = 'none', lgStart = null, sesDur = 0, bookAt = 0;
 const sesSecs = () => session === 'live' && lgStart ? Math.floor((Date.now() - lgStart) / 1000) : sesDur;
@@ -3445,6 +3499,7 @@ function viewSummary() {
     <p class="sub-w">${es.length || !gd.length ? gym.name : gwhere(gd)} · ${dateOf(0).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</p>
     <section class="glass trio sm-card"><div><b class="num">${clk(sesDur)}</b><span>time</span></div><div><b class="num">${allT}</b><span>${allT === 1 ? 'try' : 'tries'}</span></div><div><b class="num">${allS}</b><span>${allS === 1 ? 'send' : 'sends'}</span></div></section>
     ${best ? `<div class="sm-best"><span>Hardest send</span><b>${best[1]}</b></div>` : ''}
+    ${nextUp().map(x => `<div class="sm-best sm-nx"><span>Next time</span><b>${x.first ? x.g : `<span>${x.g}</span><span> · </span><span>about ${x.est} tries</span>`}</b></div>`).join('')}
     ${sesAbout()}
     <div class="fold"></div>
     ${next}

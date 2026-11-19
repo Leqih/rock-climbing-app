@@ -2,3 +2,7 @@
 .env*
 *.pt
 __pycache__/
+tools/out/
+data/
+runs/
+.venv/
