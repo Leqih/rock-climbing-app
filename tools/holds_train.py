@@ -2,6 +2,7 @@
 
     pip install ultralytics                                   # once; brings PyTorch (use the CUDA build for the GPU)
     python tools/holds_train.py train --data data/holds/holds.yaml
+    python tools/holds_train.py train --resume                # if it stopped: carries on from the last epoch
     python tools/holds_train.py try --model runs/detect/holds/weights/best.pt --video wayup-p1-green@13.6
 
 The data: Roboflow Universe, "Climbing Holds and Volumes" by Blackcreed (CC BY 4.0, 1,717 images, classes hold and
@@ -29,7 +30,11 @@ OUT = os.path.join(ROOT, 'tools', 'out')
 
 def train(a):
     from ultralytics import YOLO
-    YOLO(a.model).train(data=a.data, epochs=a.epochs, imgsz=a.imgsz, batch=a.batch, name='holds',
+    if a.resume:  # carries on from the last saved epoch with the run's own settings; only workers is changed
+        return YOLO(os.path.join(ROOT, 'runs', 'detect', 'holds', 'weights', 'last.pt')).train(resume=True, workers=a.workers)
+    if not a.data:
+        raise SystemExit('train needs --data (or --resume)')
+    YOLO(a.model).train(data=a.data, epochs=a.epochs, imgsz=a.imgsz, batch=a.batch, name='holds', workers=a.workers,
                         project=os.path.join(ROOT, 'runs', 'detect'), patience=20)
 
 
@@ -46,7 +51,7 @@ def try_on(a):
         img = cv2.imread(a.video)
     r = YOLO(a.model)(img, imgsz=a.imgsz, conf=a.conf, verbose=False)[0]
     os.makedirs(OUT, exist_ok=True)
-    cv2.imwrite(os.path.join(OUT, 'holds.jpg'), r.plot(labels=False))
+    cv2.imwrite(os.path.join(OUT, 'holds.jpg'), r.plot(labels=False, conf=False, line_width=2))
     print(f'{len(r.boxes)} holds found, drawn on tools/out/holds.jpg')
 
 
@@ -54,7 +59,10 @@ def main():
     ap = argparse.ArgumentParser()
     sub = ap.add_subparsers(dest='cmd', required=True)
     t = sub.add_parser('train')
-    t.add_argument('--data', required=True, help="the export's data.yaml")
+    t.add_argument('--data', help="the export's data.yaml")
+    t.add_argument('--resume', action='store_true', help='carry on a run that stopped, from runs/detect/holds')
+    t.add_argument('--workers', type=int, default=2,
+                   help="image loaders; on Windows each is a whole Python+PyTorch process, and 8 ran out of memory")
     t.add_argument('--model', default='yolo11s.pt', help='the starting weights (s fits a laptop GPU; m or x on Modal)')
     t.add_argument('--epochs', type=int, default=100)
     t.add_argument('--imgsz', type=int, default=1024, help='holds are small: keep this high')

@@ -120,15 +120,30 @@ function needTracks(vs) {
   if (!miss.length) return;
   const at = [page, arg];
   miss.forEach(v => { TRK[v.vid] = null; });
-  Promise.all(miss.filter(v => !v.mine).map(v => fetch(`video/${v.vid}.track.json`).then(x => x.ok ? x.json() : null).then(T => { TRK[v.vid] = T; }).catch(() => {})))
+  Promise.all(miss.filter(v => !v.mine).map(v => fetch(tsrc(v.vid)).then(x => x.ok ? x.json() : null).then(T => { TRK[v.vid] = T; }).catch(() => {})))
     .then(() => { if (page === at[0] && arg === at[1]) render(); });
 }
+
+// the hand holds of each route, where someone has marked them: for The Way Up clips, the dataset's own annotation, as
+// boxes in clip pixels, bottom of the wall first (video/routes.json, made by tools/hold_show.py --export)
+let RH = null;
+fetch('video/routes.json').then(x => x.ok ? x.json() : null).then(j => { RH = j; if (j && page === 'clip') render(); }).catch(() => {});
 
 /* ---------- Your videos ---------- */
 // videos you bring in from your phone: kept on it (the analysis server reads a copy and deletes it). The file plays from a blob URL and its first frame is the picture
 const MINE = {};
 const pic = (name, f) => MINE[name]?.pic || `img/${name}${f === 0 ? '0' : ''}.jpg`;
 const vsrc = vid => MINE[vid]?.src || `video/${vid}.mp4`;
+// a video's scan sits beside it (video/x.track.json, or data/wx/x.track.json for a sample kept on this computer)
+const tsrc = vid => vsrc(vid).replace(/\.mp4$/, '.track.json');
+/* bouldering samples kept on this computer only, in data/wx (data/ is never deployed: .vercelignore). They were sent to us,
+   not filmed by us, so they stay off the public site. Each is one climb, scanned ahead. They are in Import's sample videos
+   like the rest of your camera roll, and come in as a new climb: you say the gym, colour and grade, as for your own video */
+fetch('data/wx/samples.json').then(x => x.ok ? x.json() : []).then(L => L.forEach(s => {
+  if (V.some(v => v.vid === s.vid)) return;
+  MINE[s.vid] = { src: s.src, pic: s.pic };
+  V.push({ i: V.length, vid: s.vid, img: s.vid, who: 'You', ri: null, top: false, ago: s.ago, D: s.D, ar: s.ar, len: mmss(s.D), t: [0, s.D], credit: 'Sample video · kept on this computer', local: true });
+})).catch(() => {});
 // one clip = one try of yours. v = its video in V; ri = its route (you can change it); hidden = only you see it
 const clips = [];
 let cid = 0, newPublic = false;
@@ -226,36 +241,46 @@ function weekHours(g) {
 }
 
 /* ---------- First open: what Spotter does, then straight in ---------- */
-// joining: welcome, then where you climb, what you like to climb, how to film. Done once; a returning climber opens on Videos
+// joining: welcome, then where you climb, then how to film, ending on a sample video analysed so you see what you get before
+// you've filmed anything. What you like to climb isn't asked here: it changes nothing in the analysis, so it's on Profile.
+// Done once; a returning climber opens on Videos
 let homeGy; try { homeGy = JSON.parse(localStorage.getItem('spotter-home') ?? 'null'); } catch (_) { homeGy = null; }
 const obDone = () => { try { return localStorage.getItem('spotter-ob') === '1'; } catch (_) { return false; } };
 const obFinish = () => { try { localStorage.setItem('spotter-ob', '1'); } catch (_) {} };
-const obDots = k => `<span class="ob-dots" role="img" aria-label="Step ${k} of 3">${[1, 2, 3].map(i => `<i${i <= k ? ' class="on"' : ''}></i>`).join('')}</span>`;
 function viewSetup() {
   return { photo: 'wayup-p3-green', html: `
     <div class="bar"><span class="brand">Spotter</span><button class="ob-skip" type="button" data-act="obskip">Look around first</button></div>
     <div class="ob-hero"><img id="obex" src="img/wayup-p3-green.jpg" alt="A climber on the rope wall, with the body Spotter found drawn on">
-      <span class="ob-k">Example</span><span class="ob-st"><strong>40 hand and foot moves</strong><span>found in Leo’s climb of Green 5.8</span></span></div>
+      <span class="ob-k">Example</span><span class="ob-st"><strong id="obn">43 hand and foot moves</strong><span>found in Leo’s climb of Green 5.8</span></span></div>
     <h1 class="hl ob-h">See what your body did on the wall</h1>
     <p class="sub-w ob-s">Film a try with your phone on the floor. Spotter follows your hands, feet and hips, and shows you how others climbed the same route.</p>`,
     cta: `<button class="b-lime" type="button" data-act="to" data-to="ob/gym">Get started</button>`,
-    after: () => fetch('video/wayup-p3-green.track.json').then(x => x.json()).then(T => { const s = T.S.find(q => q.p && q.t >= 20); return s && window.poseStill?.('video/wayup-p3-green.mp4', T, s, 'none', 'good'); })
+    // the count is the scan's own, and the still a moment where every limb shows, one hand reaching above the head: at 20 s
+    // both hands were hidden in front of the body, so the example of "follows your hands" had no arms
+    after: () => fetch('video/wayup-p3-green.track.json').then(x => x.json()).then(T => {
+      const n = $('obn'); if (n) n.textContent = `${T.moves.length} hand and foot moves`;
+      const all = q => q.p && [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].every(i => q.p[i][2] > .6), up = q => Math.min(q.p[5][1], q.p[6][1]) < q.p[0][1] - .02;
+      const s = T.S.find(q => q.t >= 7.5 && all(q) && up(q)) || T.S.find(q => q.p && q.t >= 20);
+      return s && window.poseStill?.('video/wayup-p3-green.mp4', T, s, 'none', 'good'); })
       .then(u => { const im = $('obex'); if (u && im) im.src = u; }).catch(() => {}) };
 }
-// step 1: your gym; step 3: how to film so Spotter sees every move (step 2 is the style page)
+// step 1: your gym; step 2: how to film so Spotter sees every move, and a sample to see it work before you film. Skip on a
+// step goes on to the next one; Later, on the last, ends joining
 function viewOb(a) {
   if (a === 'film') return { after: obFinish,
-    cta: `<button class="b-ghost" type="button" data-act="upload">Import videos</button><button class="b-lime" type="button" data-act="film">${ic.rec}Film a try</button>`, html: `
-    ${bar(obDots(3), '<button class="ob-skip" type="button" data-act="obskip">Later</button>')}
+    cta: `<button class="b-ghost" type="button" data-act="obsample">Try a sample video</button><button class="b-lime" type="button" data-act="film">${ic.rec}Film a try</button>`, html: `
+    ${bar('', '<button class="ob-skip" type="button" data-act="obskip">Later</button>')}
     <h1 class="hl ob-h">Film your first try</h1>
     <p class="sub-w ob-s">Three things, and Spotter can see every move.</p>
+    <div class="ob-eg"><img src="img/wayup-p3-green.jpg" alt="A whole rope wall filmed from the floor, the climber small on it">
+      <span><strong>Like this</strong>The whole wall in the picture, you small on it, is fine. Spotter finds you.</span></div>
     <ol class="ob-tips">
       <li><b>1</b><span><strong>Phone on the floor</strong>A few steps back from the wall, propped on your bag or a shoe.</span></li>
       <li><b>2</b><span><strong>Upright, all of you in frame</strong>Your whole body and the whole route, from the first hold to the top.</span></li>
       <li><b>3</b><span><strong>Record, climb, stop</strong>Start before you leave the ground, stop once you’re back down.</span></li></ol>
-    <p class="cap">Filmed some already? Import them from your camera roll.</p>` };
-  return { cta: `<button class="b-lime" type="button" data-act="to" data-to="pick/ob"${homeGy == null ? ' disabled' : ''}>Continue</button>`, html: `
-    ${bar(obDots(1), '<button class="ob-skip" type="button" data-act="to" data-to="pick/ob">Skip</button>')}
+    <p class="cap">Filmed some already? <button class="ob-imp" type="button" data-act="upload">Import them</button></p>` };
+  return { cta: `<button class="b-lime" type="button" data-act="to" data-to="ob/film"${homeGy == null ? ' disabled' : ''}>Continue</button>`, html: `
+    ${bar('', '<button class="ob-skip" type="button" data-act="to" data-to="ob/film">Skip</button>')}
     <h1 class="hl ob-h">Where do you climb most?</h1>
     <p class="sub-w ob-s">We start you there: its routes, and the climbers on them. You can film at any gym.</p>
     <div class="ob-gyms" role="radiogroup" aria-label="Your gym">${byNear(gyms.map((g, i) => [g, i])).map(([g, i]) => `<button class="ob-g" type="button" role="radio" data-act="obpick" data-i="${i}" aria-checked="${homeGy === i}">
@@ -264,7 +289,7 @@ function viewOb(a) {
 
 /* ---------- Pick your climbing style: a page of shapes you tap, after the "Pick" pages in the team's references ----------
    Twelve shapes scattered and tilted (pixel heart, starburst, diamonds, triangle, circle, square). Grey until picked,
-   orange once picked. Reached after the first screen ("Look around first") and from Profile. What you pick shows on Profile. */
+   orange once picked. Reached from Profile (not part of joining). What you pick shows on Profile. */
 const STYLES = [
   // two to a row, each one clear of its neighbours even after its tilt
   ['rope', 'Top rope', 'dia', 8, 14, 200, 66, -6],
@@ -425,7 +450,7 @@ const pcard = (x, last) => `<div class="vc pc"><button class="fr-f" type="button
 // ?scene=live|done|plan previews a scene without clicking through the flow.
 const vtops = () => ROUTES.filter((r, i) => mineOn(i).some(topOf) || handOn(i).some(l => l.sent) || glTop(i)).length;
 const vlogged = () => logs.filter(l => l.tries || l.sent).length + glogs.length;
-const planOfToday = () => plans.find(q => q.d === 0 && q.who.includes('You')) || (p => p && { by: 'You', g: p.gy, d: 0, h: p.h, who: ['You'] })(myLive().find(q => q.k === 'gym' && q.d === 0));
+const planOfToday = () => plans.find(q => q.d === 0 && q.who.includes('You'));
 const sceneOf = () => session === 'live' ? 'live' : sesDur > 0 ? 'done' : planOfToday() ? 'plan' : !clips.length && !vlogged() ? 'new' : 'back';
 const todayCount = () => { const d = dayLog(0), g = gday(0);
   return `${n(d.reduce((s, e) => s + e.tries, 0) + g.length, 'try', 'tries')} · ${n(d.filter(e => e.sent).length + g.filter(gsent).length, 'send', 'sends')} today`; };
@@ -606,11 +631,11 @@ function viewShelf(a) {
 const upSel = new Set();
 function openUpload() { upSel.clear(); drawRoll(); }
 function drawRoll() {
-  const left = V.filter(v => !v.added), k = upSel.size;
+  const left = V.filter(v => !v.added).sort((a, b) => !!b.local - !!a.local), k = upSel.size;   // the bouldering samples first
   pane(`<h2>Import videos</h2><span class="sub">${window.poseServer ? 'Uploaded to our server for analysis, then deleted' : 'Analysed on your phone. Nothing is uploaded'}</span>
     <label class="up-own">${ic.rec}<span><b>Choose from your phone</b><em>One climb, filmed from the ground, with your whole body and the whole route in frame</em></span><input type="file" accept="video/*" data-upfile hidden></label>
     ${left.length ? '<h3 class="up-h">Or try a sample video</h3>' : ''}
-    ${left.length ? `<div class="roll">${left.map(v => `<button type="button" class="${upSel.has(v.i) ? 'on' : ''}" data-act="upick" data-i="${v.i}" aria-pressed="${upSel.has(v.i)}" aria-label="Video, ${rname(ROUTES[v.ri])}, ${v.len}"><img src="${pic(v.img)}" alt=""><span>${dayLabel(v.ago)} · ${v.len}</span>${upSel.has(v.i) ? `<em>${[...upSel].indexOf(v.i) + 1}</em>` : ''}</button>`).join('')}</div>
+    ${left.length ? `<div class="roll">${left.map(v => `<button type="button" class="${upSel.has(v.i) ? 'on' : ''}" data-act="upick" data-i="${v.i}" aria-pressed="${upSel.has(v.i)}" aria-label="Video, ${v.ri == null ? 'new climb' : rname(ROUTES[v.ri])}, ${v.len}"><img src="${pic(v.img)}" alt=""><span>${dayLabel(v.ago)} · ${v.len}</span>${upSel.has(v.i) ? `<em>${[...upSel].indexOf(v.i) + 1}</em>` : ''}</button>`).join('')}</div>
       <button class="btn-l" type="button" data-act="upnext"${k ? '' : ' disabled'}>${k ? `Import ${n(k, 'video', 'videos')}` : 'Pick a video'}</button>`
     : `<p class="hint">All videos are already in your album.</p><button class="btn-l" type="button" data-act="close">Done</button>`}`);
 }
@@ -703,7 +728,8 @@ async function restoreMine() {
 const lastRoute = () => clips.length ? clips[clips.length - 1].ri : 0;
 document.addEventListener('change', e => { const f = e.target.closest?.('[data-upfile]'); if (f) { importFile(f.files[0]); f.value = ''; } });
 function importPicks(vs) {
-  const cs = vs.map(i => addClip(i));
+  // a sample with no route yet comes in as a new climb, like a video from your phone: you say where and which route
+  const cs = vs.map(i => addClip(i, V[i].ri == null ? { need: true, gy: null, ri: lastRoute() } : {}));
   closeAll(); cTab = 'why';
   if (cs.length === 1) go(`clip/${cs[0].id}`);
   else { go('videos'); toast(`${n(cs.length, 'video', 'videos')} imported`); }
@@ -857,9 +883,12 @@ async function analyse(c, seed) {
   // a trimmed video is analysed on what's left of it
   c.track = track && c.trim ? window.__results({ ...track, S: track.S.filter(s => s.t >= c.trim[0] && s.t <= c.trim[1]), moves: track.moves.filter(m => m.t0 >= c.trim[0] && m.t <= c.trim[1]) }) : track;
   // found you: done. Not found (or nothing scanned): you tap yourself once, never made-up points on a real video
-  if (seed) { c.tags = seed; c.an = 'done'; } else {
-    c.auto = track?.first || null;
-    if (c.auto && c.track) { c.tags = c.auto; c.an = 'done'; } else c.an = 'ask';
+  // two people about the same size at the start (a friend at the wall beside you): the scan starts on the bigger one and may
+  // have picked them, so you're asked once instead of shown their analysis as yours. Someone walking past later doesn't
+  // ask: once it has you, it follows you
+  if (seed) { c.tags = seed; c.an = 'done'; c.crowd = false; } else {
+    c.auto = track?.first || null; c.crowd = (track?.doubt || 0) >= .5;
+    if (c.auto && c.track && !c.crowd) { c.tags = c.auto; c.an = 'done'; } else c.an = 'ask';
   }
   if (here() || ['videos', 'shelf', 'day', 'algym', 'profile', 'route', 'beta', 'wall', 'vs', 'session'].includes(page)) render();
 }
@@ -881,7 +910,10 @@ const GOOD_WHY = { side: 'Your hand got further with less pull, so hard reaches 
 function tlMarks(T, c) {
   const F = fixes(T, peersOn(c.ri).filter(v => v.i !== c.v)), k = stuckAt(T, topOf(c)), R = styleOf(T).R, out = [];
   F.forEach(g => g.items.forEach(it => out.push({ k: 'fix', t: it.t, l: g.title, q: it.q, why: it.lock ? LOCK_WHY : MK_WHY[g.id], next: it.steps?.[0], need: needBtn(it) })));
-  if (k) out.push({ k: 'fix', t: k.s.t, l: k.kind === 'end' ? 'Where you came off' : 'Where you stopped longest', q: `You stopped here for ${k.gap.toFixed(1)} s.`, why: MK_WHY.stuck, next: 'Before you climb it again, work out this move from the ground.' });
+  const kh = k && stuckHolds(T, c, k);
+  if (k) out.push({ k: 'fix', t: k.s.t, l: k.kind === 'end' ? 'Where you came off' : 'Where you stopped longest',
+    q: kh ? `You stopped here for ${k.gap.toFixed(1)} s, on hand hold ${kh.top + 1} of ${kh.of}.` : `You stopped here for ${k.gap.toFixed(1)} s.`, why: MK_WHY.stuck,
+    next: kh && kh.next >= 0 ? `Before you climb it again, work out the move from hold ${kh.top + 1} to hold ${kh.next + 1} from the ground.` : 'Before you climb it again, work out this move from the ground.' });
   STY.forEach(m => { const r = R[m.id]; if (!r || !r.e || (m.id === 'side' && !r.runs) || m.id === 'foot') return; (r.ev || []).forEach(e => out.push({ k: 'good', t: e.t, l: m.name, id: m.id, q: m.what, why: GOOD_WHY[m.id] || 'It saves your arms for the moves that matter.', next: 'Keep using it on harder routes.' })); });
   return out.filter(m => m.t != null && m.t >= 0).sort((a, b) => a.t - b.t);
 }
@@ -894,7 +926,10 @@ function stMarks(T, c) {
   mk.filter(m => m.k === 'good').forEach(m => { const g = good.find(x => x.id === m.id); if (g) g.n++; else good.push({ ...m, n: 1 }); });
   return [...mk.filter(m => m.k === 'fix'), ...good];
 }
-const stCard = m => `<p class="st-k"><span>${m.k === 'fix' ? 'To work on' : 'Went well'}</span><b>${m.l}</b><span class="num">${mmss(m.t)}${m.n > 1 ? ` · ${n(m.n, 'time', 'times')}` : ''}</span></p>
+// one card, read top to bottom: what kind (to work on / went well) and when, what it is, what happened, why it matters, and
+// set apart at the bottom, the one thing to do next time
+const stCard = m => `<div class="st-top"><span class="st-tag">${m.k === 'fix' ? 'To work on' : 'Went well'}</span><span class="st-at num"><i aria-hidden="true"></i>${mmss(m.t)}${m.n > 1 ? ` · ${n(m.n, 'time', 'times')}` : ''}</span></div>
+  <h3 class="st-h">${m.l}</h3>
   ${m.q ? `<p class="st-q">${m.q}</p>` : ''}
   ${m.why ? `<p class="st-w"><em>${m.k === 'fix' ? 'Why it matters' : 'Why it helps'}</em><span>${m.why}</span></p>` : ''}
   ${m.next ? `<p class="st-x"><em>Next time</em><span>${m.next}</span></p>` : ''}
@@ -905,8 +940,8 @@ function stepCard(T, c) {
   if (stFor !== c.id) { stFor = c.id; stI = 0; } stI = Math.max(0, Math.min(stI, ms.length - 1));
   if (!ms.length) return '<p class="cap">Nothing in this video to point out.</p>';
   return `<section class="st">
-    <div class="st-dots">${ms.map((x, i) => `<button class="st-d ${x.k}" type="button" data-act="stgo" data-i="${i}" aria-current="${i === stI}" aria-label="${x.l}"></button>`).join('')}<span class="st-n num" id="st-n">${stI + 1} / ${ms.length}</span></div>
-    <div class="st-c ${ms[stI].k}" id="st-c">${stCard(ms[stI])}</div>
+    <div class="st-box"><div class="st-dots">${ms.map((x, i) => `<button class="st-d ${x.k}" type="button" data-act="stgo" data-i="${i}" aria-current="${i === stI}" aria-label="${x.l}"></button>`).join('')}<span class="st-n num" id="st-n">${stI + 1} / ${ms.length}</span></div>
+    <div class="st-c ${ms[stI].k}" id="st-c">${stCard(ms[stI])}</div></div>
     <div class="st-nav"><button class="b-ghost" type="button" data-act="stgo" data-d="-1"${stI ? '' : ' disabled'}>‹ Previous</button><button class="b-lime" type="button" data-act="stgo" data-d="1"${stI < ms.length - 1 ? '' : ' disabled'}>Next ›</button></div>
   </section>`;
 }
@@ -917,6 +952,10 @@ function stShow(i, play = true) {
   const nn = $('st-n'); if (nn) nn.textContent = `${stI + 1} / ${ms.length}`;
   document.querySelectorAll('.st-d').forEach((d, j) => d.setAttribute('aria-current', j === stI));
   const nav = document.querySelectorAll('.st-nav button'); if (nav.length === 2) { nav[0].disabled = !stI; nav[1].disabled = stI >= ms.length - 1; }
+  // changed by you (a button, a dot or a swipe): the new card starts at its top. If the steps and card are under the stuck
+  // tabs, the page scrolls back up to them, so a card never opens cut off
+  if (play && c) { const st = c.closest('.st'), tb = document.querySelector('.ctabs.stuck'), gap = st && tb ? (st.getBoundingClientRect().top - tb.getBoundingClientRect().bottom) / (st.getBoundingClientRect().width / st.offsetWidth || 1) : 0;
+    if (gap < 0) document.querySelector('.screen').scrollBy({ top: gap - 12, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' }); }
   const v = $('lvv'); if (!v) return; v.parentElement.dataset.mk = m.k;
   stLoop = { a: Math.max(0, m.t - 1), b: m.t + 2 }; v.currentTime = stLoop.a; if (play) v.play().catch(() => {});
 }
@@ -1133,7 +1172,8 @@ function stickWire(box, full) {
       scr.scrollTop = from + (to - from) * e; if (p < 1) anim = requestAnimationFrame(step); else anim = null; };
     anim = requestAnimationFrame(step); };
   // let go between the two places: carry on the way you were going once past a fifth, else go back
-  const settle = () => { const y = scr.scrollTop; if (y <= 0 || y >= D) return;
+  const settle = () => { const y = scr.scrollTop;
+    if (y <= 0 || y >= D) return;
     go(dir > 0 ? (y > D * .2 ? D : 0) : (y < D * .8 ? 0 : D)); };
   // a new tab (or a Summary page) starts at its top; it stays pulled up when it was
   const onTab = () => { const was = anSheet?.k >= .99; geo(); pad(); if (was || scr.scrollTop > D) scr.scrollTop = D;
@@ -1599,27 +1639,9 @@ function sumPanel(T, c, nextUp, q, top) {
       ${nextPlan(T, c, F)}
       <div class="sm-x">${nextUp.replace('<h2>Next</h2>', '<h2>Compare with others</h2>')}<button class="sub-lk" type="button" data-act="sumgo" data-v="nums">All the numbers ›</button></div>${qualityCard(q)}</div>${pages.join('')}`;
 }
-// the climb in order: every hand and foot move, numbered, with how long you paused before the next one. The longest pauses are
-// marked; tap a move to watch it
-const LIMB = { lw: 'Left hand', rw: 'Right hand', la: 'Left foot', ra: 'Right foot' };
 function pauses(T) {
   const ms = [...T.moves].sort((p, q) => p.t0 - q.t0); let end = ms[0]?.t ?? 0;
   return ms.map((m, i) => { const g = i ? Math.max(0, m.t0 - end) : 0; end = Math.max(end, m.t); return { ...m, i: i + 1, gap: g }; });
-}
-function moveSeq(T) {
-  const ms = pauses(T); if (!ms.length) return '';
-  const lane = (l, items) => `<div class="tl-r"><span>${l}</span><div>${items}</div></div>`, at = (t0, t1, cls) => `<i class="${cls}" style="left:${t0 / T.D * 100}%;width:${Math.max(.8, (t1 - t0) / T.D * 100)}%"></i>`;
-  const limb = k => T.moves.filter(m => m.k === k).map(m => at(m.t0, m.t, k === 'lw' || k === 'rw' ? 'h' : 'f')).join('');
-  const lanes = `<div class="tl-g mvq-g">${lane('Left hand', limb('lw'))}${lane('Right hand', limb('rw'))}${lane('Left foot', limb('la'))}${lane('Right foot', limb('ra'))}${lane('Rests', T.rests.map(r => at(r.t0, r.t1, r.straight > .5 ? 'rs' : 'rb')).join(''))}</div>
-    <p class="an-k tl-k"><span><i class="rs"></i>Rest, arms straight</span><span><i class="rb"></i>Rest, arms bent</span></p>`;
-  const gaps = ms.slice(1).map(m => m.gap), mx = Math.max(0, ...gaps);
-  const long = new Set(ms.filter(m => m.gap >= 1).sort((p, q) => q.gap - p.gap).slice(0, 3).map(m => m.i)), top = mx >= 1 ? ms.find(m => m.gap === mx) : null;
-  const hands = ms.filter(m => m.k === 'lw' || m.k === 'rw').length, feet = ms.length - hands;
-  const say = feet >= hands * .8 ? 'Your feet kept up with your hands: your legs did the climbing.' : 'Your hands moved more than your feet: move a foot up first, so your legs push you.';
-  return `<details class="lm mvq-d"><summary><span><b>Every move</b><span class="mvq-say">${say}</span><span><span>${n(hands, 'hand', 'hands')}</span> · <span>${n(feet, 'foot', 'feet')}</span>${top ? ` · <span>Longest stop ${top.gap.toFixed(1)} s</span>` : ''}</span></span></summary>
-    <div class="mvq">${lanes}
-      <div class="mvq-l">${ms.map(m => `${m.gap >= 1 ? `<span class="mvq-p${long.has(m.i) ? ' long' : ''}">${m.gap.toFixed(1)}s</span>` : ''}<button type="button" class="mvq-m ${m.k === 'lw' || m.k === 'rw' ? 'h' : 'f'}" data-act="lvseek" data-t="${Math.max(0, m.t0 - .3).toFixed(2)}" aria-label="Move ${m.i}, ${m.name}, at ${mmss(m.t0)}"><b>${m.i}</b>${LIMB[m.k]}</button>`).join('')}</div>
-      <p class="an-k mvq-k"><span><i class="h"></i>Hand</span><span><i class="f"></i>Foot</span><span><i class="long"></i>Long stop</span></p></div></details>`;
 }
 // How clear a video is, and so which conclusions we can stand behind. Better to say nothing than to say something wrong:
 // each analysis is shown only when what it needs was seen well enough, and the video page says what was left out and why.
@@ -1684,12 +1706,39 @@ function stuckAt(T, topped) {
   for (const m of order) { const s = near(m.t0 - Math.min(.4, m.gap / 2)); if (s) return { s, kind: topped ? 'long' : 'late', gap: m.gap, next: m, on: onAt(s), end }; }
   return null;
 }
+// which of the route's hand holds you were on at a stop, and the one your next move went to. Only where the route's holds
+// are marked, and only for a hand the scan saw within 20 px of a hold (checked against the annotation: 75% of those
+// are on the right hold, the rest on a neighbour); otherwise null, and the card says what it said before
+function stuckHolds(T, c, k) {
+  const vid = vidOf(c)?.vid, B = vid && RH?.routes?.[vid]; if (!B || !k) return null;
+  const TIPI = { lw: 15, rw: 16 }, WRI = { lw: 5, rw: 6 };
+  const at = (s, h) => { const p = s.p[TIPI[h]][2] >= .3 ? s.p[TIPI[h]] : s.p[WRI[h]]; return p[2] >= .3 ? [p[0] * RH.W, p[1] * RH.H] : null; };
+  const snap = xy => { if (!xy) return -1;
+    const d = B.map(([x0, y0, x1, y1], i) => [Math.hypot(Math.max(x0 - xy[0], 0, xy[0] - x1), Math.max(y0 - xy[1], 0, xy[1] - y1)), Math.hypot((x0 + x1) / 2 - xy[0], (y0 + y1) / 2 - xy[1]), i]).sort((a, b) => a[0] - b[0] || a[1] - b[1])[0];
+    return d && d[0] <= 20 ? d[2] : -1; };
+  const on = [...new Set(['lw', 'rw'].map(h => snap(at(k.s, h))).filter(i => i >= 0))];
+  if (!on.length) return null;
+  let next = -1;
+  // where the hand that moved next landed: the clearest look at it just after the landing. Only a hold above the one you
+  // were on counts. A "move" onto a lower hold was mostly a hand shifting on a hold it already held (p2 on green: the
+  // scan's right hand "landed" on hold 6 at 0:33, where the annotation has it since 0:21)
+  if (k.next && TIPI[k.next.k]) {
+    const near = T.S.filter(s => s.p && s.t >= k.next.t - .2 && s.t <= k.next.t + .6), h = k.next.k;
+    const s = near.sort((a, b) => Math.max(b.p[TIPI[h]][2], b.p[WRI[h]][2]) - Math.max(a.p[TIPI[h]][2], a.p[WRI[h]][2]))[0];
+    const i = s ? snap(at(s, h)) : -1; if (i > Math.max(...on)) next = i;
+  }
+  const sx = T.W / RH.W, sy = T.H / RH.H;
+  return { on, top: Math.max(...on), of: B.length, next, boxes: B.map(([x0, y0, x1, y1]) => [x0 * sx, y0 * sy, x1 * sx, y1 * sy]) };
+}
 function stuckCard(T, c) {
   const k = stuckAt(T, topOf(c)), d = k && window.poseDiag?.(T, k.s, k.on.join(','));
   if (!d) return '';
   const q = quality(T), armsOk = q.ok.arms || T.stats.restRead >= 50;
   const head = k.kind === 'end' ? 'Where you came off' : k.kind === 'late' ? 'Where you got stuck' : 'Where you stopped longest';
-  const what = k.kind === 'end' ? `Your last move was at ${mmss(k.end)}. You hung on ${k.gap.toFixed(1)} s more, then came off.`
+  const hd = stuckHolds(T, c, k);
+  const what = k.kind === 'end' ? `Your last move was at ${mmss(k.end)}. You hung on ${k.gap.toFixed(1)} s more, then came off.${hd ? ` You got to hand hold ${hd.top + 1} of ${hd.of}.` : ''}`
+    : hd && hd.next >= 0 ? `You stopped ${k.gap.toFixed(1)} s on hand hold ${hd.top + 1} of ${hd.of}, then your ${LNAME[k.next.k]} went to hold ${hd.next + 1}.`
+    : hd ? `You stopped ${k.gap.toFixed(1)} s on hand hold ${hd.top + 1} of ${hd.of} before moving your ${LNAME[k.next.k]}.`
     : `You stopped ${k.gap.toFixed(1)} s here before moving your ${LNAME[k.next.k]}.`;
   const side = d.side < 0 ? 'left' : 'right';
   let bal = d.base === 'in' ? ['ok', 'Weight over your feet', 'The line from your centre falls between your feet.']
@@ -1710,12 +1759,12 @@ function stuckCard(T, c) {
       <p class="tip-d">${what}</p>
       ${bal || arm ? `<div class="stk-rs">${bal ? row(bal) : ''}${arm ? row(arm) : ''}</div>` : ''}
       <p class="an-nx">${tip}</p>
-      <p class="an-k stk-k"><span><i class="sk-c"></i>Your centre</span><span><i class="sk-s"></i>Holding you</span><span><i class="sk-m"></i>Moving</span></p>
+      <p class="an-k stk-k"><span><i class="sk-c"></i>Your centre</span><span><i class="sk-s"></i>Holding you</span><span><i class="sk-m"></i>Moving</span>${hd ? `<span><i class="sk-h"></i>The hold you stopped on</span>${hd.next >= 0 ? '<span><i class="sk-n"></i>Your next hold</span>' : ''}` : ''}</p>
       <p class="trs-l">Worked out from your body in the video, so it’s an estimate.</p></div></div>`;
 }
 function stuckWire(T, c, src) {
   const im = $('stkimg'), k = im && stuckAt(T, topOf(c)); if (!k) return;
-  window.poseStill(src, T, k.s, `stuck:${k.on.join(',')}`, 'bad').then(u => { if (u) im.src = u; });
+  window.poseStill(src, T, k.s, `stuck:${k.on.join(',')}`, 'bad', stuckHolds(T, c, k)).then(u => { if (u) im.src = u; });
 }
 // where you went: your hips over the whole climb, drawn on the first frame, with the hands faint behind; the stops are
 // circles, bigger for longer
@@ -1782,7 +1831,7 @@ function drawTag(c) {
   s.hidden = !fix;
   s.innerHTML = TAGS.map(([k, l], j) => `<span class="${j < tagS.i ? 'on' : ''}">${l}</span>`).join('');
   $('tgt').textContent = fix ? 'Tap yourself' : 'Is this right?';
-  $('tgx').textContent = fix ? (c.auto ? 'Tap your head, hands and feet on the video.' : 'We couldn’t find you here. Tap your head, hands and feet on the video.') : `Is this you on ${rname(ROUTES[c.ri])}?`;
+  $('tgx').textContent = fix ? (c.auto ? 'Tap your head, hands and feet on the video.' : 'We couldn’t find you here. Tap your head, hands and feet on the video.') : c.crowd ? `Someone else is in this video too. Is this you on ${rname(ROUTES[c.ri])}?` : `Is this you on ${rname(ROUTES[c.ri])}?`;
   const go = $('tgb'), back = $('tgu');
   go.textContent = fix ? 'Done' : 'Looks right'; go.dataset.act = fix ? 'tagdone' : 'anok'; go.disabled = fix && tagS.i < TAGS.length;
   back.textContent = !fix ? 'Fix it' : tagS.i ? 'Undo' : 'Cancel'; back.hidden = fix && !tagS.i && !c.auto; back.dataset.act = fix ? 'tagundo' : 'tagstart';
@@ -1793,6 +1842,8 @@ function tagWire(c) {
   tg.addEventListener('click', e => {
     if (tagS.id !== c.id || tagS.i >= TAGS.length) return;
     const b = tg.getBoundingClientRect();
+    // the moment you tap on goes with your taps: the scan finds you on that frame, then follows you both ways from it
+    if (!tagS.i) { const v = $('lvv'); v?.pause(); tagS.t = v ? v.currentTime : null; }
     tagS.pts[TAGS[tagS.i][0]] = { x: (e.clientX - b.left) / b.width, y: (e.clientY - b.top) / b.height }; tagS.i += 1; drawTag(c);
     if (tagS.i === TAGS.length) $('tgb').scrollIntoView({ block: 'center' });
   });
@@ -1876,7 +1927,7 @@ function viewClip(id) {
   const nextUp = `<div class="hl2 dk2"><h2>Next</h2></div><div class="rows">
       ${betaRow(c.ri, T)}
       <button class="row" type="button" data-act="ctab" data-v="cmp"><span class="row-t"><strong>Watch it next to someone else</strong><span>${n(peers.length, 'other climber', 'other climbers')} on ${rname(r)}</span></span>${ic.arr('#111111')}</button></div>`;
-  const panels = two ? { why: (q => q.level === 'poor' ? `${postCard}${qualityCard(q)}${nextUp}` : sumPanel(T, c, nextUp, q, postCard + tryCmp(c)))(quality(T)), body: `${stepCard(T, c)}${moveSeq(T)}${bodyStats(T)}`, cmp, info } : {};
+  const panels = two ? { why: (q => q.level === 'poor' ? `${postCard}${qualityCard(q)}${nextUp}` : sumPanel(T, c, nextUp, q, postCard + tryCmp(c)))(quality(T)), body: `${stepCard(T, c)}${bodyStats(T)}`, cmp, info } : {};
   return { photo: c.img, fit: state === 'ask' || state === 'idle', cta: '', after: () => {
       tagWire(c);
       const v = $('lvv'), box = v.parentElement;
@@ -1922,7 +1973,7 @@ function vsTip(a, b, who, top) {
   return `Your numbers are close to ${who}’s. Watch the two side by side, slowed down, and look at where each foot goes.`;
 }
 let pv = null, pvRate = 1, vsLay = 'lr', vsZ = 1.6;
-const RATES = [.25, .5, 1, 1.5, 2], ZOOMS = [1, 1.3, 1.6, 2, 2.5];
+const RATES = [1, .5, .25, 2], ZOOMS = [1, 1.3, 1.6, 2, 2.5];
 function viewVs(a) {
   const [id, k] = String(a).split('-').map(Number), c = byId(id), x = V[k];
   if (!c || !x || x.ri !== c.ri || x.who === 'You') return lostClip();
@@ -1943,8 +1994,8 @@ function viewVs(a) {
         <div class="pv-tl"><button class="pv-pp" type="button" id="pvg" data-act="pvplay" aria-label="Play both"${ready ? '' : ' disabled'}>${PLAY}</button>
           <input type="range" id="pvr" min="0" max="1000" value="0" aria-label="Both videos, from the start"${ready ? '' : ' disabled'}><span class="num" id="pvtt">${ready ? '0:00' : T ? 'Loading' : 'Analysing'}</span></div>
         <div class="vs-opts"><button class="pv-x pv-lu" type="button" data-act="pvsync" aria-pressed="false"${ready ? '' : ' disabled'}>Line up</button>
-          <span class="vs-step" role="group" aria-label="Speed"><button type="button" data-act="vsrate" data-d="-1" aria-label="Slower">−</button><b id="pvs">${pvRate}×</b><button type="button" data-act="vsrate" data-d="1" aria-label="Faster">+</button></span>
-          <span class="vs-step" role="group" aria-label="Zoom"><button type="button" data-act="vszoom" data-d="-1" aria-label="Zoom out">−</button><b id="pvz">${ic.search}${vsZ}×</b><button type="button" data-act="vszoom" data-d="1" aria-label="Zoom in">+</button></span>
+          <button class="pv-x vs-ch" type="button" data-act="vsrate">Speed<b class="num" id="pvs">${pvRate}×</b></button>
+          <button class="pv-x vs-ch" type="button" data-act="vszoom">Zoom<b class="num" id="pvz">${vsZ}×</b></button>
           ${ready ? '<button class="vs-down" type="button" data-act="vsdown" aria-label="See the numbers"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M6 13l6 6 6-6"/></svg></button>' : ''}</div></div></div>
     <div class="vsp"><div class="stack"><div class="lt">
       ${ready ? `<div class="pv-t"><b>Try next time</b><span>${vsTip(A, B, x.who, cmpTop)}</span></div>
@@ -2394,10 +2445,31 @@ function viewPerson(who) {
   const tile = x => `<button class="vt" type="button" data-act="pvid" data-v="${x.i}" aria-label="Watch ${who} on ${rname(ROUTES[x.ri])}">
       <img src="${pic(x.img)}" alt=""><span class="shade"></span><span class="vt-t">${sw(ROUTES[x.ri])}${rname(ROUTES[x.ri])}</span><span class="vt-b">${x.top ? 'Topped' : 'Not topped'} · ${dayLabel(x.ago)}</span></button>`;
   const both = vs.filter(x => lastOn(x.ri)), fr = myFriends.has(who), days = fr ? friendDays([who]) : [];
-  return { photo: vs[0]?.img || 'gym-arc-1', html: `
+  // the same page as your Profile, seen from outside: their card (styles falling behind the photo, name, home gym, status,
+  // tags), when they usually climb, then their level and three counts. Instead of Edit card: add them, or contact them
+  const pt = PTAGS[who] || [], sty = STYLES.filter(s => pt.includes(s[0])), mt = ME_TAGS.filter(m => pt.includes(m[0]));
+  const post = POSTS.find(p => p.who === who), hg = gyms[post?.gys[0] ?? 0] || gym, hasCt = ctOf(proOf(who)?.ct).length > 0;
+  const tops = vs.filter(x => x.top), hard = [...tops].sort((p, q) => GR.indexOf(ROUTES[q.ri].grade) - GR.indexOf(ROUTES[p.ri].grade))[0];
+  const head = `<section class="ph" aria-label="${who}’s profile">
+      <div class="ph-cv ph-shape-container" id="profile-shapes">${sty.map(([k, label, shape]) => `<span class="ph-shape pk-${shape}" aria-hidden="true"><span>${label}</span></span>`).join('')}</div>
+      <div class="ph-me"><span class="ph-av">${avatar(who)}</span>
+        <span class="ph-acts">${hasCt ? `<button class="ph-st ph-ed" type="button" data-act="pzct" data-w="${who}">Contact</button>` : ''}
+        ${fr ? `<button class="ph-st ph-ed ph-fr" type="button" data-act="frx" data-w="${who}">${ic.check}Friends</button>` : `<button class="ph-st ph-add" type="button" data-act="fradd" data-w="${who}">Add friend</button>`}</span></div>
+      <h2 class="ph-n">${who}</h2>
+      <div class="ph-g"><button class="ph-hg" type="button" data-act="to" data-to="gym/${gyms.indexOf(hg)}">${ic.pin}<span>${hg.name}</span></button>
+        ${post ? `<span class="ph-stt is-partner"><i></i>Looking for a partner</span>` : ''}</div>
+      <div class="ph-tg">${proOf(who) ? `<i class="ph-tl num">${lvTag(who)}</i>` : ''}${[...sty.map(s => s[1]), ...mt.map(m => m[1])].map(t => `<i>${t}</i>`).join('')}</div>
+      ${post ? `<p class="pc-meta ph-rt"><span>${PC_CAL}${daysText(post.days)}</span><span>${PC_CLOCK}${TIMES.filter(([k]) => post.times.includes(k)).map(([, l]) => `<b>${l}</b>`).join('')}</span></p>` : ''}
+    </section>
+    <section class="pf2-lv" aria-label="${who}’s level"><div class="pf2-lh"><span class="pf2-k">Climbing level</span>
+      <span class="pf2-g"><b class="num">${proOf(who) ? VGI(proOf(who).lv) : '—'}</b>${proOf(who)?.rope ? `<em class="num">${proOf(who).rope} on a rope</em>` : ''}</span>
+      ${YRS[who] ? `<span class="pf2-w">Climbing for ${YRS[who]}</span>` : ''}</div>
+      <div class="pf2-s"><span><b class="num">${hard ? ROUTES[hard.ri].grade : '—'}</b><i>hardest send</i></span>
+        <span><b class="num">${vs.length || '—'}</b><i>on video</i></span>
+        <span><b class="num">${tops.length ? `${new Set(tops.map(x => x.ri)).size}<small> of ${ROUTES.length}</small>` : '—'}</b><i>routes topped</i></span></div></section>`;
+  return { photo: vs[0]?.img || 'gym-arc-1', after: animateProfileShapes, html: `
     ${bar('')}
-    <div class="pp-h"><span class="pp-av">${avatar(who)}</span><div><h1 class="hl">${who}</h1><p class="sub-w">${[proOf(who) ? `<span class="num">${lvTag(who)}</span>` : `<span>Climbs at ${gym.name}</span>`, YRS[who] ? `<span>Climbing for ${YRS[who]}</span>` : ''].filter(Boolean).join(' · ')}</p>
-      ${fr && ctOf(proOf(who)?.ct).length ? ctChips(proOf(who).ct) : ''}</div></div>
+    ${head}
     ${fr ? `<div class="fold"></div>
     ${days.some(d => d.nw) ? `<div class="hl2 dk2"><h2>New move</h2><span class="hint2">from ${who}’s videos</span></div><div class="mvcs">${days.filter(d => d.nw).map(moveBox).join('')}</div>` : ''}
     ${compareWith(who)}
@@ -2462,7 +2534,7 @@ document.addEventListener('toggle', e => { const d = e.target; if (d.classList?.
 const rankIn = (x, l) => l.length ? (l.filter(y => y < x).length + l.filter(y => y === x).length / 2) / l.length : .5;
 function styleCard() {
   const trk = v => clips.find(c => c.v === v.i && c.track)?.track || TRK[v.vid];
-  const mine = V.filter(v => v.who === 'You'), them = V.filter(v => v.who !== 'You' && !v.mine);
+  const mine = V.filter(v => v.who === 'You' && !(v.local && !v.added)), them = V.filter(v => v.who !== 'You' && !v.mine);
   needTracks([...mine, ...them].filter(v => !v.mine));
   const myAll = mine.map(v => ({ v, T: trk(v) })).filter(o => o.T?.S), thAll = them.map(v => ({ v, T: trk(v) })).filter(o => o.T?.S);
   if (!myAll.length && mine.some(v => !v.mine && !TRK[v.vid]?.S)) return '';   // still loading
@@ -2472,19 +2544,37 @@ function styleCard() {
   const rs = [...new Set(myAll.map(o => o.v.ri))], unsorted = rs.filter(ri => !kindOf(ri)), kinds = RKINDS.map(([k]) => [k, myAll.filter(o => kindOf(o.v.ri) === k).length]).filter(([, c]) => c);
   if (styK !== 'all' && !kinds.some(([k]) => k === styK)) styK = 'all';
   const my = styK === 'all' ? myAll : myAll.filter(o => kindOf(o.v.ri) === styK), thK = styK === 'all' ? thAll : thAll.filter(o => kindOf(o.v.ri) === styK);
-  const th = (thK.length >= 4 ? thK : thAll).map(o => o.T);
+  const thO = thK.length >= 4 ? thK : thAll, th = thO.map(o => o.T);
   const S = my.map(o => ({ ...o, st: styleOf(o.T) })), O = th.map(styleOf);
+  // the other climbers one each (their climbs averaged), so someone with five videos doesn't count five times
+  const people = [...new Set(thO.map(o => o.v.who))].map(who => ({ who, st: thO.filter(o => o.v.who === who).map(o => styleOf(o.T)) }));
   const sum = (l, id) => l.reduce((a, x) => ({ e: a.e + x.R[id].e, c: a.c + x.R[id].c }), { e: 0, c: 0 });
   const mean = (l, k) => { const xs = l.map(x => x[k]).filter(x => x != null); return xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null; };
-  // the three ways of climbing, each as a dot between two ends: where you sit among the other climbers
-  const ax = [['side', 'Square to the wall', 'Side-on'], ['arms', 'Legs lift you', 'Arms pull you'], ['still', 'Climbs without stopping', 'Stops often']].map(([k, a, b]) => {
-    const x = mean(S.map(o => o.st), k); if (x == null) return ''; const f = rankIn(x, O.map(o => o[k]).filter(y => y != null));
-    return `<div class="sty-a"><span>${a}</span><span class="sty-l"><i style="left:${(8 + f * 84).toFixed(0)}%"></i></span><span>${b}</span></div>`; }).join('');
+  // the three ways of climbing: every other climber a grey dot on a line between two ends, you the dark one, and in words
+  // how many of them you're past. The line spans the climbers shown, so the ends are the most and least among you
+  const AX = [
+    ['side', 'Square to the wall', 'Side-on', v => `side-on ${v}% of the time`, (m, N) => `Side-on more than ${m} of ${N} climbers`, (m, N) => `Square to the wall more than ${m} of ${N} climbers`],
+    ['arms', 'Legs lift you', 'Arms pull you', v => `${v}% of reaches without a foot first`, (m, N) => `Pull with your arms more than ${m} of ${N} climbers`, (m, N) => `Lift with your legs more than ${m} of ${N} climbers`],
+    ['still', 'Keeps moving', 'Stops often', v => `stopped ${v}% of the time`, (m, N) => `Stop more often than ${m} of ${N} climbers`, (m, N) => `Keep moving more than ${m} of ${N} climbers`]];
+  const ax = AX.map(([k, a, b, val, hi, lo]) => {
+    const x = mean(S.map(o => o.st), k); if (x == null) return '';
+    const ps = people.map(p => ({ who: p.who, x: mean(p.st, k) })).filter(p => p.x != null); if (!ps.length) return '';
+    const xs = [x, ...ps.map(p => p.x)], lo0 = Math.min(...xs), hi0 = Math.max(...xs), span = hi0 - lo0 || 1, at = v => (6 + (v - lo0) / span * 88).toFixed(1);
+    const N = ps.length, below = ps.filter(p => p.x < x).length, above = ps.filter(p => p.x > x).length, pc = v => Math.round(v * 100);
+    const words = below > above ? hi(below, N) : above > below ? lo(above, N) : `In the middle of ${N} climbers`;
+    // dots that would sit on top of each other step above and below the line in turn, so each climber stays a whole dot
+    let last = -9, lane = 0; const dy = [...ps].sort((p, q) => p.x - q.x).map(p => { const f = +at(p.x); lane = f - last < 4 ? (lane > 0 ? -lane : -lane + 1) : 0; last = f; return [p, lane]; });
+    return `<div class="sty-a"><div class="sty-e"><span>${a}</span><span>${b}</span></div>
+      <div class="sty-l" role="img" aria-label="${words}">${dy.map(([p, l]) => `<i class="sy-o" style="left:${at(p.x)}%;margin-top:${l * 7}px" title="${p.who} · ${val(pc(p.x))}"></i>`).join('')}<i class="sy-me" style="left:${at(x)}%" title="You · ${val(pc(x))}"></i></div>
+      <p class="sty-w">${words}</p></div>`; }).join('');
   // each move: more than others, about the same, less, or not at all
   const rows = STY.map(m => { const me = sum(S.map(o => o.st), m.id), ot = sum(O, m.id); if (me.c < 3 || !ot.c) return null;
     const r = me.e / me.c, b = ot.e / ot.c, lv = !me.e ? 'never' : r >= b * 1.4 && me.e >= 2 ? 'more' : r <= b * .6 ? 'less' : 'same';
     const ex = S.map(o => o.st.R[m.id].ex && { ...o.st.R[m.id].ex, v: o.v }).find(Boolean);
-    return { m, lv, ex }; }).filter(Boolean);
+    return { m, lv, ex, r, b }; }).filter(Boolean);
+  // how often you did a move against how often the others did, out of the moments it could have happened: two bars on one scale
+  const meter = x => { const top = Math.max(x.r, x.b) || 1, w = v => (v / top * 100).toFixed(0), pc = v => `${Math.round(v * 100)}%`;
+    return `<span class="sty-mt"><span>You</span><i><b class="sy-me" style="width:${w(x.r)}%"></b></i><em class="num">${pc(x.r)}</em><span>Others</span><i><b style="width:${w(x.b)}%"></b></i><em class="num">${pc(x.b)}</em></span>`; };
   const more = rows.filter(r => r.lv === 'more'), less = rows.filter(r => r.lv === 'less' || r.lv === 'never'), same = rows.filter(r => r.lv === 'same');
   const pic = r => r.ex ? `<span class="sty-i"><img alt="" data-ft="${r.ex.t.toFixed(2)}" data-fm="${r.ex.mark}" data-tone="good" data-pv="${r.ex.v.i}"></span>` : '';
   const vid = q => `<a class="lm-v" href="https://www.youtube.com/results?search_query=${encodeURIComponent(q)}" target="_blank" rel="noopener"><span>▶</span>Find a coaching video on this</a>`;
@@ -2497,10 +2587,11 @@ function styleCard() {
     : styK === 'all' ? `<p class="tip-d">Mixed from ${kinds.map(([k]) => kn(k)).join(' and ')} routes. Pick one to compare like with like.</p>` : '';
   const vs = styK !== 'all' && thK.length < 4 ? 'Too few other climbs on this kind yet, so next to every climb here.' : styK === 'all' ? `Next to ${n(new Set(them.map(v => v.who)).size, 'other climber', 'other climbers')} on the same routes.` : `Next to ${n(new Set(them.map(v => v.who)).size, 'other climber', 'other climbers')} on ${kn(styK)} routes.`;
   const line = more.length ? `You use ${more[0].m.name} a lot${less.length ? ` · hardly ${less[0].m.name}` : ''}` : less.length ? `You hardly use ${less[0].m.name}` : 'About the same as others';
-  return fcard('style', 'Your style', `${unsorted.length ? 'Sort your routes by kind · ' : ''}${line}`, `<div class="stack sty">${chips}${mix}<div class="lt"><span class="lt-h">How you climb</span><p class="tip-d">${vs}</p><div class="sty-ax">${ax}</div></div>
-    ${more.length ? `<div class="lt"><span class="lt-h">You use these a lot</span><div class="sty-m">${more.map(r => `<div class="sty-r good">${pic(r)}<span class="sty-t"><b>${r.m.name}</b><em>More than most climbers here</em></span></div>`).join('')}</div></div>` : ''}
-    ${less.length ? `<div class="lt"><span class="lt-h">You hardly use these</span><p class="tip-d">A move you rarely use may be one you haven’t learned yet. Try one next session.</p><div class="sty-m">${less.map(r => `<div class="sty-r"><span class="sty-t"><b>${r.m.name}</b><em>${r.lv === 'never' ? 'Not once in your videos' : 'Less than most climbers here'}</em><span class="sty-d">${r.m.tip}</span>${vid(r.m.q)}</span></div>`).join('')}</div></div>` : ''}
+  return fcard('style', 'Your style', `${unsorted.length ? 'Sort your routes by kind · ' : ''}${line}`, `<div class="stack sty">${chips}<div class="lt"><span class="lt-h">How you climb</span><p class="tip-d">${vs} <span class="sty-k"><i class="sy-o"></i><span>a climber</span><i class="sy-me"></i><span>you</span></span></p><div class="sty-ax">${ax}</div></div>
+    ${more.length ? `<div class="lt"><span class="lt-h">You use these a lot</span><p class="tip-d">Out of the moments each move could have happened.</p><div class="sty-m">${more.map(r => `<div class="sty-r good">${pic(r)}<span class="sty-t"><b>${r.m.name}</b>${meter(r)}</span></div>`).join('')}</div></div>` : ''}
+    ${less.length ? `<div class="lt"><span class="lt-h">You hardly use these</span><p class="tip-d">A move you rarely use may be one you haven’t learned yet. Try one next session.</p><div class="sty-m">${less.map(r => `<div class="sty-r"><span class="sty-t"><b>${r.m.name}</b>${meter(r)}<span class="sty-d">${r.m.tip}</span>${vid(r.m.q)}</span></div>`).join('')}</div></div>` : ''}
     ${same.length ? `<div class="lt"><span class="lt-h">About the same as others</span><p class="sty-c">${same.map(r => `<span>${r.m.name}</span>`).join('')}</p></div>` : ''}
+    ${mix}
     <p class="an-n">Read from your body in each video. A move the camera can’t see isn’t counted, so more videos make this surer.</p></div>`);
 }
 // the words on the video and in the analysis, explained: what it is, a picture of you doing it in this video if you did,
@@ -2614,7 +2705,7 @@ function viewProfile() {
   // the body over your tries, oldest first: the same three numbers the analysis shows
   const trend = done.slice().sort((a, b) => agoOf(b) - agoOf(a) || a.id - b.id);
   const bars = (label, f) => `<div class="pf-t"><span>${label}</span>${trend.map(c => `<span class="pf-b"><i style="--h:${f(c.track.stats)}%"></i><b class="num">${f(c.track.stats)}%</b><small>${ROUTES[c.ri].color[0]}${tryOf(c)}</small></span>`).join('')}</div>`;
-  const hid = clips.filter(c => c.hidden).length;
+  const sty = styleCard();
   return { photo: clips[0]?.img || 'gym-arc-1', after: (...a) => { animateProfileShapes(...a); const st = document.querySelector('.sty'); if (st) fixWire(st); }, html: `
     ${tabHead('Profile')}
     ${(() => {
@@ -2624,34 +2715,68 @@ function viewProfile() {
       return `<section class="ph" aria-label="Your profile">
       <div class="ph-cv ph-shape-container" id="profile-shapes" role="img" aria-label="${picks.size ? `Your climbing styles: ${STYLES.filter(style => picks.has(style[0])).map(style => style[1]).join(', ')}` : 'Choose your climbing style to fill this space'}">${picks.size ? STYLES.filter(style => picks.has(style[0])).map(([k, label, shape]) => `<span class="ph-shape pk-${shape}" aria-hidden="true"><span>${label}</span></span>`).join('') : ''}</div>
       <div class="ph-me"><span class="ph-av">${avatar('You')}</span>
-        <button class="ph-st ph-ed" type="button" data-act="to" data-to="pick/edit">${picks.size ? `${ic.pen}Edit styles` : 'Pick your style'}</button></div>
-      <h2 class="ph-n">You</h2>
-      <div class="ph-tags">${myPartner ? `<span class="pz-tags"><i class="num">${lvTag('You')}</i>${ctOf(myPartner.ct).map(([, l]) => `<i>${l}</i>`).join('')}</span>` : ''}
-        <button class="ph-card" type="button" data-act="ptpost">${myPartner ? `${ic.pen}Level and contacts` : 'Add your level and contacts'}</button></div>
+        <button class="ph-st ph-ed" type="button" data-act="ptpost">${ic.pen}Edit card</button></div>
+      <h2 class="ph-n">${myName ? esc(myName) : 'You'}</h2>
       <div class="ph-g"><button class="ph-hg" type="button" data-act="to" data-to="gym/0">${ic.pin}<span>${gym.name}</span></button>
         <button class="ph-stt${myStatus ? ` is-${myStatus}` : ''}" type="button" data-act="status" aria-label="Your status: ${STATUS.find(s => s[0] === myStatus)[1]}. Change it"><i></i>${myStatus ? STATUS.find(s => s[0] === myStatus)[1] : 'Set a status'}</button></div>
-      <div class="ph-s${clips.length ? '' : ' ph-s-e'}">
-        <span><b class="num">${top ? ROUTES[top.ri].grade : '—'}</b><i>hardest send</i></span>
-        <span><b class="num">${clips.length || '—'}</b><i>on video</i></span>
-        <span><b class="num">${tops ? `${tops}<small>/${ROUTES.length}</small>` : '—'}</b><i>topped</i></span></div>
-      ${myFriends.size ? '' : `<button class="ph-fr" type="button" data-act="to" data-to="friends">Find friends</button>`}
-      </section>${top ? (() => { const g0 = gyms[top.gy ?? 0] || gym, vh = votesOf(top.ri).h, said = shiftG(ROUTES[top.ri].grade, vh), avg = shiftG(ROUTES[top.ri].grade, vh + gymLean(g0));
-        return `<div class="rows pf-lv"><button class="row" type="button" data-act="to" data-to="route/${top.ri}"><span class="row-t"><strong>Your level ≈ ${avg} at the average gym</strong>
-          <span>Your hardest send, ${rname(ROUTES[top.ri])}, is a ${said} by climbers’ votes. ${g0.name} grades ${leanWords(gymLean(g0)).toLowerCase().replace('graded ', '')}.</span></span>${ic.arr('#111111')}</button></div>`; })() : ''}`; })()}
-    ${nextRows()}
+      ${(() => {
+        // your card: the tags you picked to say who you are as a climber, your level first. Edit card changes all of it
+        const tags = [...(myPartner ? [`<i class="ph-tl num">${lvTag('You')}</i>`] : []), ...cardTags().map(t => `<i>${t}</i>`)];
+        return `<div class="ph-tg">${tags.length ? tags.join('') : '<button class="ph-tg0" type="button" data-act="ptpost">+ Add tags that describe you</button>'}</div>`; })()}
+      </section>
+      ${(() => {
+        // the page is about how you're climbing, so that comes first, as one card: your level (from your hardest send, by
+        // climbers' votes and how the gym grades), the grade to try next, and three counts. Friends and settings come after
+        const g0 = top && (gyms[top.gy ?? 0] || gym), vh = top && votesOf(top.ri).h, said = top && shiftG(ROUTES[top.ri].grade, vh), avg = top && shiftG(ROUTES[top.ri].grade, vh + gymLean(g0)), nx = nextUp();
+        return `<section class="pf2-lv" aria-label="Your level">
+        ${top ? `<button class="pf2-lh" type="button" data-act="to" data-to="route/${top.ri}"><span class="pf2-k">Your climbing level</span>
+          <span class="pf2-g"><b class="num">${avg}</b><em>at the average gym</em>${ic.arr('#111111')}</span>
+          <span class="pf2-w">From your hardest send, ${rname(ROUTES[top.ri])}: a ${said} by climbers’ votes. ${g0.name} grades ${leanWords(gymLean(g0)).toLowerCase().replace('graded ', '')}.</span></button>`
+        : `<div class="pf2-lh"><span class="pf2-k">Your climbing level</span><span class="pf2-g"><b class="num pf2-none">—</b></span>
+          <span class="pf2-w">Top a route and log it, and Spotter works out your level from it.</span></div>`}
+        ${nx.length ? `<div class="pf2-nx">${nx.map(x => { const w = nextWords(x);
+          return `<div class="pf2-ni">${nx.length > 1 ? `<span class="pf2-k">${x.d === 'b' ? 'Boulder' : 'Top rope'}</span>` : ''}<strong>${w.head}</strong><span>${w.sub.slice(0, 2).join(' · ')}</span></div>`; }).join('')}
+          <p class="pf2-cap">A guess from your own log. The more you log, the closer it gets.</p></div>` : ''}
+        <div class="pf2-s">
+          <span><b class="num">${top ? ROUTES[top.ri].grade : '—'}</b><i>hardest send</i></span>
+          <span><b class="num">${clips.length || '—'}</b><i>on video</i></span>
+          <span><b class="num">${tops ? `${tops}<small> of ${ROUTES.length}</small>` : '—'}</b><i>routes topped</i></span></div></section>`; })()}`; })()}
     ${session === 'live' ? `<section class="recap solid"><span class="sub">Climbing now · ${gym.name}</span><b class="num" id="prclk">${clk(sesSecs())}</b><span class="sub">${n(dayLog(0).reduce((s, e) => s + e.tries, 0) + gday(0).length, 'try', 'tries')} · ${n(dayLog(0).filter(e => e.sent).length + gday(0).filter(gsent).length, 'send', 'sends')} today</span><button class="pr-end" type="button" data-act="lgend">End session</button></section>` : ''}
     <div class="fold"></div>
+    ${prog || sty ? `<h2 class="pf2-sec">Your climbing</h2><div class="pf2-grp">` : ''}
     ${prog ? fcard('routes', 'Your routes', `${n(ROUTES.filter((r, i) => mineOn(i).length).length, 'route', 'routes')} · ${tops} topped`, `<div class="rgrid">${ROUTES.map((r, i) => i).filter(i => mineOn(i).length).map(rcard).join('')}</div>`) : ''}
-    ${styleCard()}
-    ${fcard('gear', 'Gear', gear.length ? n(gear.length, 'item', 'items') : 'When your shoes need a resole', gearSection())}
-    ${fcard('log', 'Logbook', n(logDays().length, 'day logged', 'days logged'), `<button class="sec-more pc-a" type="button" data-act="to" data-to="session">${session === 'live' ? 'Open the session' : 'Start a session'}</button>${logbook()}
-      <div class="stack"><button class="row" type="button" data-act="export"><span class="row-t"><strong>Export your log</strong><span>CSV with every attempt, send and video</span></span>${ic.down}</button></div>`)}
-    ${fcard('set', 'Watch and privacy', `${newPublic ? 'New videos public' : 'New videos only you'} · ${watch ? 'Watch on' : 'Watch off'}`, `<div class="rows">
+    ${sty}
+    ${prog || sty ? '</div>' : ''}
+    <h2 class="pf2-sec">With others</h2>
+    <div class="pf2-grp rows">
+      <button class="row" type="button" data-act="to" data-to="friends"><span class="row-t"><strong>${myFriends.size ? 'Friends' : 'Find friends'}</strong>
+        <span>${myFriends.size ? n(myFriends.size, 'friend', 'friends') : 'See how friends climb the same routes'}</span></span>${ic.arr('#111111')}</button></div>
+    <h2 class="pf2-sec">More</h2>
+    <div class="pf2-grp rows">${Object.entries(MORE).map(([k, m]) => `<button class="row" type="button" data-act="to" data-to="more/${k}"><span class="row-t"><strong>${m.t}</strong><span>${m.line()}</span></span>${ic.arr('#111111')}</button>`).join('')}</div>` };
+}
+// Profile's More: gear, the logbook, watch and privacy. Each one is a page of its own, a row on Profile. A page says what
+// it's for under its title, shows its content straight on the page (no card in a card), and its main action sits at the bottom
+const MORE = {
+  gear: { t: 'Gear', line: () => gear.length ? n(gear.length, 'item', 'items') : 'When your shoes need a resole',
+    sub: 'Spotter counts the days your shoes and harness have climbed, tells you when to check the shoes for a resole, and when they’ve paid for themselves against renting.',
+    body: () => gear.length ? `<div class="grs">${gear.map(gearCard).join('')}</div><p class="cap">Counted from your sessions since you got each one. Start a session at the gym so they count.</p>`
+      : `<p class="mp-e">Nothing here yet. Add your first shoes and Spotter starts counting from your next session.</p>`,
+    cta: () => `<button class="b-lime" type="button" data-act="gearopen">Add gear</button>` },
+  log: { t: 'Logbook', line: () => n(logDays().length, 'day logged', 'days logged'),
+    sub: 'Every day you climbed: the routes, your attempts and your sends.',
+    body: () => `${logbook()}<div class="rows"><button class="row" type="button" data-act="export"><span class="row-t"><strong>Export your log</strong><span>CSV with every attempt, send and video</span></span>${ic.down}</button></div>`,
+    cta: () => `<button class="b-lime" type="button" data-act="to" data-to="session">${session === 'live' ? 'Open the session' : 'Start a session'}</button>` },
+  set: { t: 'Watch and privacy', line: () => `${newPublic ? 'New videos public' : 'New videos only you'} · ${watch ? 'Watch on' : 'Watch off'}`,
+    sub: 'Who sees your new videos, and the watch that starts and stops each try.',
+    body: () => { const hid = clips.filter(c => c.hidden).length; return `<div class="rows">
       <button class="row" type="button" data-act="to" data-to="watch"><span class="row-t"><strong>Watch</strong><span>${watch ? 'Connected · starts and stops each try' : 'Not connected'}</span></span>${ic.arr('#111111')}</button>
       <div class="row"><span class="row-t"><strong>New videos</strong><span>${newPublic ? 'Public: in Community at ' + gym.name : 'Only you, until you make one public'}</span></span>
         <button class="vis${newPublic ? '' : ' off'}" type="button" data-act="newpub" aria-pressed="${!newPublic}">${newPublic ? `${ic.eye}Public` : `${ic.eyeOff}Hidden`}</button></div>
       ${hid ? `<div class="row"><span class="row-t"><strong>${n(hid, 'video', 'videos')} hidden</strong><span>Only you can see ${hid === 1 ? 'it' : 'them'}. Change it on each video</span></span></div>` : ''}
-    </div>`)}` };
+    </div>`; } } };
+function viewMore(k) {
+  const m = MORE[k] || MORE.gear;
+  return { html: `${bar()}<h1 class="hl">${m.t}</h1><p class="sub-w">${m.sub}</p><div class="mp${m.cta ? ' has-cta' : ''}">${m.body()}</div>`, cta: m.cta?.() || '' };
 }
 
 /* ---------- Back from v8, in the v9 world: gyms and map, logging and the session clock, watch, reel, poster, export, friends ---------- */
@@ -3316,7 +3441,7 @@ function logbook() {
     <div class="lgb-s"><span><b class="num">${sends}</b>Sends</span><span><b class="num">${att}</b>Attempts</span><span><b class="num">${att ? Math.round(sends / att * 100) + '%' : '–'}</b>Tops rate</span></div>
     ${es.length ? es.map(e => `<button class="lgb-r" type="button" data-act="to" data-to="${e.cs.length ? `clip/${e.cs[e.cs.length - 1].id}` : `route/${e.ri}`}">${sw(e.r)}<span class="row-t"><strong>${rname(e.r)}</strong><span>${gym.name} · ${e.cs.length ? n(e.cs.length, 'video', 'videos') : 'logged by hand'}</span></span>
       <span class="lgb-v${e.sent ? ' on' : ''}">${e.sent ? `${ic.check}${e.style}` : n(e.tries, 'attempt', 'attempts')}</span></button>`).join('') + gbook(gd, bookAt)
-      : gd.length ? gbook(gd, bookAt) : `<div class="lgb-e"><p class="cap">Nothing logged ${bookAt === 0 ? 'today' : 'this day'}.</p>${page === 'session' ? '' : '<button class="pj" type="button" data-act="to" data-to="session">Start a session</button>'}</div>`}
+      : gd.length ? gbook(gd, bookAt) : `<div class="lgb-e"><p class="cap">Nothing logged ${bookAt === 0 ? 'today' : 'this day'}.</p>${page === 'session' || page === 'more' ? '' : '<button class="pj" type="button" data-act="to" data-to="session">Start a session</button>'}</div>`}
   </section>`;
 }
 // tapping the clock in the Dynamic Island: how long, what you've done today, and End. You stay on the page you were on
@@ -3590,6 +3715,10 @@ let savedFr = null; try { const f = JSON.parse(localStorage.getItem(FR_KEY)); if
 const myFriends = new Set(savedFr || [...(user === 'regular' ? ['Noor', 'Leo', 'Sam'] : []), ...invitedFriends]);
 const frSave = () => { try { localStorage.setItem(FR_KEY, JSON.stringify([...myFriends])); } catch (_) {} };
 const friendList = () => [...myFriends];
+// the tags other climbers put on their cards: climbing styles and words about them (sample people)
+const PTAGS = { Jun: ['boulder', 'crimp', 'project', 'work'], Mia: ['boulder', 'slab', 'fun', 'new'], Kai: ['rope', 'lead', 'belay', 'work'],
+  Rosa: ['rope', 'slab', 'belay', 'weekend'], Sam: ['boulder', 'over', 'dyno', 'grades'], Noor: ['boulder', 'crimp', 'slab', 'friends'],
+  Leo: ['rope', 'endure', 'weekend'], Ben: ['boulder', 'fun', 'solo'], Ava: ['lead', 'out', 'train', 'grades'] };
 const YRS = { Noor: '5–10 years', Sam: 'over 10 years', Leo: '1–2 years', Kai: 'over 10 years', Mia: '2–5 years' };
 // a session you have today shows on Home. ?scene=plan shows one without posting
 const plans = [];
@@ -3756,66 +3885,140 @@ let myPartner = null; try { const p = JSON.parse(localStorage.getItem(PARTNER_KE
 const myLevel = () => { const v = glogs.filter(x => x.k !== 'Project' && VG.includes(x.g)).map(x => VG.indexOf(x.g)); return v.length ? Math.max(...v) : 3; };
 const myPro = () => ({ lv: myLevel(), rope: '', ct: {}, ...(myPartner || {}) });
 const proSave = () => { try { localStorage.setItem(PARTNER_KEY, JSON.stringify(myPartner)); } catch {} };
+// your card: a name, and the tags you pick to say what kind of climber you are. Shown under your name on Profile
+const ME_TAGS = [['new', 'New to climbing'], ['weekend', 'Weekend climber'], ['work', 'After work'], ['fun', 'Here for fun'],
+  ['grades', 'Pushing grades'], ['tech', 'Learning technique'], ['project', 'Working a project'], ['belay', 'Happy to belay'],
+  ['friends', 'Climbs with friends'], ['solo', 'Often climbs alone']];
+let myName = ''; try { myName = (localStorage.getItem('spotter-name') || '').slice(0, 24); } catch {}
+const meTags = new Set(); try { const t = JSON.parse(localStorage.getItem('spotter-me-tags') || '[]'); if (Array.isArray(t)) t.forEach(k => ME_TAGS.some(m => m[0] === k) && meTags.add(k)); } catch {}
+// what you climb, then who you are: the words on your card
+const cardTags = () => [...STYLES.filter(s => picks.has(s[0])).map(s => s[1]), ...ME_TAGS.filter(m => meTags.has(m[0])).map(m => m[1])];
 
-// sample posts. d = days from today, h = hour
+// A post is a routine, not a date: the gyms you climb at, the days of the week you usually go, and the part of the day.
+// Partners are found by overlap, so it stays true week after week. gys = gym indexes, days = 0 Sun … 6 Sat
+const WD = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const WEEK = [1, 2, 3, 4, 5, 6, 0];   // shown Monday first
+const TIMES = [['am', 'Mornings'], ['pm', 'Afternoons'], ['eve', 'Evenings']];
 const POSTS = [
-  { who: 'Jun', gy: 0, d: 0, h: 18, wants: ['film', 'grind'], note: 'Working the blue V4 in the cave after 6. I’ll film yours if you film mine.', ago: '1 h ago' },
-  { who: 'Mia', gy: 1, d: 0, h: 14, wants: ['film', 'social'], note: 'New in town, looking for a crew to climb with.', ago: '4 h ago' },
-  { who: 'Kai', gy: 0, d: 1, h: 17, wants: ['belay', 'film'], note: 'Top rope after class. I’ll belay you if you film my try on the 5.10.', ago: '5 h ago' },
-  { who: 'Rosa', gy: 0, d: 1, h: 10, wants: ['belay'], note: 'Passed my belay check last month. Looking for a top-rope partner.', ago: '6 h ago' },
-  { who: 'Sam', gy: 1, d: 2, h: 19, wants: ['grind'], note: 'Board session, V5 and up. Come try hard.', ago: '1 d ago' }]
+  { who: 'Jun', gys: [0], days: [2, 4], times: ['eve'], wants: ['film', 'grind'], note: 'Working the blue V4 in the cave after 6. I’ll film yours if you film mine.', ago: '1 h ago' },
+  { who: 'Mia', gys: [1], days: [6, 0], times: ['pm'], wants: ['film', 'social'], note: 'New in town, looking for a crew to climb with.', ago: '4 h ago' },
+  { who: 'Kai', gys: [0], days: [1, 3], times: ['pm'], wants: ['belay', 'film'], note: 'Top rope after class. I’ll belay you if you film my try on the 5.10.', ago: '5 h ago' },
+  { who: 'Rosa', gys: [0, 2], days: [6], times: ['am'], wants: ['belay'], note: 'Passed my belay check last month. Looking for a top-rope partner.', ago: '6 h ago' },
+  { who: 'Sam', gys: [1], days: [2, 5], times: ['eve'], wants: ['grind'], note: 'Board session, V5 and up. Come try hard.', ago: '1 d ago' }]
   .map((p, i) => ({ ...p, k: 'gym', id: `s${i}` }));
-let myPosts = []; try { const a = JSON.parse(localStorage.getItem('spotter-posts') || '[]'); if (Array.isArray(a)) myPosts = a.filter(p => p && p.date); } catch {}
+// yours: one post, kept until you delete it (older one-day posts are dropped)
+let myPosts = []; try { const a = JSON.parse(localStorage.getItem('spotter-posts') || '[]'); if (Array.isArray(a)) myPosts = a.filter(p => p && Array.isArray(p.days)).slice(0, 1); } catch {}
 const postSave = () => { try { localStorage.setItem('spotter-posts', JSON.stringify(myPosts)); } catch {} };
-// your posts until the day (or the trip) is over
-const myLive = () => myPosts.filter(p => p.k === 'gym').map(p => ({ ...p, who: 'You', d: -keyAgo(p.date) })).filter(p => p.d >= 0);
+const myLive = () => myPosts.map(p => ({ ...p, who: 'You' }));
+const goesToday = p => p.days.includes(new Date().getDay());
+// their days in a word or two: Weekends, Weekdays, Every day, else the days themselves (Tue · Thu)
+const daysText = ds => { const s = new Set(ds);
+  if (s.size === 7) return '<b>Every day</b>';
+  if (s.size === 2 && s.has(0) && s.has(6)) return '<b>Weekends</b>';
+  if (s.size === 5 && [1, 2, 3, 4, 5].every(d => s.has(d))) return '<b>Weekdays</b>';
+  return WEEK.filter(d => s.has(d)).map(d => `<b>${WD[d]}</b>`).join(''); };
+const PC_CAL = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><rect x="4" y="5.5" width="16" height="14.5" rx="3"/><path d="M4 10h16M8.5 3.5v4M15.5 3.5v4"/></svg>';
+const PC_CLOCK = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>';
 function postCard(p) {
   const me = p.who === 'You', pro = proOf(p.who);
   return `<div class="pz pst${me ? ' mine' : ''}"><div class="pz-h"><button class="fd-a" type="button" data-act="to" data-to="${me ? 'profile' : `person/${p.who}`}" aria-label="${p.who}">${avatar(p.who)}</button>
-      <span class="row-t"><strong>${p.who}${!me && myFriends.has(p.who) ? `<span class="pst-fr">${ic.check}Friends</span>` : ''}</strong><span class="pz-tags"><i class="num">${lvTag(p.who)}</i></span></span>
-      ${me ? `<button class="pz-del" type="button" data-act="pdel" data-id="${p.id}">Delete</button>` : `<span class="pz-ago">${p.ago}</span>`}</div>
-    <p class="pst-w"><b>${dayName(p.d)} · ${clock(p.h)}</b><span>${(gyms[p.gy] || gym).name}</span></p>
-    <span class="pz-tags">${p.wants.map(k => `<i class="w">${wantName(k)}</i>`).join('')}</span>
-    ${p.note ? `<p class="pz-n"${me ? ' translate="no"' : ''}>${esc(p.note)}</p>` : ''}
-    ${ctOf(me ? p.ct : pro?.ct).length ? ctChips(me ? p.ct : pro.ct) : ''}</div>`;
+      <span class="row-t"><strong>${p.who}${!me && myFriends.has(p.who) ? `<span class="pst-fr">${ic.check}Friends</span>` : ''}</strong><span class="pc-sub"><i class="num">${lvTag(p.who)}</i>${me ? '' : `<em>${p.ago}</em>`}</span></span>
+      ${me ? `<span class="pz-mine"><button class="pz-del" type="button" data-act="pnew">Edit</button><button class="pz-del" type="button" data-act="pdel" data-id="${p.id}">Delete</button></span>` : goesToday(p) ? '<span class="pc-td">Climbs today</span>' : ''}</div>
+    ${p.note ? `<p class="pc-n"${me ? ' translate="no"' : ''}>${esc(p.note)}</p>` : ''}
+    <p class="pc-meta"><span>${PC_CAL}${daysText(p.days)}</span><span>${PC_CLOCK}${TIMES.filter(([k]) => p.times.includes(k)).map(([, l]) => `<b>${l}</b>`).join('')}</span>
+      <span>${ic.pin}${p.gys.filter(i => gyms[i]).map(i => `<b>${gyms[i].name}</b>`).join('')}</span></p>
+    <div class="pc-ft"><span class="pc-wants">${p.wants.map(k => `<i>${wantName(k)}</i>`).join('')}</span>
+      ${!me && ctOf(pro?.ct).length ? `<button class="pc-ct" type="button" data-act="pzct" data-w="${p.who}">Contact</button>` : ''}</div></div>`;
 }
 function viewPartners() {
-  const all = [...myLive(), ...POSTS].sort((a, b) => (b.who === 'You') - (a.who === 'You') || a.d - b.d || (a.h ?? 0) - (b.h ?? 0));
+  // yours first, then the climbers who go today, then the rest as posted
+  const all = [...myLive(), ...POSTS].sort((a, b) => (b.who === 'You') - (a.who === 'You') || goesToday(b) - goesToday(a));
   return { photo: 'gym-arc-1', fab: `<button class="pz-fab" type="button" data-act="pnew" aria-label="New post">${ic.plus}</button>`, html: `
     ${tabHead('Social')}${socSeg('partners')}
     <div class="pzs">${all.map(postCard).join('') || '<p class="cap">No posts here yet. Post one: what you’re after, when, and how to reach you.</p>'}</div>` };
 }
-// a new post: which gym, day and time, what you're after (Film each other to start with), a line, your contacts
+// your post, a page of its own laid out like Edit card: where you climb, the days and times you usually go, what you're
+// after, a line, then contacts. You have one post: posting again updates it. Taps change things in place, so the page
+// never jumps. The button says what's still missing
 let pdr = null;
-const HOURS = [['Morning', 10], ['Afternoon', 14], ['Evening', 18]];
-function drawPost() {
-  const chip = (act, v, label, on) => `<button type="button" data-act="${act}" data-v="${v}" aria-pressed="${on}">${label}</button>`, pro = myPro();
-  const gs = [...new Set([pdr.gy, ...byNear(gyms.map((g, i) => [g, i])).slice(0, 6).map(([, i]) => i)])];
-  pane(`<h2>New post</h2><span class="sub">Shown with your level, ${lvTag('You')}, and how to reach you</span><div class="gear-f">
-    <p class="fr-h">Where</p><div class="fchips">${gs.map(i => chip('ppg', i, gyms[i].name, i === pdr.gy)).join('')}</div>
-      <p class="fr-h">When</p><div class="fchips">${[0, 1, 2, 3, 4, 5, 6].map(d => chip('ppd', d, dayName(d), d === pdr.d)).join('')}</div>
-      <div class="fchips pl-t">${HOURS.map(([l, h]) => chip('pph', h, l, h === pdr.h)).join('')}</div>
-    <p class="fr-h">Looking for</p><div class="fchips">${WANTS.map(([k, l]) => chip('ppw', k, l, pdr.wants.includes(k))).join('')}</div>
-    <label class="fr-h" for="pp-note">A line about it</label><input id="pp-note" maxlength="120" value="${esc(pdr.note)}" placeholder="Projecting V4s, happy to film">
-    <p class="fr-h">How to reach you</p><p class="cap pt-ct-c">Everyone who sees the post sees these. Fill in the ones you use.</p>
-    <div class="pt-cts">${SOCIALS.map(([k, l, ph]) => `<label class="pt-ct"><span>${l}</span><input data-ct="${k}" maxlength="40" value="${esc(pdr.ct[k] || '')}" placeholder="${ph}"${k === 'wa' ? ' inputmode="tel"' : ''}></label>`).join('')}</div>
-    <div class="two one"><button class="b-lime" type="button" data-act="ppgo" id="pp-go">Post</button></div></div>`);
-  const ok = () => { $('pp-go').disabled = !(pdr.wants.length && Object.keys(pdr.ct).length); };
-  $('pp-note').addEventListener('input', e => { pdr.note = e.target.value.trim(); });
-  ask.querySelectorAll('[data-ct]').forEach(x => x.addEventListener('input', e => { const v = e.target.value.trim(); if (v) pdr.ct[x.dataset.ct] = v; else delete pdr.ct[x.dataset.ct]; ok(); }));
-  ok();
+const pdNew = () => { const p = myPro(), old = myPosts[0];
+  pdr = old ? { gys: [...old.gys], days: [...old.days], times: [...old.times], wants: [...old.wants], note: old.note || '', ct: { ...p.ct, ...old.ct } }
+    : { gys: [homeGy != null && gyms[homeGy] ? homeGy : 0], days: [], times: [], wants: ['film'], note: '', ct: { ...p.ct } }; };
+function ppOk() {
+  const b = $('pp-go'); if (!b) return;
+  const miss = !pdr.gys.length ? 'Pick a gym' : !pdr.days.length ? 'Pick the days you go' : !pdr.times.length ? 'Pick a time of day'
+    : !pdr.wants.length ? 'Pick what you’re looking for' : !Object.keys(pdr.ct).length ? 'Add one way to reach you' : '';
+  b.disabled = !!miss; b.textContent = miss || (myPosts.length ? 'Update post' : 'Post');
+  $('pp-ctn').textContent = Object.keys(pdr.ct).length ? '' : 'Add at least one';
 }
-// your level and contacts, from your profile: one sheet
-let ptd = null;
-function drawPartner() {
+function viewPost() {
+  if (!pdr) pdNew();
   const chip = (act, v, label, on) => `<button type="button" data-act="${act}" data-v="${v}" aria-pressed="${on}">${label}</button>`;
-  pane(`<h2>Level and contacts</h2><span class="sub">Shown on your posts and to your friends</span><div class="gear-f">
-    <p class="fr-h">Bouldering level</p><div class="fchips">${VG.map((g, i) => chip('ptl', i, g, i === ptd.lv)).join('')}</div>
-    <p class="fr-h">Rope</p><div class="fchips">${['', ...GR].map(g => chip('ptr', g, g || 'None', (ptd.rope || '') === g)).join('')}</div>
-    <p class="fr-h">How to reach you</p>
-    <div class="pt-cts">${SOCIALS.map(([k, l, ph]) => `<label class="pt-ct"><span>${l}</span><input data-ct="${k}" maxlength="40" value="${esc(ptd.ct?.[k] || '')}" placeholder="${ph}"${k === 'wa' ? ' inputmode="tel"' : ''}></label>`).join('')}</div>
-    <div class="two one"><button class="b-lime" type="button" data-act="ptsave">Save changes</button></div></div>`);
-  ask.querySelectorAll('[data-ct]').forEach(x => x.addEventListener('input', e => { const v = e.target.value.trim(); ptd.ct = { ...ptd.ct }; if (v) ptd.ct[x.dataset.ct] = v; else delete ptd.ct[x.dataset.ct]; }));
+  const gs = [...new Set([...pdr.gys, ...byNear(gyms.map((g, i) => [g, i])).slice(0, 6).map(([, i]) => i)])];
+  return { html: `${bar()}<h1 class="hl ec-hl">${myPosts.length ? 'Your post' : 'New post'}</h1><p class="sub-w">Shown with your level, ${lvTag('You')}, and how to reach you</p><div class="ec pp">
+    <p class="ec-h">Gyms you go to</p><p class="ec-d">Pick one or more</p>
+    <div class="ec-chips pp-gyms">${gs.map(i => chip('ppg', i, gyms[i].name, pdr.gys.includes(i))).join('')}</div>
+    <p class="ec-h">When you usually go</p><p class="ec-d">Pick one or more</p>
+    <div class="ec-box pp-plan">
+      <div class="pp-days" role="group" aria-label="Days">${WEEK.map(d => `<button type="button" data-act="ppd" data-v="${d}" aria-pressed="${pdr.days.includes(d)}">${WD[d]}</button>`).join('')}</div>
+      <div class="pp-hrs" role="group" aria-label="Time of day">${TIMES.map(([k, l]) => `<button type="button" data-act="pph" data-v="${k}" aria-pressed="${pdr.times.includes(k)}">${l}</button>`).join('')}</div></div>
+    <p class="ec-h">Looking for</p><p class="ec-d">Pick one or more</p>
+    <div class="ec-chips pp-wants">${WANTS.map(([k, l]) => chip('ppw', k, l, pdr.wants.includes(k))).join('')}</div>
+    <p class="ec-h"><label for="pp-note">A line about it</label><span id="pp-nn">${pdr.note.length}/120</span></p>
+    <textarea id="pp-note" class="pp-note" maxlength="120" rows="2" placeholder="Projecting V4s, happy to film">${esc(pdr.note)}</textarea>
+    <p class="ec-h">How to reach you <span id="pp-ctn"></span></p><p class="ec-d">Everyone who sees the post sees these. Fill in the ones you use.</p>
+    <div class="ec-box pp-ct">${SOCIALS.map(([k, l, ph]) => `<label class="ec-in"><span>${l}</span><input data-ct="${k}" maxlength="40" value="${esc(pdr.ct[k] || '')}" placeholder="${ph}"${k === 'wa' ? ' inputmode="tel"' : ''}></label>`).join('')}</div>
+    </div>`,
+    cta: '<button class="b-lime" type="button" data-act="ppgo" id="pp-go">Post</button>',
+    after: () => {
+      $('pp-note').addEventListener('input', e => { pdr.note = e.target.value.trim(); $('pp-nn').textContent = `${e.target.value.length}/120`; });
+      $('main').querySelectorAll('[data-ct]').forEach(x => x.addEventListener('input', e => { const v = e.target.value.trim(); if (v) pdr.ct[x.dataset.ct] = v; else delete pdr.ct[x.dataset.ct]; ppOk(); }));
+      ppOk(); } };
+}
+// pick or unpick one in a list, in place
+const ppTog = (b, key, v) => { const a = pdr[key]; pdr[key] = a.includes(v) ? a.filter(x => x !== v) : [...a, v]; b.setAttribute('aria-pressed', pdr[key].includes(v)); ppOk(); };
+// your card, a page of its own from the top of Profile. You edit the card itself: the preview at the top is what climbers
+// see, and it changes as you tap. Up to five tags, so the card says who you are at a glance. Level by steppers, contacts
+// folded away. Nothing redraws while you edit, so the page never jumps. Back leaves without saving
+let ptd = null;
+const CARD_MAX = 5;
+const ROPES = ['', ...GR];
+const ptLabel = () => [...STYLES.filter(s => ptd.sty.has(s[0])).map(s => s[1]), ...ME_TAGS.filter(m => ptd.tags.has(m[0])).map(m => m[1])];
+const ptCount = () => ptd.sty.size + ptd.tags.size;
+function ptSync() {   // the preview, the count, and which chips can still be picked
+  const n = ptCount(), full = n >= CARD_MAX;
+  $('ec-tags').innerHTML = `<i class="ec-lv">${VGI(ptd.lv)}${ptd.rope ? ` · ${ptd.rope}` : ''}</i>${ptLabel().map(t => `<i>${t}</i>`).join('')}`;
+  $('ec-n').textContent = `${n}/${CARD_MAX}`; $('ec-n').classList.toggle('full', full);
+  $('main').querySelectorAll('.ec-chips button').forEach(b => { const on = b.getAttribute('aria-pressed') === 'true'; b.disabled = full && !on; });
+  $('ec-lvv').textContent = VGI(ptd.lv); $('ec-rpv').textContent = ptd.rope || 'None';
+  $('main').querySelector('[data-act="ptlv"][data-d="-1"]').disabled = ptd.lv <= 0; $('main').querySelector('[data-act="ptlv"][data-d="1"]').disabled = ptd.lv >= VG.length - 1;
+  const ri = ROPES.indexOf(ptd.rope || '');
+  $('main').querySelector('[data-act="ptrp"][data-d="-1"]').disabled = ri <= 0; $('main').querySelector('[data-act="ptrp"][data-d="1"]').disabled = ri >= ROPES.length - 1;
+  const k = Object.keys(ptd.ct || {}).length; $('ec-ctn').textContent = k ? `${k} added` : 'None yet';
+}
+const ptNew = () => { const p = myPro(); ptd = { lv: p.lv, rope: p.rope, ct: { ...p.ct }, name: myName, sty: new Set(picks), tags: new Set(meTags) }; };
+function viewCard() {
+  if (!ptd) ptNew();
+  const chip = (act, v, label, on) => `<button type="button" data-act="${act}" data-v="${v}" aria-pressed="${on}">${label}</button>`;
+  const step = (act, label, id) => `<div class="ec-st"><span>${label}</span><button type="button" data-act="${act}" data-d="-1" aria-label="Lower">−</button><b id="${id}"></b><button type="button" data-act="${act}" data-d="1" aria-label="Higher">+</button></div>`;
+  return { html: `${bar()}<h1 class="hl ec-hl">Edit card</h1><div class="ec">
+    <div class="ec-card"><span class="ec-av">${avatar('You')}</span>
+      <input id="pt-name" class="ec-name" maxlength="24" value="${esc(ptd.name)}" placeholder="Your name" autocomplete="nickname" aria-label="Your name">
+      <p class="ec-gym">${ic.pin}<span>${gym.name}</span></p>
+      <div class="ec-tags" id="ec-tags"></div></div>
+    <p class="ec-h">Your tags <span id="ec-n"></span></p><p class="ec-d">Pick up to ${CARD_MAX} that say who you are as a climber</p>
+    <p class="ec-g">Climbing styles</p><div class="ec-chips">${STYLES.map(s => chip('pts', s[0], s[1], ptd.sty.has(s[0]))).join('')}</div>
+    <p class="ec-g">About you</p><div class="ec-chips">${ME_TAGS.map(([k, l]) => chip('ptg', k, l, ptd.tags.has(k))).join('')}</div>
+    <p class="ec-h">Level</p><div class="ec-box">${step('ptlv', 'Bouldering', 'ec-lvv')}${step('ptrp', 'Rope', 'ec-rpv')}</div>
+    <details class="ec-box ec-ct"><summary><span>How to reach you</span><em id="ec-ctn"></em><svg viewBox="0 0 24 24" fill="none" stroke="#111" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></summary>
+      <p class="ec-d">Only shown on your posts, so climbers can message you</p>
+      ${SOCIALS.map(([k, l, ph]) => `<label class="ec-in"><span>${l}</span><input data-ct="${k}" maxlength="40" value="${esc(ptd.ct?.[k] || '')}" placeholder="${ph}"${k === 'wa' ? ' inputmode="tel"' : ''}></label>`).join('')}</details>
+    </div>`,
+    cta: '<button class="b-lime" type="button" data-act="ptsave">Save</button>',
+    after: () => {
+      $('main').querySelectorAll('[data-ct]').forEach(x => x.addEventListener('input', e => { const v = e.target.value.trim(); ptd.ct = { ...ptd.ct }; if (v) ptd.ct[x.dataset.ct] = v; else delete ptd.ct[x.dataset.ct]; ptSync(); }));
+      $('pt-name').addEventListener('input', e => { ptd.name = e.target.value; });
+      ptSync(); } };
 }
 
 // gear: shoes and harnesses, counted in days on the wall since you got them. A harness only counts days with rope
@@ -3839,11 +4042,6 @@ function gearCard(g) {
     <span class="gr-n"><b class="num">${u.days}</b><span>${g.kind === 'harness' ? (u.days === 1 ? 'rope day' : 'rope days') : u.days === 1 ? 'climbing day' : 'climbing days'} · ${hrs(u.secs)}</span></span>
     ${life || need ? `<span class="gr-bar"><i style="width:${pct}%"></i></span>` : ''}
     ${wear ? `<span class="gr-t">${wear}</span>` : ''}${paid ? `<span class="gr-t">${paid}</span>` : ''}</button>`;
-}
-function gearSection() {
-  return `<button class="sec-more pc-a" type="button" data-act="gearopen">Add gear</button>
-    ${gear.length ? `<div class="grs">${gear.map(gearCard).join('')}</div><p class="cap">Counted from your sessions since you got each one. Start a session at the gym so they count.</p>`
-      : `<div class="lt gr-e"><p class="tip-d">Add your shoes or harness. Spotter counts the days they’ve climbed, tells you when to check the shoes for a resole, and when they’ve paid for themselves against renting.</p></div>`}`;
 }
 function openGear(id) {
   const g = gear.find(x => x.id === id), k = g?.kind || 'shoes';
@@ -3888,25 +4086,38 @@ const interviewActions = {
   gearopen: b => openGear(b.dataset.i ? +b.dataset.i : undefined),
   geardel: b => { const i = gear.findIndex(x => x.id === +b.dataset.i); if (i < 0) return; const [x] = gear.splice(i, 1); gearSave(); closeAll(); render(); toast(`${x.name} removed`); },
   // your level and contacts (profile)
-  ptpost: () => { const p = myPro(); ptd = { lv: p.lv, rope: p.rope, ct: { ...p.ct } }; drawPartner(); },
-  ptl: b => { ptd.lv = +b.dataset.v; drawPartner(); },
-  ptr: b => { ptd.rope = b.dataset.v; drawPartner(); },
-  ptsave: () => { myPartner = ptd; proSave(); closeAll(); render(); toast('Saved'); },
+  ptpost: () => { ptNew(); go('card'); },
+  // everything changes in place: the sheet never redraws while you edit. Tags stop at five; a full card greys the rest
+  ptlv: b => { ptd.lv = Math.max(0, Math.min(VG.length - 1, ptd.lv + +b.dataset.d)); ptSync(); },
+  ptrp: b => { const i = ROPES.indexOf(ptd.rope || '') + +b.dataset.d; ptd.rope = ROPES[Math.max(0, Math.min(ROPES.length - 1, i))]; ptSync(); },
+  ptg: b => { const k = b.dataset.v; if (ptd.tags.has(k)) ptd.tags.delete(k); else if (ptCount() < CARD_MAX) ptd.tags.add(k); b.setAttribute('aria-pressed', ptd.tags.has(k)); ptSync(); },
+  pts: b => { const k = b.dataset.v, s = ptd.sty;   // "All of it" stands alone, as on the style board
+    if (k === 'all') { const on = !s.has('all'); s.clear(); if (on) s.add('all'); }
+    else if (s.has(k)) s.delete(k); else if (ptCount() - (s.has('all') ? 1 : 0) < CARD_MAX) { s.delete('all'); s.add(k); }
+    b.parentNode.querySelectorAll('[data-v]').forEach(x => x.setAttribute('aria-pressed', s.has(x.dataset.v))); ptSync(); },
+  ptsave: () => { const { name, sty, tags, ...pro } = ptd; myPartner = pro; proSave();
+    myName = name.trim().slice(0, 24); meTags.clear(); tags.forEach(k => meTags.add(k)); picks.clear(); sty.forEach(k => picks.add(k));
+    try { localStorage.setItem('spotter-name', myName); localStorage.setItem('spotter-me-tags', JSON.stringify([...meTags])); localStorage.setItem('spotter-styles', JSON.stringify([...picks])); } catch {}
+    ptd = null; history.length > 1 ? history.back() : go('profile'); toast('Saved'); },
   // posts
-  pnew: () => { const p = myPro(); pdr = { gy: homeGy != null && gyms[homeGy] ? homeGy : 0, d: 0, h: 18, wants: ['film'], note: '', ct: { ...p.ct } }; drawPost(); },
-  ppg: b => { pdr.gy = +b.dataset.v; drawPost(); },
-  ppd: b => { pdr.d = +b.dataset.v; drawPost(); },
-  pph: b => { pdr.h = +b.dataset.v; drawPost(); },
-  ppw: b => { const k = b.dataset.v; pdr.wants = pdr.wants.includes(k) ? pdr.wants.filter(x => x !== k) : [...pdr.wants, k]; drawPost(); },
-  ppgo: () => { const x = pdr;
-    myPosts.unshift({ id: `m${Date.now()}`, k: 'gym', gy: x.gy, h: x.h, date: logDateKey(dateOf(-x.d)), wants: x.wants, note: x.note, ct: x.ct });
-    postSave(); myPartner = { ...(myPartner || {}), ct: { ...x.ct } }; proSave(); pdr = null; closeAll();
-    if (page === 'friends' && arg === 'partners') render(); else go('friends/partners'); toast('Your post is up'); },
+  pnew: () => { pdNew(); go('post'); },
+  ppg: b => ppTog(b, 'gys', +b.dataset.v),
+  ppd: b => ppTog(b, 'days', +b.dataset.v),
+  pph: b => ppTog(b, 'times', b.dataset.v),
+  ppw: b => ppTog(b, 'wants', b.dataset.v),
+  ppgo: () => { const x = pdr; if (!x) return; const upd = myPosts.length > 0;
+    myPosts = [{ id: myPosts[0]?.id || `m${Date.now()}`, k: 'gym', gys: x.gys, days: x.days, times: x.times, wants: x.wants, note: x.note, ct: x.ct }];
+    postSave(); myPartner = { ...(myPartner || {}), ct: { ...x.ct } }; proSave(); pdr = null;
+    history.length > 1 ? history.back() : go('friends/partners'); toast(upd ? 'Your post is updated' : 'Your post is up'); },
   pdel: b => { myPosts = myPosts.filter(p => p.id !== b.dataset.id); postSave(); render(); toast('Post deleted'); },
+  // a post's contacts, one tap away: a sheet with each app and handle, open it or copy it
+  pzct: b => { const w = b.dataset.w, ct = proOf(w)?.ct; if (!ct) return;
+    pane(`<h2>Contact ${w}</h2><span class="sub">Say which post you saw and when you can climb.</span>${ctRow(ct)}`); },
+  fradd: b => { const w = b.dataset.w; myFriends.add(w); frSave(); render(); toast(`${w} added to friends`); },
   frx: b => { const w = b.dataset.w; pane(`<h2>Remove ${w}?</h2><span class="sub">You stop seeing each other’s climbing days. Add each other again any time.</span><div class="two one"><button class="b-ghost" type="button" data-act="frxgo" data-w="${w}">Remove</button></div>`); },
   frxgo: b => { const w = b.dataset.w; myFriends.delete(w); frSave(); closeAll(); render(); toast(`${w} removed from friends`); },
   mvplay: async b => { const id = b.dataset.m, m = STY.find(x => x.id === id), w = b.dataset.w; let hit = null;
-    for (const i of b.dataset.vs.split(',').map(Number)) { const v = V[i], T = TRK[v.vid]?.S ? TRK[v.vid] : await fetch(`video/${v.vid}.track.json`).then(r => r.json()).catch(() => null);
+    for (const i of b.dataset.vs.split(',').map(Number)) { const v = V[i], T = TRK[v.vid]?.S ? TRK[v.vid] : await fetch(tsrc(v.vid)).then(r => r.json()).catch(() => null);
       const ex = T && styleOf(T).R[id]?.ex; if (ex) { hit = { v, t: ex.t, T }; break; } }
     if (!hit) { toast('Couldn’t find that moment in the video'); return; }
     const a = Math.max(0, hit.t - 1), z = hit.t + 2.5;
@@ -4063,8 +4274,8 @@ const moreActions = {
 };
 
 /* ---------- shell: routing, render, sheets ---------- */
-const views = { pick: viewPick, setup: viewSetup, videos: viewVideos, day: viewDay, algym: viewAlGym, ob: viewOb, shelf: viewShelf, clip: viewClip, vs: viewVs, route: viewRoute, wall: viewWall, beta: viewBeta, walls: viewGymsTab, gyms: viewGyms, gym: viewGym, friends: viewFriends, person: viewPerson, profile: viewProfile, cam: viewCam, session: viewSession, logc: viewSession, scan: viewScan, summary: viewSummary, watch: viewWatch, review: viewReview };
-const tabOf = { videos: 'videos', shelf: 'videos', clip: 'videos', vs: 'videos', cam: 'videos', route: 'walls', wall: 'walls', beta: 'walls', walls: 'walls', gyms: 'walls', gym: 'walls', session: 'videos', logc: 'videos', scan: 'walls', summary: 'profile', watch: 'profile', friends: 'friends', person: 'friends', profile: 'profile' };
+const views = { pick: viewPick, setup: viewSetup, videos: viewVideos, day: viewDay, algym: viewAlGym, ob: viewOb, shelf: viewShelf, clip: viewClip, vs: viewVs, route: viewRoute, wall: viewWall, beta: viewBeta, walls: viewGymsTab, gyms: viewGyms, gym: viewGym, friends: viewFriends, person: viewPerson, profile: viewProfile, card: viewCard, more: viewMore, post: viewPost, cam: viewCam, session: viewSession, logc: viewSession, scan: viewScan, summary: viewSummary, watch: viewWatch, review: viewReview };
+const tabOf = { videos: 'videos', shelf: 'videos', clip: 'videos', vs: 'videos', cam: 'videos', route: 'walls', wall: 'walls', beta: 'walls', walls: 'walls', gyms: 'walls', gym: 'walls', session: 'videos', logc: 'videos', scan: 'walls', summary: 'profile', watch: 'profile', friends: 'friends', person: 'friends', profile: 'profile', card: 'profile', more: 'profile', post: 'friends' };
 const tabs = ['videos', 'walls', 'friends', 'profile'];
 const dock = document.querySelector('.dock');
 function readHash() { const [p = '', a = ''] = location.hash.replace(/^#\/?/, '').split('/'); page = views[p] ? p : 'videos'; try { arg = decodeURIComponent(a); } catch (_) { arg = a; } }
@@ -4116,7 +4327,8 @@ let tt;
 function toast(msg) { if (clockNote) { clockNote = false; msg = msg ? `${msg} · Clock started, tap it up top to end` : 'Clock started, tap it up top to end'; } toastEl.textContent = msg; toastEl.classList.add('show'); clearTimeout(tt); tt = setTimeout(() => toastEl.classList.remove('show'), 2200); }
 const sheet = $('sheet'), ask = $('ask'), scrim = $('scrim');
 function closeAll() { stopInviteCamera(); if (cmRecognition) { cmRecognition.stop(); cmRecognition = null; } if (cmImage) { URL.revokeObjectURL(cmImage); cmImage = null; } cmReply = null; [sheet, ask, scrim].forEach(x => x.classList.remove('show')); clearTimeout(closeAll.t); closeAll.t = setTimeout(() => { if (!ask.classList.contains('show')) ask.innerHTML = ''; }, 400); }
-function pane(html) { ask.innerHTML = '<div class="grab"></div>' + (/data-act="close"|add-x/.test(html) ? '' : '<button class="pane-x" type="button" data-act="close" aria-label="Close"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>') + html; sheet.classList.remove('show'); ask.classList.add('show'); scrim.classList.add('show'); }
+// no × on a sheet: tapping outside it or pressing Escape closes it, and the × stuck out past the sheet's corner
+function pane(html) { ask.innerHTML = '<div class="grab"></div>' + html; sheet.classList.remove('show'); ask.classList.add('show'); scrim.classList.add('show'); }
 // someone else's video on its own, from the route page
 function watchPane(x) {
   const r = ROUTES[x.ri];
@@ -4253,7 +4465,7 @@ const actions = {
   anok: b => { const c = byId(b.dataset.i); confirmed(c, c.auto); },
   tagstart: b => { $('lvv')?.pause(); tagS = { id: +b.dataset.i, i: 0, pts: {} }; drawTag(byId(b.dataset.i)); document.querySelector('.screen').scrollTo(0, 0); },
   tagundo: b => { if (tagS.i) { tagS.i -= 1; delete tagS.pts[TAGS[tagS.i][0]]; } else if (byId(b.dataset.i).auto) tagS = { id: null, i: 0, pts: {} }; drawTag(byId(b.dataset.i)); },
-  tagdone: b => { const c = byId(b.dataset.i); confirmed(c, { ...tagS.pts, t: c.auto?.t ?? 0 }, true); },
+  tagdone: b => { const c = byId(b.dataset.i); confirmed(c, { ...tagS.pts, t: tagS.t ?? c.auto?.t ?? 0 }, true); },
   retag: b => { const c = byId(b.dataset.i); c.tags = null; c.an = 'ask'; tagS = { id: null, i: 0, pts: {} }; render(); document.querySelector('.screen').scrollTo(0, 0); },
   croute: b => { const c = byId(b.dataset.i);
     const gy = c.gy ?? gyOf(ROUTES[c.ri]), rs = routesAt(gy).filter(i => !ROUTES[i].offAt || i === c.ri);
@@ -4272,6 +4484,11 @@ const actions = {
   pkdone: b => go(b.dataset.from === 'ob' ? 'ob/film' : b.dataset.from === 'new' ? 'videos' : 'profile'),
   obpick: b => { homeGy = +b.dataset.i; try { localStorage.setItem('spotter-home', JSON.stringify(homeGy)); } catch (_) {} render(); },
   obskip: () => { obFinish(); go('videos'); },
+  // the welcome's example climb (Leo on Green 5.8), analysed as one of your videos: its scan ships with it, so it's ready in
+  // a second. Opened again if it's already in your videos
+  obsample: () => { obFinish(); const i = V.findIndex(v => v.vid === 'wayup-p3-green'); if (i < 0) return go('videos');
+    let c = clips.find(x => x.v === i); const fresh = !c; if (fresh) c = addClip(i, { cut: true });
+    cTab = 'why'; go(`clip/${c.id}`); if (fresh || c.an === 'idle') analyse(c); },
   cgym: b => { const c = byId(b.dataset.i);
     pane(`<h2>Which gym was this?</h2><span class="sub">${rname(ROUTES[c.ri])} · try ${tryOf(c)} · ${dayLabel(agoOf(c))}</span>
       <div class="rows">${gyms.map((g, i) => `<button class="row" type="button" data-act="cgset" data-c="${c.id}" data-i="${i}"><span class="row-t"><strong>${g.name}</strong><span>${g.dist}</span></span>${c.gy === i ? ic.check : ''}</button>`).join('')}</div>`); },
@@ -4309,9 +4526,10 @@ const actions = {
   aldelyes: () => { const k = alSel.size; alSel.forEach(id => { const c = byId(id); if (!c) return; clips.splice(clips.indexOf(c), 1); V[c.v].added = false; }); alSel = null; alOpen = null; closeAll(); render(); toast(`${n(k, 'video', 'videos')} deleted`); },
   // side by side
   pvplay: () => pvPlay(),
-  vsrate: b => { const i = Math.max(0, Math.min(RATES.length - 1, RATES.indexOf(pvRate) + +b.dataset.d)); pvRate = RATES[i];
+  // one tap moves to the next value and wraps round; speed goes slower first, since slow motion is what you compare in
+  vsrate: () => { pvRate = RATES[(RATES.indexOf(pvRate) + 1) % RATES.length];
     ['pv0', 'pv1'].forEach(id => { const v = $(id); if (v) v.playbackRate = pvRate; }); const t = $('pvs'); if (t) t.textContent = `${pvRate}×`; },
-  vszoom: b => { const i = Math.max(0, Math.min(ZOOMS.length - 1, ZOOMS.indexOf(vsZ) + +b.dataset.d)); vsZ = ZOOMS[i]; const t = $('pvz'); if (t) t.innerHTML = `${ic.search}${vsZ}×`; },
+  vszoom: () => { vsZ = ZOOMS[(ZOOMS.indexOf(vsZ) + 1) % ZOOMS.length]; const t = $('pvz'); if (t) t.textContent = `${vsZ}×`; },
   pvslow: b => { pvRate = pvRate === 1 ? .5 : 1; b.setAttribute('aria-pressed', pvRate < 1); 
     ['pv0', 'pv1'].forEach(id => { const v = $(id); if (v) v.playbackRate = pvRate; }); if (pv && !pv.on) pvPlay(); },
   pvsync: b => { const h = $('vshero'), on = !h.classList.contains('sync'); h.classList.toggle('sync', on); b.setAttribute('aria-pressed', on); b.textContent = on ? 'Done' : 'Line up';

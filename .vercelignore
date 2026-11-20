@@ -7,3 +7,4 @@ tools/*.py
 data
 runs
 .venv
+*.pt

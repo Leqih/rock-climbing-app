@@ -4,13 +4,15 @@ way it does on the phone, so nothing else changes. When this server can't be rea
 
     python server/spotter_server.py [--port 8765] [--model yolo11x-pose.pt] [--imgsz 1280]
 
-POST /jobs          the video as the request body (any format OpenCV reads; ?seed=<json> is where you tapped yourself)
+POST /jobs          the video as the request body (any format OpenCV reads; ?seed=<json> is where you tapped yourself:
+                    {t, head, lh, rh, lf, rf}, t in seconds, the rest {x, y} as fractions of the picture)
                     -> {"id": "..."}
 GET  /jobs/<id>     -> {"pct": 0..1, "state": "queued|run|done|error", "error"?, "result"?}
 GET  /health        -> {"ok": true, "model": ..., "gpu": ...}
 
-result: {W, H, D, fhz, model, imgsz, secs, frames}. frames[f] is the climber at f / fhz s, MediaPipe's 33 points in its
-order, each [x, y, confidence] as fractions of the picture, or null where nobody is found."""
+result: {W, H, D, fhz, model, imgsz, secs, frames, doubt}. frames[f] is the climber at f / fhz s, MediaPipe's 33 points
+in its order, each [x, y, confidence] as fractions of the picture, or null where nobody is found. doubt (0..1) is how
+close the second-biggest body was to the biggest in the first second: near 1, the first pick could have been either."""
 import argparse, json, os, queue, tempfile, threading, time, uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse, parse_qs
@@ -26,6 +28,33 @@ FILL = {17: 15, 19: 15, 21: 15, 18: 16, 20: 16, 22: 16, 29: 27, 31: 27, 30: 28, 
 SEED = {'head': 0, 'lh': 9, 'rh': 10, 'lf': 15, 'rf': 16}   # the points you tap, as COCO points
 
 
+def size(xy, cf):
+    """How much picture a body's seen points cover (0 for a body barely seen)."""
+    ok = cf > .2
+    return 0.0 if ok.sum() < 5 else float(np.prod(xy[ok].max(0) - xy[ok].min(0)))
+
+
+def follow(seen, fa, ja, H):
+    """The climber in every frame, from the one they're known in (frame fa, body ja), forwards and backwards: in each frame
+    the body whose hips are nearest where they were. But not someone else while the climber isn't found: high on the wall
+    and small, the climber went unseen and the nearest body was a person on the ground half the picture away (The Way Up p5
+    orange). Hips move well under 8% of the picture's height in a 15th of a second; the longer the climber's been unseen,
+    the further they may be."""
+    who = [None] * len(seen)
+    for way in (1, -1):
+        prev, last = None, fa
+        for f in range(fa, len(seen) if way > 0 else -1, way):
+            if seen[f] is None: continue
+            xy = seen[f][0]
+            hips = (xy[:, 11] + xy[:, 12]) / 2
+            if f == fa: j = ja
+            else:
+                d = np.linalg.norm(hips - prev, axis=1); j = int(np.argmin(d))
+                if d[j] > min(.08 * abs(f - last), .5) * H: continue
+            who[f], prev, last = j, hips[j], f
+    return who
+
+
 def read_body(model, path, imgsz, seed=None, on_pct=None):
     cap = cv2.VideoCapture(path)
     if not cap.isOpened(): raise ValueError("can't read that video")
@@ -38,7 +67,7 @@ def read_body(model, path, imgsz, seed=None, on_pct=None):
         cap.release(); cap = cv2.VideoCapture(path); D = last
     if not W or not D or D <= 0: raise ValueError("can't read that video")
     n = int(D * HZ) * (FHZ // HZ)       # the same frames the phone reads
-    frames, prev, t0 = [], None, time.time()
+    seen, t0 = [], time.time()    # every body in every frame, then which one is the climber
     # each frame by its own time, not by counting: recordings from phones and browsers don't keep a steady rate
     ok, img = cap.read(); at = cap.get(cv2.CAP_PROP_POS_MSEC) / 1000
     for f in range(n):
@@ -46,27 +75,43 @@ def read_body(model, path, imgsz, seed=None, on_pct=None):
         while ok and at + 1e-3 < want:
             ok, img = cap.read(); at = cap.get(cv2.CAP_PROP_POS_MSEC) / 1000
         if on_pct and f % 5 == 0: on_pct(f / n)
-        if not ok: frames.append(None); continue
-        r = model(img, imgsz=imgsz, verbose=False)[0]
-        if r.keypoints is None or len(r.keypoints) == 0: frames.append(None); continue
-        xy, cf = r.keypoints.xy.cpu().numpy(), r.keypoints.conf.cpu().numpy()
-        hips = (xy[:, 11] + xy[:, 12]) / 2
-        if prev is not None:      # the same climber: hips nearest where they were
-            j = int(np.argmin(np.linalg.norm(hips - prev, axis=1)))
-        elif seed:                # first, where you tapped yourself
-            pts = [(c, seed[k]) for k, c in SEED.items() if isinstance(seed.get(k), dict)]
-            j = int(np.argmin([sum(np.hypot(xy[i, c, 0] / W - s['x'], xy[i, c, 1] / H - s['y']) for c, s in pts) for i in range(len(xy))]))
-        else:                     # first, whoever's feet are highest on the wall
-            j = int(np.argmin(np.maximum(xy[:, 15, 1], xy[:, 16, 1])))
-        prev = hips[j]
+        r = model(img, imgsz=imgsz, verbose=False)[0] if ok else None
+        if r is None or r.keypoints is None or len(r.keypoints) == 0: seen.append(None); continue
+        seen.append((r.keypoints.xy.cpu().numpy(), r.keypoints.conf.cpu().numpy()))
+    cap.release()
+    has = [f for f in range(n) if seen[f] is not None]
+    if not has: return {'W': W, 'H': H, 'D': D, 'fhz': FHZ, 'imgsz': imgsz, 'secs': round(time.time() - t0, 1), 'frames': [None] * n, 'doubt': 0.0}
+    pts = [(c, seed[k]) for k, c in SEED.items() if isinstance(seed.get(k), dict)] if seed else []
+    if pts:   # where you tapped yourself, on the frame you tapped (or the nearest with anyone in it): you, from there both ways
+        fa = min(has, key=lambda f: abs(f - float(seed.get('t') or 0) * FHZ))
+        xy = seen[fa][0]
+        ja = int(np.argmin([sum(np.hypot(xy[i, c, 0] / W - s['x'], xy[i, c, 1] / H - s['y']) for c, s in pts) for i in range(len(xy))]))
+    else:     # the first frame with anyone in it, the biggest body: the climber, filmed from close by. "Whoever's feet are
+        fa = has[0]   # highest" picked someone far off on the next wall while the climber still stood on the ground
+        ja = max(range(len(seen[fa][0])), key=lambda i: size(*[a[i] for a in seen[fa]]))
+    who = follow(seen, fa, ja, H)
+    # how unsure the first pick is: in the first second from it, the second-biggest body's size over the biggest's. Near 1,
+    # two people about the same size at the start, either could be the climber, so the app asks "is this you?". Not how
+    # often anyone else is in view: once the right person is picked, following them handles people walking past
+    doubt = 0.0
+    if not pts:
+        for f in has:
+            if f >= fa + FHZ: break
+            s = sorted((size(*[a[i] for a in seen[f]]) for i in range(len(seen[f][0]))), reverse=True)
+            if len(s) > 1 and s[0]: doubt = max(doubt, s[1] / s[0])
+    frames = []
+    for f in range(n):
+        j = who[f]
+        if j is None: frames.append(None); continue
+        xy, cf = seen[f]
         p = [[0.0, 0.0, 0.0] for _ in range(33)]
         for c, m in COCO2MP.items():
             p[m] = [round(float(xy[j, c, 0]) / W, 4), round(float(xy[j, c, 1]) / H, 4), round(float(cf[j, c]), 3)]
         for m, s in FILL.items(): p[m] = list(p[s])
         for e in range(1, 11): p[e] = [p[0][0], p[0][1], 0.0]   # eyes, ears, mouth: near the nose, unseen
         frames.append(p)
-    cap.release()
-    return {'W': W, 'H': H, 'D': D, 'fhz': FHZ, 'imgsz': imgsz, 'secs': round(time.time() - t0, 1), 'frames': frames}
+    return {'W': W, 'H': H, 'D': D, 'fhz': FHZ, 'imgsz': imgsz, 'secs': round(time.time() - t0, 1), 'frames': frames,
+            'doubt': round(doubt, 2)}
 
 
 class Jobs:

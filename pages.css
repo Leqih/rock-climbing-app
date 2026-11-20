@@ -791,7 +791,8 @@ a.pj { display: inline-flex; align-items: center; text-decoration: none; color: 
 .gl-x { flex: none; width: 28px; height: 28px; font-size: 18px; color: var(--mid); }
 .gl-sum { padding: 10px 12px; border-radius: var(--r-m); }
 .gl-gth { width: 40px; height: 40px; margin-right: 10px; }
-.b-lime:disabled { opacity: .45; }
+/* solid, not see-through: a faded button pinned over a list showed the list through it (the gym step) */
+.b-lime:disabled { opacity: 1; background: #dcdcd8; color: #8a8a87; cursor: default; }
 .vt-gr .vt-rg { position: absolute; top: 50%; left: 0; right: 0; transform: translateY(-50%); text-align: center; font-size: 18px; font-weight: 800; }
 .sm-best + .fold + .cap { margin-top: 14px; }
 /* ================= DESIGN SYSTEM =================
@@ -2582,6 +2583,9 @@ textarea.note:focus { outline: 2px solid var(--ink); outline-offset: 0; backgrou
 .stk-k .sk-c { border-radius: 50%; background: linear-gradient(90deg, #C2FF01 50%, #FF6A1F 50%); box-shadow: 0 0 0 1.5px var(--ink); }
 .stk-k .sk-s { border-radius: 50%; background: var(--white); box-shadow: 0 0 0 1.5px var(--ink); }
 .stk-k .sk-m { border-radius: 50%; background: transparent; box-shadow: inset 0 0 0 2px var(--g400); }
+/* the route's holds on the stuck picture: faint rings, and the next hold in white */
+.stk-k .sk-h { border-radius: 50%; background: transparent; box-shadow: inset 0 0 0 3px #C2FF01, 0 0 0 1.5px var(--ink); }
+.stk-k .sk-n { border-radius: 50%; background: var(--ink); box-shadow: inset 0 0 0 3px var(--white), 0 0 0 1.5px var(--ink); }
 
 /* The analysed video: layers to switch on (right), what you're doing (top left), a strip of frames to drag along (bottom),
    and the speed. On the picture the colours are the drawing's own, lime and orange, whatever the theme */
@@ -2805,7 +2809,7 @@ textarea.note:focus { outline: 2px solid var(--ink); outline-offset: 0; backgrou
 .al-t[aria-pressed="true"] { box-shadow: inset 0 0 0 3px var(--lime); }
 .al-t[aria-pressed="true"] img { opacity: .78; }
 .al-t[aria-pressed="true"] .al-ck { background: var(--lime) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23111' stroke-width='3.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 12 4 4 8-8'/%3E%3C/svg%3E") center / 16px no-repeat; border-color: var(--lime); }
-.cta button[disabled] { opacity: .45; }
+.cta button[disabled]:not(.b-lime) { opacity: .45; }   /* lime: solid grey (.b-lime:disabled), the page doesn't show through */
 
 /* Body: the track under the video, on a light card. Dark ink on white, so the lanes and their names read */
 .pn .tl { background: #fff; color: var(--ink); }
@@ -3121,9 +3125,6 @@ textarea.note:focus { outline: 2px solid var(--ink); outline-offset: 0; backgrou
 
 /* joining: the welcome's example fills the top, one button below; a step's dots in the bar; Skip on the right */
 .ob-skip { margin-left: auto; padding: 8px 2px; font-size: 13px; font-weight: 700; color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
-.ob-dots { display: inline-flex; gap: 5px; }
-.ob-dots i { width: 22px; height: 5px; border-radius: 999px; background: #d5d5d2; }
-.ob-dots i.on { background: var(--ink); }
 .ob-hero { position: relative; margin: 6px 0 18px; aspect-ratio: 4 / 5; max-height: 54vh; max-height: 54dvh; width: 100%; border-radius: 26px; overflow: hidden; background: var(--ink); }
 .ob-hero img { width: 100%; height: 100%; object-fit: cover; object-position: center 30%; display: block; }
 .ob-hero .ob-k { position: absolute; top: 12px; left: 12px; padding: 4px 10px; border-radius: 999px; background: #fff; font-size: 12px; font-weight: 800; }
@@ -3146,6 +3147,12 @@ textarea.note:focus { outline: 2px solid var(--ink); outline-offset: 0; backgrou
 .ob-tips b { flex: none; display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; background: var(--lime); font-size: 16px; font-weight: 900; }
 .ob-tips span { display: grid; gap: 3px; font-size: 13px; color: #6f6f6c; line-height: 1.4; }
 .ob-tips strong { font-size: 16px; font-weight: 800; color: var(--ink); }
+.ob-imp { padding: 0; font: inherit; font-weight: 700; color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
+/* filming: a picture of a good framing, before the three tips */
+.ob-eg { display: flex; gap: 14px; align-items: center; margin: 6px 0 10px; padding: 10px; border-radius: 22px; background: #fff; }
+.ob-eg img { flex: none; width: 72px; aspect-ratio: 9 / 16; border-radius: 12px; object-fit: cover; background: var(--ink); }
+.ob-eg span { display: grid; gap: 3px; font-size: 13px; color: #6f6f6c; line-height: 1.4; }
+.ob-eg strong { font-size: 16px; font-weight: 800; color: var(--ink); }
 .av-me { display: grid; place-items: center; width: 100%; height: 100%; border-radius: 50%; background: var(--lime); }
 .av-me .masc { display: block; width: 70%; height: auto; margin: 0; }
 /* the style page clears the button pinned under it */
@@ -3269,17 +3276,35 @@ textarea.note:focus { outline: 2px solid var(--ink); outline-offset: 0; backgrou
 
 /* Your style: three dots between two ends, then the moves you use a lot (with a picture of you doing one) and hardly at all */
 .sty .lt { gap: 10px; }
-.sty-ax { display: grid; gap: 16px; margin-top: 6px; }
-.sty-a { display: grid; grid-template-columns: 1fr 1.3fr 1fr; align-items: center; gap: 10px; font-size: 13px; font-weight: 700; line-height: 1.2; }
-.sty-a span:last-child { text-align: right; }
-.sty-l { position: relative; height: 8px; border-radius: 4px; background: #d9d9d6; }
-.sty-l i { position: absolute; top: 50%; width: 20px; height: 20px; border-radius: 50%; background: #111; box-shadow: 0 0 0 3px #C4F52A; transform: translate(-50%, -50%); }
+/* How you climb: a thin line per way of climbing, a grey dot for each other climber, the dark one for you, then in words.
+   Not a slider: no thick track, no knob, nothing to drag */
+.sty { --sty-bg: #e5e5e3; }
+.sty-ax { display: grid; gap: 18px; margin-top: 4px; }
+.sty-a { display: grid; gap: 4px; }
+.sty-e { display: flex; justify-content: space-between; gap: 12px; font-size: 12px; font-weight: 600; color: var(--mid); line-height: 1.2; }
+.sty-l { position: relative; height: 30px; }
+.sty-l::before { content: ''; position: absolute; left: 0; right: 0; top: 50%; height: 2px; border-radius: 1px; background: #cfcfcb; transform: translateY(-50%); }
+.sty-l i { position: absolute; top: 50%; border-radius: 50%; transform: translate(-50%, -50%); }
+.sty-l i::after { content: ''; position: absolute; inset: -7px; }   /* a bigger target than the dot, for the hover label */
+.sty-l i.sy-o { width: 10px; height: 10px; background: #9d9d98; box-shadow: 0 0 0 2px var(--sty-bg); }
+.sty-l i.sy-me { z-index: 1; width: 16px; height: 16px; background: var(--ink); box-shadow: 0 0 0 2px var(--sty-bg), 0 0 0 5px #C4F52A; }
+.sty-w { margin: 0; font-size: 14px; font-weight: 700; color: var(--ink); line-height: 1.3; }
+.sty-k { display: inline-flex; align-items: center; gap: 5px; margin-left: 4px; white-space: nowrap; }
+.sty-k i { display: inline-block; border-radius: 50%; }
+.sty-k i.sy-o { width: 8px; height: 8px; background: #9d9d98; }
+.sty-k i.sy-me { width: 10px; height: 10px; margin-left: 6px; background: var(--ink); box-shadow: 0 0 0 2px #C4F52A; }
+/* a move: how often you did it and how often the others did, two bars on one scale with the share at the end */
+.sty-mt { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 5px 8px; margin-top: 4px; font-size: 12px; font-weight: 600; color: var(--mid); }
+.sty-mt i { height: 6px; }
+.sty-mt b { display: block; height: 100%; min-width: 3px; border-radius: 0 3px 3px 0; background: #9d9d98; }
+.sty-mt b.sy-me { background: var(--ink); }
+.sty-mt em { min-width: 34px; font-style: normal; font-weight: 700; color: var(--ink); text-align: right; }
 .sty-m { display: grid; gap: 10px; }
 .sty-r { display: flex; gap: 12px; align-items: flex-start; padding: 12px; border-radius: 16px; background: #f4f4f2; }
 .sty-r.good { align-items: center; }
-.sty-i { flex: none; width: 76px; aspect-ratio: 3 / 4; border-radius: 12px; overflow: hidden; background: #1b1b1b; outline: 3px solid #C4F52A; outline-offset: -3px; }
+.sty-i { flex: none; width: 64px; aspect-ratio: 3 / 4; border-radius: 12px; overflow: hidden; background: #1b1b1b; outline: 3px solid #C4F52A; outline-offset: -3px; }
 .sty-i img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.sty-t { display: grid; gap: 4px; min-width: 0; }
+.sty-t { display: grid; gap: 4px; min-width: 0; flex: 1; }
 .sty-t b { font-size: 16px; font-weight: 800; }
 .sty-t em { font-style: normal; font-size: 13px; font-weight: 600; color: #6b6b68; }
 .sty-d { font-size: 14px; line-height: 1.35; color: #3a3a38; }
@@ -3556,11 +3581,6 @@ button.sty-i { padding: 0; border: 0; cursor: pointer; }
 .tl-pin.fix { background: #F08A24; z-index: 1; }
 .tl-pin.good { background: #2E9E62; }
 /* every move, folded into one line */
-.mvq-d { margin-top: 12px; padding: 12px 14px; border-radius: var(--r-l); background: #fff; }
-.mvq-d summary > span { display: inline-flex; flex-direction: column; gap: 2px; vertical-align: top; }
-.mvq-d summary b { font-size: 15px; font-weight: 800; }
-.mvq-d summary > span > span { font-size: 13px; color: var(--mid); font-weight: 400; }
-.mvq-d .mvq { margin-top: 12px; }
 /* the whole climb: a verdict per number */
 .bs { display: flex; flex-direction: column; gap: 12px; }
 .bs-r { display: grid; grid-template-columns: 24px 1fr auto; align-items: center; gap: 10px; }
@@ -3579,8 +3599,6 @@ button.sty-i { padding: 0; border: 0; cursor: pointer; }
 .tl-mk + .tl-mk { margin-top: 2px; }
 .tl-pin.n { width: 18px; height: 18px; margin-left: -9px; top: 0; color: #fff; font-size: 10px; font-weight: 800; line-height: 14px; text-align: center; }
 
-.mvq-say { color: var(--ink) !important; font-weight: 600 !important; }
-.mvq-g { margin: 0 0 6px; }
 
 /* Body: one moment at a time. On this tab the video is just the climber: no skeleton, labels or layer buttons. Its edge
    takes the card's colour (orange: to work on, green: went well) */
@@ -3614,8 +3632,6 @@ button.sty-i { padding: 0; border: 0; cursor: pointer; }
 .st-nav button:disabled { opacity: .35; }
 
 /* every sheet has a close button: a tall sheet covers the backdrop you'd tap to close it */
-.pane-x { position: sticky; top: 0; float: right; z-index: 3; display: grid; place-items: center; width: 36px; height: 36px; margin: 0 -8px 0 8px; padding: 0; border: 0; border-radius: 50%; background: var(--g100, #efefef); cursor: pointer; }
-.pane-x svg { width: 18px; height: 18px; fill: none; stroke: var(--ink); stroke-width: 2.2; stroke-linecap: round; }
 .gt-none { margin: 12px 4px 0; }
 /* a double tap is a tap, not a zoom */
 html, body { touch-action: manipulation; }
@@ -3750,3 +3766,278 @@ html, body { touch-action: manipulation; }
 .cmp-h .fd-a { width: 30px; height: 30px; }
 .cmp-h i { font-style: normal; font-size: 12px; font-weight: 700; max-width: 72px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cmp .wkb-so { margin: 12px 0 0; }
+
+/* ---------- Profile (Nov 19): who you are, small; how you're climbing, first and as one card; then three groups ----------
+   Before, a cover two thirds empty and a lime Find friends button were the loudest things on the page, and your level sat
+   under the fold among grey cards, white folds and a grey strip, three looks for one page */
+.ph { margin-bottom: 14px; }
+.ph .ph-shape-container { height: 132px; }
+.ph-n { margin-top: 8px; }
+.pf2-lv { display: grid; border-radius: 26px; background: #fff; overflow: hidden; }
+.pf2-lh { display: grid; gap: 6px; width: 100%; padding: 18px 18px 16px; text-align: left; color: var(--ink); }
+.pf2-k { font-size: 12px; font-weight: 800; color: #8a8a87; }
+.pf2-g { display: flex; align-items: baseline; gap: 8px; }
+.pf2-g b { font-size: 46px; font-weight: 900; letter-spacing: -.045em; line-height: .95; }
+.pf2-g em { font-style: normal; font-size: 14px; font-weight: 700; color: var(--g700); }
+.pf2-g svg { flex: none; align-self: center; width: 18px; height: 18px; margin-left: auto; }
+.pf2-none { color: #c9c9c5; }
+.pf2-w { font-size: 13px; line-height: 1.4; color: #6f6f6c; }
+.pf2-nx { display: grid; gap: 8px; margin: 0 12px; padding: 12px 0 14px; border-top: 1px solid #ececea; }
+.pf2-ni { display: grid; gap: 2px; padding: 12px 14px; border-radius: 16px; background: #f3f3f1; }
+.pf2-ni strong { font-size: 17px; font-weight: 800; letter-spacing: -.01em; }
+.pf2-ni > span:last-child { font-size: 13px; color: #6f6f6c; }
+.pf2-cap { margin: 0 2px; font-size: 11px; line-height: 1.4; color: #8a8a87; }
+.pf2-s { display: grid; grid-template-columns: repeat(3, 1fr); margin: 0 12px; padding: 14px 0 16px; border-top: 1px solid #ececea; }
+.pf2-s > span { display: grid; gap: 4px; justify-items: center; text-align: center; }
+.pf2-s > span + span { border-left: 1px solid #ececea; }
+.pf2-s b { font-size: 20px; font-weight: 900; letter-spacing: -.03em; line-height: 1; }
+.pf2-s b small { font-size: 12px; font-weight: 700; letter-spacing: 0; color: #8a8a87; }
+.pf2-s i { font-style: normal; font-size: 11px; font-weight: 700; color: #8a8a87; }
+.pf2-sec { margin: 24px 6px 8px; font-size: 13px; font-weight: 800; color: #8a8a87; }
+.pf2-grp { display: block; border-radius: 26px; background: #fff; overflow: hidden; }
+.pf2-grp > * + * { border-top: 1px solid #ececea; }
+.pf2-grp > .pf-c { margin: 0; border-radius: 0; background: transparent; }
+.pf2-grp > .row { min-height: 0; margin: 0; padding: 16px; border-radius: 0; background: transparent; text-align: left; }
+.pf2-grp > .row .row-t strong { font-size: 17px; font-weight: 800; }
+.pf2-grp > .row .row-t > span { margin-top: 3px; font-size: 13px; color: var(--mid); }
+.pf2-grp > .row svg { flex: none; width: 18px; height: 18px; }
+
+/* your card on Profile: the tags you picked, under your gym and status. Level first, darker, then styles and about-you */
+.ph-tg { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0 0 2px; }
+.ph-tg i { display: inline-flex; align-items: center; height: 28px; padding: 0 11px; border-radius: 999px; background: #fff; box-shadow: 0 0 0 1px rgba(17, 17, 17, .08); font-style: normal; font-size: 12px; font-weight: 700; color: var(--ink); }
+.ph-tg .ph-tl { background: var(--ink); color: #fff; box-shadow: none; }
+.ph-tg0 { height: 30px; padding: 0 12px; border-radius: 999px; border: 1.5px dashed #b9b9b6; background: transparent; font-size: 12px; font-weight: 700; color: var(--g700); }
+/* the Edit card page: the card itself as a live preview, then tags, level, contacts. Save sits at the bottom */
+.ec { padding: 4px 0 110px; }
+.ec-card { display: grid; grid-template-columns: 56px 1fr; column-gap: 12px; align-items: center; margin-top: 8px; padding: 16px; border-radius: 24px; background: #fff; box-shadow: 0 1px 2px rgba(17, 17, 17, .05), 0 10px 28px rgba(17, 17, 17, .07); }
+.ec-av { grid-row: span 2; width: 56px; height: 56px; overflow: hidden; border-radius: 50%; background: var(--g200); }
+.ec-av img, .ec-av svg { width: 100%; height: 100%; object-fit: cover; }
+.ec-name { width: 100%; min-width: 0; padding: 2px 0; border: 0; border-bottom: 1.5px dashed #b9b9b6; background: transparent; color: var(--ink); font: inherit; font-size: 22px; font-weight: 900; letter-spacing: -.03em; outline: none; }
+.ec-name:focus { border-bottom: 1.5px solid var(--ink); }
+.ec-name::placeholder { color: #a3a3a0; }
+.ec-gym { display: flex; align-items: center; gap: 4px; margin: 4px 0 0; font-size: 12.5px; font-weight: 600; color: var(--g700); }
+.ec-gym svg { width: 13px; height: 13px; }
+.ec-tags { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; }
+.ec-tags i { display: inline-flex; align-items: center; height: 28px; padding: 0 11px; border-radius: 999px; background: #f0f0ee; font-style: normal; font-size: 12px; font-weight: 700; color: var(--ink); animation: ecIn .2s cubic-bezier(.23, 1, .32, 1); }
+.ec-tags .ec-lv { background: var(--ink); color: #fff; }
+@keyframes ecIn { from { opacity: 0; transform: scale(.9); } }
+@media (prefers-reduced-motion: reduce) { .ec-tags i { animation: none; } }
+.ec-h { display: flex; justify-content: space-between; align-items: baseline; margin: 26px 2px 2px; font-size: 17px; font-weight: 800; letter-spacing: -.01em; color: var(--ink); }
+.ec-h span { font-size: 13px; font-weight: 700; color: var(--mid); font-variant-numeric: tabular-nums; }
+.ec-h span.full { color: var(--ink); }
+.ec-d { margin: 0 2px; font-size: 13px; color: var(--mid); }
+.ec-g { margin: 16px 2px 8px; font-size: 12px; font-weight: 700; color: var(--mid); }
+.ec-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.ec-chips button { height: 36px; padding: 0 14px; border-radius: 999px; background: #fff; box-shadow: none; font-size: 13.5px; font-weight: 600; color: var(--ink); transition: background-color .15s, color .15s, opacity .15s, transform .16s cubic-bezier(.23, 1, .32, 1); -webkit-tap-highlight-color: transparent; }
+.ec-chips button:active:not(:disabled) { transform: scale(.96); }
+.ec-chips button[aria-pressed="true"] { background: var(--ink); color: #fff; box-shadow: none; }
+.ec-chips button:disabled { opacity: .35; }
+.ec-box { margin-top: 10px; border-radius: 20px; background: #fff; }
+.ec-st { display: flex; align-items: center; gap: 4px; padding: 8px 8px 8px 16px; }
+.ec-st + .ec-st { border-top: 1px solid #ececea; }
+.ec-st > span { flex: 1; font-size: 15px; font-weight: 600; }
+.ec-st b { min-width: 52px; text-align: center; font-size: 16px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.ec-st button { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; background: #f0f0ee; font-size: 20px; font-weight: 600; color: var(--ink); -webkit-tap-highlight-color: transparent; }
+.ec-st button:disabled { opacity: .3; }
+.ec-ct { margin-top: 26px; }
+.ec-ct summary { display: flex; align-items: center; gap: 8px; padding: 16px; list-style: none; cursor: pointer; font-size: 15px; font-weight: 700; }
+.ec-ct summary::-webkit-details-marker { display: none; }
+.ec-ct summary span { flex: 1; }
+.ec-ct summary em { font-style: normal; font-size: 13px; font-weight: 600; color: var(--mid); }
+.ec-ct summary svg { width: 16px; height: 16px; transform: rotate(90deg); transition: transform .2s; }
+.ec-ct[open] summary svg { transform: rotate(-90deg); }
+.ec-ct > .ec-d { margin: -6px 16px 10px; }
+.ec-in { display: grid; grid-template-columns: 92px 1fr; align-items: center; gap: 8px; padding: 0 12px 8px 16px; font-size: 14px; font-weight: 600; }
+.ec-in input { width: 100%; min-width: 0; padding: 11px 12px; border: 0; border-radius: 12px; background: #f0f0ee; color: var(--ink); font: inherit; font-size: 16px; }
+
+/* Profile's More pages (gear, logbook, watch and privacy): content straight on the page, white rows, action at the bottom */
+.mp { margin-top: 18px; padding-bottom: 40px; }
+.mp.has-cta { padding-bottom: 110px; }
+.mp .rows { margin: 10px 0 0; padding: 0; }
+.mp .lgb { background: #fff; border-radius: 22px; }
+.mp-e { padding: 18px 16px; border-radius: 18px; background: #fff; font-size: 14px; line-height: 1.4; color: var(--mid); }
+.mp .rows > .row { background: #fff; box-shadow: none; }
+.ec-hl + .ec { padding-top: 10px; }
+
+
+
+/* the Body tab's card: type and time on top, a clear title, the fact, a quiet "why", and "Next time" set apart as the takeaway.
+   The colour lives in the label and the takeaway, not a stripe across the top */
+.st-c, .st-c.fix, .st-c.good { gap: 0; padding: 18px 18px 18px; border-top: 0; }
+.st-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.st-tag { display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 10px; border-radius: 999px; font-size: 12px; font-weight: 800; }
+.st-tag::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.st-c.fix .st-tag { background: #FDEBD8; color: #B85E0C; }
+.st-c.good .st-tag { background: #DDF1E5; color: #1F7A48; }
+.st-at { display: inline-flex; align-items: center; gap: 5px; font-size: 12.5px; font-weight: 700; color: var(--mid); }
+.st-at i { width: 0; height: 0; border-style: solid; border-width: 4.5px 0 4.5px 7px; border-color: transparent transparent transparent currentColor; }
+.st-h { margin: 12px 0 0; font-size: 21px; font-weight: 900; letter-spacing: -.02em; line-height: 1.15; color: var(--ink); }
+.st-c .st-q { margin-top: 6px; font-size: 15px; line-height: 1.45; color: var(--ink); }
+.st-c .st-w { margin-top: 14px; padding-top: 12px; border-top: 1px solid #ececea; font-size: 14px; color: #4a4a48; }
+.st-c .st-x { margin-top: 14px; padding: 12px 14px; border-radius: 16px; font-size: 15px; }
+.st-c.fix .st-x { background: #FFF4E8; }
+.st-c.good .st-x { background: #EBF7F0; }
+.st-c .st-x span { font-weight: 700; color: var(--ink); }
+.st-c.fix .st-x em { color: #B85E0C; }
+.st-c.good .st-x em { color: #1F7A48; }
+.st-c .st-t { margin-top: 12px; }
+
+/* the steps are the card's own top row: the dots and the card are one white block, so seeing the card means seeing the dots */
+.st-box { border-radius: var(--r-s); background: var(--g50); }
+.st-box .st-c .st-w { border-top-color: rgba(17, 17, 17, .08); }
+.st-box .st-dots { margin: 0; padding: 16px 18px 4px; }
+.st-box .st-c, .st-box .st-c.fix, .st-box .st-c.good { padding-top: 12px; border-radius: 0 0 var(--r-s) var(--r-s); background: transparent; }
+/* the Body tab's step section: no grey box of its own (an older .st rule gave one), and the little play mark stays by its time */
+section.st:has(.st-box) { flex: none; border-radius: 0; background: none; }
+.st-at i { position: static; flex: none; }
+
+/* side-by-side controls: three even chips (Line up, Speed, Zoom) and the round "see the numbers" button; each chip says what it is and its value */
+.vs-opts { gap: 8px; }
+.vs-opts .pv-x.pv-lu, .vs-opts .pv-x.vs-ch { flex: 1 1 0; min-width: 0; height: 40px; min-height: 40px; padding: 0 10px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; border-radius: 999px; font-size: 13px; font-weight: 600; white-space: nowrap; }
+.vs-hero .vs-opts .pv-x.vs-ch { color: rgba(255, 255, 255, .7); }
+.vs-ch b { color: #fff; font-weight: 800; font-variant-numeric: tabular-nums; }
+.vs-hero .vs-opts .pv-x.pv-lu { font-weight: 800; }
+.vs-opts .pv-x:active { transform: scale(.96); }
+.vs-opts .vs-down { width: 40px; height: 40px; }
+
+/* side-by-side header: its own dark band above the videos (it joins the black status bar), so the title never sits on the busy wall; title centred between the two round buttons */
+.vs-top { top: 0; left: 0; right: 0; height: 64px; padding: 0 12px; gap: 12px; background: #111; }
+.vs-hero .pv { top: 64px; }
+.vs-hero::before { display: none; }
+.vs-top .bk, .vs-ic { background: rgba(255, 255, 255, .12); -webkit-backdrop-filter: none; backdrop-filter: none; }
+.vs-tt { justify-items: center; text-align: center; gap: 3px; }
+.vs-tt b { font-size: 16px; line-height: 1.2; }
+.vs-tt span { max-width: 100%; font-size: 12px; color: rgba(255, 255, 255, .7); }
+.vs-tt .sw { flex: none; }
+.vs-hero .pv figcaption { top: 10px; }
+/* the route dot's white ring was clipped by the line's overflow (kept for the "…" cut-off): room for the ring inside the line */
+.vs-tt > span { padding: 2px; }
+.vs-tt > span .sw { width: 10px; height: 10px; overflow: visible; }
+
+/* partner post card: who (header), what they said (the headline), the plan (when · where · what for, in one block), how to reach them (footer) */
+.pz.pst { gap: 12px; padding: 16px; }
+.pst .fd-a { width: 44px; height: 44px; }
+.pst .pz-h strong { font-size: 16px; }
+.pst .pz-h .pz-tags { margin-top: 3px; }
+.pc-n { font-size: 16px; font-weight: 600; line-height: 1.4; color: var(--ink); }
+.pc-plan { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 12px; padding: 8px; border-radius: 16px; background: #f4f4f2; }
+.pc-when { display: grid; place-items: center; align-content: center; gap: 1px; min-width: 64px; height: 60px; padding: 0 8px; border-radius: 12px; background: #fff; }
+.pc-when em { font-style: normal; font-size: 11px; font-weight: 800; color: var(--mid); white-space: nowrap; }
+.pc-when b { font-size: 17px; font-weight: 900; white-space: nowrap; }
+.pc-what { display: grid; gap: 6px; min-width: 0; }
+.pc-gym { display: flex; align-items: center; gap: 5px; min-width: 0; font-size: 14px; font-weight: 700; }
+.pc-gym svg { flex: none; stroke: var(--mid); }
+.pc-gym span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pc-wants { display: flex; flex-wrap: wrap; gap: 4px; }
+.pc-wants i { font-style: normal; white-space: nowrap; padding: 2px 8px; border-radius: 999px; background: #fff; font-size: 12px; font-weight: 700; color: #1d6b42; }
+.pc-ft { padding-top: 12px; border-top: 1px solid rgba(17, 17, 17, .07); }
+.pc-ft .pz-cms { margin: 0; }
+.pc-ft .pz-cm { height: 32px; background: #f4f4f2; }
+.pc-ft a.pz-cm::after { content: "↗"; margin-left: 5px; font-weight: 700; color: var(--mid); }
+
+/* New post, a page of its own (built on the Edit card pieces): a calendar strip of seven days, a three-way part-of-day switch,
+   gyms as chips that wrap (none cut off at the edge), the line as a text box with a count, contacts in one white box */
+.pp > .ec-h:first-child { margin-top: 6px; }
+.pp-plan { padding: 10px; }
+.pp-days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+.pp-days button { display: grid; justify-items: center; gap: 2px; min-width: 0; padding: 8px 0; border-radius: 14px; color: var(--ink); -webkit-tap-highlight-color: transparent; transition: background-color .15s, color .15s; }
+.pp-days em { font-style: normal; font-size: 11px; font-weight: 700; color: var(--mid); white-space: nowrap; }
+.pp-days b { font-size: 18px; font-weight: 800; }
+.pp-days button[aria-pressed="true"] { background: var(--ink); color: #fff; }
+.pp-days button[aria-pressed="true"] em { color: rgba(255, 255, 255, .72); }
+.pp-hrs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; margin-top: 8px; padding: 3px; border-radius: 14px; background: #f0f0ee; }
+.pp-hrs button { display: grid; justify-items: center; gap: 1px; padding: 7px 4px; border-radius: 11px; font-size: 14px; font-weight: 700; color: var(--ink); -webkit-tap-highlight-color: transparent; transition: background-color .15s, box-shadow .15s; }
+.pp-hrs em { font-style: normal; font-size: 11px; font-weight: 600; color: var(--mid); }
+.pp-hrs button[aria-pressed="true"] { background: #fff; box-shadow: 0 1px 3px rgba(17, 17, 17, .1); }
+.pp-plan .ec-g { margin: 14px 4px 8px; }
+.pp-plan .ec-chips button { background: #f0f0ee; }
+.pp-plan .ec-chips button[aria-pressed="true"] { background: var(--ink); color: #fff; }
+.pp-wants { margin-top: 10px; }
+.pp-note { display: block; width: 100%; margin-top: 10px; padding: 14px 16px; border: 0; border-radius: 20px; background: #fff; color: var(--ink); font: inherit; font-size: 16px; line-height: 1.4; resize: none; outline: none; box-shadow: inset 0 0 0 1.5px transparent; transition: box-shadow .15s; }
+.pp-note:focus { box-shadow: inset 0 0 0 1.5px var(--ink); }
+.pp-note::placeholder { color: #a3a3a0; }
+#pp-ctn { color: #B85E0C; }
+.pp-ct { padding-top: 12px; padding-bottom: 4px; }
+
+/* posts are routines: the card shows a Monday-first week strip (the days they go are filled, today is ringed), the parts of
+   the day, and their gyms. The form picks gyms, weekdays and parts of the day, any number of each */
+.pc-plan { display: grid; grid-template-columns: none; gap: 8px; padding: 10px; }
+.pc-wk { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.pc-wk i { display: grid; place-items: center; height: 28px; border-radius: 8px; background: #fff; font-style: normal; font-size: 11px; font-weight: 700; color: #b3b3af; white-space: nowrap; }
+.pc-wk i.on { background: var(--ink); color: #fff; }
+.pc-wk i.td { box-shadow: inset 0 0 0 1.5px var(--ink); }
+.pc-wk i.on.td { box-shadow: inset 0 0 0 1.5px var(--ink), inset 0 0 0 3px #fff; }
+.pc-tm { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; margin: 2px 2px 0 !important; font-size: 14px; }
+.pc-tm b { font-weight: 800; }
+.pc-tm b + b::before { content: "·"; margin-right: 6px; color: var(--mid); font-weight: 400; }
+.pc-td { margin-left: auto; padding: 2px 8px; border-radius: 999px; background: #DDF1E5; font-size: 12px; font-weight: 800; color: #1F7A48; }
+.pc-gym { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 6px; margin: 0 2px !important; font-size: 14px; font-weight: 600; color: var(--ink); }
+.pc-gym svg { flex: none; width: 14px; height: 14px; stroke: var(--mid); }
+.pc-gym span + span::before { content: "·"; margin-right: 6px; color: var(--mid); }
+.pc-plan .pc-wants { margin-top: 2px; }
+.pz-mine { display: flex; gap: 14px; flex: none; }
+
+.pp-gyms { margin-top: 10px; }
+.pp-days { gap: 4px; }
+.pp-days button { padding: 0; height: 44px; border-radius: 12px; background: #f0f0ee; font-size: 13px; font-weight: 700; }
+.pp-hrs button { padding: 10px 4px; }
+.pp-hrs button[aria-pressed="true"] { background: var(--ink); color: #fff; box-shadow: none; }
+.pp-days button { display: grid; place-items: center; align-content: center; }
+
+/* card, regrouped: what they want sits under their words; the grey box is only when and where. The week reads at a glance:
+   their days are filled, the rest are plain grey letters (no boxes), and a dot marks today, green when they go today */
+.pst > .pc-wants { margin-top: -4px; }
+.pst > .pc-wants i { background: #EBF7F0; }
+.pc-plan { gap: 10px; padding: 12px; }
+.pc-wk { gap: 2px; padding-bottom: 6px; }
+.pc-wk i { position: relative; height: 26px; border-radius: 999px; background: none; color: #a9a9a5; font-weight: 700; }
+.pc-wk i.on { background: var(--ink); color: #fff; }
+.pc-wk i.td, .pc-wk i.on.td { box-shadow: none; }
+.pc-wk i.td::after { content: ""; position: absolute; left: 50%; bottom: -7px; width: 4px; height: 4px; margin-left: -2px; border-radius: 50%; background: #a9a9a5; }
+.pc-wk i.on.td::after { background: #1F7A48; }
+.pc-tm, .pc-gym { gap: 4px 6px; margin: 0 2px !important; font-size: 14px; }
+.pc-tm svg, .pc-gym svg { flex: none; width: 15px; height: 15px; color: var(--mid); stroke: var(--mid); margin-right: 2px; }
+.pc-tm b { font-weight: 700; }
+.pc-gym { font-weight: 700; }
+
+/* card, tightened: level and "posted" sit under the name, "Climbs today" takes the header's right side, time and gym share
+   one line under the week, and the contacts are light outlined chips without a rule above them */
+.pz.pst { gap: 10px; }
+.pc-sub { display: flex; align-items: center; gap: 8px; margin-top: 3px; }
+.pc-sub i { padding: 2px 8px; border-radius: 999px; background: #f1f1ef; font-style: normal; font-size: 12px; font-weight: 700; color: var(--ink); }
+.pc-sub em { font-style: normal; font-size: 12px; color: var(--mid); }
+.pz-h > .pc-td { flex: none; margin-left: 0; padding: 4px 10px; }
+.pc-n { font-size: 15px; }
+.pst > .pc-wants { margin-top: -2px; }
+.pc-plan { gap: 8px; padding: 10px 12px 12px; }
+.pc-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 16px; margin: 0 2px !important; }
+.pc-meta .pc-tm, .pc-meta .pc-gym { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 2px 5px; margin: 0 !important; font-size: 13.5px; font-weight: 700; }
+.pc-ft { padding-top: 0; border-top: 0; }
+.pc-ft .pz-cm { height: 30px; padding: 0 12px; background: #fff; box-shadow: inset 0 0 0 1px #e4e4e1; font-size: 12.5px; }
+.pc-wk { gap: 4px; }
+
+/* fewer words: no week strip or grey box. One quiet line says when and where (calendar, clock, pin), the note is held to
+   two lines, and the footer is what they want plus a single Contact button (their apps open in a sheet) */
+.pc-n { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.pst .pc-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; margin: 0 !important; font-size: 13px; color: var(--ink); }
+.pst .pc-meta > span { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 2px 4px; }
+.pst .pc-meta svg { flex: none; width: 14px; height: 14px; margin-right: 2px; color: var(--mid); stroke: var(--mid); }
+.pst .pc-meta b { font-weight: 700; }
+.pst .pc-meta b + b::before { content: "·"; margin-right: 4px; font-weight: 400; color: var(--mid); }
+.pst .pc-ft { display: flex; align-items: center; gap: 10px; padding-top: 2px; }
+.pst .pc-ft .pc-wants { flex: 1; min-width: 0; margin: 0; }
+.pst .pc-ft .pc-wants i { background: #EBF7F0; }
+.pc-ct { flex: none; height: 34px; padding: 0 16px; border-radius: 999px; background: var(--ink); color: #fff; font: inherit; font-size: 13px; font-weight: 800; }
+.pc-ct:active { transform: scale(.96); }
+
+/* someone else's page, built like your Profile: their styles behind the photo, name, home gym, status and tags. In place
+   of Edit card: Contact and Add friend (or Friends ✓, which offers to remove). Their usual days and times sit under the tags */
+.ph-acts { display: flex; gap: 8px; flex: none; }
+.ph-st.ph-add { display: inline-flex; align-items: center; height: 32px; padding: 0 14px; background: var(--ink); color: #fff; font-size: 13px; font-weight: 800; }
+.ph-fr svg { width: 14px; height: 14px; }
+.ph-fr svg * { stroke: currentColor; }
+.ph-rt { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; margin: 12px 2px 0 !important; font-size: 13px; color: var(--ink); }
+.ph-rt > span { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 2px 4px; }
+.ph-rt svg { flex: none; width: 14px; height: 14px; margin-right: 2px; color: var(--mid); stroke: var(--mid); }
+.ph-rt b { font-weight: 700; }
+.ph-rt b + b::before { content: "·"; margin-right: 4px; font-weight: 400; color: var(--mid); }
