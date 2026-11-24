@@ -4131,3 +4131,10 @@ section.st:has(.st-box) { flex: none; border-radius: 0; background: none; }
 .ph-ed.todo::after { content: ""; flex: none; width: 7px; height: 7px; margin-left: 1px; border-radius: 50%; background: #FF6A1F; }
 p.ph-ct { margin-bottom: 0; }
 p.ph-ct::after { content: none; }
+
+/* Edit card: the level pill and the gym on the preview are buttons that scroll to where you change them; the spot flashes */
+.ec-card button.ec-gym { padding: 0; border: 0; background: none; font: inherit; font-size: 12.5px; font-weight: 600; color: var(--g700); text-align: left; text-decoration: underline dotted rgba(17, 17, 17, .3); text-underline-offset: 3px; }
+#ec-tags button.ec-lv { display: inline-flex; align-items: center; height: 28px; padding: 0 11px; border: 0; border-radius: 999px; font-family: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
+.ec-flash { animation: ecFlash 1.1s ease; }
+@keyframes ecFlash { 0%, 40% { box-shadow: 0 0 0 3px #FF6A1F; } 100% { box-shadow: 0 0 0 3px rgba(255, 106, 31, 0); } }
+.ec-hg { margin-top: 10px; border-radius: 16px; }

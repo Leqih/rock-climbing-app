@@ -247,6 +247,8 @@ function weekHours(g) {
 let homeGy; try { homeGy = JSON.parse(localStorage.getItem('spotter-home') ?? 'null'); } catch (_) { homeGy = null; }
 const obDone = () => { try { return localStorage.getItem('spotter-ob') === '1'; } catch (_) { return false; } };
 const obFinish = () => { try { localStorage.setItem('spotter-ob', '1'); } catch (_) {} };
+// your home gym: picked when joining or on Edit card, else the first gym
+const homeIx = () => homeGy != null && gyms[homeGy] ? homeGy : 0;
 function viewSetup() {
   return { photo: 'wayup-p3-green', html: `
     <div class="bar"><span class="brand">Spotter</span><button class="ob-skip" type="button" data-act="obskip">Look around first</button></div>
@@ -2723,7 +2725,7 @@ function viewProfile() {
           const todo = !cardTags().length || !ctOf(myPro().ct).length;
           return `<button class="ph-st ph-ed${todo ? ' todo' : ''}" type="button" data-act="ptpost">${ic.pen}${todo ? 'Finish your card' : 'Edit card'}</button>`; })()}</div>
       <h2 class="ph-n">${myName ? esc(myName) : 'You'}</h2>
-      <div class="ph-g"><button class="ph-hg" type="button" data-act="to" data-to="gym/0">${ic.pin}<span>${gym.name}</span></button>
+      <div class="ph-g"><button class="ph-hg" type="button" data-act="to" data-to="gym/${homeIx()}">${ic.pin}<span>${gyms[homeIx()].name}</span></button>
         <button class="ph-stt${myStatus ? ` is-${myStatus}` : ''}" type="button" data-act="status" aria-label="Your status: ${STATUS.find(s => s[0] === myStatus)[1]}. Change it"><i></i>${myStatus ? STATUS.find(s => s[0] === myStatus)[1] : 'Set a status'}</button></div>
       ${(() => {
         // your card: the tags you picked to say who you are as a climber, your level first. Edit card changes all of it
@@ -4005,16 +4007,18 @@ const ptLabel = () => [...STYLES.filter(s => ptd.sty.has(s[0])).map(s => s[1]), 
 const ptCount = () => ptd.sty.size + ptd.tags.size;
 function ptSync() {   // the preview, the count, and which chips can still be picked
   const n = ptCount(), full = n >= CARD_MAX;
-  $('ec-tags').innerHTML = `<i class="ec-lv">${VGI(ptd.lv)}${ptd.rope ? ` · ${ptd.rope}` : ''}</i>${ptLabel().map(t => `<i>${t}</i>`).join('')}`;
+  // the level pill and the gym on the preview take you to where they're changed, further down
+  $('ec-tags').innerHTML = `<button class="ec-lv" type="button" data-act="ptjump" data-to="ec-lvbox">${VGI(ptd.lv)}${ptd.rope ? ` · ${ptd.rope}` : ''}</button>${ptLabel().map(t => `<i>${t}</i>`).join('')}`;
+  $('ec-gyn').textContent = gyms[ptd.home].name;
   $('ec-n').textContent = `${n}/${CARD_MAX}`; $('ec-n').classList.toggle('full', full);
-  $('main').querySelectorAll('.ec-chips button').forEach(b => { const on = b.getAttribute('aria-pressed') === 'true'; b.disabled = full && !on; });
+  $('main').querySelectorAll('.ec-chips:not(.ec-hg) button').forEach(b => { const on = b.getAttribute('aria-pressed') === 'true'; b.disabled = full && !on; });
   $('ec-lvv').textContent = VGI(ptd.lv); $('ec-rpv').textContent = ptd.rope || 'None';
   $('main').querySelector('[data-act="ptlv"][data-d="-1"]').disabled = ptd.lv <= 0; $('main').querySelector('[data-act="ptlv"][data-d="1"]').disabled = ptd.lv >= VG.length - 1;
   const ri = ROPES.indexOf(ptd.rope || '');
   $('main').querySelector('[data-act="ptrp"][data-d="-1"]').disabled = ri <= 0; $('main').querySelector('[data-act="ptrp"][data-d="1"]').disabled = ri >= ROPES.length - 1;
   const k = Object.keys(ptd.ct || {}).length; $('ec-ctn').textContent = k ? `${k} added` : 'None yet';
 }
-const ptNew = () => { const p = myPro(); ptd = { lv: p.lv, rope: p.rope, ct: { ...p.ct }, name: myName, sty: new Set(picks), tags: new Set(meTags) }; };
+const ptNew = () => { const p = myPro(); ptd = { lv: p.lv, rope: p.rope, ct: { ...p.ct }, name: myName, sty: new Set(picks), tags: new Set(meTags), home: homeIx() }; };
 // card/ct: opened from a post's "How to reach you", so the contacts come up open
 function viewCard(a) {
   if (!ptd) ptNew();
@@ -4023,12 +4027,14 @@ function viewCard(a) {
   return { html: `${bar()}<h1 class="hl ec-hl">Edit card</h1><div class="ec">
     <div class="ec-card"><span class="ec-av">${avatar('You')}</span>
       <input id="pt-name" class="ec-name" maxlength="24" value="${esc(ptd.name)}" placeholder="Your name" autocomplete="nickname" aria-label="Your name">
-      <p class="ec-gym">${ic.pin}<span>${gym.name}</span></p>
+      <button class="ec-gym" type="button" data-act="ptjump" data-to="ec-home">${ic.pin}<span id="ec-gyn">${gyms[ptd.home].name}</span></button>
       <div class="ec-tags" id="ec-tags"></div></div>
     <p class="ec-h">Your tags <span id="ec-n"></span></p><p class="ec-d">Pick up to ${CARD_MAX} that say who you are as a climber</p>
     <p class="ec-g">Climbing styles</p><div class="ec-chips">${STYLES.map(s => chip('pts', s[0], s[1], ptd.sty.has(s[0]))).join('')}</div>
     <p class="ec-g">About you</p><div class="ec-chips">${ME_TAGS.map(([k, l]) => chip('ptg', k, l, ptd.tags.has(k))).join('')}</div>
-    <p class="ec-h">Level</p><div class="ec-box">${step('ptlv', 'Bouldering', 'ec-lvv')}${step('ptrp', 'Rope', 'ec-rpv')}</div>
+    <p class="ec-h">Level</p><div class="ec-box" id="ec-lvbox">${step('ptlv', 'Bouldering', 'ec-lvv')}${step('ptrp', 'Rope', 'ec-rpv')}</div>
+    <p class="ec-h">Home gym</p><p class="ec-d">Shown on your card</p>
+    <div class="ec-chips ec-hg" id="ec-home">${[...new Set([ptd.home, ...byNear(gyms.map((g, i) => [g, i])).slice(0, 6).map(([, i]) => i)])].map(i => chip('pthg', i, gyms[i].name, ptd.home === i)).join('')}</div>
     <details class="ec-box ec-ct"${a === 'ct' ? ' open' : ''}><summary><span>How to reach you</span><em id="ec-ctn"></em><svg viewBox="0 0 24 24" fill="none" stroke="#111" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></summary>
       <p class="ec-d">Used on all your posts, so climbers can message you</p>
       ${SOCIALS.map(([k, l, ph]) => `<label class="ec-in"><span>${l}</span><input data-ct="${k}" maxlength="40" value="${esc(ptd.ct?.[k] || '')}" placeholder="${ph}"${k === 'wa' ? ' inputmode="tel"' : ''}></label>`).join('')}</details>
@@ -4108,6 +4114,9 @@ const interviewActions = {
   // your level and contacts (profile)
   ptpost: b => { ptNew(); go(b?.dataset?.to || 'card'); },
   // everything changes in place: the sheet never redraws while you edit. Tags stop at five; a full card greys the rest
+  // from the card preview to the part of the page that changes it, flashed so you see where you landed
+  ptjump: b => { const t = $(b.dataset.to); if (!t) return; t.scrollIntoView({ block: 'center', behavior: 'smooth' }); t.classList.remove('ec-flash'); void t.offsetWidth; t.classList.add('ec-flash'); },
+  pthg: b => { ptd.home = +b.dataset.v; b.parentElement.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b)); ptSync(); },
   ptlv: b => { ptd.lv = Math.max(0, Math.min(VG.length - 1, ptd.lv + +b.dataset.d)); ptSync(); },
   ptrp: b => { const i = ROPES.indexOf(ptd.rope || '') + +b.dataset.d; ptd.rope = ROPES[Math.max(0, Math.min(ROPES.length - 1, i))]; ptSync(); },
   ptg: b => { const k = b.dataset.v; if (ptd.tags.has(k)) ptd.tags.delete(k); else if (ptCount() < CARD_MAX) ptd.tags.add(k); b.setAttribute('aria-pressed', ptd.tags.has(k)); ptSync(); },
@@ -4115,7 +4124,8 @@ const interviewActions = {
     if (k === 'all') { const on = !s.has('all'); s.clear(); if (on) s.add('all'); }
     else if (s.has(k)) s.delete(k); else if (ptCount() - (s.has('all') ? 1 : 0) < CARD_MAX) { s.delete('all'); s.add(k); }
     b.parentNode.querySelectorAll('[data-v]').forEach(x => x.setAttribute('aria-pressed', s.has(x.dataset.v))); ptSync(); },
-  ptsave: () => { const { name, sty, tags, ...pro } = ptd; myPartner = pro; proSave();
+  ptsave: () => { const { name, sty, tags, home, ...pro } = ptd; myPartner = pro; proSave();
+    homeGy = home; try { localStorage.setItem('spotter-home', JSON.stringify(home)); } catch (_) {}
     myName = name.trim().slice(0, 24); meTags.clear(); tags.forEach(k => meTags.add(k)); picks.clear(); sty.forEach(k => picks.add(k));
     try { localStorage.setItem('spotter-name', myName); localStorage.setItem('spotter-me-tags', JSON.stringify([...meTags])); localStorage.setItem('spotter-styles', JSON.stringify([...picks])); } catch {}
     ptd = null; history.length > 1 ? history.back() : go('profile'); toast('Saved'); },
