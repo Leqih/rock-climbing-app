@@ -182,6 +182,7 @@ Videos:
 - `video/pratteln-1.mp4` to `pratteln-6.mp4`: from "Boulder Cup in Pratteln B2 in 2017" by Amada44, Wikimedia Commons, CC BY 4.0 (https://commons.wikimedia.org/wiki/File:Boulder_Cup_in_Pratteln_B2_in_2017_-_6594.webm). Six attempts on boulder 2 of the women's competition, filmed handheld from the crowd. Changes: cut into attempts, cropped to 9:16 with a window that follows the climber (from the app's pose scan), scaled to 720×1280, sound removed.
 - `video/px-<id>.mp4` (ten clips): Pexels videos 7591545, 7591479, 7591538, 7591475, 7591808, 7591477, 7591603 and 7591535 by Pavel Danilyuk, 5382887 by Allan Mas and 6690707 by cottonbro studio, under the Pexels licence. Scaled and cropped to 720×1280, sound removed. They are community posts by sample people (Chloe, Ben, Ravi, Ines, Tom, Felix); the people filmed are models, not those names.
 - `video/tt-2.mp4` to `tt-8.mp4`: TikTok videos saved by the project owner, for this private prototype only (not for public release). Creators: @tiffneedsavacay (2), @reelclimbs (3), @boulderaddicts (4, 6), @sophia_halley (5), @bigmanclimbs (7), @henry_lovegrove (8). No blur: each clip starts after the left-middle TikTok watermark has gone (about 4–5 s in) and the bottom strip, where the bottom-right watermark sits for the rest of the video, is cropped off (576×766, 576×704 for clip 2); the outro is cut; each post credits the creator's handle instead. A clip of a child (@juniorclimbs) was left out. Posted by the sample person Mei as "shared from TikTok", and they are the first seven posts in the feed.
+- `data/wx/` (on this computer only; `data/` is git-ignored and in `.vercelignore`, so it is never committed or deployed): eleven bouldering clips sent to the project owner, for trying the analysis privately. `gym-1` is a gym boulder filmed from a fixed camera; `xhs-1` and `xhs-2` are two problems on a gym overhang, cut from one Xiaohongshu post (the app's end card removed); `wx-1` to `wx-4` are four competition boulders filmed handheld from the crowd, cut from one video (its last seconds were missing). `wx-5` to `wx-8` are four gym boulders cut from another video (its tall-wall clips and the phone screen recording at the end left out); two other people climb in `wx-6` and `wx-7`, so those two were scanned with the climber's first-frame position given, as tapping yourself does. Sound removed. Each has its scan beside it (`<name>.track.json`, made by the app's own scan) and a poster. `data/wx/samples.json` lists them: when it exists, the app adds them to Import's sample videos, and each comes in as a new climb (you pick the gym, colour and grade). We don't know who filmed them, so they stay off the public site unless the filmers agree.
 - Not used any more: `video/r-lpj1bzih3ytb1.mp4` (posted on Reddit) and `img/vr1.jpg`.
 
 The thumbnails `img/vrock.jpg`, `img/v864.jpg` and `img/v810.jpg` are frames taken from these videos. `img/vrock0.jpg`, `img/v8640.jpg` and `img/v8100.jpg` are their first frames, used as posters so the tracked points land on the right picture.
@@ -237,14 +238,97 @@ A scan took 16–46 s on a laptop GPU for clips of 14–41 s. Wall tracking took
 
 Put exported files in `labels/` and run `node tools/score.mjs` (add `--tol 0.5` for a stricter match) to score every marked video against the scans in `video/`. The scoring is in `score.js`, shared by both.
 
-`labels/wayup-coach.json` holds The Way Up's coach labels (CC BY 4.0) moved onto the Way Up clips in the app. 21 clips, 896 landings. Each clip was cut from the original at the first labelled landing minus 1 s, so a label at x s is at x − that in the clip. Only the label files were read from the dataset's zip, not its videos. Scored against the scans that ship with the app (`node tools/score.mjs`):
+`labels/wayup-coach.json` holds The Way Up's coach labels (CC BY 4.0) moved onto the Way Up clips in the app. 21 clips, 896 landings. Each clip was cut from the original at the first labelled landing minus 1 s, so a label at x s is at x − that in the clip. Only the label files were read from the dataset's zip, not its videos. Scored against the scans that ship with the app (`node tools/score.mjs`). Those scans are now the server's: YOLO11x-pose at 1280 px read each clip's body 15 times a second (`tools/rescan.py`, the server's own `read_body`), and the app's analysis ran on it (`window.__trackFromFrames`), with the camera motion kept from the earlier phone scan. With the phone's MediaPipe scans they were 78% found and 65% right within 1 s.
 
 | Within | Found | Spotter's moves that are right | Neighbours in the right order | Usual pause error |
 |---|---|---|---|---|
-| 1 s | 78% (hands 76%, feet 80%) | 65% (hands 60%, feet 70%) | 99% | 0.36 s |
-| 0.5 s | 63% (hands 61%, feet 64%) | 52% (hands 48%, feet 57%) | 99% | 0.20 s |
+| 1 s | 90% (hands 86%, feet 95%) | 80% (hands 77%, feet 84%) | 100% | 0.22 s |
+| 0.5 s | 81% (hands 81%, feet 82%) | 72% (hands 72%, feet 73%) | 100% | 0.18 s |
 
-Random times find about 31%. **These are not independent:** the shipped network was trained on all 22 Way Up videos, these 11 included, so on new climbers and gyms expect at most the held-out scores above, and less with a moving phone. What they add is the pauses and the order, which nothing had measured: when a move is found, its neighbours come in the right order, and the gap between two moves is usually off by about a third of a second. With 5 samples a second, a pause under about half a second can't be told apart from no pause.
+Random times find about 31%. **These are not independent:** the shipped network was trained on all 22 Way Up videos (on MediaPipe scans of them), these 11 included, so on new climbers and gyms expect at most the held-out scores above, and less with a moving phone. What they add is the pauses and the order, which nothing had measured: when a move is found, its neighbours come in the right order, and the gap between two moves is usually off by about a third of a second. With 5 samples a second, a pause under about half a second can't be told apart from no pause.
+
+### How well the skeleton sits on the holds
+
+`tools/skel_check.py` checks the skeleton itself, before any move is found: for every contact in The Way Up's hold annotation, while the limb is still and in view, is the scan's wrist or index fingertip (hands) or ankle or toe (feet) within 25 px of that hold's box? Over the 21 clips:
+
+| Scan | Left hand | Right hand | Left foot | Right foot |
+|---|---|---|---|---|
+| Phone, MediaPipe (full model) | 44% (49% not found) | 30% (62% not found) | 64% | 61% |
+| Server, YOLO11x-pose, whole frame (the scans that ship) | 89% | 84% | 72% | 83% |
+| YOLO, a crop around the body enlarged (every third frame; the whole frame scored 89 / 84 / 71 / 81 in the same run) | 90% | 87% | 69% | 72% |
+
+The phone's scan mostly loses the hands: where it finds one, it is on the hold. Climbers face the wall, and MediaPipe finds a body by its face. YOLO finds 9 hands in 10. Its feet sit about 20 px off because it has no toe point, so the ankle stands in for the toe. Reading a crop around the body (`tools/pose_crop.py`) helps hands by 2–4 points and costs the right foot 10, so the server reads the whole frame. The server also won't jump to another person when the climber goes unseen: high on the wall, small, the climber was lost for 14 s of p5 orange and the skeleton moved to someone on the ground. Now a body whose hips are further than the climber could have moved is no body. Both YOLO rows still draw a hidden or raised leg hanging straight down.
+
+Which person is the climber. The server reads every body in every frame first, then picks the climber once and follows them forwards and backwards from there, under the same no-jump rule. Without a tap the pick is the biggest body in the first frame anyone is in. That alone fixed wx-6 and wx-7, the two Import samples that needed a tap before, when the pick was whoever's feet were highest. With a tap ("Wrong person followed?"), the app sends the moment you tapped on, and the server picks the body nearest your taps on that frame. On wx-6 tapped at 10 s it finds you in all 150 frames before the tap too, and none differ from the untapped scan. On wx-7 a tap on the other person at the edge follows them instead. The server also sends `doubt`: in the first second, the second-biggest body's size over the biggest's. At 0.5 or more the app asks "Someone else is in this video too. Is this you?" before showing anything. That's 2 of the 29 sample clips: wx-7 (0.79, two people the same size at the start) and The Way Up p5 green (0.57, picked right; one tap on "Looks right"). The other 20 Way Up clips are 0.43 or less. It doesn't count how long anyone else is in view: p1 green has someone the climber's size in view for 76 of 187 s and is followed fine, since once the climber is picked they're followed. A tap on the phone (no server) can't look back, so it follows you from the tapped moment on.
+
+### Techniques against the coach labels
+
+`node tools/style.mjs` works out how often each technique shows up in each of the 21 clips twice: once from Spotter's moves, once from the coach's landings, with the same rule (`styleOf` and `feetFirst` in `app.js`). A gap means Spotter missed or mistimed moves. The rank agreement says whether the climbers who do something most by the coach's landings also do it most by Spotter's, which is what the style profile ranks.
+
+| Technique | Coach | Spotter | Usual gap per clip | Rank agreement |
+|---|---|---|---|---|
+| Feet first | 67% | 63% | 9 points | 0.41 |
+| Cross | 30% | 21% | 16 points | 0.71 |
+| Match | 10% | 4% | 11 points | 0.14 |
+| High foot | 6% | 5% | 3 points | 0.56 |
+| Drop knee | 2% | 2% | 1 point | 0.76 |
+
+Feet first used to count a reach only when a foot started moving in the 1.2 s before the hand. That said 42% where the coach's landings say 67%, so nearly every climber looked like they pulled with their arms. It now counts a reach when a foot landed after the hand before it landed, with 0.4 s slack either side for timing: 63%. Match is the weakest: it needs both wrists in view at the landing, which leaves a few landings a clip, and Spotter misses the quick ones. Cross and match counts are small, so one landing moves a clip's rate a lot.
+
+What these labels can't check: they only say when a hand or foot landed, not how. Whether a knee really dropped, a foot was really high, the body side-on or an arm locked is still decided by the rules on Spotter's own pose at that moment, and nobody has checked those by eye. That needs someone to go through the detected moments and mark each one right or wrong.
+
+### Checking moves by eye
+
+Open the app at `#/review` (for example `https://chalk-prototype-omega.vercel.app/#/review`). For each technique (drop knee, high foot, side-on, lock-off, cross, match, feet first, straight-arm rest) it shows up to 30 moments where Spotter says it happened, taken in turn from each of the climbs so no one climber fills the list. Each moment has the still with the body drawn on it and the video a second either side at half speed, zoomed onto the climber. Answer Correct, Wrong or Can't tell (keys 1, 2, 3; arrows to move). The table underneath gives, per technique, how many of the judged moments were correct. That is precision only: how often a found move is real, not how many real ones were missed. Answers stay in the browser; **Export answers** saves them as `spotter-review.json`.
+
+Spotter finds few drop knees (8), lock-offs (7) and matches (3) across all the climbs, so those numbers will stay rough.
+
+## Telling routes apart (prototype, outside the app)
+
+The app still pairs videos of the same route by hand. `tools/route_match.py` tries to do it from the video: one frame of the wall is the map, each hand landing in a clip's scan is carried onto it (SIFT features with the climber blanked out, a homography fitted with RANSAC, since the wall is flat), and two climbs are on the same route when most of one's landings fall within 2% of the wall's height of the other's. It needs no hold detector and no colours. That matters here, because this wall is set so densely in every colour that the colour under a hand doesn't say which route it is.
+
+```bash
+pip install opencv-python numpy
+python tools/route_match.py
+```
+
+On the 21 Way Up clips, with `wayup-p1-green` at 13.6 s as the map, the nearest other clip was on the same route for all 21. On average two clips on the same route share 43% of their landings, and two on different routes 26%. The closest calls are `wayup-p5-green` (0.53 to its own route, 0.49 to the other) and `wayup-p5-orange` (0.54 against 0.50). About a third of the landings are left out, because the pose model is less than 0.3 sure of both the fingertip and the wrist. `--conf 0.1` keeps most of them, but `wayup-p5-green` then comes out on the wrong route (20 of 21).
+
+What this doesn't show yet: there are only two routes, on one wall, and the map comes from the same set of videos. It still needs a second gym, routes that share more holds, and a map taken from a separate photo of the wall. A few landings fall off the wall, next to people standing at the bottom right. `tools/out/route_match.jpg` draws every landing on the map, coloured by route. `tools/out/landings.json` holds them, as fractions of the map.
+
+The next step is a hold detector, so a landing snaps to a hold and a climb becomes a sequence of hold ids. Two tries could then be lined up move by move. `tools/holds_train.py` trains YOLO11 on Roboflow's "Climbing Holds and Volumes" (Blackcreed, CC BY 4.0, 1,717 images). Download it in the YOLOv11 format after signing in to Roboflow, and unzip it into `data/holds/`. Its `try` command draws what the detector finds on a frame of our own wall. After 12 epochs (mAP50 0.82 on Roboflow's validation images), it boxed 268 holds on The Way Up's wall, which it had never seen: almost every hold on the main wall. It missed small holds on the far side wall, and boxed one person standing at the bottom.
+
+`tools/hold_snap.py` runs after `route_match.py`. It maps the holds by running the detector on frames spread through the reference clip, carrying them onto the reference frame, and keeping holds found in at least 3 frames, so the climber never hides one for good and passers-by drop out. That gives 379 holds. Then it snaps each landing to the hold under the fingertip. On the 21 clips:
+
+- 351 of the 365 landings snap to a hold.
+- Comparing climbs by the exact holds they used is worse than the radius: 20/21 nearest-clip, against 21/21. A fingertip placed one hold over counts as a different hold, and the wall is dense. Adding frames from more clips made it worse (625 holds, 18/21), because small alignment errors between clips turned one hold into two.
+- Each hold also gets a colour name from its median hue, and the colour most of a climb's landings were on gave its route 21/21, choosing between green and orange. Don't trust that number. The annotation below shows the colour check misses the orange route's holds, so the vote was carried by the green holds and by the two routes being on different parts of the wall.
+
+`tools/out/holds_map.json` holds the numbered holds with their colours, and every climb as a list of hold numbers. `hold_snap.py` guesses a route's holds as the holds of its colour within 0.04 of the reference height of at least 2 climbs' landings. A first try used the holds hands snapped to, and only 7 of its 13 "green" holds were green: a fingertip a little off lands on the neighbour.
+
+**Checked against The Way Up's own annotation.** The dataset's zip on Zenodo has, for every clip, a box for each hold of the route in our clips' pixels (`<p>/<route>_routeAnnotation.json`, hand holds and foot holds marked), and when each hand and foot was on which hold (`<p>/<route>_holdUsage.csv`, at 25 fps). Those small files can be pulled out of the 20.9 GB zip on their own (about 4 MB read). They are kept in `data/wayup/`, which git ignores. Our clips are trimmed: the shift is found by lining up the coach labels, 0 to 1.6 s. What they show:
+
+- The routes are colour routes. 11 of the green route's 13 hand holds are green; the other two are a volume and a small pink hold. The orange route's 17 hand holds are a dark orange close to brown (hue 11–16, darker than the wall), and the colour check reads none of them as orange. It needs high saturation for warm colours.
+- With both routes' annotated holds known, the hands name the route: in all 21 clips, most hand landings are nearer a hold of the clip's own route than of the other (62–100% of landings, 73% for p1 on green). In close-ups of p1 on green, the hand on each annotated hold is on a green hold, with red, orange, pink and brown holds all round it. The exception is the small pink hold the annotation counts as hand hold 6.
+- So `hold_snap.py`'s green route is close: 13 of its 15 holds are annotated hand holds, and it finds 11 of the 13. Its orange route finds 7 of 17.
+- Snapping a hand to the right hold, with the route's holds known: of the hand landings our pose scan places within 20 px of a route hold, 88% (287 of 326) are on the hold the annotation has that hand on (75%, 183 of 245, with the phone's MediaPipe scans). The rest are on a neighbour. A looser limit snaps more and gets 86% right at 40 px. 163 more of our hand landings are further than 20 px from every route hold. Those are low-confidence hands, or moves the scan invented.
+
+`tools/hold_show.py --video <clip>` uses the annotated route. It shows a climber where they were, on a frame of their own video, with no hold ids. It picks the longest pause with a hand on the route (pauses on the last two holds are the finish, so they're skipped). It snaps the hands from that frame to the route's hand holds, circles them and the hold the next move went to, and numbers the route's hand holds bottom to top. `--check` prints the snapping score above. Writes `tools/out/hold_demo.jpg`.
+
+`--export` writes `video/routes.json`: each clip's hand holds in clip pixels (720×1280), bottom to top. The app's "Where you stopped longest" card reads it. It snaps the hand that held still to a hold within 20 px and says "hand hold N of M". If the next hand landed on a higher hold, it names that hold. On the still it draws only two rings: the hold you were on (lime) and the next hold (white, tagged Next). Ringing the whole route made the picture too busy. A move onto a lower hold is not called a next hold, because that was mostly a hand shifting on a hold it already held. With no route on file, or no hand within 20 px of a hold, the card reads as before. Snapping is right about 75% of the time (see above).
+
+The training files don't have to sit on the drive that holds the code. Here, `data/`, `runs/` and the Python environment (PyTorch alone is about 5 GB) live on `D:\spotter-ml`, and `data` and `runs` in this folder are directory links to it (`mklink /J data D:\spotter-ml\data`), so every path in the scripts still works. If a run stops, `train --resume` carries on from the last saved epoch. Keep `--workers` low on Windows: each loader is a separate Python process with its own copy of PyTorch, and 8 of them ran the machine out of memory at epoch 9.
+
+## What to try next
+
+Profile, under your level, and the session summary, under the hardest send, say which grade to try next and about how many tries it will take. The idea comes from DYNO, a hackathon tracker for beginner boulderers. Its code has no licence, so none of it is used. The method here is our own and needs no outside data, only your log (`nextUp` in `app.js`):
+
+- Every climb counts once, with the tries it took to top it. A climb logged by grade uses its Attempts (a Flash is 1). A route uses its tries by hand and on video, counted up to the first top. A climb not topped yet counts the tries so far.
+- Boulders (V grades) and rope routes (5.x) are counted apart, each on its own line when you do both.
+- Your grade is the hardest one you've topped, and its tries are the median of your tops at that grade. The next grade is guessed at those tries times how much more the last step up cost you (median against median). That factor is kept between 1.5× and 3×, so one lucky or stuck climb can't run away with it, and the line says so whenever it was clamped. With no lower grade topped yet, it guesses 2×. If you've already put more tries than that into a climb at the next grade, the guess is raised to one more than those tries.
+- With nothing topped yet, it names the easiest climb you're working on. At the top grade (V8+, 5.12+), it says to keep going.
+
+On the regular demo (`?view=regular`) it reads: try 5.10, about 6 tries. Green 5.8 and Orange 5.9 each took 4 tries, so the factor comes out at 1× and the guess uses 1.5×. Nobody has checked these guesses against what climbers actually go on to do. That needs logs over several weeks.
 
 ## Arm angles
 
