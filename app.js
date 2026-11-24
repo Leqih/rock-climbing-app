@@ -4,7 +4,7 @@
 // You are one of them; five others with full scans are the community. Their names, likes and comments are sample data.
 // Every number about a climb is measured from its video (video/<vid>.track.json, or a live scan in the browser).
 // Routes: #/videos (tab) · #/shelf/all|gym (a binder) · #/clip/<id> · #/vs/<id>-<v> · #/route/<i> · #/walls (Gyms tab) · #/gyms (map) · #/gym/<i> · #/friends (tab: who climbed today and the week's race) · #/friends/partners (posts: someone at the gym to film you, belay you or climb with) · #/friends/all (the full-screen player a video opens in)
-// · #/scan (photo a route, its beta drawn on) · #/person/<name> · #/profile (tab) · #/session (log by hand, the session clock) · #/summary · #/watch · #/cam · #/setup
+// · #/scan (photo a route, its beta drawn on) · #/person/<name> · #/moves/<v> (the moves found in someone else's video) · #/profile (tab) · #/session (log by hand, the session clock) · #/summary · #/watch · #/cam · #/setup
 // Back from v8 (2026-11-12): other gyms and the map, logging by hand, the session clock, the watch, the highlight reel, the share poster,
 // CSV export, friends and partner posts, and portraits for the sample people
 
@@ -147,6 +147,8 @@ fetch('data/wx/samples.json').then(x => x.ok ? x.json() : []).then(L => L.forEac
 // one clip = one try of yours. v = its video in V; ri = its route (you can change it); hidden = only you see it
 const clips = [];
 let cid = 0, newPublic = false;
+// the moves Spotter finds show on your public videos for others to watch (your tips and scores never do)
+let movesPub = true; try { movesPub = localStorage.getItem('spotter-movespub') !== '0'; } catch (_) {}
 const vidOf = c => V[c.v];
 // a try filmed today is from today, whatever the sample video's own day
 const agoOf = c => c.ago ?? V[c.v].ago;
@@ -1895,12 +1897,12 @@ function viewClip(id) {
       <div class="ce-rows"><button class="ce-row" type="button" data-act="trimedit" data-c="${c.id}"><span>Video</span><b>${c.trim ? `${mmss(c.trim[0])}–${mmss(c.trim[1])}` : 'Whole video'}</b><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m6 3.5 4.5 4.5L6 12.5"/></svg></button>${field('gy', 'Gym', pk.gy != null ? gyms[pk.gy]?.name : '')}${field('grade', 'Grade', pk.grade)}${field('color', 'Colour', pk.color, pk.color ? `<i style="--hold:${HOLD_COLORS[pk.color]}"></i>` : '')}
         <div class="ce-row ce-res"><span>How did it go?</span><span class="ce-seg" role="group" aria-label="How did it go?">${['Flash', 'Send', 'Project'].map(k => `<button type="button" data-act="clres" data-c="${c.id}" data-k="${k}" aria-pressed="${c.res === k}">${KL[k]}</button>`).join('')}</span></div>
         ${ready && (c.res === 'Flash' || c.res === 'Send') ? `<div class="ce-row ce-res"><span>Grade felt <i>Optional</i></span><span class="ce-seg" role="group" aria-label="How the grade felt">${FEELS.map(([k, l]) => `<button type="button" data-act="feel" data-ri="${c.ri}" data-k="${k}" aria-pressed="${myFeel[c.ri] === k}">${l}</button>`).join('')}</span></div>` : ''}</div>
-      ${c.hidden ? `<button class="ce-tg" type="button" role="switch" data-act="clpa" data-i="${c.id}" aria-checked="${!!c.postAfter}"><span class="ce-tt"><strong>Also post to Community</strong><span>${pk.gy != null && gyms[pk.gy] ? `Climbers at ${gyms[pk.gy].name} see the video. Your analysis stays private.` : 'Climbers at the gym see the video. Your analysis stays private.'}</span></span><i aria-hidden="true"></i></button>`
-        : '<p class="ce-n ce-in">In Community already. Your analysis stays private.</p>'}
+      ${c.hidden ? `<button class="ce-tg" type="button" role="switch" data-act="clpa" data-i="${c.id}" aria-checked="${!!c.postAfter}"><span class="ce-tt"><strong>Also post to Community</strong><span>${pk.gy != null && gyms[pk.gy] ? `Climbers at ${gyms[pk.gy].name} see the video${movesPub ? ' and the moves found' : ''}. Your tips stay private.` : `Climbers at the gym see the video${movesPub ? ' and the moves found' : ''}. Your tips stay private.`}</span></span><i aria-hidden="true"></i></button>`
+        : `<p class="ce-n ce-in">In Community already${movesPub ? ', with the moves found' : ''}. Your tips stay private.</p>`}
       <div class="ce-act"><button class="b-ghost" type="button" data-act="clsave" data-i="${c.id}"${ready ? '' : ' disabled'}>Save for now</button><button class="b-lime" type="button" data-act="startanalysis" data-i="${c.id}"${ready ? '' : ' disabled'}>Analyse</button></div>
       <p class="ce-n">${ready ? 'Not analysing now? Save it and analyse it any time from its page. To post several videos at once, tap Select on Videos.' : 'Choose the gym, grade and colour first.'}</p></div>`;
   // analysed and not posted yet: post it from here. The analysis stays yours
-  const postCard = c.hidden ? `<div class="ce-post"><span class="row-t"><strong>Only you can see this</strong><span>Post the video to Community. Your analysis stays private.</span></span><button class="b-ghost" type="button" data-act="clpost" data-i="${c.id}">Post</button></div>` : '';
+  const postCard = c.hidden ? `<div class="ce-post"><span class="row-t"><strong>Only you can see this</strong><span>Post the video to Community. Your tips stay private.</span></span><button class="b-ghost" type="button" data-act="clpost" data-i="${c.id}">Post</button></div>` : '';
   // analysed: the video fills the screen, edge to edge, with the top of the analysis sheet showing under it to pull up
   const vh = two ? Math.round(Math.max(280, Math.min(room, (scrEl?.clientWidth || 402) / lv.ar))) : Math.max(280, Math.min(560, room));
   // what the video shows right now, as it plays: in Body, above the timeline
@@ -2291,6 +2293,7 @@ const feedAll = () => {
 };
 const liked = new Set(), likeKey = p => `${p.who}/${V[p.v].vid}`;
 const tokIc = {
+  moves: '<svg viewBox="0 0 48 48" fill="none" aria-hidden="true"><path d="M6 22 13 8l15-3 13 9 2 15-8 12-15 2L7 35Z" fill="currentColor"/><g stroke="#555" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="25" cy="14" r="3" fill="#555" stroke="none"/><path d="M24 19v10M24 22l-7-6M24 22l8 3M24 29l-6 7M24 29l7 5"/></g></svg>',
   heart: '<svg viewBox="0 0 48 48" fill="none" aria-hidden="true"><path d="M5 19 15 6 29 5 42 15 43 29 34 41 19 43 6 34 3 26Z" fill="currentColor" stroke="currentColor" stroke-width="4" stroke-linejoin="round"/><path d="m11 21 7-8 11 1 7 7M10 30l8 5 13-2" stroke="#454545" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" opacity=".7"/></svg>',
   talk: '<svg viewBox="0 0 48 48" fill="none" aria-hidden="true"><path d="M4 22C4 11 13 5 25 5s20 7 19 17c0 10-8 16-20 16h-4L9 44l1-10C6 31 4 27 4 22Z" fill="currentColor"/><circle cx="15" cy="22" r="2.7" fill="#666"/><circle cx="24" cy="22" r="2.7" fill="#666"/><circle cx="33" cy="22" r="2.7" fill="#666"/></svg>',
   save: '<svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor"><path d="M6 3.5h12a1 1 0 0 1 1 1v16.2a.5.5 0 0 1-.8.4L12 16.6l-6.2 4.5a.5.5 0 0 1-.8-.4V4.5a1 1 0 0 1 1-1Z"/></svg>',
@@ -2303,7 +2306,7 @@ function feedPost(p, i) {
     <span class="ts-sh"></span>
     <div class="ts-rail"><span class="ts-av"><button class="ts-face" type="button" data-act="to" data-to="${me ? 'profile' : `person/${p.who}`}" aria-label="${me ? 'Your profile' : `${p.who}’s page`}">${avatar(p.who)}</button><span class="ts-author">${esc(p.who)}</span></span>
       <button class="ts-nice" type="button" data-act="flike" data-i="${i}" aria-pressed="${on}" aria-label="Like">${tokIc.heart}<span class="ts-like-label">${on ? 'NICE!' : 'NICE'}</span></button>
-      <button type="button" data-act="fcm" data-i="${i}" aria-label="Comment">${tokIc.talk}<span class="ts-action-label">Chat</span></button><button type="button" data-act="fmore" data-i="${i}" aria-label="Video options"><span class="ts-more-icon" aria-hidden="true">•••</span><span>More</span></button></div>
+      ${me ? '' : `<button type="button" data-act="to" data-to="moves/${x.i}" aria-label="See the moves in this climb">${tokIc.moves}<span class="ts-action-label">Moves</span></button>`}<button type="button" data-act="fcm" data-i="${i}" aria-label="Comment">${tokIc.talk}<span class="ts-action-label">Chat</span></button><button type="button" data-act="fmore" data-i="${i}" aria-label="Video options"><span class="ts-more-icon" aria-hidden="true">•••</span><span>More</span></button></div>
     <div class="ts-c"><div class="ts-info"><span class="ts-gym">${ic.pin.replace(/#2B2D2E|#111111/g, '#FFFFFF')}${esc(p.c ? gymName(p.c) : gym.name)}</span></div>${p.note ? `<p>${esc(p.note)}</p>` : ''}<div class="ts-tools"><span class="ts-route"><i class="ts-route-color" style="background:${r.hex}" aria-hidden="true"></i>${esc(r.color)} · ${esc(r.grade)}</span>${vs}<button type="button" data-act="fbeta" data-r="${p.c ? p.c.ri : x.ri}" data-v="${x.i}" aria-label="See route beta"><span class="ts-action-icon ts-beta-icon" aria-hidden="true">B</span></button></div></div>
     <span class="ts-time"><span class="ts-elapsed">0:00</span> / ${x.len}</span><i class="ts-p"><b></b></i>
   </article>`;
@@ -2380,7 +2383,8 @@ function reportVideo(i) {
 function feedLike(post, on) { const b = post.querySelector('[data-act=flike]'), p = feedAll()[+b.dataset.i], k = likeKey(p); on ? liked.add(k) : liked.delete(k);
   b.setAttribute('aria-pressed', on); b.querySelector('.ts-like-label').textContent = on ? 'NICE!' : 'NICE'; pop(b, on); }
 function pop(b, on) { b.classList.remove('pop'); if (!on) return; void b.offsetWidth; b.classList.add('pop'); }
-let feedAt = 0, tapT = null;
+// feedWho: the player opened from someone's page shows only their videos, newest first, with no tab bar (back goes to their page)
+let feedAt = 0, tapT = null, feedWho = null;
 const TOK_FAR = .16, TOK_FLICK = .35, TOK_EDGE = .3;   // a drag of 16% of the screen, or a flick of .35 px/ms, turns the page; past the first and last post the drag gives 30%
 function feedStop() { document.querySelectorAll('.fv video').forEach(v => v.pause()); }
 function feedWire() {
@@ -2436,10 +2440,11 @@ function viewFriends(a) {
   if (!a || a === 'plan' || a === 'friends') return viewFriendsHome();
   if (a === 'partners') return viewPartners();
   // a video you tapped, in the full-screen player: swipe for the next one, back to where you came from
-  const entries = feedAll().map((post,i) => ({post,i}));
-  const top = `<div class="tok-top"><button class="tok-bk" type="button" data-act="back" aria-label="Back"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5 8 12l7 7"/></svg></button><span class="tok-ttl">Videos</span><button class="av sm" type="button" data-act="to" data-to="profile" aria-label="Your profile">${avatar('You')}</button></div>`;
+  const all = feedAll().map((post,i) => ({post,i})), who = feedWho && PEOPLE.includes(feedWho) ? feedWho : null;
+  const entries = who ? all.filter(e => e.post.who === who && !e.post.c).sort((p, q) => p.post.ago - q.post.ago) : all;
+  const top = `<div class="tok-top"><button class="tok-bk" type="button" data-act="back" aria-label="Back"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5 8 12l7 7"/></svg></button><span class="tok-ttl">${who ? `${who}’s videos` : 'Videos'}</span>${who ? '<span class="av sm" aria-hidden="true"></span>' : `<button class="av sm" type="button" data-act="to" data-to="profile" aria-label="Your profile">${avatar('You')}</button>`}</div>`;
   const empty = `<div class="feed-empty"><strong>No videos yet</strong><p>Videos your friends post show up here.</p><button type="button" data-act="to" data-to="friends">Back to friends</button></div>`;
-  return { dark: true, tok: true, after: entries.length ? feedWire : undefined, html: `${top}${entries.length ? `<div class="tok" id="tok" tabindex="0"><div class="tok-in" id="tokin">${entries.map(({post,i}) => feedPost(post,i)).join('')}</div></div>` : empty}` };
+  return { dark: true, tok: true, bare: !!who, after: entries.length ? feedWire : undefined, html: `${top}${entries.length ? `<div class="tok" id="tok" tabindex="0"><div class="tok-in" id="tokin">${entries.map(({post,i}) => feedPost(post,i)).join('')}</div></div>` : empty}` };
 }
 
 /* ---------- Someone else's page ---------- */
@@ -2447,8 +2452,8 @@ function viewPerson(who) {
   if (!PEOPLE.includes(who)) { page = 'friends'; arg = ''; history.replaceState(null, '', '#/friends'); return viewFriends(); }
   const vs = V.filter(x => x.who === who), all = feedAll();
   needTracks(vs);
-  const tile = x => `<button class="vt" type="button" data-act="pvid" data-v="${x.i}" aria-label="Watch ${who} on ${rname(ROUTES[x.ri])}">
-      <img src="${pic(x.img)}" alt=""><span class="shade"></span><span class="vt-t">${sw(ROUTES[x.ri])}${rname(ROUTES[x.ri])}</span><span class="vt-b">${x.top ? 'Topped' : 'Not topped'} · ${dayLabel(x.ago)}</span></button>`;
+  const tile = x => `<button class="vt" type="button" data-act="pvid" data-v="${x.i}" data-w="${who}" aria-label="Watch ${who} on ${rname(ROUTES[x.ri])}">
+      <img src="${pic(x.img)}" alt=""><span class="shade"></span><span class="vt-t">${sw(ROUTES[x.ri])}${rname(ROUTES[x.ri])}</span><span class="vt-b">${x.top ? 'Topped' : 'Not topped'} · ${dayLabel(x.ago)}</span>${(k => k ? `<span class="vt-mv">${n(k, 'move', 'moves')}</span>` : '')(moveCount(x))}</button>`;
   const both = vs.filter(x => lastOn(x.ri)), fr = myFriends.has(who), days = fr ? friendDays([who]) : [];
   // the same page as your Profile, seen from outside: their card (styles falling behind the photo, name, home gym, status,
   // tags), when they usually climb, then their level and three counts (from their videos only, so they say so: their level is what they set). Instead of Edit card: add them, or contact them
@@ -2492,6 +2497,37 @@ function viewPerson(who) {
     ${fr ? `${days.length ? `<div class="hl2 dk2"><h2>This week</h2></div>${weekList(days)}` : `<p class="cap pp-lock">${who} hasn’t climbed this week.</p>`}
     <button class="pp-rm" type="button" data-act="frx" data-w="${who}">Remove from friends</button>` : ''}
     ` };
+}
+
+/* ---------- Moves: what Spotter found in someone else's video ---------- */
+// The public half of an analysis: the body drawn over their climb, and each move it found, a tap from that moment slowed
+// down. The other half (what to change, the scores) stays with the climber: it's their coaching, not a grade for others
+const MV_SHOW = ['drop', 'high', 'cross', 'match', 'lock', 'side', 'rest'];   // not "foot first": that's a habit, read as a score
+const movesOf = T => { const R = styleOf(T).R; return MV_SHOW.map(id => ({ m: STY.find(s => s.id === id), at: [...new Set((R[id].at || []).map(t => Math.round(t * 10) / 10))] })).filter(o => o.at.length); };
+const moveCount = v => { const T = TRK[v.vid]; return T?.S ? movesOf(T).reduce((a, o) => a + o.at.length, 0) : null; };
+let mvStop = null;
+function viewMoves(a) {
+  const x = V[+a];
+  if (!x || x.who === 'You') return lostClip();
+  needTracks([x]);
+  const T = TRK[x.vid], r = ROUTES[x.ri], ok = T?.S, ms = ok ? movesOf(T) : [], loading = x.vid in TRK && T === null && !ok;
+  const ar = T?.W ? T.W / T.H : x.ar, w = Math.round(Math.min(402, 500 * ar));
+  const list = ms.length ? ms.map(({ m, at }) => `<div class="mvl-r"><span class="mvl-h"><b>${m.name}</b><em class="num">${at.length}×</em></span>
+      <p>${m.what}</p><span class="mvl-ts">${at.map(t => `<button class="num" type="button" data-act="mvat" data-t="${t}" aria-label="Watch ${m.name} at ${mmss(t)}, slowed down"><svg width="9" height="10" viewBox="0 0 9 10" aria-hidden="true"><path d="M0 0v10l9-5z" fill="currentColor"/></svg>${mmss(t)}</button>`).join('')}</span></div>`).join('')
+    : `<p class="cap pp-lock">${ok ? `Spotter didn’t find any of these moves in ${x.who}’s climb.` : loading ? 'Reading the climb…' : `${x.who}’s climb hasn’t been read yet.`}</p>`;
+  return { photo: x.img, after: () => { const v = $('mvpv'), cv = $('mvpc'); if (!v) return;
+      v.addEventListener('click', () => v.paused ? v.play() : v.pause());
+      v.addEventListener('play', () => v.parentElement.classList.add('playing')); v.addEventListener('pause', () => v.parentElement.classList.remove('playing'));
+      v.addEventListener('timeupdate', () => { if (mvStop != null && v.currentTime >= mvStop) { mvStop = null; v.pause(); v.playbackRate = 1; } });
+      if (ok) { window.poseGate = quality(T).ok; window.poseTagList = ms.flatMap(o => o.at.map(t => ({ t, id: o.m.id }))).sort((p, q) => p.t - q.t); window.posePlay(v, cv, T); }
+      v.play().catch(() => {}); }, html: `
+    ${bar(`${x.who} · ${rname(r)}`)}
+    <div class="mvp-v" style="aspect-ratio:${ar.toFixed(4)};width:min(100%, ${w}px)"><video id="mvpv" src="${vsrc(x.vid)}" poster="${pic(x.img)}" muted playsinline loop preload="auto"></video><canvas id="mvpc"></canvas>
+      <span class="mvp-l">${sw(r)}${rname(r)} · ${x.top ? 'Topped' : 'Not topped'} · ${dayLabel(x.ago)}</span></div>
+    <button class="mvp-who" type="button" data-act="to" data-to="person/${x.who}"><span class="fd-a">${avatar(x.who)}</span><span class="row-t"><strong>${x.who}</strong><span>${ok ? `<span>${T.stats.hands} hand and ${T.stats.feet} foot moves</span> · <span class="num">${mmss(climbS(T))}</span>` : gym.name}</span></span>${ic.arr('#111111')}</button>
+    <div class="hl2 dk2"><h2>Moves in this climb</h2>${ms.length ? `<span class="hint2">${n(ms.reduce((a, o) => a + o.at.length, 0), 'move', 'moves')}</span>` : ''}</div>
+    <div class="mvl">${list}</div>
+    <p class="cap mvp-n">Tap a time to watch that move slowed down. These are the moves Spotter found in ${x.who}’s video; their tips and scores stay private to them.</p>` };
 }
 
 /* ---------- Profile: how you're getting on, from your own videos ---------- */
@@ -2792,6 +2828,8 @@ const MORE = {
       <button class="row" type="button" data-act="to" data-to="watch"><span class="row-t"><strong>Watch</strong><span>${watch ? 'Connected · starts and stops each try' : 'Not connected'}</span></span>${ic.arr('#111111')}</button>
       <div class="row"><span class="row-t"><strong>New videos</strong><span>${newPublic ? 'Public: in Community at ' + gym.name : 'Only you, until you make one public'}</span></span>
         <button class="vis${newPublic ? '' : ' off'}" type="button" data-act="newpub" aria-pressed="${!newPublic}">${newPublic ? `${ic.eye}Public` : `${ic.eyeOff}Hidden`}</button></div>
+      <div class="row"><span class="row-t"><strong>Moves on public videos</strong><span>${movesPub ? 'Others can watch the moves Spotter found. Your tips stay yours' : 'Only you see the moves Spotter found'}</span></span>
+        <button class="vis${movesPub ? '' : ' off'}" type="button" data-act="movespub" aria-pressed="${!movesPub}">${movesPub ? `${ic.eye}Shown` : `${ic.eyeOff}Hidden`}</button></div>
       ${hid ? `<div class="row"><span class="row-t"><strong>${n(hid, 'video', 'videos')} hidden</strong><span>Only you can see ${hid === 1 ? 'it' : 'them'}. Change it on each video</span></span></div>` : ''}
     </div>`; } } };
 function viewMore(k) {
@@ -3853,7 +3891,7 @@ function weekList(days) {
     return `<div class="wk-r${x.live ? ' wk-live' : ''}">
       <span class="wk-d">${x.live ? '<b>Now</b>' : `<em>${d.toLocaleDateString('en-US', { weekday: 'short' })}</em><b class="num">${d.getDate()}</b>`}</span>
       <span class="wk-t"><strong>${g.name}</strong>${nums.length ? `<span>${nums.map(t => `<span>${t}</span>`).join(' · ')}</span>` : ''}
-        ${x.vids.length ? `<span class="wk-rts">${x.vids.map(v => `<button class="wk-rt" type="button" data-act="pvid" data-v="${v.i}" aria-label="${rname(ROUTES[v.ri])}, ${v.top ? 'topped' : 'tried'}">${sw(ROUTES[v.ri])}${rname(ROUTES[v.ri])}${v.top ? ok : ''}</button>`).join('')}</span>` : ''}
+        ${x.vids.length ? `<span class="wk-rts">${x.vids.map(v => `<button class="wk-rt" type="button" data-act="pvid" data-v="${v.i}" data-w="${v.who}" aria-label="${rname(ROUTES[v.ri])}, ${v.top ? 'topped' : 'tried'}">${sw(ROUTES[v.ri])}${rname(ROUTES[v.ri])}${v.top ? ok : ''}</button>`).join('')}</span>` : ''}
         ${yours ? `<button class="wk-you" type="button" data-act="to" data-to="vs/${lastOn(yours.ri).id}-${yours.i}">${mineTop ? `You topped ${rname(ROUTES[yours.ri])} too: compare` : `You’re on ${rname(ROUTES[yours.ri])}: see how they did it`} ›</button>` : ''}</span></div>`;
   }).join('')}</div>`;
 }
@@ -4189,6 +4227,10 @@ const interviewActions = {
       Object.assign(vv.style, { width: `${W * k}px`, height: `${H * k}px`, left: `${Math.min(0, Math.max(cw - W * k, cw / 2 - cx))}px`, top: `${Math.min(0, Math.max(ch - H * k, ch / 2 - cy))}px` }); };
     vv.addEventListener('loadedmetadata', () => { fit(); vv.currentTime = a; vv.playbackRate = .6; vv.play().catch(() => {}); }, { once: true });
     vv.addEventListener('timeupdate', () => { if (vv.currentTime > z) vv.currentTime = a; }); },
+  // a move's moment in someone's video: from a second before, slowed down, then it stops
+  mvat: b => { const v = $('mvpv'); if (!v) return; const t = +b.dataset.t; v.currentTime = Math.max(0, t - 1.2); v.playbackRate = .5; mvStop = t + 1.8; v.play().catch(() => {});
+    $('mvpv').parentElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); },
+  movespub: () => { movesPub = !movesPub; try { localStorage.setItem('spotter-movespub', movesPub ? '1' : '0'); } catch (_) {} render(); toast(movesPub ? 'Others can see the moves in your public videos' : 'Your moves are only for you now'); },
   wxcopy: b => { navigator.clipboard?.writeText(b.dataset.v).catch(() => {}); if (b.closest('.as')) closeAll(); toast(`Copied. Add them on ${b.dataset.l}`); },
 };
 let inviteStream = null;
@@ -4333,7 +4375,7 @@ const moreActions = {
 };
 
 /* ---------- shell: routing, render, sheets ---------- */
-const views = { pick: viewPick, setup: viewSetup, videos: viewVideos, day: viewDay, algym: viewAlGym, ob: viewOb, shelf: viewShelf, clip: viewClip, vs: viewVs, route: viewRoute, wall: viewWall, beta: viewBeta, walls: viewGymsTab, gyms: viewGyms, gym: viewGym, friends: viewFriends, person: viewPerson, profile: viewProfile, card: viewCard, more: viewMore, post: viewPost, cam: viewCam, session: viewSession, logc: viewSession, scan: viewScan, summary: viewSummary, watch: viewWatch, review: viewReview };
+const views = { pick: viewPick, setup: viewSetup, videos: viewVideos, day: viewDay, algym: viewAlGym, ob: viewOb, shelf: viewShelf, clip: viewClip, vs: viewVs, route: viewRoute, wall: viewWall, beta: viewBeta, walls: viewGymsTab, gyms: viewGyms, gym: viewGym, friends: viewFriends, person: viewPerson, profile: viewProfile, card: viewCard, more: viewMore, post: viewPost, cam: viewCam, session: viewSession, logc: viewSession, scan: viewScan, summary: viewSummary, watch: viewWatch, review: viewReview, moves: viewMoves };
 const tabOf = { videos: 'videos', shelf: 'videos', clip: 'videos', vs: 'videos', cam: 'videos', route: 'walls', wall: 'walls', beta: 'walls', walls: 'walls', gyms: 'walls', gym: 'walls', session: 'videos', logc: 'videos', scan: 'walls', summary: 'profile', watch: 'profile', friends: 'friends', person: 'friends', profile: 'profile', card: 'profile', more: 'profile', post: 'friends' };
 const tabs = ['videos', 'walls', 'friends', 'profile'];
 const dock = document.querySelector('.dock');
@@ -4441,7 +4483,7 @@ const actions = {
   vtab: b => { vTab = b.dataset.t; render(); },
   back: () => history.length > 1 ? history.back() : go('videos'),
   close: () => closeAll(),
-  feedmode: b => { feedAt = 0; go(b.dataset.to); },
+  feedmode: b => { feedAt = 0; feedWho = null; go(b.dataset.to); },
   // add
   // from a route's sheet: the camera starts with its gym, colour and grade set, so the video lands on that route
   film: b => { const r = b?.dataset?.ri != null ? ROUTES[+b.dataset.ri] : null; addRi = r ? +b.dataset.ri : null;
@@ -4491,7 +4533,7 @@ const actions = {
   clpick: b => { const c = byId(b.dataset.c), k = b.dataset.k; if (!c) return; if (k === 'gy') openGymPick(`clip:${c.id}`); else if (k === 'color') openHoldColors(`clip:${c.id}`); else openClipGrade(c); },
   clpgrade: b => { const c = byId(b.dataset.c); if (c) setPick(c, 'grade', b.dataset.grade); },
   // posting shares the video in Community; the analysis stays yours
-  clpost: b => { const c = byId(b.dataset.i); if (!c) return; if (!c.hidden) { feedAt = Math.max(0, feedAll().findIndex(p => p.c === c)); go('friends/all'); return; }
+  clpost: b => { const c = byId(b.dataset.i); if (!c) return; if (!c.hidden) { feedWho = null; feedAt = Math.max(0, feedAll().findIndex(p => p.c === c)); go('friends/all'); return; }
     if (!pickDone(c)) { toast('Choose the gym, grade and colour first'); return; }
     c.hidden = false; saveSoon(); render(); toast('Posted to Community'); },
   clres: b => { const c = byId(b.dataset.c); if (!c) return; c.res = c.res === b.dataset.k ? undefined : b.dataset.k; if (!c.res) delete c.res; saveSoon(); render(); },
@@ -4554,7 +4596,7 @@ const actions = {
   cgset: b => { const c = byId(b.dataset.c); c.gy = +b.dataset.i; closeAll(); render(); toast(`At ${gyms[c.gy].name}`); },
   cset: b => { const c = byId(b.dataset.c); c.ri = +b.dataset.i; closeAll(); render(); toast(`Moved to ${rname(ROUTES[c.ri])} · try ${tryOf(c)}`); },
   vhide: b => { const c = byId(b.dataset.i); c.hidden = !c.hidden; render(); toast(c.hidden ? 'Hidden · only you can see it' : 'Public · in Community'); },
-  seepost: b => { const c = byId(b.dataset.i); feedAt = Math.max(0, feedAll().findIndex(p => p.c === c)); go('friends/all'); },
+  seepost: b => { const c = byId(b.dataset.i); feedWho = null; feedAt = Math.max(0, feedAll().findIndex(p => p.c === c)); go('friends/all'); },
   vdel: b => { const c = byId(b.dataset.i);
     pane(`<h2>Delete this video?</h2><span class="sub">${rname(ROUTES[c.ri])} · try ${tryOf(c)}. Its analysis and comments go too. The video stays in your camera roll.</span>
       <div class="two"><button class="b-ghost" type="button" data-act="close">Keep</button><button class="b-lime" type="button" data-act="vdelyes" data-i="${c.id}">Delete</button></div>`); },
@@ -4640,7 +4682,10 @@ const actions = {
   cmat: b => { cmAt = !cmAt; feedComments(+b.dataset.i, ask.querySelector('[data-cm]').value); },
   // a time in a comment: close the comments and play the video from there
   cmt: b => { const v = document.querySelector(`.ts[data-i="${b.dataset.i}"] video`); closeAll(); if (!v) return; v.currentTime = (+v.dataset.a || 0) + +b.dataset.t; delete v.dataset.stop; v.play().catch(() => {}); },
-  pvid: b => { const k = +b.dataset.v; feedAt = Math.max(0, feedAll().findIndex(p => p.v === k && !p.c)); go('friends/all'); },
+  // from someone's page: their videos only, starting at the one tapped. From anywhere else: the whole feed
+  pvid: b => { const k = +b.dataset.v, w = b.dataset.w || null; feedWho = w;
+    const list = w ? feedAll().filter(p => p.who === w && !p.c).sort((p, q) => p.ago - q.ago) : feedAll();
+    feedAt = Math.max(0, list.findIndex(p => p.v === k && !p.c)); go('friends/all'); },
   // profile
   newpub: () => { newPublic = !newPublic; render(); toast(newPublic ? 'New videos will be public' : 'New videos will be only for you'); }
 };

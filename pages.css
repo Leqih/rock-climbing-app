@@ -4170,3 +4170,25 @@ p.ph-ct::after { content: none; }
 .wk-rt .sw { width: 9px; height: 9px; box-shadow: none; }
 .wk-rt svg { color: var(--mid); }
 .wk-you { justify-self: start; margin-top: 8px; font-size: 13px; font-weight: 700; color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
+
+/* Moves: someone else's video with the body drawn on, and the moves found in it */
+.mvp-v { position: relative; margin: 6px auto 0; overflow: hidden; border-radius: 18px; background: #000; }
+.mvp-v video, .mvp-v canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+.mvp-v video { object-fit: cover; }
+.mvp-v canvas { pointer-events: none; }
+.mvp-l { position: absolute; left: 10px; bottom: 10px; display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 999px; background: rgba(17, 17, 17, .6); color: #fff; font-size: 12px; font-weight: 600; pointer-events: none; }
+.mvp-who { display: flex; align-items: center; gap: 12px; width: 100%; margin-top: 14px; padding: 12px 14px; border-radius: var(--r-l); background: #fff; text-align: left; }
+.mvp-who .fd-a { width: 36px; height: 36px; flex: none; }
+.mvp-who .row-t { flex: 1; min-width: 0; }
+.mvl { display: grid; padding: 2px 16px; border-radius: var(--r-l); background: #fff; }
+.mvl-r { display: grid; gap: 6px; padding: 14px 0; border-bottom: 1px solid rgba(17, 17, 17, .06); }
+.mvl-r:last-child { border-bottom: 0; }
+.mvl-h { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.mvl-h b { font-size: 15px; font-weight: 700; }
+.mvl-h em { font-style: normal; font-size: 13px; font-weight: 700; color: var(--mid); }
+.mvl-r p { margin: 0; font-size: 13px; line-height: 1.45; color: var(--mid); }
+.mvl-ts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 2px; }
+.mvl-ts button { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 11px; border-radius: 999px; background: #eeeeec; font-size: 13px; font-weight: 700; color: var(--ink); }
+.mvl-ts button:active { background: var(--ink); color: #fff; }
+.mvp-n { margin: 12px 4px 0; }
+.vt-mv { position: absolute; top: 10px; right: 10px; padding: 3px 8px; border-radius: 999px; background: rgba(17, 17, 17, .6); color: #fff; font-size: 11px; font-weight: 700; }
