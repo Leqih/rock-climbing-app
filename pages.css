@@ -2863,6 +2863,7 @@ textarea.note:focus { outline: 2px solid var(--ink); outline-offset: 0; backgrou
 .screen:has(#vshero) .pv-n { border-top-color: rgba(255,255,255,.14); }
 .screen:has(#vshero) .pv-nr + .pv-nr { border-top-color: rgba(255,255,255,.08); }
 .screen:has(#vshero) .pv-nr span, .screen:has(#vshero) .an-n { color: rgba(255,255,255,.65); }
+.screen:has(#vshero) .pv-nr b { color: #fff; }   /* the numbers and names were ink on the dark page */
 .screen:has(#vshero) .fchips button { background: rgba(255,255,255,.12); color: #fff; }
 .screen:has(#vshero) .fchips button[aria-pressed="true"] { background: #fff; color: #111; }
 
@@ -4171,24 +4172,58 @@ p.ph-ct::after { content: none; }
 .wk-rt svg { color: var(--mid); }
 .wk-you { justify-self: start; margin-top: 8px; font-size: 13px; font-weight: 700; color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
 
-/* Moves: someone else's video with the body drawn on, and the moves found in it */
-.mvp-v { position: relative; margin: 6px auto 0; overflow: hidden; border-radius: 18px; background: #000; }
-.mvp-v video, .mvp-v canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
-.mvp-v video { object-fit: cover; }
-.mvp-v canvas { pointer-events: none; }
-.mvp-l { position: absolute; left: 10px; bottom: 10px; display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 999px; background: rgba(17, 17, 17, .6); color: #fff; font-size: 12px; font-weight: 600; pointer-events: none; }
-.mvp-who { display: flex; align-items: center; gap: 12px; width: 100%; margin-top: 14px; padding: 12px 14px; border-radius: var(--r-l); background: #fff; text-align: left; }
-.mvp-who .fd-a { width: 36px; height: 36px; flex: none; }
-.mvp-who .row-t { flex: 1; min-width: 0; }
-.mvl { display: grid; padding: 2px 16px; border-radius: var(--r-l); background: #fff; }
-.mvl-r { display: grid; gap: 6px; padding: 14px 0; border-bottom: 1px solid rgba(17, 17, 17, .06); }
-.mvl-r:last-child { border-bottom: 0; }
-.mvl-h { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
-.mvl-h b { font-size: 15px; font-weight: 700; }
-.mvl-h em { font-style: normal; font-size: 13px; font-weight: 700; color: var(--mid); }
-.mvl-r p { margin: 0; font-size: 13px; line-height: 1.45; color: var(--mid); }
+/* Moves: someone else's video on the analysis page. A move card is neutral, ink not green: it isn't a grade */
+#main[data-tab="body"] .lv-w.two .clip[data-mk="mv"] { box-shadow: 0 0 0 4px var(--ink); }
+.st-d.mv { background: var(--ink); }
+.st-c.mv { border-color: var(--ink); }
+.st-c.mv .st-tag { background: #eeeeec; color: var(--ink); }
+.st-c .mvl-ts { margin-top: 10px; }
+/* on their Moves tab the body stays drawn on (on your own Body tab it hides behind the step cards): it's the point of the page */
+#main[data-tab="body"] .mvw #lvc, #main[data-tab="body"] .mvw .lvtags { display: block !important; }
+#main[data-tab="body"] .lv-w.two.mvw > .lyr { display: flex !important; }
 .mvl-ts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 2px; }
 .mvl-ts button { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 11px; border-radius: 999px; background: #eeeeec; font-size: 13px; font-weight: 700; color: var(--ink); }
 .mvl-ts button:active { background: var(--ink); color: #fff; }
-.mvp-n { margin: 12px 4px 0; }
 .vt-mv { position: absolute; top: 10px; right: 10px; padding: 3px 8px; border-radius: 999px; background: rgba(17, 17, 17, .6); color: #fff; font-size: 11px; font-weight: 700; }
+
+/* ---------- Motion pass: every tap answers, and things that change show where they went ----------
+   Built on the shared tokens: --ease (strong ease-out) and --motion-quick (150 ms). Press feedback uses the
+   independent `scale` property, so it never fights a transform an element already uses to sit where it is.
+   Zero specificity (:where), so any element that already has its own transition keeps it. */
+:where(.phone) :where(button, [role="button"], a[href], [data-act]):not(:disabled, [role="slider"], .ts-v) {
+  transition: scale var(--motion-quick) var(--ease), background-color var(--motion-quick) ease, color var(--motion-quick) ease, box-shadow var(--motion-quick) ease, border-color var(--motion-quick) ease;
+  -webkit-tap-highlight-color: transparent;
+}
+/* the press: small things go in a little more than wide ones, so a full-width card doesn't lurch. Skipped where an element
+   already presses in with its own transform (the dock, the feed rail, the main buttons…), so they don't press twice */
+.phone :is(button, [role="button"], a[href], [data-act]):not(:disabled, [role="slider"], .ts-v, .tr-h, .lvstrip, .dk, .ts-rail > button, .ts-tools button, .gt-x button, .gt-m, .b-lime, .b-ghost, .add-r, .pk, .vbox, .pin .vc, .add-big, .add-sm, .gy-go, .al-t, .ax-r, .g3-i, .g3-nav, .cam-res button, .shut, .bar-more, .pv-pp, .al-st, .sm-c, .ec-chips button, .vs-opts .pv-x, .pc-ct, .pc-go, .hero-go):active { scale: .96; }
+.phone :is(.row, .pz, .fd, .kf, .vt, .ec-box, .lv-rp, .mvc, .fr-p, .pp-ctl, .ce-row, .ce-tg, .st-c, .gy, .gb2, .fx-p):not(.pin .vc):active { scale: .985; }
+/* these already had their own transition; give them the press curve too */
+.row, .vc, .gy, .gb2, .pj, .fchips button, .pc-go, .hero-go { transition: scale var(--motion-quick) var(--ease), opacity .1s, background-color .15s; }
+/* an iOS action sheet highlights a row instead of pressing it in, as iOS does */
+.phone .as-b:active { scale: 1; }
+
+/* switching tabs inside a page (Summary / Body / Compare / Info) and opening a Summary tile: the new panel fades up from
+   just below, so the content doesn't teleport */
+@keyframes pnIn { from { opacity: 0; transform: translateY(6px); } }
+.pn:not([hidden]), [data-pn="why"] > .sub:not([hidden]), .gy-pn:not([hidden]), .an-see:not([hidden]) { animation: pnIn 220ms var(--ease) both; }
+
+/* a card you open (Profile sections, the contacts on Edit card): its content fades in under the title; the chevron turns */
+@keyframes openIn { from { opacity: 0; transform: translateY(-4px); } }
+details[open] > :not(summary) { animation: openIn 200ms var(--ease) both; }
+.pc-c { transition: transform 200ms var(--ease); }
+
+/* a selected chip or tab changes colour over a beat instead of snapping */
+.ctabs button, .fchips button, .ec-chips button, .ce-seg button, .vis, .lyr button { transition: scale var(--motion-quick) var(--ease), background-color 180ms ease, color 180ms ease, box-shadow 180ms ease; }
+
+/* reduced motion: no presses or slides; the colour and fade changes that say what happened stay */
+@media (prefers-reduced-motion: reduce) {
+  .phone :is(button, [role="button"], a[href], [data-act]):active { scale: 1; }
+  .pn:not([hidden]), [data-pn="why"] > .sub:not([hidden]), details[open] > :not(summary) { animation: none; }
+}
+
+/* Carry-over: a switch's pill slides to the new pick across a re-render (app.js grpCarry) */
+.seg { position: relative; isolation: isolate; }
+.seg-gh { position: absolute; z-index: -1; pointer-events: none; }
+.seg.seg-mv > button { background-color: transparent !important; transition: none; }
+.vtabs button[aria-selected="true"]::after { transform-origin: left center; }

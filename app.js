@@ -935,11 +935,12 @@ function stMarks(T, c) {
 }
 // one card, read top to bottom: what kind (to work on / went well) and when, what it is, what happened, why it matters, and
 // set apart at the bottom, the one thing to do next time
-const stCard = m => `<div class="st-top"><span class="st-tag">${m.k === 'fix' ? 'To work on' : 'Went well'}</span><span class="st-at num"><i aria-hidden="true"></i>${mmss(m.t)}${m.n > 1 ? ` · ${n(m.n, 'time', 'times')}` : ''}</span></div>
+const stCard = m => `<div class="st-top"><span class="st-tag">${m.k === 'fix' ? 'To work on' : m.k === 'mv' ? 'Move' : 'Went well'}</span><span class="st-at num"><i aria-hidden="true"></i>${mmss(m.t)}${m.n > 1 ? ` · ${n(m.n, 'time', 'times')}` : ''}</span></div>
   <h3 class="st-h">${m.l}</h3>
   ${m.q ? `<p class="st-q">${m.q}</p>` : ''}
   ${m.why ? `<p class="st-w"><em>${m.k === 'fix' ? 'Why it matters' : 'Why it helps'}</em><span>${m.why}</span></p>` : ''}
   ${m.next ? `<p class="st-x"><em>Next time</em><span>${m.next}</span></p>` : ''}
+  ${m.ts?.length > 1 ? `<span class="mvl-ts">${m.ts.map(t => `<button class="num" type="button" data-act="mvat" data-t="${t}" aria-label="Watch ${m.l} at ${mmss(t)}"><svg width="9" height="10" viewBox="0 0 9 10" aria-hidden="true"><path d="M0 0v10l9-5z" fill="currentColor"/></svg>${mmss(t)}</button>`).join('')}</span>` : ''}
   ${m.need || ''}
   ${m.id ? `<button class="sub-lk st-t" type="button" data-act="term" data-term="${m.id}"><span>What is ${m.l}?</span> ›</button>` : ''}`;
 function stepCard(T, c) {
@@ -1105,6 +1106,9 @@ const sbH = () => parseFloat(getComputedStyle(document.querySelector('.screen'))
 // the phone's own home bar, under the sheet's handle (0 in the drawn phone)
 const homeH = () => { const d = document.createElement('div'); d.style.cssText = 'position:fixed;visibility:hidden;height:env(safe-area-inset-bottom, 0px)'; document.body.appendChild(d); const h = d.offsetHeight; d.remove(); return h; };
 function stickWire(box, full) {
+  // one sheet at a time: a sheet left from an earlier render still listening would pull the page to its own resting place
+  // while this one pulls to ours, and the two take turns every frame (the page shakes)
+  stickWire.off?.();
   const scr = document.querySelector('.screen'), w = box.parentElement, m = w.parentElement, tabs = m.querySelector('.ctabs'), strip = $('lvbar');
   const ar = box.offsetWidth / box.offsetHeight, phone = scr.closest('.phone');
   // sheet down, only its handle shows at the bottom; the video and the strip under it are centred in the rest, on black
@@ -1139,8 +1143,9 @@ function stickWire(box, full) {
     const want = `${Math.max(0, Math.ceil(D - free))}px`;
     if (m.style.paddingBottom !== want) m.style.paddingBottom = want; };
   let last = 0, dir = 0, t = null, anim = null;
+  const off = () => { scr.removeEventListener('scroll', fit); m.removeEventListener('tabchange', onTab); clearTimeout(t); cancelAnimationFrame(anim); anim = null; if (stickWire.off === off) stickWire.off = null; };
   const fit = () => {
-    if (!box.isConnected) { scr.removeEventListener('scroll', fit); m.removeEventListener('tabchange', onTab); return; }
+    if (!box.isConnected) { off(); return; }
     const y = scr.scrollTop, k = Math.min(1, Math.max(0, (y - start) / (D - start))), h = full - (full - MIN) * k;
     const vw = Math.min(w.clientWidth, Math.round(h * ar)), top = Math.round(gap / 2 * (1 - k));
     box.style.width = `${vw}px`; w.style.paddingTop = `${top}px`;
@@ -1174,20 +1179,21 @@ function stickWire(box, full) {
     clearTimeout(t); if (!anim) t = setTimeout(settle, 120);
   };
   // the page moves itself, so it ends exactly where it was sent (smooth scrolling can stop a pixel short)
-  const go = to => { cancelAnimationFrame(anim); const from = scr.scrollTop, t0 = performance.now(), ms = 260;
+  const go = to => { cancelAnimationFrame(anim); anim = null; const from = scr.scrollTop, t0 = performance.now(), ms = 260;
+    if (Math.abs(to - from) < 2) { scr.scrollTop = to; return; }   // already there, give or take a pixel: no animation to fight over
     const step = now => { const p = Math.min(1, (now - t0) / ms), e = 1 - Math.pow(1 - p, 3);
       scr.scrollTop = from + (to - from) * e; if (p < 1) anim = requestAnimationFrame(step); else anim = null; };
     anim = requestAnimationFrame(step); };
   // let go between the two places: carry on the way you were going once past a fifth, else go back
   const settle = () => { const y = scr.scrollTop;
-    if (y <= 0 || y >= D) return;
+    if (!box.isConnected || y <= 2 || y >= D - 2) return;   // within a pixel or two of a resting place counts as there
     go(dir > 0 ? (y > D * .2 ? D : 0) : (y < D * .8 ? 0 : D)); };
   // a new tab (or a Summary page) starts at its top; it stays pulled up when it was
   const onTab = () => { const was = anSheet?.k >= .99; geo(); pad(); if (was || scr.scrollTop > D) scr.scrollTop = D;
     if (held && MIN) { held = false; v.play().catch(() => {}); } fit(); };
   anSheet = { go, k: 0, top: () => D };
   tabs.addEventListener('click', e => { if (e.target.closest('button')) return; go(scr.scrollTop >= D / 2 ? 0 : D); });
-  scr.addEventListener('scroll', fit, { passive: true }); m.addEventListener('tabchange', onTab); pad(); fit();
+  scr.addEventListener('scroll', fit, { passive: true }); m.addEventListener('tabchange', onTab); stickWire.off = off; pad(); fit();
 }
 // a stretch played in the video at the top: slowed down, stopped at its end, with a label saying which stretch it is
 let segStop = null;
@@ -2505,29 +2511,83 @@ function viewPerson(who) {
 const MV_SHOW = ['drop', 'high', 'cross', 'match', 'lock', 'side', 'rest'];   // not "foot first": that's a habit, read as a score
 const movesOf = T => { const R = styleOf(T).R; return MV_SHOW.map(id => ({ m: STY.find(s => s.id === id), at: [...new Set((R[id].at || []).map(t => Math.round(t * 10) / 10))] })).filter(o => o.at.length); };
 const moveCount = v => { const T = TRK[v.vid]; return T?.S ? movesOf(T).reduce((a, o) => a + o.at.length, 0) : null; };
-let mvStop = null;
+// the same page as your own analysis (the video with the body drawn on, its layers and strip, the sheet with tabs), with
+// only the public half: Moves (one card per move found, its moment looping on the video), Compare and Info. No Summary,
+// no "to work on", no scores: those are the climber's own
+let mvFor = null;
 function viewMoves(a) {
   const x = V[+a];
   if (!x || x.who === 'You') return lostClip();
   needTracks([x]);
-  const T = TRK[x.vid], r = ROUTES[x.ri], ok = T?.S, ms = ok ? movesOf(T) : [], loading = x.vid in TRK && T === null && !ok;
-  const ar = T?.W ? T.W / T.H : x.ar, w = Math.round(Math.min(402, 500 * ar));
-  const list = ms.length ? ms.map(({ m, at }) => `<div class="mvl-r"><span class="mvl-h"><b>${m.name}</b><em class="num">${at.length}×</em></span>
-      <p>${m.what}</p><span class="mvl-ts">${at.map(t => `<button class="num" type="button" data-act="mvat" data-t="${t}" aria-label="Watch ${m.name} at ${mmss(t)}, slowed down"><svg width="9" height="10" viewBox="0 0 9 10" aria-hidden="true"><path d="M0 0v10l9-5z" fill="currentColor"/></svg>${mmss(t)}</button>`).join('')}</span></div>`).join('')
-    : `<p class="cap pp-lock">${ok ? `Spotter didn’t find any of these moves in ${x.who}’s climb.` : loading ? 'Reading the climb…' : `${x.who}’s climb hasn’t been read yet.`}</p>`;
-  return { photo: x.img, after: () => { const v = $('mvpv'), cv = $('mvpc'); if (!v) return;
+  const T = TRK[x.vid], r = ROUTES[x.ri], ok = !!T?.S, loading = x.vid in TRK && T === null;
+  // a new video opens on Summary, as yours do; redrawn, it stays on the tab you're on
+  if (mvFor !== x.i || !['why', 'body', 'cmp', 'info'].includes(cTab)) { mvFor = x.i; cTab = 'why'; }
+  if (!ok) return { photo: x.img, html: `${bar(`${x.who} · ${rname(r)}`)}<p class="cap pp-lock">${loading ? 'Reading the climb…' : `${x.who}’s climb hasn’t been read yet.`}</p>` };
+  const ms = movesOf(T), ar = T.W / T.H, scrEl = document.querySelector('.screen');
+  const vh = Math.round(Math.max(280, Math.min((scrEl?.clientHeight || 874) - 92, (scrEl?.clientWidth || 402) / ar)));
+  // the cards: one per move, at its first moment, every other time a tap away
+  const mk = ms.map(({ m, at }) => ({ k: 'mv', t: at[0], l: m.name, id: m.id, q: m.what, n: at.length, ts: at })).sort((p, q) => p.t - q.t);
+  if (stFor !== `m${x.i}`) { stFor = `m${x.i}`; stI = 0; } stI = Math.max(0, Math.min(stI, mk.length - 1)); window.stMs = mk;
+  const steps = mk.length ? `<section class="st">
+    <div class="st-box"><div class="st-dots">${mk.map((o, i) => `<button class="st-d mv" type="button" data-act="stgo" data-i="${i}" aria-current="${i === stI}" aria-label="${o.l}"></button>`).join('')}<span class="st-n num" id="st-n">${stI + 1} / ${mk.length}</span></div>
+    <div class="st-c mv" id="st-c">${stCard(mk[stI])}</div></div>
+    <div class="st-nav"><button class="b-ghost" type="button" data-act="stgo" data-d="-1"${stI ? '' : ' disabled'}>‹ Previous</button><button class="b-lime" type="button" data-act="stgo" data-d="1"${stI < mk.length - 1 ? '' : ' disabled'}>Next ›</button></div>
+  </section>` : `<p class="cap">Spotter didn’t find any of these moves in ${x.who}’s climb.</p>`;
+  const body = steps;
+  // Compare: you next to them. It's their page, so the one comparison that's yours to make is with your own tries on
+  // this route, each a tap from side by side. None yet: film or import one, and it opens next to theirs
+  const mine = mineOn(x.ri);
+  const cmp = mine.length ? `<div class="hl2 dk2"><h2>You and ${x.who}</h2><span class="hint2">${n(mine.length, 'try', 'tries')}</span></div>
+    <div class="rows">${[...mine].reverse().map(c => `<button class="row fr-p" type="button" data-act="to" data-to="vs/${c.id}-${x.i}"><span class="fr-f">${avatar('You')}</span><span class="row-t"><strong>Your try ${tryOf(c)}</strong><span>${topOf(c) ? 'Topped' : 'Not topped'} · ${dayLabel(agoOf(c))}</span></span>${ic.arr('#111111')}</button>`).join('')}</div>
+    <p class="trs-l">Side by side, both from the first move, with what Spotter counted in each video.</p>`
+    : `<div class="stack"><div class="lt"><span class="lt-h">You and ${x.who}</span><p class="tip-d">You haven’t climbed ${rname(r)} on video yet. Film or import a try, and it opens next to ${x.who}’s, with what Spotter counted in each.</p>
+      <button class="b-lime compare-import" type="button" data-act="upload">Import a video</button></div></div>`;
+  const info = `<div class="hl2 dk2"><h2>Details</h2></div><div class="rows">
+      <button class="row fr-p" type="button" data-act="to" data-to="person/${x.who}"><span class="fr-f">${avatar(x.who)}</span><span class="row-t"><strong>${x.who}</strong><span>See their page</span></span>${ic.arr('#111111')}</button>
+      <div class="row"><span class="row-t"><strong>${sw(r)}${rname(r)}</strong><span>${x.top ? 'Topped' : 'Not topped'}</span></span></div>
+      <div class="row"><span class="row-t"><strong>${gyms[gyOf(r)]?.name || gym.name} · ${dayLabel(x.ago)}</strong><span>${r.wall}</span></span></div></div>
+    <div class="rows tg-r"><div class="row"><span class="row-t"><strong>Video credits</strong><span>${x.credit}</span></span></div></div>`;
+  const tabs = [['why', 'Summary'], ['body', 'Moves'], ['cmp', 'Compare'], ['info', 'Info']], panels = { why: othSum(T, x, mk), body, cmp, info };
+  return { photo: x.img, cta: '', after: () => {
+      const v = $('lvv'), box = v.parentElement;
+      segClose(); anSheet = null; segStop = null; segT = T; v.playbackRate = speed;
+      window.poseGate = quality(T).ok; window.poseTagList = mk.flatMap(o => o.ts.map(t => ({ t, id: o.id }))).sort((p, q) => p.t - q.t);
+      window.posePlay(v, $('lvc'), T); stWire(); laWire(T, v); stripWire(v, T); stickWire(box, vh); followWire(box);
+      (g => g && fixWire(g))(document.querySelector('[data-pn="why"] > .sub[data-sub=""]'));
+      v.addEventListener('play', () => box.classList.add('playing'));
+      ['pause', 'ended'].forEach(e => v.addEventListener(e, () => box.classList.remove('playing')));
       v.addEventListener('click', () => v.paused ? v.play() : v.pause());
-      v.addEventListener('play', () => v.parentElement.classList.add('playing')); v.addEventListener('pause', () => v.parentElement.classList.remove('playing'));
-      v.addEventListener('timeupdate', () => { if (mvStop != null && v.currentTime >= mvStop) { mvStop = null; v.pause(); v.playbackRate = 1; } });
-      if (ok) { window.poseGate = quality(T).ok; window.poseTagList = ms.flatMap(o => o.at.map(t => ({ t, id: o.m.id }))).sort((p, q) => p.t - q.t); window.posePlay(v, cv, T); }
-      v.play().catch(() => {}); }, html: `
+      if (!seg) { const go = () => v.play().catch(() => {}); if (v.readyState >= 2) go(); else v.addEventListener('canplay', go, { once: true }); }
+      v.addEventListener('ended', () => { if (segStop) return; v.currentTime = 0; v.play().catch(() => {}); });
+    }, html: `
     ${bar(`${x.who} · ${rname(r)}`)}
-    <div class="mvp-v" style="aspect-ratio:${ar.toFixed(4)};width:min(100%, ${w}px)"><video id="mvpv" src="${vsrc(x.vid)}" poster="${pic(x.img)}" muted playsinline loop preload="auto"></video><canvas id="mvpc"></canvas>
-      <span class="mvp-l">${sw(r)}${rname(r)} · ${x.top ? 'Topped' : 'Not topped'} · ${dayLabel(x.ago)}</span></div>
-    <button class="mvp-who" type="button" data-act="to" data-to="person/${x.who}"><span class="fd-a">${avatar(x.who)}</span><span class="row-t"><strong>${x.who}</strong><span>${ok ? `<span>${T.stats.hands} hand and ${T.stats.feet} foot moves</span> · <span class="num">${mmss(climbS(T))}</span>` : gym.name}</span></span>${ic.arr('#111111')}</button>
-    <div class="hl2 dk2"><h2>Moves in this climb</h2>${ms.length ? `<span class="hint2">${n(ms.reduce((a, o) => a + o.at.length, 0), 'move', 'moves')}</span>` : ''}</div>
-    <div class="mvl">${list}</div>
-    <p class="cap mvp-n">Tap a time to watch that move slowed down. These are the moves Spotter found in ${x.who}’s video; their tips and scores stay private to them.</p>` };
+    <div class="lv-w two mvw"><div class="clip vp lv" style="aspect-ratio:${ar.toFixed(4)};width:min(100%, ${Math.round(vh * ar)}px)">
+      <video id="lvv" src="${vsrc(x.vid)}" poster="${pic(x.img, 0)}" muted playsinline preload="auto"></video><canvas id="lvc"></canvas>${lyrOver().replace(/<span class="lvwhy"[^>]*><\/span>/, '')}
+      <button class="play-b" type="button" data-act="lvplay" aria-label="Play the video">${ic.play}</button></div>${lyrStrip(T.D, `min(100%, ${Math.round(vh * ar)}px)`)}${lyrBar(quality(T).ok)}<button class="lv-rp" type="button" data-act="lvreplay"><img src="${pic(x.img, 0)}" alt=""><span><b>Replay the video</b><em>${x.len}</em></span>${ic.play}</button></div>
+    <div class="fold"></div>
+    <div class="fchips ctabs">${tabs.map(([k, l]) => `<button type="button" data-act="ctab" data-v="${k}" aria-pressed="${k === cTab}">${l}</button>`).join('')}</div>
+    ${tabs.map(([k]) => `<div class="pn" data-pn="${k}"${k === cTab ? '' : ' hidden'}>${panels[k]}</div>`).join('')}` };
+}
+
+// Summary of someone else's climb, for you: what they do well, why it matters on the wall, and what to try on your next
+// climb, each with their moment to watch. Then the moves found, and who to put them next to. Their own "to work on"
+// and scores aren't here: those are theirs
+function othSum(T, x, mk) {
+  const s = T.stats, who = x.who, D = T.D, ok = quality(T).ok, hands = T.moves.filter(m => m.k[1] === 'w'), led = feetFirst(T), mv = movingPct(T), on = climbed(T);
+  const ffp = hands.length ? Math.round(hands.filter(led).length / hands.length * 100) : 0, good = [];
+  if (hands.length >= 6 && ffp >= 60) { const h = hands.find(led); good.push({ t: h?.t0, mark: h?.k || 'none', title: 'Feet first', what: `${ffp}% of ${who}’s reaches started with a foot move.`, why: 'Their legs lifted them and their arms only held on, so their arms lasted.', next: 'On your next climb, step a foot up before every reach.', see: 'Watch a foot go first' }); }
+  if (ok.balance !== false && s.hipsOver >= 70) good.push({ t: on.length ? mostBy(on, q => -Math.abs(q.off ?? 9)).t : null, mark: 'hip', see: 'Hips right over the feet', title: 'Hips over the feet', what: `${who}’s hips were over their feet ${s.hipsOver}% of the climb.`, why: 'With the weight on the feet, the hands hold less and the forearms tire slower.', next: 'Before each reach, get your hips over the foot you’ll push from.' });
+  if (s.longest && s.restStraight != null && s.restRead >= 50 && s.restStraight >= 60) good.push({ t: s.longest.t, mark: 'arm', title: 'Rests on straight arms', what: `${who} rested on straight arms ${s.restStraight}% of the time.`, why: 'Hanging on the bones instead of the muscles lets the forearms recover.', next: 'At each rest, let one arm hang straight and shake out the other.', see: 'Watch the longest rest' });
+  if (mv != null && mv >= 80) good.push({ t: (ms => ms[ms.length >> 1]?.t0 ?? null)([...T.moves].sort((p, q) => p.t0 - q.t0)), mark: 'none', see: 'Mid-climb, still moving', title: 'Keeps moving', what: `${who} was moving ${mv}% of the time.`, why: 'Less time hanging between moves leaves more strength for the top.', next: 'Plan the next few moves from the ground, so you stop less on the wall.' });
+  const cards = good.length ? good.map(g => `<div class="stack"><div class="lt nx1"><span class="an-k1">Worth copying</span><span class="lt-h">${g.title}</span><p class="tip-d nx1-why"><span>${g.what}</span> <span>${g.why}</span></p>
+      ${g.t != null ? `<div class="kf-g n1"><button class="kf" type="button" ${clipNear(g.t, D, g.mark)}><span class="kf-i"><img alt="" data-ft="${g.t.toFixed(2)}" data-fm="${g.mark}" data-tone="good"></span><b><span class="num">${mmss(g.t)}</span> <span>${g.see}</span></b><em>Tap to watch it</em></button></div>` : ''}
+      <p class="mv-try"><em>Try it</em><span>${g.next}</span></p></div></div>`).join('')
+    : `<div class="stack"><div class="lt"><p class="tip-d">Nothing in ${who}’s climb stands out as a habit to copy. The moves Spotter found are below.</p></div></div>`;
+  return `<div class="sub" data-sub="">${sumHead('good', `What ${who} does well`, '')}${cards}
+    ${mk.length ? `${sumHead('next', 'Moves in this climb', n(mk.reduce((a, o) => a + o.n, 0), 'move', 'moves'))}<div class="stack"><div class="lt sg"><div class="sg-c">${mk.map((o, i) => `<button class="sg-t" type="button" data-act="mvcard" data-i="${i}"><b>${o.l}</b><em>${n(o.n, 'time', 'times')}</em></button>`).join('')}</div>
+      <p class="an-n">Tap one to watch it in ${who}’s video.</p></div></div>` : ''}
+    <div class="sm-x"><div class="hl2 dk2"><h2>Compare with you</h2></div><div class="rows"><button class="row" type="button" data-act="ctab" data-v="cmp"><span class="row-t"><strong>Watch it next to your climb</strong><span>${(k => k ? `${n(k, 'try of yours', 'tries of yours')} on ${rname(ROUTES[x.ri])}` : `You haven’t filmed ${rname(ROUTES[x.ri])} yet`)(mineOn(x.ri).length)}</span></span>${ic.arr('#111111')}</button></div></div>
+    <p class="trs-l"><span>${x.top ? 'Topped' : 'Didn’t top'}</span> · <span class="num">${mmss(climbS(T))}</span> · <span>${T.stats.hands} hand and ${T.stats.feet} foot moves</span>. <span>${who}’s tips and scores stay private to them.</span></p></div>`;
 }
 
 /* ---------- Profile: how you're getting on, from your own videos ---------- */
@@ -4178,8 +4238,8 @@ const interviewActions = {
   // from the card preview to the part of the page that changes it, flashed so you see where you landed
   ptjump: b => { const t = $(b.dataset.to); if (!t) return; t.scrollIntoView({ block: 'center', behavior: 'smooth' }); t.classList.remove('ec-flash'); void t.offsetWidth; t.classList.add('ec-flash'); },
   pthg: b => { ptd.home = +b.dataset.v; b.parentElement.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b)); ptSync(); },
-  ptlv: b => { ptd.lv = Math.max(0, Math.min(VG.length - 1, ptd.lv + +b.dataset.d)); ptSync(); },
-  ptrp: b => { const i = ROPES.indexOf(ptd.rope || '') + +b.dataset.d; ptd.rope = ROPES[Math.max(0, Math.min(ROPES.length - 1, i))]; ptSync(); },
+  ptlv: b => { const was = ptd.lv; ptd.lv = Math.max(0, Math.min(VG.length - 1, ptd.lv + +b.dataset.d)); ptSync(); if (ptd.lv !== was) numTick($('ec-lvv'), +b.dataset.d); },
+  ptrp: b => { const was = ptd.rope, i = ROPES.indexOf(ptd.rope || '') + +b.dataset.d; ptd.rope = ROPES[Math.max(0, Math.min(ROPES.length - 1, i))]; ptSync(); if (ptd.rope !== was) numTick($('ec-rpv'), +b.dataset.d); },
   ptg: b => { const k = b.dataset.v; if (ptd.tags.has(k)) ptd.tags.delete(k); else if (ptCount() < CARD_MAX) ptd.tags.add(k); b.setAttribute('aria-pressed', ptd.tags.has(k)); ptSync(); },
   pts: b => { const k = b.dataset.v, s = ptd.sty;   // "All of it" stands alone, as on the style board
     if (k === 'all') { const on = !s.has('all'); s.clear(); if (on) s.add('all'); }
@@ -4228,8 +4288,9 @@ const interviewActions = {
     vv.addEventListener('loadedmetadata', () => { fit(); vv.currentTime = a; vv.playbackRate = .6; vv.play().catch(() => {}); }, { once: true });
     vv.addEventListener('timeupdate', () => { if (vv.currentTime > z) vv.currentTime = a; }); },
   // a move's moment in someone's video: from a second before, slowed down, then it stops
-  mvat: b => { const v = $('mvpv'); if (!v) return; const t = +b.dataset.t; v.currentTime = Math.max(0, t - 1.2); v.playbackRate = .5; mvStop = t + 1.8; v.play().catch(() => {});
-    $('mvpv').parentElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); },
+  mvcard: b => { stI = +b.dataset.i; actions.ctab({ dataset: { v: 'body' } }); },
+  // another time the same move happened: its moment loops on the video, as a card's does
+  mvat: b => { const v = $('lvv'); if (!v) return; const t = +b.dataset.t; stLoop = { a: Math.max(0, t - 1), b: t + 2 }; v.currentTime = stLoop.a; v.play().catch(() => {}); },
   movespub: () => { movesPub = !movesPub; try { localStorage.setItem('spotter-movespub', movesPub ? '1' : '0'); } catch (_) {} render(); toast(movesPub ? 'Others can see the moves in your public videos' : 'Your moves are only for you now'); },
   wxcopy: b => { navigator.clipboard?.writeText(b.dataset.v).catch(() => {}); if (b.closest('.as')) closeAll(); toast(`Copied. Add them on ${b.dataset.l}`); },
 };
@@ -4381,14 +4442,84 @@ const tabs = ['videos', 'walls', 'friends', 'profile'];
 const dock = document.querySelector('.dock');
 function readHash() { const [p = '', a = ''] = location.hash.replace(/^#\/?/, '').split('/'); page = views[p] ? p : 'videos'; try { arg = decodeURIComponent(a); } catch (_) { arg = a; } }
 function go(p) { if (location.hash === '#/' + p) render(); else location.hash = '#/' + p; }
-let lastMotionPage = null;
+let lastMotionPage = null, navFrom = null;
+const navStack = [];
+// A pick on the same page (a segmented switch, a tab, a chip) re-renders the whole page, so the pick would just jump.
+// Note how each control looked before, and once the new page is in, carry it over: the switch's pill and the tabs' underline
+// slide to the new pick, chips fade between their colours, and the content the pick changed fades in under it
+const GRP = '[role="group"], [role="tablist"], [role="radiogroup"]', NAVG = '.seg, .vtabs, .fchips';
+const isOn = b => ['aria-pressed', 'aria-selected', 'aria-checked'].some(a => b.getAttribute(a) === 'true') || b.hasAttribute('aria-current');
+function grpEach(f) { const seen = {}; $('main').querySelectorAll(GRP).forEach(g => { const k = `${g.className}|${g.getAttribute('aria-label') || ''}`; f(g, `${k}#${seen[k] = (seen[k] || 0) + 1}`); }); }
+function grpSnap() {
+  const was = {};
+  grpEach((g, key) => { was[key] = [...g.children].map(b => { const c = getComputedStyle(b); return { on: isOn(b), x: b.offsetLeft, w: b.offsetWidth, bg: c.backgroundColor, fg: c.color, sh: c.boxShadow }; }); });
+  return was;
+}
+function grpCarry(was) {
+  const ease = 'cubic-bezier(.32, .72, 0, 1)';
+  let moved = null;
+  grpEach((g, key) => {
+    const old = was[key], kids = [...g.children];
+    if (!old || old.length !== kids.length) return;
+    const from = old.findIndex(o => o.on), to = kids.findIndex(isOn);
+    if (from === to) return;
+    if (!moved && g.matches(NAVG)) moved = g;
+    const slide = from >= 0 && to >= 0 && g.matches('.seg, .vtabs');
+    if (slide && g.matches('.vtabs')) {
+      const o = old[from], b = kids[to];
+      b.animate([{ transform: `translateX(${o.x - b.offsetLeft}px) scaleX(${o.w / b.offsetWidth})` }, { transform: 'none' }], { duration: 300, easing: ease, pseudoElement: '::after' });
+    }
+    if (slide && g.matches('.seg')) {
+      const o = old[from], b = kids[to], c = getComputedStyle(b), gh = document.createElement('i');
+      gh.className = 'seg-gh';
+      Object.assign(gh.style, { top: `${b.offsetTop}px`, height: `${b.offsetHeight}px`, left: `${b.offsetLeft}px`, width: `${b.offsetWidth}px`, background: c.backgroundColor, borderRadius: c.borderRadius, boxShadow: c.boxShadow });
+      g.classList.add('seg-mv'); g.prepend(gh);
+      gh.animate([{ left: `${o.x}px`, width: `${o.w}px` }, { left: `${b.offsetLeft}px`, width: `${b.offsetWidth}px` }], { duration: 300, easing: ease }).finished.then(() => { gh.remove(); g.classList.remove('seg-mv'); }, () => {});
+    }
+    // colours: whatever changed on each button eases from how it was (the pill's own background is the slide above)
+    kids.forEach((b, i) => {
+      const o = old[i], c = getComputedStyle(b), f = {}, t = {};
+      if (!slide && o.bg !== c.backgroundColor) { f.backgroundColor = o.bg; t.backgroundColor = c.backgroundColor; }
+      if (o.fg !== c.color) { f.color = o.fg; t.color = c.color; }
+      if (!slide && o.sh !== c.boxShadow) { f.boxShadow = o.sh; t.boxShadow = c.boxShadow; }
+      if (Object.keys(f).length) b.animate([f, t], { duration: 200, easing: 'ease' });
+    });
+  });
+  // what the pick changed (the list under a switch, tab or filter) fades in, so it reads as the same page with new content
+  if (moved) {
+    let top = moved; while (top.parentElement && top.parentElement !== $('main')) top = top.parentElement;
+    for (let e = top.nextElementSibling; e; e = e.nextElementSibling) e.animate([{ opacity: 0, transform: 'translateY(4px)' }, { opacity: 1, transform: 'none' }], { duration: 220, easing: 'cubic-bezier(.23, 1, .32, 1)' });
+  }
+  return !!moved;
+}
+// Whatever else a same-page re-render brings in (a group you opened, a row just added, a card that appeared once a
+// choice was made) eases in instead of popping; things that only changed their label stay still. Keyed by what the
+// element is and does (its first class and data-*), not its text, so a counter ticking doesn't count as new
+const NEWQ = '[data-act], [data-to], .lt, .row, .stack, details, .kf, .tip, .card';
+const nKey = e => [e.tagName, e.classList[0], e.dataset.act, e.dataset.to, e.dataset.i, e.dataset.v, e.dataset.k, e.dataset.c, e.dataset.ri, e.dataset.id].join('|');
+function newSnap() { const m = new Map(); $('main').querySelectorAll(NEWQ).forEach(e => { const k = nKey(e); m.set(k, (m.get(k) || 0) + 1); }); return m; }
+function newIn(was) {
+  const all = [...$('main').querySelectorAll(NEWQ)], cnt = new Map(), fresh = [];
+  all.forEach(e => { const k = nKey(e), n = (cnt.get(k) || 0) + 1; cnt.set(k, n); if (n > (was.get(k) || 0)) fresh.push(e); });
+  if (!fresh.length) return;
+  // mostly new: a different step of the same page (the camera's next step, say). Cross-fade the page instead of each piece
+  if (fresh.length > all.length * .5) { $('main').animate([{ opacity: 0 }, { opacity: 1 }], { duration: 180, easing: 'ease' }); return; }
+  fresh.filter(e => !fresh.some(o => o !== e && o.contains(e))).slice(0, 40)
+    .forEach(e => e.animate([{ opacity: 0, transform: 'translateY(4px)' }, { opacity: 1, transform: 'none' }], { duration: 220, easing: 'cubic-bezier(.23, 1, .32, 1)' }));
+}
+// a stepper's value rolls the way you stepped it: up for +, down for -, so the change reads as a step and not a swap
+function numTick(el, d) {
+  if (!el || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  el.animate([{ opacity: 0, transform: `translateY(${d > 0 ? 6 : -6}px)` }, { opacity: 1, transform: 'none' }], { duration: 180, easing: 'cubic-bezier(.23, 1, .32, 1)' });
+}
 function render() {
   saveSoon();
   const pageChanged = lastMotionPage !== page;
   lastMotionPage = page;
   if (stylePickerResize) { window.removeEventListener('resize', stylePickerResize); stylePickerResize = null; }
   feedStop();
-  const v = views[page](arg);
+  const v = views[page](arg), calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const was = pageChanged || calm ? null : grpSnap(), wasN = was && newSnap();
   $('main').innerHTML = v.html;
   const bd = document.querySelector('.backdrop'), fold = $('main').querySelector('.fold');
   bd.style.display = fold ? '' : 'none';
@@ -4416,10 +4547,18 @@ function render() {
   if (gmap && !v.map) { gmap.remove(); gmap = null; }
   if (tmap && page !== 'walls') { tmap.remove(); tmap = null; }
   v.after?.();
+  if (was && !grpCarry(was)) newIn(wasN);
   // Keep route changes responsive; videos and maps stay stationary while loading.
-  if (pageChanged && !v.tok && !v.map && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
-    $('main').animate([{ opacity: 0, transform: 'translateY(6px)' }, { opacity: 1, transform: 'translateY(0)' }], { duration: 180, easing: 'cubic-bezier(.2,.7,.2,1)' });
+  // where the new page comes from: one you opened slides in from the right, going back slides in from the left (where it
+  // was), and switching tabs only fades, since tabs sit side by side and none is "deeper". Kept short: you do this all day
+  const h = location.hash, back = navStack.length > 1 && navStack[navStack.length - 2] === h;
+  if (back) navStack.pop(); else if (navStack[navStack.length - 1] !== h) navStack.push(h);
+  if (navStack.length > 40) navStack.splice(0, navStack.length - 40);
+  if (pageChanged && !v.tok && !v.map && !calm) {
+    const tab = tabs.includes(page) && tabs.includes(navFrom), dx = tab ? 0 : back ? -14 : 14;
+    $('main').animate([{ opacity: 0, transform: `translateX(${dx}px)` }, { opacity: 1, transform: 'translateX(0)' }], { duration: tab ? 160 : 240, easing: 'cubic-bezier(.23, 1, .32, 1)' });
   }
+  if (pageChanged) navFrom = page;
   // every video is analysed as soon as it's here, whichever page you're on
   // Analysis begins only when the climber requests it.
 }
