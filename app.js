@@ -261,26 +261,28 @@ function viewSetup() {
       const n = $('obn'); if (n) n.textContent = `${T.moves.length} hand and foot moves`;
       const all = q => q.p && [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].every(i => q.p[i][2] > .6), up = q => Math.min(q.p[5][1], q.p[6][1]) < q.p[0][1] - .02;
       const s = T.S.find(q => q.t >= 7.5 && all(q) && up(q)) || T.S.find(q => q.p && q.t >= 20);
-      return s && window.poseStill?.('video/wayup-p3-green.mp4', T, s, 'none', 'good'); })
+      return s && window.poseStill?.('video/wayup-p3-green.mp4', T, s, 'wide', 'good'); })
       .then(u => { const im = $('obex'); if (u && im) im.src = u; }).catch(() => {}) };
 }
 // step 1: your gym; step 2: how to film so Spotter sees every move, and a sample to see it work before you film. Skip on a
 // step goes on to the next one; Later, on the last, ends joining
+// where you are in joining: two dots in the bar, the step you're on long
+const obDots = n => `<span class="ob-dots" role="img" aria-label="Step ${n} of 2"><i${n === 1 ? ' class="on"' : ''}></i><i${n === 2 ? ' class="on"' : ''}></i></span>`;
 function viewOb(a) {
   if (a === 'film') return { after: obFinish,
     cta: `<button class="b-ghost" type="button" data-act="obsample">Try a sample video</button><button class="b-lime" type="button" data-act="film">${ic.rec}Film a try</button>`, html: `
-    ${bar('', '<button class="ob-skip" type="button" data-act="obskip">Later</button>')}
+    ${bar(obDots(2), '<button class="ob-skip" type="button" data-act="obskip">Later</button>')}
     <h1 class="hl ob-h">Film your first try</h1>
     <p class="sub-w ob-s">Three things, and Spotter can see every move.</p>
     <div class="ob-eg"><img src="img/wayup-p3-green.jpg" alt="A whole rope wall filmed from the floor, the climber small on it">
-      <span><strong>Like this</strong>The whole wall in the picture, you small on it, is fine. Spotter finds you.</span></div>
+      <span><strong>Like this</strong>The whole wall in frame is fine. Spotter finds you.</span></div>
     <ol class="ob-tips">
-      <li><b>1</b><span><strong>Phone on the floor</strong>A few steps back from the wall, propped on your bag or a shoe.</span></li>
-      <li><b>2</b><span><strong>Upright, all of you in frame</strong>Your whole body and the whole route, from the first hold to the top.</span></li>
-      <li><b>3</b><span><strong>Record, climb, stop</strong>Start before you leave the ground, stop once you’re back down.</span></li></ol>
+      <li><b>1</b><span><strong>Phone on the floor</strong>A few steps back, propped on your bag.</span></li>
+      <li><b>2</b><span><strong>Upright, whole route in frame</strong>From the first hold to the top.</span></li>
+      <li><b>3</b><span><strong>Record, climb, stop</strong>Start before you leave the ground.</span></li></ol>
     <p class="cap">Filmed some already? <button class="ob-imp" type="button" data-act="upload">Import them</button></p>` };
   return { cta: `<button class="b-lime" type="button" data-act="to" data-to="ob/film"${homeGy == null ? ' disabled' : ''}>Continue</button>`, html: `
-    ${bar('', '<button class="ob-skip" type="button" data-act="to" data-to="ob/film">Skip</button>')}
+    ${bar(obDots(1), '<button class="ob-skip" type="button" data-act="to" data-to="ob/film">Skip</button>')}
     <h1 class="hl ob-h">Where do you climb most?</h1>
     <p class="sub-w ob-s">We start you there: its routes, and the climbers on them. You can film at any gym.</p>
     <div class="ob-gyms" role="radiogroup" aria-label="Your gym">${byNear(gyms.map((g, i) => [g, i])).map(([g, i]) => `<button class="ob-g" type="button" role="radio" data-act="obpick" data-i="${i}" aria-checked="${homeGy === i}">
@@ -3738,8 +3740,11 @@ function viewFriendsHome() {
   const fr = friendList();
   if (!fr.length) return { photo: 'gym-arc-1', html: `
     ${tabHead('Social')}${socSeg('friends')}
-    <div class="fr-first"><strong>A circle of your own</strong><p>Send your invite link to the people you climb with. Once they open it you’re friends, and you see each other’s climbing days.</p>
-      <div class="two"><button class="b-ghost" type="button" data-act="socgo" data-to="friends/partners">Find partners</button><button class="b-lime" type="button" data-act="fadd">Add friends</button></div></div>` };
+    <div class="fr-first">
+      <div class="fr-ring" aria-hidden="true"><span class="fd-a">${avatar('You')}</span><i>+</i><i>+</i></div>
+      <strong>Climb with friends</strong><p>Invite the people you climb with and see each other’s climbing days.</p>
+      <button class="b-lime" type="button" data-act="fadd">Add friends</button>
+      <button class="fr-alt" type="button" data-act="socgo" data-to="friends/partners">No one to invite? Find a partner</button></div>` };
   const rows = ['You', ...fr].map(w => ({ w, ...weekOf(w), mv: w === 'You' ? null : newMove(w) })).sort((a, b) => b.climbs - a.climbs || b.days - a.days || (a.w === 'You') - (b.w === 'You'));
   return { photo: 'gym-arc-1', html: `
     ${tabHead('Social')}${socSeg('friends')}

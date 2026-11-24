@@ -441,16 +441,24 @@
   async function grab(src, T, s, mark, tone, holds) {
     await frameAt(src, s.t);
     const q = unpack(s, T.W, T.H), pts = q.filter(Boolean), xs = pts.map(a => a.x), ys = pts.map(a => a.y), RATIO = 170 / 207;
-    const room = String(mark).startsWith('stuck') ? 1.6 : 1.3;   // stuck: more of the wall around, so the holds you could use show
+    // stuck: more of the wall around, so the holds you could use show. wide: the climber on the wall, cropped no tighter than
+    // the video's own pixels, so a big picture (the first screen's example) isn't the climber blown up and soft
+    const stuck = String(mark).startsWith('stuck'), wide = mark === 'wide', room = stuck ? 1.6 : wide ? 2.4 : 1.3;
     let h = (Math.max(...ys) - Math.min(...ys)) * room, w = h * RATIO;
     if (w < (Math.max(...xs) - Math.min(...xs)) * 1.25) { w = (Math.max(...xs) - Math.min(...xs)) * 1.25; h = w / RATIO; }
+    // 600 video pixels across: on a phone that's about 1.1 screen pixels each, sharp, and the climber still big enough to read
+    if (wide && w < 600) { w = Math.min(T.W * .96, 600); h = w / RATIO; }
     // a stuck frame keeps the whole body in, with dark around it if the video is too small; the others crop inside the video
-    const whole = room > 1.3;
+    const whole = stuck;
     if (!whole) { if (h > T.H) { h = T.H; w = h * RATIO; } if (w > T.W) { w = T.W; h = w / RATIO; } }
     const clamp = (a, lo, hi) => hi < lo ? (lo + hi) / 2 : Math.max(lo, Math.min(hi, a));
-    const x0 = clamp((Math.min(...xs) + Math.max(...xs) - w) / 2, 0, T.W - w), y0 = clamp((Math.min(...ys) + Math.max(...ys) - h) / 2, 0, T.H - h);
-    const cv = document.createElement('canvas'); cv.width = 340; cv.height = 414;
-    const ctx = cv.getContext('2d'), sc = cv.width / w, px = a => a / sc, col = tone === 'good' ? '#C2FF01' : '#FF6A1F';
+    // wide keeps off the last 4% of the edges: a steadied phone video has black bars there (the sample's bottom and right)
+    const edge = wide ? .96 : 1;
+    const x0 = clamp((Math.min(...xs) + Math.max(...xs) - w) / 2, 0, T.W * edge - w), y0 = clamp((Math.min(...ys) + Math.max(...ys) - h) / 2, 0, T.H * edge - h);
+    // drawn at twice the size it's laid out at (340 by 414), so it stays sharp on a phone's screen; px() keeps every line and
+    // label the same size it was at 1x. At 1x the onboarding example was blown up 2–3 times and came out soft
+    const K = 2, cv = document.createElement('canvas'); cv.width = 340 * K; cv.height = 414 * K;
+    const ctx = cv.getContext('2d'), sc = cv.width / w, px = a => a * K / sc, col = tone === 'good' ? '#C2FF01' : '#FF6A1F';
     ctx.fillStyle = '#1b1b1b'; ctx.fillRect(0, 0, cv.width, cv.height);
     ctx.setTransform(sc, 0, 0, sc, -x0 * sc, -y0 * sc); ctx.drawImage(still, 0, 0, T.W, T.H); ctx.lineCap = 'round';
     // the route's hand holds, under the body: faint rings, the one you were on in lime, the one you went to next in white
@@ -478,6 +486,9 @@
       ctx.fillStyle = 'rgba(17,17,17,.8)'; ctx.fillRect(lx - px(6), ly - px(26), tw + px(12), px(34)); ctx.fillStyle = '#FFFFFF'; ctx.fillText(a, lx, ly); }
     else if (String(mark).startsWith('stuck')) drawStuck(ctx, q, s, diagOf(T, s, String(mark).split(':')[1]), px, dot, x0, y0, w, h);
     else if (P[mark]) dot(q[P[mark]], 13, col);
+    else if (wide) {   // what Spotter follows: hands and feet in lime, the hips in white
+      [P.lw, P.rw, P.la, P.ra].forEach(i => q[i].v >= .3 && dot(q[i], 6, LIME));
+      if (q[P.lh].v >= .3 && q[P.rh].v >= .3) dot(mid(q[P.lh], q[P.rh]), 6, '#FFFFFF'); }
     if (nextAt) {   // a tag on the next hold, beside it on the side with room, kept inside the picture
       const t = document.documentElement.lang.startsWith('zh') ? '下一手' : 'Next'; ctx.font = `700 ${px(22)}px sans-serif`;
       const tw = ctx.measureText(t).width, right = nextAt.cx + nextAt.r + px(8) + tw + px(14) < x0 + w;

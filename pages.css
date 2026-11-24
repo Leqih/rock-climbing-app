@@ -2761,10 +2761,18 @@ textarea.note:focus { outline: 2px solid var(--ink); outline-offset: 0; backgrou
 .camx.filming .cam-fb { bottom: 152px; }
 
 /* Friends: a new climber's first step */
-.fr-first { display: grid; gap: 6px; margin: 4px 0 18px; padding: 16px; border-radius: 16px; background: #fff; }
-.fr-first strong { font-size: 16px; }
-.fr-first p { margin: 0; font-size: 13px; line-height: 1.4; color: #5c6660; }
-.fr-first .b-lime { justify-self: start; margin-top: 6px; min-height: 40px; padding: 0 16px; border-radius: 999px; font-weight: 800; }
+/* no friends yet: you and two empty places beside you, one line on why, one button. Find partners is the tab right above,
+   so here it's only a quiet line for someone with nobody to invite */
+.fr-first { display: grid; justify-items: center; gap: 6px; margin: 4px 0 18px; padding: 24px 20px 14px; border-radius: 16px; background: #fff; text-align: center; }
+.fr-ring { display: flex; margin-bottom: 8px; }
+.fr-ring > * { width: 52px; height: 52px; border-radius: 50%; box-shadow: 0 0 0 3px #fff; }
+.fr-ring > * + * { margin-left: -10px; }
+.fr-ring .fd-a { width: 52px; height: 52px; z-index: 1; }
+.fr-ring i { display: grid; place-items: center; background: var(--g50); border: 1.5px dashed #b9b9b5; font-style: normal; font-size: 22px; font-weight: 500; color: #8a8a87; }
+.fr-first strong { font-size: 18px; font-weight: 800; letter-spacing: -.01em; }
+.fr-first p { margin: 0 0 10px; max-width: 26ch; font-size: 14px; line-height: 1.4; color: #6f6f6c; text-wrap: balance; }
+.fr-first .b-lime { justify-self: stretch; height: 48px; border-radius: 999px; font-weight: 800; }
+.fr-alt { padding: 10px 4px 2px; font-size: 13px; font-weight: 600; color: #6f6f6c; text-decoration: underline; text-underline-offset: 3px; }
 
 /* the feed rail: a round face, its name under it (the name was a second grid row that stretched the face into an oval) */
 .ts-av { display: block; margin-bottom: 14px; }
@@ -4041,3 +4049,22 @@ section.st:has(.st-box) { flex: none; border-radius: 0; background: none; }
 .ph-rt svg { flex: none; width: 14px; height: 14px; margin-right: 2px; color: var(--mid); stroke: var(--mid); }
 .ph-rt b { font-weight: 700; }
 .ph-rt b + b::before { content: "·"; margin-right: 4px; font-weight: 400; color: var(--mid); }
+
+/* joining, tidier: where you are (two dots in the bar), the three filming tips as one card instead of three, and the
+   page fading out under the bottom button so the gym list doesn't run into it */
+.ob-dots { display: inline-flex; gap: 6px; align-items: center; }
+.ob-dots i { width: 6px; height: 6px; border-radius: 3px; background: #cfcfcc; transition: width .2s ease; }
+.ob-dots i.on { width: 18px; background: var(--ink); }
+.ob-tips { gap: 0; padding: 4px 16px; border-radius: 22px; background: #fff; }
+.ob-tips li { padding: 14px 0; border-radius: 0; background: none; align-items: center; }
+.ob-tips li + li { border-top: 1px solid var(--line); }
+.ob-tips b { width: 28px; height: 28px; font-size: 14px; }
+.ob-tips span { gap: 2px; }
+.ob-tips strong { font-size: 15px; }
+.ob-eg img { width: 64px; }
+:has(.ob-gyms, .ob-tips) > .cta::before { content: ""; position: absolute; z-index: -1; left: -16px; right: -16px; bottom: -22px; height: calc(100% + 64px);
+  background: linear-gradient(rgba(238, 238, 236, 0), #eeeeec 40%); pointer-events: none; }
+.bar:has(> span > .ob-dots) { position: relative; }
+.bar > span:has(> .ob-dots) { position: absolute; left: 50%; transform: translateX(-50%); display: flex; }
+/* the sample is the second choice: white, so Film a try is the one that stands out */
+:has(.ob-tips) > #cta .b-ghost { background: #fff; color: var(--ink); box-shadow: none; }
