@@ -348,11 +348,12 @@ function animateProfileShapes() {
   // Bodies collide as boxes (what you see), labels stay level, and you can pick one up and throw it
   const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const W = box.clientWidth, H = box.clientHeight;
-  const size = Math.round(Math.min(100, Math.max(58, Math.sqrt(W * H * .38 / elements.length))));
+  // never taller than the room above the photo's corner, or a shape resting there is cut off by the top of the card
+  const size = Math.round(Math.min(100, H - 60, Math.max(58, Math.sqrt(W * H * .38 / elements.length))));
   const R = size / 2, AV = { x0: 0, x1: 118, y0: H - 54, y1: H };
   const tilt = [-6, 5, -3, 7, -8, 4, -5, 6, -2, 8, -7, 3];
   const bodies = elements.map((el, i) => ({ el, x: R + 4 + (elements.length > 1 ? (i % 2 ? elements.length - 1 - (i >> 1) : i >> 1) / (elements.length - 1) : .5) * (W - size - 8), y: -R - i * size * .55, vx: 0, vy: 0, a: tilt[i % tilt.length], base: tilt[i % tilt.length] }));
-  elements.forEach(el => { el.style.width = el.style.height = `${size}px`; });
+  elements.forEach(el => { el.style.width = el.style.height = `${size}px`; el.style.setProperty('--s', `${size}px`); });   // --s: the label scales with it
   let drag = null, raf = 0, still = 0;
   const step = dt => {
     bodies.forEach(b => {
@@ -2450,7 +2451,7 @@ function viewPerson(who) {
       <img src="${pic(x.img)}" alt=""><span class="shade"></span><span class="vt-t">${sw(ROUTES[x.ri])}${rname(ROUTES[x.ri])}</span><span class="vt-b">${x.top ? 'Topped' : 'Not topped'} · ${dayLabel(x.ago)}</span></button>`;
   const both = vs.filter(x => lastOn(x.ri)), fr = myFriends.has(who), days = fr ? friendDays([who]) : [];
   // the same page as your Profile, seen from outside: their card (styles falling behind the photo, name, home gym, status,
-  // tags), when they usually climb, then their level and three counts. Instead of Edit card: add them, or contact them
+  // tags), when they usually climb, then their level and three counts (from their videos only, so they say so: their level is what they set). Instead of Edit card: add them, or contact them
   const pt = PTAGS[who] || [], sty = STYLES.filter(s => pt.includes(s[0])), mt = ME_TAGS.filter(m => pt.includes(m[0]));
   const post = POSTS.find(p => p.who === who), hg = gyms[post?.gys[0] ?? 0] || gym, hasCt = ctOf(proOf(who)?.ct).length > 0;
   const tops = vs.filter(x => x.top), hard = [...tops].sort((p, q) => GR.indexOf(ROUTES[q.ri].grade) - GR.indexOf(ROUTES[p.ri].grade))[0];
@@ -2468,21 +2469,28 @@ function viewPerson(who) {
     <section class="pf2-lv" aria-label="${who}’s level"><div class="pf2-lh"><span class="pf2-k">Climbing level</span>
       <span class="pf2-g"><b class="num">${proOf(who) ? VGI(proOf(who).lv) : '—'}</b>${proOf(who)?.rope ? `<em class="num">${proOf(who).rope} on a rope</em>` : ''}</span>
       ${YRS[who] ? `<span class="pf2-w">Climbing for ${YRS[who]}</span>` : ''}</div>
-      <div class="pf2-s"><span><b class="num">${hard ? ROUTES[hard.ri].grade : '—'}</b><i>hardest send</i></span>
+      <div class="pf2-s"><span><b class="num">${hard ? ROUTES[hard.ri].grade : '—'}</b><i>hardest on video</i></span>
         <span><b class="num">${vs.length || '—'}</b><i>on video</i></span>
-        <span><b class="num">${tops.length ? `${new Set(tops.map(x => x.ri)).size}<small> of ${ROUTES.length}</small>` : '—'}</b><i>routes topped</i></span></div></section>`;
+        <span><b class="num">${tops.length ? new Set(tops.map(x => x.ri)).size : '—'}</b><i>topped on video</i></span></div></section>`;
+  // their own videos, right under their card, friend or not: the real climbing behind the level they set and the counts
+  // above, so you can see they're who they say before you contact them. Newest first
+  const vids = vs.length ? `<div class="hl2 dk2"><h2>${who}’s videos</h2><span class="hint2">${n(vs.length, 'video', 'videos')}</span></div>
+    <div class="vg pv-vg">${[...vs].sort((a, b) => a.ago - b.ago).map(tile).join('')}</div>` : `<p class="cap pp-lock">${who} hasn’t posted a video yet.</p>`;
+  // the comparisons, friend or not: your week next to theirs, then the routes you've both filmed, side by side. With none
+  // yet, say how to get one: film a route they're on
+  const same = both.length ? `<div class="hl2 dk2"><h2>Routes you both climbed</h2><span class="hint2">side by side</span></div>
+    <div class="rows">${both.map(x => `<button class="row" type="button" data-act="to" data-to="vs/${lastOn(x.ri).id}-${x.i}"><span class="row-t"><strong>${sw(ROUTES[x.ri])}${rname(ROUTES[x.ri])}</strong><span>Your try ${tryOf(lastOn(x.ri))} and ${who}’s</span></span>${ic.arr('#111111')}</button>`).join('')}</div>`
+    : vs.length ? `<p class="cap pp-lock">Film yourself on ${[...new Set(vs.map(x => rname(ROUTES[x.ri])))].slice(0, 2).join(' or ')} to see your climb next to ${who}’s.</p>` : '';
   return { photo: vs[0]?.img || 'gym-arc-1', after: animateProfileShapes, html: `
     ${bar('')}
     ${head}
-    ${fr ? `<div class="fold"></div>
-    ${days.some(d => d.nw) ? `<div class="hl2 dk2"><h2>New move</h2><span class="hint2">from ${who}’s videos</span></div><div class="mvcs">${days.filter(d => d.nw).map(moveBox).join('')}</div>` : ''}
+    ${vids}
+    <div class="fold"></div>
+    ${fr && days.some(d => d.nw) ? `<div class="hl2 dk2"><h2>New move</h2><span class="hint2">from ${who}’s videos</span></div><div class="mvcs">${days.filter(d => d.nw).map(moveBox).join('')}</div>` : ''}
     ${compareWith(who)}
-    ${days.length ? `<div class="hl2 dk2"><h2>This week</h2></div><div class="fds">${days.map(x => dayCard(x)).join('')}</div>` : `<p class="cap pp-lock">${who} hasn’t climbed this week.</p>`}
-    <button class="pp-rm" type="button" data-act="frx" data-w="${who}">Remove from friends</button>` : `<div class="fold"></div>
-    ${both.length ? `<div class="hl2 dk2"><h2>Routes you both climbed</h2><span class="hint2">side by side</span></div>
-    <div class="rows">${both.map(x => `<button class="row" type="button" data-act="to" data-to="vs/${lastOn(x.ri).id}-${x.i}"><span class="row-t"><strong>${sw(ROUTES[x.ri])}${rname(ROUTES[x.ri])}</strong><span>Your try ${tryOf(lastOn(x.ri))} and ${who}’s</span></span>${ic.arr('#111111')}</button>`).join('')}</div>` : ''}
-    <div class="hl2 dk2"><h2>Videos</h2><span class="hint2">${n(vs.length, 'video', 'videos')}</span></div>
-    <div class="vg">${vs.map(tile).join('')}</div>`}
+    ${same}
+    ${fr ? `${days.length ? `<div class="hl2 dk2"><h2>This week</h2></div>${weekList(days)}` : `<p class="cap pp-lock">${who} hasn’t climbed this week.</p>`}
+    <button class="pp-rm" type="button" data-act="frx" data-w="${who}">Remove from friends</button>` : ''}
     ` };
 }
 
@@ -3834,6 +3842,21 @@ function dayCard(x) {
 </div>`;
 }
 
+// one friend's week on their own page: one card, a row a day, newest first. No avatar or name (it's their page) and no
+// thumbnails (their videos are just above): the date, where, how long, and the routes by name. Tap a route: its video
+function weekList(days) {
+  const ok = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5 10 17 19 7"/></svg>';
+  return `<div class="wk">${days.map(x => {
+    const g = gyms[x.gy] || gym, d = dateOf(x.ago), yours = x.vids.find(v => v.top && lastOn(v.ri)), mineTop = yours && (mineOn(yours.ri).some(topOf) || glTop(yours.ri));
+    const nums = x.live ? [`${Math.round(x.secs / 60)} min in`, n(x.climbs, 'climb', 'climbs')]
+      : [x.h != null && x.secs ? span2(x.h, x.secs) : x.secs ? clk(x.secs) : '', x.climbs ? n(x.climbs, 'climb', 'climbs') : '', x.top ? `hardest ${x.top}` : ''].filter(Boolean);
+    return `<div class="wk-r${x.live ? ' wk-live' : ''}">
+      <span class="wk-d">${x.live ? '<b>Now</b>' : `<em>${d.toLocaleDateString('en-US', { weekday: 'short' })}</em><b class="num">${d.getDate()}</b>`}</span>
+      <span class="wk-t"><strong>${g.name}</strong>${nums.length ? `<span>${nums.map(t => `<span>${t}</span>`).join(' · ')}</span>` : ''}
+        ${x.vids.length ? `<span class="wk-rts">${x.vids.map(v => `<button class="wk-rt" type="button" data-act="pvid" data-v="${v.i}" aria-label="${rname(ROUTES[v.ri])}, ${v.top ? 'topped' : 'tried'}">${sw(ROUTES[v.ri])}${rname(ROUTES[v.ri])}${v.top ? ok : ''}</button>`).join('')}</span>` : ''}
+        ${yours ? `<button class="wk-you" type="button" data-act="to" data-to="vs/${lastOn(yours.ri).id}-${yours.i}">${mineTop ? `You topped ${rname(ROUTES[yours.ri])} too: compare` : `You’re on ${rname(ROUTES[yours.ri])}: see how they did it`} ›</button>` : ''}</span></div>`;
+  }).join('')}</div>`;
+}
 // the last 7 days, yours and a friend's: days at the wall, climbs, time. Hardest is said, not raced: grades differ by gym
 function weekOf(w) {
   if (w === 'You') { const s = sesAll().filter(x => { const a = keyAgo(x.d); return a >= 0 && a < 7; }), live = session === 'live' && !s.some(x => keyAgo(x.d) === 0);
