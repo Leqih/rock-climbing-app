@@ -3917,21 +3917,23 @@ const postSave = () => { try { localStorage.setItem('spotter-posts', JSON.string
 const myLive = () => myPosts.map(p => ({ ...p, who: 'You' }));
 const goesToday = p => p.days.includes(new Date().getDay());
 // their days in a word or two: Weekends, Weekdays, Every day, else the days themselves (Tue · Thu)
-const daysText = ds => { const s = new Set(ds);
-  if (s.size === 7) return '<b>Every day</b>';
-  if (s.size === 2 && s.has(0) && s.has(6)) return '<b>Weekends</b>';
-  if (s.size === 5 && [1, 2, 3, 4, 5].every(d => s.has(d))) return '<b>Weekdays</b>';
-  return WEEK.filter(d => s.has(d)).map(d => `<b>${WD[d]}</b>`).join(''); };
+// With today: on a card, the day that is today reads "Today" in a dark pill (in the list where that day was, or ahead of
+// Weekends / Weekdays / Every day), so a card says they climb today without a separate badge
+const dayItems = (ds, today) => { const s = new Set(ds), now = new Date().getDay(), td = today && s.has(now) ? ['<b class="pc-now">Today</b>'] : [];
+  const grp = s.size === 7 ? 'Every day' : s.size === 2 && s.has(0) && s.has(6) ? 'Weekends' : s.size === 5 && [1, 2, 3, 4, 5].every(d => s.has(d)) ? 'Weekdays' : '';
+  if (grp) return [...td, `<b>${grp}</b>`];
+  return WEEK.filter(d => s.has(d)).map(d => td.length && d === now ? td[0] : `<b>${WD[d]}</b>`); };
+const daysText = ds => dayItems(ds).join('');
 const PC_CAL = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><rect x="4" y="5.5" width="16" height="14.5" rx="3"/><path d="M4 10h16M8.5 3.5v4M15.5 3.5v4"/></svg>';
 const PC_CLOCK = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>';
 function postCard(p) {
   const me = p.who === 'You', pro = proOf(p.who);
   return `<div class="pz pst${me ? ' mine' : ''}"><div class="pz-h"><button class="fd-a" type="button" data-act="to" data-to="${me ? 'profile' : `person/${p.who}`}" aria-label="${p.who}">${avatar(p.who)}</button>
       <span class="row-t"><strong>${p.who}${!me && myFriends.has(p.who) ? `<span class="pst-fr">${ic.check}Friends</span>` : ''}</strong><span class="pc-sub"><i class="num">${lvTag(p.who)}</i>${me ? '' : `<em>${p.ago}</em>`}</span></span>
-      ${me ? `<span class="pz-mine"><button class="pz-del" type="button" data-act="pnew">Edit</button><button class="pz-del" type="button" data-act="pdel" data-id="${p.id}">Delete</button></span>` : goesToday(p) ? '<span class="pc-td">Climbs today</span>' : ''}</div>
+      ${me ? `<span class="pz-mine"><button class="pz-del" type="button" data-act="pnew">Edit</button><button class="pz-del" type="button" data-act="pdel" data-id="${p.id}">Delete</button></span>` : ''}</div>
     ${p.note ? `<p class="pc-n"${me ? ' translate="no"' : ''}>${esc(p.note)}</p>` : ''}
-    <p class="pc-meta"><span>${PC_CAL}${daysText(p.days)}</span><span>${PC_CLOCK}${TIMES.filter(([k]) => p.times.includes(k)).map(([, l]) => `<b>${l}</b>`).join('')}</span>
-      <span>${ic.pin}${p.gys.filter(i => gyms[i]).map(i => `<b>${gyms[i].name}</b>`).join('')}</span></p>
+    <div class="pc-sch"><p class="pc-wh">${[...dayItems(p.days, !me), ...TIMES.filter(([k]) => p.times.includes(k)).map(([, l]) => `<em>${l}</em>`)].join('<i aria-hidden="true">·</i>')}</p>
+      <p class="pc-gy">${ic.pin}${p.gys.filter(i => gyms[i]).map(i => `<span>${gyms[i].name}</span>`).join('')}</p></div>
     <div class="pc-ft"><span class="pc-wants">${p.wants.map(k => `<i>${wantName(k)}</i>`).join('')}</span>
       ${!me && ctOf(pro?.ct).length ? `<button class="pc-ct" type="button" data-act="pzct" data-w="${p.who}">Contact</button>` : ''}</div></div>`;
 }
@@ -4117,7 +4119,13 @@ const interviewActions = {
   pdel: b => { myPosts = myPosts.filter(p => p.id !== b.dataset.id); postSave(); render(); toast('Post deleted'); },
   // a post's contacts, one tap away: a sheet with each app and handle, open it or copy it
   pzct: b => { const w = b.dataset.w, ct = proOf(w)?.ct; if (!ct) return;
-    pane(`<h2>Contact ${w}</h2><span class="sub">Say which post you saw and when you can climb.</span>${ctRow(ct)}`); },
+    // an iOS action sheet: a grey title and message, one row per app in the system blue (the app's name and their handle;
+    // apps without a link to someone's page copy the ID), then Cancel on its own
+    pane(`<div class="as"><div class="as-g"><p class="as-h"><b>Contact ${w}</b><span>Say which post you saw and when you can climb.</span></p>
+      ${ctOf(ct).map(([k, l, , url]) => { const h = esc(ct[k]);
+        return url ? `<a class="as-b" href="${esc(url(ct[k]))}" target="_blank" rel="noopener" data-act="close">${l}<span>${h}</span></a>`
+          : `<button class="as-b" type="button" data-act="wxcopy" data-v="${h}" data-l="${l}">Copy ${l} ID<span>${h}</span></button>`; }).join('')}</div>
+      <button class="as-b as-x" type="button" data-act="close">Cancel</button></div>`); },
   fradd: b => { const w = b.dataset.w; myFriends.add(w); frSave(); render(); toast(`${w} added to friends`); },
   frx: b => { const w = b.dataset.w; pane(`<h2>Remove ${w}?</h2><span class="sub">You stop seeing each other’s climbing days. Add each other again any time.</span><div class="two one"><button class="b-ghost" type="button" data-act="frxgo" data-w="${w}">Remove</button></div>`); },
   frxgo: b => { const w = b.dataset.w; myFriends.delete(w); frSave(); closeAll(); render(); toast(`${w} removed from friends`); },
@@ -4135,7 +4143,7 @@ const interviewActions = {
       Object.assign(vv.style, { width: `${W * k}px`, height: `${H * k}px`, left: `${Math.min(0, Math.max(cw - W * k, cw / 2 - cx))}px`, top: `${Math.min(0, Math.max(ch - H * k, ch / 2 - cy))}px` }); };
     vv.addEventListener('loadedmetadata', () => { fit(); vv.currentTime = a; vv.playbackRate = .6; vv.play().catch(() => {}); }, { once: true });
     vv.addEventListener('timeupdate', () => { if (vv.currentTime > z) vv.currentTime = a; }); },
-  wxcopy: b => { navigator.clipboard?.writeText(b.dataset.v).catch(() => {}); toast(`Copied. Add them on ${b.dataset.l}`); },
+  wxcopy: b => { navigator.clipboard?.writeText(b.dataset.v).catch(() => {}); if (b.closest('.as')) closeAll(); toast(`Copied. Add them on ${b.dataset.l}`); },
 };
 let inviteStream = null;
 function stopInviteCamera() {

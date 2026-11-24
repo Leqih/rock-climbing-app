@@ -4068,3 +4068,40 @@ section.st:has(.st-box) { flex: none; border-radius: 0; background: none; }
 .bar > span:has(> .ob-dots) { position: absolute; left: 50%; transform: translateX(-50%); display: flex; }
 /* the sample is the second choice: white, so Film a try is the one that stands out */
 :has(.ob-tips) > #cta .b-ghost { background: #fff; color: var(--ink); box-shadow: none; }
+
+/* partner card, calmer: the line they wrote leads; when and where sit together in one grey box (days and part of the day on
+   top, the gym under it) instead of three icon-and-word pairs; level and time posted are plain grey text, not a chip;
+   "Climbs today" is a green dot; what they want is a quiet line beside Contact rather than a row of green pills */
+.pst .pc-sub { gap: 0; margin-top: 2px; }
+.pst .pc-sub i, .pst .pc-sub em { padding: 0; background: none; font-size: 13px; font-weight: 500; color: var(--mid); }
+.pst .pc-sub em::before { content: "·"; margin: 0 6px; }
+.pst .pz-h > .pc-td { display: inline-flex; align-items: center; gap: 6px; padding: 0; background: none; font-size: 12px; font-weight: 700; color: #1F7A48; }
+.pst .pz-h > .pc-td::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: #2E9E62; box-shadow: 0 0 0 3px #DDF1E5; }
+.pc-sch { display: grid; gap: 3px; padding: 12px 14px; border-radius: 16px; background: #f4f4f2; }
+.pc-wh { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 6px; font-size: 15px; font-weight: 800; color: var(--ink); }
+.pc-wh > i { font-style: normal; font-weight: 500; color: var(--mid); }
+.pc-wh em { font-style: normal; font-weight: 600; color: var(--mid); }
+.pc-wh .pc-now { align-self: center; padding: 2px 9px; border-radius: 999px; background: var(--ink); color: #fff; font-size: 13px; }
+.pc-gy { display: flex; flex-wrap: wrap; align-items: center; gap: 0 6px; font-size: 13px; font-weight: 600; color: var(--mid); }
+.pc-gy svg { flex: none; width: 13px; height: 13px; stroke: var(--mid); }
+.pc-gy span + span::before { content: "·"; margin-right: 6px; }
+.pst .pc-ft { display: flex; align-items: center; gap: 12px; padding-top: 0; border-top: 0; }
+.pst .pc-wants { display: block; flex: 1; min-width: 0; font-size: 13px; line-height: 1.45; color: var(--ink); }
+.pst .pc-ft .pc-wants i { display: inline; padding: 0; border-radius: 0; background: none; font-size: 13px; font-weight: 600; color: var(--ink); white-space: nowrap; }
+.pst .pc-ft .pc-wants i + i::before { content: "·"; margin: 0 6px; color: var(--mid); }
+.pst .pc-ct { height: 36px; padding: 0 18px; }
+
+/* Contact as an iOS action sheet: the sheet itself goes see-through and two frosted blocks float 8px in from the edges,
+   rows in the system font and the system blue, hairlines between them, Cancel on its own and bold. The scrim stays */
+#ask:has(> .as) { padding: 0 8px 34px; background: none; border-radius: 0; box-shadow: none; overflow: visible; }
+#ask:has(> .as) > .grab { display: none; }
+.as { display: grid; gap: 8px; font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif; }
+.as-g { overflow: hidden; border-radius: 14px; background: rgba(246, 246, 246, .92); -webkit-backdrop-filter: blur(24px) saturate(180%); backdrop-filter: blur(24px) saturate(180%); }
+.as-h { display: grid; gap: 4px; margin: 0; padding: 14px 16px; text-align: center; color: #8a8a8e; font-size: 13px; line-height: 1.35; }
+.as-h b { font-weight: 600; }
+.as-b { display: flex; align-items: baseline; justify-content: center; gap: 8px; width: 100%; min-height: 57px; padding: 16px; border: 0; border-top: .5px solid rgba(60, 60, 67, .29);
+  background: none; color: #007AFF; font: inherit; font-size: 19px; font-weight: 400; letter-spacing: -.01em; text-align: center; text-decoration: none; -webkit-tap-highlight-color: transparent; }
+.as-b span { font-size: 15px; color: #8a8a8e; }
+.as-b:active { background: rgba(0, 0, 0, .06); }
+.as-x { border: 0; border-radius: 14px; background: #fff; font-weight: 600; }
+.as-x:active { background: #ececec; }
