@@ -2725,6 +2725,12 @@ function viewProfile() {
         // your card: the tags you picked to say who you are as a climber, your level first. Edit card changes all of it
         const tags = [...(myPartner ? [`<i class="ph-tl num">${lvTag('You')}</i>`] : []), ...cardTags().map(t => `<i>${t}</i>`)];
         return `<div class="ph-tg">${tags.length ? tags.join('') : '<button class="ph-tg0" type="button" data-act="ptpost">+ Add tags that describe you</button>'}</div>`; })()}
+      ${(() => {
+        // how to reach you, on the card itself so it's found where it's set: the apps you gave, or a prompt to add them.
+        // Every post and the Contact sheet use these. Tapping opens Edit card at the contacts
+        const ct = ctOf(myPro().ct);
+        return ct.length ? `<button class="ph-ct" type="button" data-act="ptpost" data-to="card/ct"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12a8 8 0 0 1-11.6 7.1L4 20l.9-4.4A8 8 0 1 1 20 12z"/></svg><span>Reach me on</span><b>${ct.map(([, l]) => `<i>${l}</i>`).join('')}</b></button>`
+          : '<button class="ph-tg0 ph-ct0" type="button" data-act="ptpost" data-to="card/ct">+ Add how to reach you</button>'; })()}
       </section>
       ${(() => {
         // the page is about how you're climbing, so that comes first, as one card: your level (from your hardest send, by
@@ -3948,15 +3954,17 @@ function viewPartners() {
 // after, a line, then contacts. You have one post: posting again updates it. Taps change things in place, so the page
 // never jumps. The button says what's still missing
 let pdr = null;
-const pdNew = () => { const p = myPro(), old = myPosts[0];
-  pdr = old ? { gys: [...old.gys], days: [...old.days], times: [...old.times], wants: [...old.wants], note: old.note || '', ct: { ...p.ct, ...old.ct } }
-    : { gys: [homeGy != null && gyms[homeGy] ? homeGy : 0], days: [], times: [], wants: ['film'], note: '', ct: { ...p.ct } }; };
+// how to reach you isn't asked here: it's set once on your card (Profile › Edit card) and every post, and the Contact
+// sheet, read it from there. The post page shows it and sends you to the card to change it
+const pdNew = () => { const old = myPosts[0];
+  pdr = old ? { gys: [...old.gys], days: [...old.days], times: [...old.times], wants: [...old.wants], note: old.note || '' }
+    : { gys: [homeGy != null && gyms[homeGy] ? homeGy : 0], days: [], times: [], wants: ['film'], note: '' }; };
+const myCt = () => myPro().ct || {};
 function ppOk() {
   const b = $('pp-go'); if (!b) return;
   const miss = !pdr.gys.length ? 'Pick a gym' : !pdr.days.length ? 'Pick the days you go' : !pdr.times.length ? 'Pick a time of day'
-    : !pdr.wants.length ? 'Pick what you’re looking for' : !Object.keys(pdr.ct).length ? 'Add one way to reach you' : '';
+    : !pdr.wants.length ? 'Pick what you’re looking for' : !ctOf(myCt()).length ? 'Add one way to reach you' : '';
   b.disabled = !!miss; b.textContent = miss || (myPosts.length ? 'Update post' : 'Post');
-  $('pp-ctn').textContent = Object.keys(pdr.ct).length ? '' : 'Add at least one';
 }
 function viewPost() {
   if (!pdr) pdNew();
@@ -3973,13 +3981,14 @@ function viewPost() {
     <div class="ec-chips pp-wants">${WANTS.map(([k, l]) => chip('ppw', k, l, pdr.wants.includes(k))).join('')}</div>
     <p class="ec-h"><label for="pp-note">A line about it</label><span id="pp-nn">${pdr.note.length}/120</span></p>
     <textarea id="pp-note" class="pp-note" maxlength="120" rows="2" placeholder="Projecting V4s, happy to film">${esc(pdr.note)}</textarea>
-    <p class="ec-h">How to reach you <span id="pp-ctn"></span></p><p class="ec-d">Everyone who sees the post sees these. Fill in the ones you use.</p>
-    <div class="ec-box pp-ct">${SOCIALS.map(([k, l, ph]) => `<label class="ec-in"><span>${l}</span><input data-ct="${k}" maxlength="40" value="${esc(pdr.ct[k] || '')}" placeholder="${ph}"${k === 'wa' ? ' inputmode="tel"' : ''}></label>`).join('')}</div>
+    <p class="ec-h">How to reach you</p><p class="ec-d">From your card, the same on every post</p>
+    <button class="ec-box pp-ctl" type="button" data-act="ptpost" data-to="card/ct">${ctOf(myCt()).length
+      ? `<span class="pp-cts">${ctOf(myCt()).map(([k, l]) => `<span><em>${l}</em><b translate="no">${esc(myCt()[k])}</b></span>`).join('')}</span><i>Edit</i>`
+      : '<span class="pp-ct0"><b>Add how to reach you</b><em>Instagram, WhatsApp, WeChat…</em></span><i>Add</i>'}</button>
     </div>`,
     cta: '<button class="b-lime" type="button" data-act="ppgo" id="pp-go">Post</button>',
     after: () => {
       $('pp-note').addEventListener('input', e => { pdr.note = e.target.value.trim(); $('pp-nn').textContent = `${e.target.value.length}/120`; });
-      $('main').querySelectorAll('[data-ct]').forEach(x => x.addEventListener('input', e => { const v = e.target.value.trim(); if (v) pdr.ct[x.dataset.ct] = v; else delete pdr.ct[x.dataset.ct]; ppOk(); }));
       ppOk(); } };
 }
 // pick or unpick one in a list, in place
@@ -4004,7 +4013,8 @@ function ptSync() {   // the preview, the count, and which chips can still be pi
   const k = Object.keys(ptd.ct || {}).length; $('ec-ctn').textContent = k ? `${k} added` : 'None yet';
 }
 const ptNew = () => { const p = myPro(); ptd = { lv: p.lv, rope: p.rope, ct: { ...p.ct }, name: myName, sty: new Set(picks), tags: new Set(meTags) }; };
-function viewCard() {
+// card/ct: opened from a post's "How to reach you", so the contacts come up open
+function viewCard(a) {
   if (!ptd) ptNew();
   const chip = (act, v, label, on) => `<button type="button" data-act="${act}" data-v="${v}" aria-pressed="${on}">${label}</button>`;
   const step = (act, label, id) => `<div class="ec-st"><span>${label}</span><button type="button" data-act="${act}" data-d="-1" aria-label="Lower">−</button><b id="${id}"></b><button type="button" data-act="${act}" data-d="1" aria-label="Higher">+</button></div>`;
@@ -4017,14 +4027,15 @@ function viewCard() {
     <p class="ec-g">Climbing styles</p><div class="ec-chips">${STYLES.map(s => chip('pts', s[0], s[1], ptd.sty.has(s[0]))).join('')}</div>
     <p class="ec-g">About you</p><div class="ec-chips">${ME_TAGS.map(([k, l]) => chip('ptg', k, l, ptd.tags.has(k))).join('')}</div>
     <p class="ec-h">Level</p><div class="ec-box">${step('ptlv', 'Bouldering', 'ec-lvv')}${step('ptrp', 'Rope', 'ec-rpv')}</div>
-    <details class="ec-box ec-ct"><summary><span>How to reach you</span><em id="ec-ctn"></em><svg viewBox="0 0 24 24" fill="none" stroke="#111" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></summary>
-      <p class="ec-d">Only shown on your posts, so climbers can message you</p>
+    <details class="ec-box ec-ct"${a === 'ct' ? ' open' : ''}><summary><span>How to reach you</span><em id="ec-ctn"></em><svg viewBox="0 0 24 24" fill="none" stroke="#111" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></summary>
+      <p class="ec-d">Used on all your posts, so climbers can message you</p>
       ${SOCIALS.map(([k, l, ph]) => `<label class="ec-in"><span>${l}</span><input data-ct="${k}" maxlength="40" value="${esc(ptd.ct?.[k] || '')}" placeholder="${ph}"${k === 'wa' ? ' inputmode="tel"' : ''}></label>`).join('')}</details>
     </div>`,
     cta: '<button class="b-lime" type="button" data-act="ptsave">Save</button>',
     after: () => {
       $('main').querySelectorAll('[data-ct]').forEach(x => x.addEventListener('input', e => { const v = e.target.value.trim(); ptd.ct = { ...ptd.ct }; if (v) ptd.ct[x.dataset.ct] = v; else delete ptd.ct[x.dataset.ct]; ptSync(); }));
       $('pt-name').addEventListener('input', e => { ptd.name = e.target.value; });
+      if (a === 'ct') requestAnimationFrame(() => document.querySelector('.ec-ct')?.scrollIntoView({ block: 'center' }));
       ptSync(); } };
 }
 
@@ -4093,7 +4104,7 @@ const interviewActions = {
   gearopen: b => openGear(b.dataset.i ? +b.dataset.i : undefined),
   geardel: b => { const i = gear.findIndex(x => x.id === +b.dataset.i); if (i < 0) return; const [x] = gear.splice(i, 1); gearSave(); closeAll(); render(); toast(`${x.name} removed`); },
   // your level and contacts (profile)
-  ptpost: () => { ptNew(); go('card'); },
+  ptpost: b => { ptNew(); go(b?.dataset?.to || 'card'); },
   // everything changes in place: the sheet never redraws while you edit. Tags stop at five; a full card greys the rest
   ptlv: b => { ptd.lv = Math.max(0, Math.min(VG.length - 1, ptd.lv + +b.dataset.d)); ptSync(); },
   ptrp: b => { const i = ROPES.indexOf(ptd.rope || '') + +b.dataset.d; ptd.rope = ROPES[Math.max(0, Math.min(ROPES.length - 1, i))]; ptSync(); },
@@ -4113,8 +4124,8 @@ const interviewActions = {
   pph: b => ppTog(b, 'times', b.dataset.v),
   ppw: b => ppTog(b, 'wants', b.dataset.v),
   ppgo: () => { const x = pdr; if (!x) return; const upd = myPosts.length > 0;
-    myPosts = [{ id: myPosts[0]?.id || `m${Date.now()}`, k: 'gym', gys: x.gys, days: x.days, times: x.times, wants: x.wants, note: x.note, ct: x.ct }];
-    postSave(); myPartner = { ...(myPartner || {}), ct: { ...x.ct } }; proSave(); pdr = null;
+    myPosts = [{ id: myPosts[0]?.id || `m${Date.now()}`, k: 'gym', gys: x.gys, days: x.days, times: x.times, wants: x.wants, note: x.note }];
+    postSave(); pdr = null;
     history.length > 1 ? history.back() : go('friends/partners'); toast(upd ? 'Your post is updated' : 'Your post is up'); },
   pdel: b => { myPosts = myPosts.filter(p => p.id !== b.dataset.id); postSave(); render(); toast('Post deleted'); },
   // a post's contacts, one tap away: a sheet with each app and handle, open it or copy it
