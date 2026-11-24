@@ -4126,3 +4126,8 @@ section.st:has(.st-box) { flex: none; border-radius: 0; background: none; }
 .ph-ct b i + i::before { content: "·"; margin: 0 5px; font-weight: 500; color: var(--mid); }
 .ph-ct::after { content: "›"; margin-left: 2px; font-size: 16px; line-height: 1; color: var(--mid); }
 .ph-ct0 { display: block; margin-top: 8px; }
+
+/* Profile has one way into the card. While tags or contacts are missing the button says Finish your card, with a dot */
+.ph-ed.todo::after { content: ""; flex: none; width: 7px; height: 7px; margin-left: 1px; border-radius: 50%; background: #FF6A1F; }
+p.ph-ct { margin-bottom: 0; }
+p.ph-ct::after { content: none; }

@@ -2717,20 +2717,22 @@ function viewProfile() {
       return `<section class="ph" aria-label="Your profile">
       <div class="ph-cv ph-shape-container" id="profile-shapes" role="img" aria-label="${picks.size ? `Your climbing styles: ${STYLES.filter(style => picks.has(style[0])).map(style => style[1]).join(', ')}` : 'Choose your climbing style to fill this space'}">${picks.size ? STYLES.filter(style => picks.has(style[0])).map(([k, label, shape]) => `<span class="ph-shape pk-${shape}" aria-hidden="true"><span>${label}</span></span>`).join('') : ''}</div>
       <div class="ph-me"><span class="ph-av">${avatar('You')}</span>
-        <button class="ph-st ph-ed" type="button" data-act="ptpost">${ic.pen}Edit card</button></div>
+        ${(() => {
+          // one way in to everything on the card (name, tags, level, how to reach you). While tags or contacts are missing
+          // it says so and wears a dot, instead of an "add" button per missing thing under the name
+          const todo = !cardTags().length || !ctOf(myPro().ct).length;
+          return `<button class="ph-st ph-ed${todo ? ' todo' : ''}" type="button" data-act="ptpost">${ic.pen}${todo ? 'Finish your card' : 'Edit card'}</button>`; })()}</div>
       <h2 class="ph-n">${myName ? esc(myName) : 'You'}</h2>
       <div class="ph-g"><button class="ph-hg" type="button" data-act="to" data-to="gym/0">${ic.pin}<span>${gym.name}</span></button>
         <button class="ph-stt${myStatus ? ` is-${myStatus}` : ''}" type="button" data-act="status" aria-label="Your status: ${STATUS.find(s => s[0] === myStatus)[1]}. Change it"><i></i>${myStatus ? STATUS.find(s => s[0] === myStatus)[1] : 'Set a status'}</button></div>
       ${(() => {
         // your card: the tags you picked to say who you are as a climber, your level first. Edit card changes all of it
         const tags = [...(myPartner ? [`<i class="ph-tl num">${lvTag('You')}</i>`] : []), ...cardTags().map(t => `<i>${t}</i>`)];
-        return `<div class="ph-tg">${tags.length ? tags.join('') : '<button class="ph-tg0" type="button" data-act="ptpost">+ Add tags that describe you</button>'}</div>`; })()}
+        return tags.length ? `<div class="ph-tg">${tags.join('')}</div>` : ''; })()}
       ${(() => {
-        // how to reach you, on the card itself so it's found where it's set: the apps you gave, or a prompt to add them.
-        // Every post and the Contact sheet use these. Tapping opens Edit card at the contacts
+        // how to reach you, shown once you've given it (changed through Edit card). Every post and the Contact sheet use these
         const ct = ctOf(myPro().ct);
-        return ct.length ? `<button class="ph-ct" type="button" data-act="ptpost" data-to="card/ct"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12a8 8 0 0 1-11.6 7.1L4 20l.9-4.4A8 8 0 1 1 20 12z"/></svg><span>Reach me on</span><b>${ct.map(([, l]) => `<i>${l}</i>`).join('')}</b></button>`
-          : '<button class="ph-tg0 ph-ct0" type="button" data-act="ptpost" data-to="card/ct">+ Add how to reach you</button>'; })()}
+        return ct.length ? `<p class="ph-ct"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12a8 8 0 0 1-11.6 7.1L4 20l.9-4.4A8 8 0 1 1 20 12z"/></svg><span>Reach me on</span><b>${ct.map(([, l]) => `<i>${l}</i>`).join('')}</b></p>` : ''; })()}
       </section>
       ${(() => {
         // the page is about how you're climbing, so that comes first, as one card: your level (from your hardest send, by
