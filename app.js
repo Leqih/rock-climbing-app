@@ -9,6 +9,30 @@
 // CSV export, friends and partner posts, and portraits for the sample people
 
 const params = new URLSearchParams(location.search);
+// the "Record at phone size" mode (?rec=): the bare app at 402 × 874, with no drawn 9:41 bar or camera cut-out on top.
+// It sticks for this tab (sessionStorage), so a reload or the browser pane reopening at the plain address keeps it;
+// ?rec=0 turns it off again
+try {
+  if (params.get('rec') === '0') { sessionStorage.removeItem('spotter-rec'); params.delete('rec'); }
+  else if (params.has('rec')) sessionStorage.setItem('spotter-rec', '1');
+  else if (sessionStorage.getItem('spotter-rec')) params.set('rec', '1');
+} catch {}
+if (params.has('rec')) document.documentElement.classList.add('rec');
+if (params.has('cap')) document.documentElement.classList.add('cap');
+// ?mock: the white iPhone 16 mockup frame instead of the drawn one (the HD recorder always uses it)
+if (params.has('mock') || params.has('cap')) document.documentElement.classList.add('mock');
+// ?bg=ffffff paints the page behind the phone in a slide's colour, so a recording drops onto that slide seamlessly;
+// ?bg=none leaves it transparent. Hides the page's own buttons. Remembered for the tab; ?bg=0 goes back
+try {
+  if (params.get('bg') === '0') sessionStorage.removeItem('spotter-bg');
+  else if (params.has('bg')) sessionStorage.setItem('spotter-bg', params.get('bg'));
+  const bg = sessionStorage.getItem('spotter-bg');
+  if (bg) {
+    const de = document.documentElement;
+    de.style.setProperty('--stage', /^(none|transparent)$/i.test(bg) ? 'transparent' : /^[0-9a-f]{3,8}$/i.test(bg) ? '#' + bg : bg);
+    de.classList.add('bgset');
+  }
+} catch {}
 // "regular" = you've already filmed three tries here. "new" = first open: your three videos are still in your camera roll
 const user = params.get('view') === 'regular' ? 'regular' : 'new';
 let page = 'videos', arg = '';
@@ -488,8 +512,9 @@ let alTime = 'all', alGym = null, alRoute = null, alOpen = null;   // alOpen: th
 const alTimeOk = d => alTime === 'all' ? true : alTime === 'week' ? d < 7 : alTime === 'month' ? dateOf(d).getMonth() === dateOf(0).getMonth() && dateOf(d).getFullYear() === dateOf(0).getFullYear() : d === +alTime.slice(2);
 const alTimeName = () => alTime === 'week' ? 'This week' : alTime === 'month' ? 'This month' : alTime.startsWith('d:') ? dayLabel(+alTime.slice(2)) : 'All time';
 const alFiltered = () => albumFilter !== 'all' || alTime !== 'all' || alGym != null;
-const alCta = () => { const k = alSel ? alSel.size : 0, d = k ? '' : ' disabled', tray = alSel && alOpen && (page === 'videos') ? album({ tray: true }) || '' : '';
-  return alSel ? `${tray}<button class="b-ghost" type="button" data-act="alvis" data-v="me"${d}>Only you</button><button class="b-ghost" type="button" data-act="alvis" data-v="pub"${d}>Public</button><button class="b-lime" type="button" data-act="aldel"${d}>Delete${k ? ` ${k}` : ''}</button>` : ''; };
+const alVids = () => alSel ? [...alSel].filter(i => !/^[gl]/.test(i)) : [];
+const alCta = () => { const k = alSel ? alSel.size : 0, d = k ? '' : ' disabled', dv = alVids().length ? '' : ' disabled', tray = alSel && alOpen && (page === 'videos') ? album({ tray: true }) || '' : '';
+  return alSel ? `${tray}<button class="b-ghost" type="button" data-act="alvis" data-v="me"${dv}>Only you</button><button class="b-ghost" type="button" data-act="alvis" data-v="pub"${dv}>Public</button><button class="b-lime" type="button" data-act="aldel"${d}>Delete${k ? ` ${k}` : ''}</button>` : ''; };
 function album(only) {
   const hn = vlogged(), tops = vtops(), newest = newestClips(), nogym = clips.filter(c => c.gy == null).length, here = newest.filter(c => c.gy === 0);
   if (!clips.length && !hn) return '';
@@ -511,20 +536,21 @@ function album(only) {
     return `<svg class="alh-art" viewBox="0 0 100 100" aria-hidden="true"><path d="${d}" fill="var(--hold)"/><circle cx="50" cy="48" r="3.2" fill="#E7E7E5"/></svg>`; };
   const handCard = ({ act, hex, grade, name, where, tries, res, sent, label, seed }) => {
     const k = Math.min(tries, 8), bars = Array.from({ length: k }, (_, b) => `<i${sent && b === k - 1 ? ' class="ok"' : ''}></i>`).join('') + (tries > 8 ? `<small>+${tries - 8}</small>` : '') + `<small>${n(tries, 'try', 'tries')}</small>`;
-    return `<button class="al-t al-hand" type="button" ${act} style="--hold:${hex}" aria-label="${label}">
+    return `<button class="al-t al-hand" type="button" ${act} style="--hold:${hex}" aria-label="${label}">${alSel ? '<span class="al-ck" aria-hidden="true"></span>' : ''}
       <span class="alh-top"><span class="alh-pill">By hand</span><span class="alh-pill${sent ? ' on' : ''}">${res}</span></span>
       <span class="alh-b"><span class="alh-row"><strong class="alh-g">${grade}</strong>${holdArt(seed)}</span><span class="alh-tally" aria-hidden="true">${bars}</span><b>${name}</b><em>${where}</em></span></button>`; };
-  const handTile = (x, i) => handCard({ act: `data-act="glrecord" data-i="${i}"`, seed: `g${i}${x.g}${x.ago}`, hex: HOLD_COLORS[x.color] || '#8A8F98',
+  const pickAt = id => `data-act="alpick" data-i="${id}" aria-pressed="${alSel.has(id)}"`;
+  const handTile = (x, i) => handCard({ act: alSel ? pickAt(`g${i}`) : `data-act="glrecord" data-i="${i}"`, seed: `g${i}${x.g}${x.ago}`, hex: HOLD_COLORS[x.color] || '#8A8F98',
     grade: x.g, name: `${x.color ? x.color + ' · ' : ''}${x.ty}`, where: gyms[x.gy].name, tries: x.attempts || 1, res: KL[x.k], sent: x.k !== 'Project',
     label: `${x.g}, ${x.k}, ${gyms[x.gy].name}, logged by hand` });
   const routeTile = l => { const r = ROUTES[l.ri];
-    return handCard({ act: `data-act="to" data-to="route/${l.ri}"`, seed: `r${l.ri}${l.ago}${l.tries}`, hex: r.hex, grade: r.grade, name: `${r.color} · ${r.wall}`, where: gym.name,
+    return handCard({ act: alSel ? pickAt(`l${logs.indexOf(l)}`) : `data-act="to" data-to="route/${l.ri}"`, seed: `r${l.ri}${l.ago}${l.tries}`, hex: r.hex, grade: r.grade, name: `${r.color} · ${r.wall}`, where: gym.name,
       tries: l.tries || 1, res: l.sent ? (l.style || 'Topped') : 'Not yet', sent: l.sent, label: `${rname(r)}, logged by hand` }); };
   // a day, then the gyms you climbed at that day, then the routes at each: everything on one route sits together, newest try first
   const rawItems = d => {
     const it = [];
-    if (showManual) glogs.forEach((x, i) => { if (x.ago === d) it.push({ gy: x.gy, key: `g:${x.color}|${x.g}`, hex: HOLD_COLORS[x.color] || '#8A8F98', name: `${x.color || ''} ${x.g}`.trim(), sent: x.k !== 'Project', html: handTile(x, i), col: HOLD_COLORS[x.color] || '#8A8F98', g: x.g, seed: `g${i}${x.g}${x.ago}` }); });
-    if (showManual) logs.forEach(l => { if (l.ago === d && (l.tries || l.sent)) it.push({ gy: 0, key: `r:${l.ri}`, ri: l.ri, sent: l.sent, html: routeTile(l), col: ROUTES[l.ri].hex, g: ROUTES[l.ri].grade, seed: `r${l.ri}${l.ago}${l.tries}` }); });
+    if (showManual) glogs.forEach((x, i) => { if (x.ago === d) it.push({ gy: x.gy, key: `g:${x.color}|${x.g}`, hex: HOLD_COLORS[x.color] || '#8A8F98', name: `${x.color || ''} ${x.g}`.trim(), sent: x.k !== 'Project', html: handTile(x, i), col: HOLD_COLORS[x.color] || '#8A8F98', g: x.g, seed: `g${i}${x.g}${x.ago}`, id: `g${i}` }); });
+    if (showManual) logs.forEach(l => { if (l.ago === d && (l.tries || l.sent)) it.push({ gy: 0, key: `r:${l.ri}`, ri: l.ri, sent: l.sent, html: routeTile(l), col: ROUTES[l.ri].hex, g: ROUTES[l.ri].grade, seed: `r${l.ri}${l.ago}${l.tries}`, id: `l${logs.indexOf(l)}` }); });
     if (showVideos) newest.filter(c => agoOf(c) === d).sort((p, q) => tryOf(q) - tryOf(p)).forEach(c => it.push({ gy: c.gy ?? -1, key: c.need ? `n:${c.id}` : `r:${c.ri}`, ri: c.need ? null : c.ri, sent: topOf(c), html: tile(c), img: c.img, id: c.id }));
     return it; };
   const keep = x => only && only.d != null ? true : (alGym == null || x.gy === alGym) && (!alRoute || x.key === alRoute);
@@ -551,20 +577,20 @@ function album(only) {
     const pile = all.slice(0, 3).reverse().map((x, q, a) => `<i class="al-p${a.length - 1 - q}${x.img ? '' : ' al-ph'}"${x.img ? '' : ` style="--hold:${x.col}"`}>${x.img ? `<img src="${pic(x.img)}" alt="" loading="lazy">` : `<span class="alh-pill">By hand</span><strong>${x.g}</strong>${holdArt(x.seed)}`}</i>`).join('');
     const ids = all.filter(x => x.id != null).map(x => String(x.id)), on = alSel ? ids.filter(i => alSel.has(i)).length : 0;
     if (alSel) return `<div class="al-st al-sts${g.gy < 0 ? ' ng' : ''}${ids.length ? '' : ' off'}${on && on < ids.length ? ' part' : ''}"${on && on === ids.length ? ' data-on' : ''}>
-      <button class="al-stp" type="button" data-act="alopen" data-k="${d}_${g.gy}" aria-pressed="${!!ids.length && on === ids.length}" aria-expanded="${alOpen === `${d}_${g.gy}`}"${ids.length ? '' : ' disabled'} aria-label="${gname(g.gy)}: ${n(ids.length, 'video', 'videos')}">
+      <button class="al-stp" type="button" data-act="alstack" data-ids="${ids.join(',')}" aria-pressed="${!!ids.length && on === ids.length}"${ids.length ? '' : ' disabled'} aria-label="${gname(g.gy)}: ${n(ids.length, 'record', 'records')}">
         <span class="al-pile">${pile}<span class="al-ck" aria-hidden="true"></span><b class="al-cnt">${on ? `${on}/${ids.length}` : ids.length}</b></span>
-        <span class="al-sb"><b>${gname(g.gy)}</b><small>${ids.length ? n(ids.length, 'video', 'videos') : 'No videos'}</small></span></button>
+        <span class="al-sb"><b>${gname(g.gy)}</b><small>${n(ids.length, 'record', 'records')}</small></span></button>
 </div>`;
     return `<button class="al-st${g.gy < 0 ? ' ng' : ''}" type="button" data-act="to" data-to="algym/${d}_${g.gy}" aria-label="${gname(g.gy)}, ${n(k, 'record', 'records')}">
       <span class="al-pile">${pile}<b class="al-cnt">${k}</b></span>
       <span class="al-sb"><b>${gname(g.gy)}</b><small>${n(g.routes.length, 'route', 'routes')}${top ? ` · ${top} topped` : ''}</small>
       <span class="al-sw">${g.routes.slice(0, 6).map(r => `<i style="background:${r.ri != null ? ROUTES[r.ri].hex : r.hex || '#d5d5d2'}"></i>`).join('')}</span></span></button>`; };
-  // while selecting: the opened stack's videos in one row under its day, to pick one by one
+  // (a tray that opened a stack to pick inside it; selecting is one tap on the stack now, so it no longer opens)
   const strip = d => { if (!alSel || !alOpen || !alOpen.startsWith(`${d}_`)) return '';
     const g = dayItems(d).find(q => `${d}_${q.gy}` === alOpen); if (!g) return '';
     const vs = g.routes.flatMap(r => r.items).filter(x => x.id != null);
     const on = vs.filter(x => alSel.has(String(x.id))).length;
-    return `<div class="al-tray" role="group" aria-label="${gname(g.gy)}: pick videos"><p><b>${gname(g.gy)}</b><span>${dayLabel(d)} · ${on} of ${vs.length}</span><button type="button" class="al-all" data-act="alstack" data-ids="${vs.map(x => x.id).join(',')}">${on === vs.length ? 'Deselect all' : 'Select all'}</button><button type="button" class="al-tx" data-act="alopen" data-k="${alOpen}" aria-label="Close">×</button></p><div class="al-row">${vs.map(x => x.html).join('')}</div></div>`; };
+    return `<div class="al-tray" role="group" aria-label="${gname(g.gy)}: pick records"><p><b>${gname(g.gy)}</b><span>${dayLabel(d)} · ${on} of ${vs.length}</span><button type="button" class="al-all" data-act="alstack" data-ids="${vs.map(x => x.id).join(',')}">${on === vs.length ? 'Deselect all' : 'Select all'}</button><button type="button" class="al-tx" data-act="alopen" data-k="${alOpen}" aria-label="Close">×</button></p><div class="al-row">${vs.map(x => x.html).join('')}</div></div>`; };
   if (only?.tray) return alOpen ? strip(+alOpen.split('_')[0]) : '';
   const box = alRoute ? `<div class="al${alSel ? ' sel' : ''}">${days.map(d => `<div class="al-d"><h3><button type="button" class="day-open" data-act="to" data-to="day/${d}"><em class="al-dl">${dayLabel(d)}</em> <span>View day →</span></button></h3>
     <div class="al-g">${dayItems(d).flatMap(g => g.routes.flatMap(r => r.items)).map(x => x.html).join('')}</div></div>`).join('')}</div>`
@@ -587,8 +613,8 @@ function album(only) {
         <span class="bnd-s">${[0, 1, 2, 3].map(k => here[k] ? `<img src="${pic(here[k].img)}" alt="">` : '<i></i>').join('')}</span>
         <span class="vc-b"><span class="vc-r">${gym.name}</span><b>${n(here.length, 'video', 'videos')}</b>
         <span class="vc-d">${tops ? `<span class="stg on">${tops} of ${ROUTES.length} routes topped</span>` : `${ROUTES.length} routes`}</span></span></button></div>`;
-  const selB = showVideos && clips.length ? `<button class="al-filter${alSel ? ' active' : ''}" type="button" data-act="alsel">${alSel ? 'Done' : 'Select'}</button>` : '';
-  if (alSel) return `<div class="sec al-h"><h2 id="alcount">${alSel.size ? `${alSel.size} selected` : 'Select videos'}</h2>${selB}</div>${visibleBox}`;
+  const selB = (showVideos && clips.length) || (showManual && hn) ? `<button class="al-filter${alSel ? ' active' : ''}" type="button" data-act="alsel">${alSel ? 'Done' : 'Select'}</button>` : '';
+  if (alSel) return `<div class="sec al-h"><h2 id="alcount">${alSel.size ? `${alSel.size} selected` : 'Select records'}</h2>${selB}</div>${visibleBox}`;
   return `<div class="sec al-h"><h2>${albumFilter === 'videos' ? 'Videos' : albumFilter === 'manual' ? 'By hand' : 'All records'} <span class="num">${filteredCount}</span></h2><span class="al-hb">${selB}<button class="al-filter${alFiltered() ? ' active' : ''}" type="button" data-act="albumfilter" aria-label="Filter records"><svg aria-hidden="true" viewBox="0 0 20 20"><path d="M3 5h14M6 10h8M8 15h4"/></svg>${alFiltered() ? 'Filtered' : 'Filter'}</button></span></div>${chipRow}${visibleBox}${alGym == null ? binder : ''}`;
 }
 function viewVideos() {
@@ -610,9 +636,9 @@ function viewDay(a) {
 // inside a stack in the album: one gym on one day, its routes and every record on each
 function viewAlGym(a) {
   const [d, gy] = String(a).split('_').map(Number), r = album({ d: d || 0, gy: Number.isFinite(gy) ? gy : -1 }) || { name: '', n: 0, html: '' };
-  const vids = (String(r.html).match(/data-to="clip\/|data-act="alpick"/g) || []).length;
+  const vids = r.n;   // anything on this page can be picked, videos and climbs logged by hand
   return { cta: alCta(), html: `${bar()}<div class="alg-page"><p class="alg-d">${dayLabel(d || 0)} · ${n(r.n, 'record', 'records')}</p>
-    <div class="alg-h"><h1 class="hl" ${alSel ? 'id="alcount"' : ''}>${alSel ? (alSel.size ? `${alSel.size} selected` : 'Select videos') : r.name}</h1>${vids ? `<button class="al-filter${alSel ? ' active' : ''}" type="button" data-act="alsel">${alSel ? 'Done' : 'Select'}</button>` : ''}</div>
+    <div class="alg-h"><h1 class="hl" ${alSel ? 'id="alcount"' : ''}>${alSel ? (alSel.size ? `${alSel.size} selected` : 'Select records') : r.name}</h1>${vids ? `<button class="al-filter${alSel ? ' active' : ''}" type="button" data-act="alsel">${alSel ? 'Done' : 'Select'}</button>` : ''}</div>
     ${r.html ? `<div class="al alg${alSel ? ' sel' : ''}">${r.html}</div>` : '<p class="cap">Nothing here any more.</p>'}</div>` };
 }
 // a binder: every try (all) or one gym's, with a tab per route and one for grade days. Newest first; on one day the hand log goes after the videos
@@ -3092,7 +3118,6 @@ function gtSelect(i, from) {
   setTimeout(() => gtFocus(i), from === 'pin' && gtSnap === 'half' ? 260 : 0);
 }
 function gtWire(list) {
-  if (tmap) { tmap.remove(); tmap = null; }
   gtSet(gtSnap, false);
   // dragging the sheet by its top: follows the finger, then settles on the nearest height (a flick goes one further)
   const sh = $('gtsheet'), hd = $('gtsh');
@@ -3129,7 +3154,28 @@ function gtWire(list) {
   });
   const el = $('gtmap');
   if (!el || !window.L || !list.length) return;
-  tmap = L.map(el, { zoomControl: false, attributionControl: false, scrollWheelZoom: true, zoomSnap: .25 });
+  // one map for the whole visit: building the WebGL map froze the page for half a second on every switch to Explore,
+  // so it's made once, kept off-page while you're on other tabs, and moved back in when you return
+  if (tmap) {
+    el.append(tmapEl); tmap.invalidateSize({ pan: false }); tmapPins.clearLayers();
+  } else gtMapMake(el);
+  // near you: the gyms within 5 mi, or else the three closest, wherever they are
+  const close = list.filter(([g]) => g.mi <= 5), fit = gArea === 'near' ? (close.length ? close : byNear(list).slice(0, 3)) : list;
+  const pts = [...(gArea === 'near' ? [HERE] : []), ...fit.map(([g]) => gymLL(g))];
+  tmap.fitBounds(L.latLngBounds(pts), { paddingTopLeft: [40, 170], paddingBottomRight: [40, $('camx').clientHeight - gtSnaps()[gtSnap] + 30], maxZoom: 14, animate: false });
+  list.forEach(([g, i]) => {
+    const pin = L.marker(gymLL(g), { title: g.name, riseOnHover: true, zIndexOffset: i === 0 ? 500 : 0,
+      icon: L.divIcon({ className: `tp${i === 0 ? ' me' : ''}${gtSel === i ? ' sel' : ''}`, html: `<span class="tp-ph">${g.img ? `<img src="${pic(g.img)}" alt="">` : `<span class="gt-placeholder" aria-hidden="true">${ic.pin}</span>`}</span><b>${g.name}</b>`, iconSize: [0, 0] }) }).addTo(tmapPins);
+    pin.getElement().dataset.i = i;
+    pin.on('click', ev => { L.DomEvent.stopPropagation(ev); gtSelect(i, 'pin'); });
+  });
+  if (gtSel !== null) gtFocus(gtSel, false);
+}
+let tmapEl = null, tmapPins = null;
+function gtMapMake(el) {
+  tmapEl = document.createElement('div'); tmapEl.style.cssText = 'position:absolute;inset:0'; el.append(tmapEl);
+  tmap = L.map(tmapEl, { zoomControl: false, attributionControl: false, scrollWheelZoom: true, zoomSnap: .25 });
+  tmapPins = L.layerGroup().addTo(tmap);
   if (L.maplibreGL && window.maplibregl) {
     L.maplibreGL({ style: 'https://tiles.openfreemap.org/styles/positron',
       attribution: '<a href="https://openfreemap.org/" target="_blank" rel="noopener">OpenFreeMap</a> | <a href="https://openmaptiles.org/" target="_blank" rel="noopener">OpenMapTiles</a> | &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>'
@@ -3148,16 +3194,6 @@ function gtWire(list) {
   };
   creditControl.addTo(tmap);
   L.marker(HERE, { icon: L.divIcon({ className: 'tp-you', html: '<i></i>', iconSize: [16, 16] }), interactive: false, keyboard: false }).addTo(tmap);
-  // near you: the gyms within 5 mi, or else the three closest, wherever they are
-  const close = list.filter(([g]) => g.mi <= 5), fit = gArea === 'near' ? (close.length ? close : byNear(list).slice(0, 3)) : list;
-  const pts = [...(gArea === 'near' ? [HERE] : []), ...fit.map(([g]) => gymLL(g))];
-  tmap.fitBounds(L.latLngBounds(pts), { paddingTopLeft: [40, 170], paddingBottomRight: [40, $('camx').clientHeight - gtSnaps()[gtSnap] + 30], maxZoom: 14 });
-  list.forEach(([g, i]) => {
-    const pin = L.marker(gymLL(g), { title: g.name, riseOnHover: true, zIndexOffset: i === 0 ? 500 : 0,
-      icon: L.divIcon({ className: `tp${i === 0 ? ' me' : ''}${gtSel === i ? ' sel' : ''}`, html: `<span class="tp-ph">${g.img ? `<img src="${pic(g.img)}" alt="">` : `<span class="gt-placeholder" aria-hidden="true">${ic.pin}</span>`}</span><b>${g.name}</b>`, iconSize: [0, 0] }) }).addTo(tmap);
-    pin.getElement().dataset.i = i;
-    pin.on('click', ev => { L.DomEvent.stopPropagation(ev); gtSelect(i, 'pin'); });
-  });
   tmap.on('click', () => {
     gtSel = null;
     document.querySelectorAll('.tp.sel, .gt-r.sel').forEach(x => x.classList.remove('sel'));
@@ -3167,7 +3203,6 @@ function gtWire(list) {
     $('gtsheet').classList.add('cards');
     $('gtlw').scrollTo({ left: 0, top: 0 });
   });
-  if (gtSel !== null) gtFocus(gtSel, false);
 }
 // the map: Leaflet with OpenStreetMap tiles. You are on the UIUC Main Quad; each gym sits at its distance and bearing from there
 let gymR = 10, gymPin = null, gmap = null;
@@ -3685,9 +3720,9 @@ function viewSession() {
   const header = `<div class="bar"><button class="bk" type="button" data-act="glback" aria-label="Back">${ic.back}</button><span>Log by hand</span></div>`;
   const wall = `<div class="gl-map"><svg viewBox="0 0 340 460" aria-label="Choose a climbing grade"><defs><pattern id="gldot" width="34" height="34" patternUnits="userSpaceOnUse"><circle cx="17" cy="17" r="1.6" fill="rgba(17,17,17,.12)"/></pattern></defs><rect width="340" height="460" fill="url(#gldot)"/>${PEB.map(([x,y,rx,ry],i) => `<path class="peb" d="${rock(x,y,rx,ry,i*2.1+1)}"/>`).join('')}${grades.slice().reverse().map((g,i) => { const [x,y,rx,ry] = GB[g]; return `<g class="gb${glGrade === g ? ' selected' : ''}" data-g="${g}" role="button" tabindex="0" aria-label="${g}" aria-pressed="${glGrade === g}"><path d="${rock(x,y,rx,ry,i*1.7+.4)}"/><text x="${x}" y="${y+11}">${g}</text></g>`; }).join('')}</svg></div>`;
   const list = glogs.map((x,i) => [x,i]).filter(([x]) => x.ago === 0).reverse().map(([x,i]) => `<div class="log-entry"><div class="log-entry-main"><span class="log-entry-grade">${x.g}</span><span><strong>${x.ty}</strong><small>${gyms[x.gy].name}</small></span><button type="button" data-act="gldel" data-i="${i}" aria-label="Remove ${x.g}">×</button></div><div class="log-entry-results" aria-label="Change result">${['Flash','Send','Project'].map(k => `<button type="button" data-act="glk" data-i="${i}" data-k="${k}" aria-pressed="${x.k === k}">${KL[k]}</button>`).join('')}</div></div>`).join('');
-  const first = `<div class="log-step-title"><h1>Pick your climb<span>✦</span></h1></div><button class="rock-gym" type="button" data-act="glgym">${ic.pin}<span>${G ? G.name + (!glGymChosen && glPosition ? ' · estimated' : '') : glLocation === 'loading' ? 'Finding your gym…' : 'Choose a gym'}</span><b>⌄</b></button><div class="rock-types">${tys.map(r => `<button type="button" data-act="glrope" data-v="${r}" aria-pressed="${glTy === r}">${r}</button>`).join('')}</div><div class="rock-wall">${wall}<p>${glGrade ? `<b>${glGrade}</b> selected` : 'Tap a hold to select your grade'}</p></div>`;
+  const first = `<div class="log-step-title"><h1>Pick your climb<span>✦</span></h1></div><button class="rock-gym" type="button" data-act="glgym">${ic.pin}<span>${G ? G.name + (!glGymChosen && glPosition ? ' · estimated' : '') : glLocation === 'loading' ? 'Finding your gym…' : 'Choose a gym'}</span><i class="chev" aria-hidden="true"></i></button><div class="rock-types">${tys.map(r => `<button type="button" data-act="glrope" data-v="${r}" aria-pressed="${glTy === r}">${r}</button>`).join('')}</div><div class="rock-wall">${wall}<p>${glGrade ? `<b>${glGrade}</b> selected` : 'Tap a hold to select your grade'}</p></div>`;
   const R = glRi != null ? ROUTES[glRi] : null;
-  const second = `<div class="log-step-title"><h1>How did it go?<span>✦</span></h1></div>${R ? `<div class="log-climb-summary"><span class="log-entry-grade">${R.grade}</span><div><strong>${sw(R)}${rname(R)}</strong><small><span>${G?.name || ''}</span> · <span>${R.wall}</span></small></div></div>` : `<div class="log-climb-summary"><span class="log-entry-grade">${glGrade || ''}</span><div><strong>${glTy}</strong><small>${G?.name || ''}</small></div><button type="button" data-act="glback">Edit</button></div><button class="manual-color" type="button" data-act="glcolor"><span>${glColor ? `<i style="--hold:${HOLD_COLORS[glColor]}"></i>${glColor}` : 'Choose hold colour'}</span><b>⌄</b></button>`}<div class="log-outcomes">${[['Flash','Finished on your first try','✦'],['Send','Finished after more than one try','✓'],['Project','Still working on it','↗']].map(([k,desc,icon]) => `<button type="button" data-act="glresult" data-k="${k}" aria-pressed="${glResult === k}"><span class="log-outcome-icon">${icon}</span><span><strong>${KL[k]}</strong><small>${desc}</small></span><i aria-hidden="true">${glResult === k ? '✓' : ''}</i></button>`).join('')}</div><div class="log-attempts"><span><strong>Attempts</strong><small>How many tries for this climb?</small></span><button type="button" data-act="glattempt" data-d="-1" aria-label="Fewer attempts">−</button><b>${glAttempts}</b><button type="button" data-act="glattempt" data-d="1" aria-label="More attempts">＋</button></div>`;
+  const second = `<div class="log-step-title"><h1>How did it go?<span>✦</span></h1></div>${R ? `<div class="log-climb-summary"><span class="log-entry-grade">${R.grade}</span><div><strong>${sw(R)}${rname(R)}</strong><small><span>${G?.name || ''}</span> · <span>${R.wall}</span></small></div></div>` : `<div class="log-climb-summary"><span class="log-entry-grade">${glGrade || ''}</span><div><strong>${glTy}</strong><small>${G?.name || ''}</small></div><button type="button" data-act="glback">Edit</button></div><button class="manual-color" type="button" data-act="glcolor"><span>${glColor ? `<i style="--hold:${HOLD_COLORS[glColor]}"></i>${glColor}` : 'Choose hold colour'}</span><i class="chev" aria-hidden="true"></i></button>`}<div class="log-outcomes">${[['Flash','Finished on your first try','✦'],['Send','Finished after more than one try','✓'],['Project','Still working on it','↗']].map(([k,desc,icon]) => `<button type="button" data-act="glresult" data-k="${k}" aria-pressed="${glResult === k}"><span class="log-outcome-icon">${icon}</span><span><strong>${KL[k]}</strong><small>${desc}</small></span><i aria-hidden="true">${glResult === k ? '✓' : ''}</i></button>`).join('')}</div><div class="log-attempts"><span><strong>Attempts</strong><small>How many tries for this climb?</small></span><button type="button" data-act="glattempt" data-d="-1" aria-label="Fewer attempts">−</button><b>${glAttempts}</b><button type="button" data-act="glattempt" data-d="1" aria-label="More attempts">＋</button></div>`;
   const third = `<div class="log-step-title"><h1>Your session<span>✦</span></h1></div><div class="log-today-head"><h2>Today’s climbs</h2><span>${n(es.length,'climb','climbs')}</span></div>${es.length ? list : '<p class="log-empty">No climbs added yet.</p>'}<button class="log-another" type="button" data-act="glanother"><span>＋</span> Add another climb</button>`;
   const cta = glStep === 0 ? `<button class="b-lime" type="button" data-act="glnext"${glGrade && G ? '' : ' disabled'}>Continue${glGrade ? ` · ${glGrade}` : ''}</button>` : glStep === 1 ? `<button class="b-lime" type="button" data-act="glconfirm"${glResult && glColor ? '' : ' disabled'}>Add climb</button>` : `<button class="b-lime" type="button" data-act="glsave"${es.length ? '' : ' disabled'}>Save session${es.length ? ` · ${n(es.length,'climb','climbs')}` : ''}</button>`;
   return { html: header + `<div class="rock-log log-wizard">${glStep === 0 ? first : glStep === 1 ? second : third}</div>`, cta, after: () => { if (glLocation === 'idle') glLocate(); document.querySelectorAll('.gb').forEach(el => { const select = () => { glGrade = el.dataset.g; render(); }; el.addEventListener('click', select); el.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); select(); } }); }); } };
@@ -4545,7 +4580,7 @@ function render() {
   $('plus').innerHTML = '<svg viewBox="0 0 32 32" aria-hidden="true"><path fill="currentColor" d="M13.5 5h5v8.5H27v5h-8.5V27h-5v-8.5H5v-5h8.5z"/></svg><span>Add</span>';
   island();
   if (gmap && !v.map) { gmap.remove(); gmap = null; }
-  if (tmap && page !== 'walls') { tmap.remove(); tmap = null; }
+  // the Explore map (tmap) is kept, off-page, for the next visit: see gtWire
   v.after?.();
   if (was && !grpCarry(was)) newIn(wasN);
   // Keep route changes responsive; videos and maps stay stationary while loading.
@@ -4756,14 +4791,18 @@ const actions = {
   alopen: b => { alOpen = alOpen === b.dataset.k ? null : b.dataset.k; render(); },
   alstack: b => { const ids = b.dataset.ids.split(',').filter(Boolean), all = ids.every(i => alSel.has(i)); ids.forEach(i => all ? alSel.delete(i) : alSel.add(i)); render(); },
   alpick: b => { const id = b.dataset.i; alSel.has(id) ? alSel.delete(id) : alSel.add(id); b.setAttribute('aria-pressed', alSel.has(id));
-    $('cta').innerHTML = alCta(); const h = $('alcount'); if (h) h.textContent = alSel.size ? `${alSel.size} selected` : 'Select videos';
+    $('cta').innerHTML = alCta(); const h = $('alcount'); if (h) h.textContent = alSel.size ? `${alSel.size} selected` : 'Select records';
     if (b.closest('.al-tray')) { const x = $('cta').querySelector('.al-row')?.scrollLeft || 0; render(); const r = $('cta').querySelector('.al-row'); if (r) r.scrollLeft = x; } },
-  alvis: b => { const me = b.dataset.v === 'me', k = alSel.size; alSel.forEach(id => { const c = byId(id); if (c) c.hidden = me; }); alSel = null; alOpen = null; render();
+  alvis: b => { const me = b.dataset.v === 'me', k = alVids().length; alSel.forEach(id => { const c = byId(id); if (c) c.hidden = me; }); alSel = null; alOpen = null; render();
     toast(`${n(k, 'video', 'videos')} · ${me ? 'only you' : 'public'}`); },
-  aldel: () => { const k = alSel.size; if (!k) return;
-    pane(`<h2>Delete ${n(k, 'video', 'videos')}?</h2><span class="sub">Their analysis and comments go too. The videos stay in your camera roll.</span>
+  aldel: () => { const k = alSel.size, v = alVids().length; if (!k) return;
+    pane(`<h2>Delete ${v === k ? n(k, 'video', 'videos') : n(k, 'record', 'records')}?</h2><span class="sub">${v ? 'Videos lose their analysis and comments too, but stay in your camera roll. ' : ''}${v < k ? 'Climbs you logged by hand come off your log and your level.' : ''}</span>
       <div class="two"><button class="b-ghost" type="button" data-act="close">Keep</button><button class="b-lime" type="button" data-act="aldelyes">Delete ${k}</button></div>`); },
-  aldelyes: () => { const k = alSel.size; alSel.forEach(id => { const c = byId(id); if (!c) return; clips.splice(clips.indexOf(c), 1); V[c.v].added = false; }); alSel = null; alOpen = null; closeAll(); render(); toast(`${n(k, 'video', 'videos')} deleted`); },
+  aldelyes: () => { const k = alSel.size, v = alVids().length, at = c => [...alSel].filter(i => i[0] === c).map(i => +i.slice(1)).sort((p, q) => q - p);
+    alVids().forEach(id => { const c = byId(id); if (!c) return; clips.splice(clips.indexOf(c), 1); V[c.v].added = false; });
+    const g = at('g'); g.forEach(i => glogs.splice(i, 1)); if (g.length) saveGradeLogs();   // from the back, so the indices stay right
+    at('l').forEach(i => logs.splice(i, 1));
+    alSel = null; alOpen = null; closeAll(); render(); toast(`${v === k ? n(k, 'video', 'videos') : n(k, 'record', 'records')} deleted`); },
   // side by side
   pvplay: () => pvPlay(),
   // one tap moves to the next value and wraps round; speed goes slower first, since slow motion is what you compare in
@@ -4882,6 +4921,67 @@ readHash();
 restoreMine().catch(() => {}).finally(() => { readHash(); render(); });
 if (params.has('invite')) showIncomingInvite();
 // iPhone 16 Pro frame (894 px with its border): on a short window scale the whole phone down to fit, never squash it
-const fitPhone = () => document.querySelector('.device').style.setProperty('--fit', Math.min(1, (innerHeight - 96) / 894).toFixed(3));
+const fitPhone = () => {
+  const d = document.querySelector('.device');
+  // ?cap: the window is exactly the framed phone (the HD recorder), so it fills it edge to edge
+  d.style.setProperty('--fit', (params.has('cap') ? Math.min(1, innerWidth / 436, innerHeight / 902) : Math.min(1, (innerHeight - 96) / 902)).toFixed(3));
+  // the recording window: the whole 402 × 874 screen scaled to fit, so it keeps the 16 Pro's shape at any window size
+  if (params.has('rec')) d.style.setProperty('--rfit', Math.min(1, innerWidth / 402, innerHeight / 874).toFixed(4));
+};
 addEventListener('resize', fitPhone);
 fitPhone();
+// build the Explore map in the background, off-screen, a moment after the page opens: then even the first tap on
+// Explore only moves it into place. Matters most in a fresh recording window, where every page is visited cold
+setTimeout(() => (window.requestIdleCallback || setTimeout)(() => {
+  if (tmap || !window.L || page === 'walls') return;
+  const hold = document.createElement('div'); hold.setAttribute('aria-hidden', 'true');
+  hold.style.cssText = 'position:fixed;left:-10000px;top:0;width:402px;height:874px;pointer-events:none';
+  document.body.append(hold);
+  try { gtMapMake(hold); tmap.setView(HERE, 12, { animate: false }); } catch { tmap = null; }
+}), 1500);
+// Figma-style touch pointer: with a mouse, the page hides the arrow and shows a round "finger" that follows it
+if (matchMedia('(hover: hover) and (pointer: fine)').matches) {
+  document.documentElement.classList.add('touchsim');
+  const dot = document.createElement('i'), phoneEl = document.querySelector('.phone');
+  dot.className = 'touch-dot'; dot.setAttribute('aria-hidden', 'true'); document.body.append(dot);
+  // capture phase: the app's own sliders and sheets stop their pointer events from bubbling, and a missed pointerup
+  // left the circle stuck small and dark
+  // the whole page, not just the phone: the button under the frame is tapped on camera too
+  const at = e => {
+    // the translate property, not transform: transform is applied before scale, so the press-shrink scaled the
+    // position too and threw the circle toward the top-left corner while the button was held
+    dot.style.translate = `${e.clientX}px ${e.clientY}px`;
+    if (!dot.classList.contains('on')) dot.classList.add('on');
+  };
+  const up = () => dot.classList.remove('down');
+  const opt = { capture: true, passive: true };
+  // pointerrawupdate (Chrome, Edge) arrives as soon as the mouse moves instead of once per frame, so the circle trails
+  // the hand by less; plain pointermove elsewhere
+  addEventListener('onpointerrawupdate' in window ? 'pointerrawupdate' : 'pointermove', at, opt);
+  addEventListener('pointerdown', e => { at(e); dot.classList.add('down'); }, opt);
+  addEventListener('pointerup', e => { at(e); up(); }, opt);
+  addEventListener('pointercancel', up, opt);
+  document.documentElement.addEventListener('pointerleave', () => { up(); dot.classList.remove('on'); });
+  addEventListener('blur', () => { up(); dot.classList.remove('on'); });
+  // a finger doesn't drag ghost images or select text: stop both inside the phone
+  phoneEl.addEventListener('dragstart', e => e.preventDefault());
+}
+// "Record at phone size": a desktop browser won't shrink a normal window to 402 px, but it will open a popup that size.
+// Same page and same saved climbs; once it loads, nudge it so the page inside is exactly 402 × 874 (window chrome varies)
+// A fresh ?rec= each time: a second click reuses the open "spotter-rec" window, and the same URL there would only
+// change the hash, keeping whatever older version of the page that window already had
+document.getElementById('recOpen')?.addEventListener('click', () => {
+  const u = new URL(location.href); u.searchParams.set('rec', Date.now().toString(36));
+  const W = 402, H = 874, w = open(u.href, 'spotter-rec', `popup,width=${W},height=${H}`);
+  // blocked (the Claude app's built-in browser never opens pop-ups): say so on the button itself, where the eye already is
+  // no pop-ups (the Claude app's browser pane): switch this page into recording mode instead
+  if (!w) { location.href = u.href; return; }
+  // try for exactly 402 × 874; if the screen is too short for that, Windows caps the height, so narrow the window to the
+  // same 402 : 874 shape and the page scales the phone down to fill it (no grey bars, no squashed screen)
+  const fit = () => { try {
+    let dw = W - w.innerWidth, dh = H - w.innerHeight; if (dw || dh) w.resizeBy(dw, dh);
+    setTimeout(() => { try { const tw = Math.round(Math.min(H, w.innerHeight) * W / H); if (Math.abs(tw - w.innerWidth) > 1) w.resizeBy(tw - w.innerWidth, 0); } catch {} }, 250);
+  } catch {} };
+  w.addEventListener('load', () => { fit(); setTimeout(fit, 400); });
+  w.focus();
+});

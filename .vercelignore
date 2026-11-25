@@ -8,3 +8,5 @@ data
 runs
 .venv
 *.pt
+tools/hd-record
+tools/record-hd.cmd

@@ -494,7 +494,9 @@
       const tw = ctx.measureText(t).width, right = nextAt.cx + nextAt.r + px(8) + tw + px(14) < x0 + w;
       const lx = Math.max(x0 + px(4), Math.min(right ? nextAt.cx + nextAt.r + px(8) : nextAt.cx - nextAt.r - px(8) - tw - px(12), x0 + w - tw - px(16))), ly = Math.max(y0 + px(30), Math.min(nextAt.cy + px(8), y0 + h - px(8)));
       ctx.fillStyle = '#FFFFFF'; ctx.beginPath(); ctx.roundRect(lx - px(6), ly - px(24), tw + px(12), px(32), px(16)); ctx.fill(); ctx.fillStyle = INK; ctx.fillText(t, lx, ly); }
-    return cv.toDataURL('image/jpeg', .85);
+    // toBlob, not toDataURL: the JPEG is encoded off the main thread. toDataURL held the page for ~200 ms per picture,
+    // so a page that draws its pictures (Profile, the analysis) froze on the way in
+    return new Promise(ok => cv.toBlob(b => ok(b ? URL.createObjectURL(b) : cv.toDataURL('image/jpeg', .85)), 'image/jpeg', .85));
   }
   // the same body, placed better. Limbs keep their length, and hands and feet stay where they are unless the plan moves them, so it is a pose this body could reach
   const SIDES = [[11, 13, 15, [17, 19, 21]], [12, 14, 16, [18, 20, 22]], [23, 25, 27, [29, 31]], [24, 26, 28, [30, 32]]], NEED = [0, 11, 12, 15, 16, 23, 24, 27, 28];

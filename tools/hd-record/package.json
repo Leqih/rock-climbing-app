@@ -1,0 +1,6 @@
+{
+  "name": "spotter-hd-record",
+  "private": true,
+  "description": "Records the Spotter prototype at iPhone 16 Pro resolution (1206 x 2622) while you use it",
+  "dependencies": { "playwright-core": "1.49.1" }
+}

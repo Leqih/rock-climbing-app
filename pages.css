@@ -3124,7 +3124,7 @@ textarea.note:focus { outline: 2px solid var(--ink); outline-offset: 0; backgrou
 .al-all + .al-tx { margin-left: 0; }
 /* on a real phone (and installed to the home screen): the phone draws its own home bar, so we don't; the tab bar, the
    buttons and the sheets keep clear of it */
-@media (max-width: 480px) {
+@media (max-width: 440px) and (pointer: coarse) {
   .home-ind { display: none; }
   .dock, .cta { bottom: max(22px, calc(env(safe-area-inset-bottom, 0px) + 8px)); }
   .toast { bottom: calc(112px + env(safe-area-inset-bottom, 0px)); }
@@ -4227,3 +4227,37 @@ details[open] > :not(summary) { animation: openIn 200ms var(--ease) both; }
 .seg-gh { position: absolute; z-index: -1; pointer-events: none; }
 .seg.seg-mv > button { background-color: transparent !important; transition: none; }
 .vtabs button[aria-selected="true"]::after { transform-origin: left center; }
+
+/* One chevron everywhere (Your routes, the gym rows on Explore, the gym and colour pickers on Log by hand): a drawn
+   stroke with round ends, centred in its box so turning it doesn't wobble. It turns over a calm 260ms, not a flick */
+.chev, .pc-c, .gt-m::after {
+  --chev: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  display: block; flex: none; width: 18px; height: 18px; margin: 0; border: 0; background: currentColor;
+  -webkit-mask: var(--chev) center / contain no-repeat; mask: var(--chev) center / contain no-repeat;
+  transform: none; transform-origin: 50% 50%; transition: transform 260ms var(--ease);
+}
+.phone i.chev { width: 16px; height: 16px; margin-left: 4px; color: #5d6660; background: currentColor; }
+.pc-c { width: 20px; height: 20px; color: var(--ink); }
+.pf-c[open] .pc-c { transform: rotate(180deg); }
+.gt-m::after { content: ""; margin-left: auto; color: #697267; }
+.gt-r.sel .gt-m::after { transform: rotate(180deg); }
+.gt-sheet.cards .gt-m::after, .gt-sheet.cards .gt-r.sel .gt-m::after { transform: rotate(-90deg); }
+.phone .rock-gym i.chev { width: 14px; height: 14px; margin-left: 2px; color: #2B2D2E; }
+
+/* Pressing: the thing you touch dips as one piece, around its own middle */
+.phone .gb { transform-box: fill-box; transform-origin: center; transition: scale 160ms var(--ease); }
+.phone .gb:active { scale: .94; }
+.gt-m, .gt-m:active { transform: none; opacity: 1; }
+.gt-r { transition: scale 160ms var(--ease), background-color var(--motion-quick) ease; }
+.gt-r:has(> .gt-m:active) { scale: .98; }
+.phone .manual-color:active, .phone .pf-c > summary:active { scale: .985; }
+.manual-color, .pf-c > summary { transition: scale 160ms var(--ease); }
+/* Explore's gym cards are narrow: the name gets the whole line and ends in "…", and "Your gym" sits on the photo */
+.gt-sheet.cards .gt-m { position: relative; }
+.gt-sheet.cards .gt-t { flex: 1; }
+.gt-sheet.cards .gt-t strong { display: block; }
+.gt-sheet.cards .gt-t strong em { position: absolute; left: 6px; bottom: 18px; width: 44px; padding: 2px 0; text-align: center; font-size: 9px; box-shadow: 0 1px 4px rgba(17,17,17,.18); }
+.gt-sheet.cards .gt-m::after { width: 14px; height: 14px; margin-left: 0; }
+
+/* picking climbs logged by hand: the tick takes the corner, so the result tag under it steps aside */
+.al-hand:has(> .al-ck) .alh-top .alh-pill + .alh-pill { display: none; }
