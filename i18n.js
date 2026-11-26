@@ -3,6 +3,24 @@
    an exact match first, then a pattern ({} is any text, translated in turn; {1} picks a piece out of order),
    then piece by piece around " · ". Anything not found stays in English. */
 const ZH = {
+  'From {}': '来自{}', '{} grades hard': '{} 定级偏难', '{} grades soft': '{} 定级偏松', 'climbers rate it {}': '岩友评为 {}',
+  'Also': '还有',
+  'Invitation found': '找到邀请了',
+  'This link opens only on this computer. Open Spotter at its Wi-Fi address to invite a phone.': '这个链接只能在这台电脑上打开。用 Wi-Fi 地址打开 Spotter，才能邀请手机。',
+  'Scan it with the phone’s Camera app. On Wi-Fi, the phone has to be on the same network.': '用手机自带的相机扫码。用 Wi-Fi 地址时，手机要连同一个网络。',
+  'Scan the code with your phone’s Camera app, or paste the invitation link.': '用手机自带的相机扫码，或者粘贴邀请链接。',
+  // ---- the beta, video first: key moves
+  "Key moves": "关键动作", "Time in the video": "视频时间", "Play": "播放", "Pause": "暂停", "Tap one to watch it slowed down": "点一下，慢放这一步", "Whole climb": "看完整攀爬",
+  "The hard part": "最难的一步", "The longest reach": "最远的一次够", "Swap hands": "换手", "Where you went another way": "你走法不同的地方",
+  "Move {}": "第 {} 步", "{} stopped here for {} s.": "{} 在这里停了 {} 秒。", "You stopped here for {} s.": "你在这里停了 {} 秒。",
+  "Set your feet first ({}), then reach.": "先把脚放好（{}），再出手。", "1 foot move": "1 次脚步", "{} foot moves": "{} 次脚步",
+  "The feet stay put: it’s all in this reach.": "脚不用动，关键就在这一下伸手。",
+  "Walk your feet up first: higher feet, shorter reach.": "先把脚走高：脚越高，手越容易够到。",
+  "Stand tall on straight legs to make it.": "腿蹬直、身体站高才够得到。",
+  "Leave room on the hold, then bring the other hand in.": "在点上留出位置，再把另一只手并过来。",
+  "You: {}.": "你：{}。", "Try it {}’s way next time.": "下次试试 {} 的走法。",
+  "{} of {} holds line up with {}’s video.": "{}/{} 个岩点和 {} 的视频对得上。", "Same wall as your photo": "和你的照片是同一面墙",
+  "Nearest beta to your photo": "和你照片最接近的 beta", "Watch {}’s beta": "看 {} 的 beta", "Nearest beta": "最接近的 beta",
   // ---- grades: votes and how hard each gym grades
   "The gym": "岩馆定级", "Climbers who topped it": "完攀者认为", "Average gym": "平均水平岩馆", "{} votes": "{} 票", "1 vote": "1 票",
   "How did it feel to you?": "你觉得这条线难度如何？", "Top it to vote. Only climbers who topped it are counted.": "完攀后才能投票，只统计完攀者的意见。",

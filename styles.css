@@ -1,3 +1,4 @@
+@charset "UTF-8";
 /* Spotter prototype: shared tokens and app-wide pieces (phone frame, dock, sheets, lists, tiles).
    A white app: white screen, white cards with #EDEDED hairlines, ink type, lime #C2FF01 for actions, orange #FF6A1F
    for what speaks to you. Screen styles and the design system that ties them together live in pages.css. */
@@ -161,6 +162,8 @@ html.rec .stage { height: 100%; justify-content: center; }
 /* centred, with the grey stage around it when the window is bigger (Claude's browser pane): a clean edge to record to */
 html.rec, html.rec body { background: var(--stage); }
 html.rec .device { zoom: var(--rfit, 1); width: auto; }
+/* the finger grows with the phone (it sits outside it, on the page, so the phone's zoom doesn't reach it) */
+html.rec .touch-dot { width: calc(40px * var(--rfit, 1)); height: calc(40px * var(--rfit, 1)); margin: calc(-20px * var(--rfit, 1)) 0 0 calc(-20px * var(--rfit, 1)); }
 /* the drawn 9:41 bar and camera are left out because the recording goes into an iPhone mockup that draws its own. Their
    54 px stay empty (--sb isn't changed), so the content sits exactly where it would on the phone, under the mockup's bar.
    A live session's pill stays where the island is, so it reads as the mockup's island opening up */

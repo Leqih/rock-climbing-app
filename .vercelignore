@@ -10,3 +10,5 @@ runs
 *.pt
 tools/hd-record
 tools/record-hd.cmd
+tools/record-phone.cmd
+tools/record-phone.command

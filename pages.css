@@ -1,3 +1,4 @@
+@charset "UTF-8";
 /* Spotter screens in user-flow order, then the design system that gives them one look (it loads last). Tokens are in styles.css. */
 .note { display: block; width: 100%; margin-top: 8px; padding: 10px 12px; border: 0; border-radius: var(--r-m); box-shadow: inset 0 0 0 1px var(--g200); font: inherit; font-size: 15px; resize: none; }
 .note:focus { outline: none; box-shadow: inset 0 0 0 2px var(--ink); }
@@ -1143,10 +1144,10 @@ a.pj { display: inline-flex; align-items: center; text-decoration: none; color: 
 /* tab titles: heavy, upright, a sparkle; the mascot is a sticker */
 .hl.tab { font-style: normal; font-weight: 900; letter-spacing: -.04em; }
 .hl.tab .masc { width: 40px; height: 38px; transform: rotate(-10deg); filter: var(--sticker); }
-.hl.tab::before { content: "✦"; order: 2; font-size: 18px; margin: -18px -6px 0 -8px; color: var(--ink); }
+.hl.tab::before { content: "\2726 "; order: 2; font-size: 18px; margin: -18px -6px 0 -8px; color: var(--ink); }
 .hl.tab { display: flex; }
 /* section titles: a small sparkle after the words */
-.sec h2::after { content: " ✦"; font-size: .7em; vertical-align: .35em; color: var(--orange); }
+.sec h2::after { content: " \2726 "; font-size: .7em; vertical-align: .35em; color: var(--orange); }
 /* pixel-cut tags */
 .vc-t, .vc-gy, .vbox-tag, .stg.on, .oc-vs, .vt-t, .cm-t, .ts-gr, .an-c { border-radius: 0 !important; clip-path: var(--px); }
 .vc-t.g { background: var(--lime); }
@@ -1621,7 +1622,7 @@ textarea.note:focus { outline: 2px solid var(--ink); outline-offset: 0; backgrou
   background: var(--ink); }
 .cid-strap i { position: absolute; left: 0; right: 0; top: -40px; bottom: 0; writing-mode: vertical-rl;
   font-style: normal; font-size: 8px; font-weight: 900; letter-spacing: .18em; color: var(--lime); text-align: center; line-height: 22px; }
-.cid-strap i::before { content: "SPOTTER · SPOTTER · SPOTTER"; }
+.cid-strap i::before { content: "SPOTTER \b7  SPOTTER \b7  SPOTTER"; }
 .cid-clip { position: relative; z-index: 2; width: 34px; height: 22px; margin-top: -4px; border-radius: 5px;
   background: linear-gradient(180deg, #F2F2EE 0%, #C9C9C3 55%, #A8A8A1 100%); box-shadow: 0 2px 4px rgba(17, 17, 17, .25); }
 .cid-clip::after { content: ""; position: absolute; left: 50%; top: 7px; width: 14px; height: 6px; margin-left: -7px; border-radius: 3px; background: rgba(17, 17, 17, .35); }
@@ -2353,7 +2354,7 @@ textarea.note:focus { outline: 2px solid var(--ink); outline-offset: 0; backgrou
 .cam-tags { position: absolute; top: 108px; left: 16px; right: 16px; display: flex; align-items: center; gap: 6px; z-index: 2; }
 .cam-tag { position: relative; min-width: 0; flex: 1; }
 .cam-tag select { width: 100%; min-width: 0; height: 35px; border: 0; border-radius: 999px; padding: 0 22px 0 10px; background: rgba(255,255,255,.94); color: #151a17; font: 800 11px inherit; font-family: inherit; font-size: 11px; font-weight: 800; text-overflow: ellipsis; appearance: none; }
-.cam-tag::after { content: '⌄'; position: absolute; right: 9px; top: 8px; color: #26342c; font-size: 13px; pointer-events: none; }
+.cam-tag::after { content: '\2304 '; position: absolute; right: 9px; top: 8px; color: #26342c; font-size: 13px; pointer-events: none; }
 .cam-tag select:disabled { opacity: .75; }
 .cam-tag .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .camx:not(.mapx) .cam-fr { top: 156px; }
@@ -2479,7 +2480,7 @@ textarea.note:focus { outline: 2px solid var(--ink); outline-offset: 0; backgrou
 
 
 /* the gym reads as the rest of the date line, "Friday · ARC Climbing Wall": no icon, a dot, a lighter grey */
-.al-dg::before { content: "·"; margin-right: 6px; }
+.al-dg::before { content: "\b7 "; margin-right: 6px; }
 
 /* Gyms map: the area picker and the open-now count are one pair of pills: same height, white, shadow */
 .gt-top .gt-n { box-sizing: border-box; height: 34px; padding: 0 12px; background: var(--white); box-shadow: 0 2px 10px rgba(17, 17, 17, .14); font-size: 13px; }
@@ -2517,7 +2518,7 @@ textarea.note:focus { outline: 2px solid var(--ink); outline-offset: 0; backgrou
 .ph-hg { display: inline-flex; align-items: center; gap: 4px; min-height: 28px; font-size: 13px; font-weight: 700; color: var(--ink); }
 .ph-hg svg { width: 14px; height: 14px; }
 .ph-hg em { margin-left: 2px; font-style: normal; font-weight: 500; color: #8a8a87; }
-.ph-hg em::before { content: "·"; margin-right: 6px; }
+.ph-hg em::before { content: "\b7 "; margin-right: 6px; }
 .ph-stt, .stt-o { display: inline-flex; align-items: center; gap: 6px; }
 .ph-stt { height: 28px; padding: 0 11px 0 9px; border-radius: 999px; background: #fff; box-shadow: 0 0 0 1px rgba(17, 17, 17, .08); font-size: 12px; font-weight: 700; color: var(--ink); }
 .ph-stt i, .stt-o i { flex: none; width: 8px; height: 8px; border-radius: 50%; background: #b9b9b6; }
@@ -3942,7 +3943,7 @@ section.st:has(.st-box) { flex: none; border-radius: 0; background: none; }
 .pc-ft { padding-top: 12px; border-top: 1px solid rgba(17, 17, 17, .07); }
 .pc-ft .pz-cms { margin: 0; }
 .pc-ft .pz-cm { height: 32px; background: #f4f4f2; }
-.pc-ft a.pz-cm::after { content: "↗"; margin-left: 5px; font-weight: 700; color: var(--mid); }
+.pc-ft a.pz-cm::after { content: "\2197 "; margin-left: 5px; font-weight: 700; color: var(--mid); }
 
 /* New post, a page of its own (built on the Edit card pieces): a calendar strip of seven days, a three-way part-of-day switch,
    gyms as chips that wrap (none cut off at the edge), the line as a text box with a count, contacts in one white box */
@@ -3978,11 +3979,11 @@ section.st:has(.st-box) { flex: none; border-radius: 0; background: none; }
 .pc-wk i.on.td { box-shadow: inset 0 0 0 1.5px var(--ink), inset 0 0 0 3px #fff; }
 .pc-tm { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; margin: 2px 2px 0 !important; font-size: 14px; }
 .pc-tm b { font-weight: 800; }
-.pc-tm b + b::before { content: "·"; margin-right: 6px; color: var(--mid); font-weight: 400; }
+.pc-tm b + b::before { content: "\b7 "; margin-right: 6px; color: var(--mid); font-weight: 400; }
 .pc-td { margin-left: auto; padding: 2px 8px; border-radius: 999px; background: #DDF1E5; font-size: 12px; font-weight: 800; color: #1F7A48; }
 .pc-gym { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 6px; margin: 0 2px !important; font-size: 14px; font-weight: 600; color: var(--ink); }
 .pc-gym svg { flex: none; width: 14px; height: 14px; stroke: var(--mid); }
-.pc-gym span + span::before { content: "·"; margin-right: 6px; color: var(--mid); }
+.pc-gym span + span::before { content: "\b7 "; margin-right: 6px; color: var(--mid); }
 .pc-plan .pc-wants { margin-top: 2px; }
 .pz-mine { display: flex; gap: 14px; flex: none; }
 
@@ -4032,7 +4033,7 @@ section.st:has(.st-box) { flex: none; border-radius: 0; background: none; }
 .pst .pc-meta > span { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 2px 4px; }
 .pst .pc-meta svg { flex: none; width: 14px; height: 14px; margin-right: 2px; color: var(--mid); stroke: var(--mid); }
 .pst .pc-meta b { font-weight: 700; }
-.pst .pc-meta b + b::before { content: "·"; margin-right: 4px; font-weight: 400; color: var(--mid); }
+.pst .pc-meta b + b::before { content: "\b7 "; margin-right: 4px; font-weight: 400; color: var(--mid); }
 .pst .pc-ft { display: flex; align-items: center; gap: 10px; padding-top: 2px; }
 .pst .pc-ft .pc-wants { flex: 1; min-width: 0; margin: 0; }
 .pst .pc-ft .pc-wants i { background: #EBF7F0; }
@@ -4049,7 +4050,7 @@ section.st:has(.st-box) { flex: none; border-radius: 0; background: none; }
 .ph-rt > span { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 2px 4px; }
 .ph-rt svg { flex: none; width: 14px; height: 14px; margin-right: 2px; color: var(--mid); stroke: var(--mid); }
 .ph-rt b { font-weight: 700; }
-.ph-rt b + b::before { content: "·"; margin-right: 4px; font-weight: 400; color: var(--mid); }
+.ph-rt b + b::before { content: "\b7 "; margin-right: 4px; font-weight: 400; color: var(--mid); }
 
 /* joining, tidier: where you are (two dots in the bar), the three filming tips as one card instead of three, and the
    page fading out under the bottom button so the gym list doesn't run into it */
@@ -4075,7 +4076,7 @@ section.st:has(.st-box) { flex: none; border-radius: 0; background: none; }
    "Climbs today" is a green dot; what they want is a quiet line beside Contact rather than a row of green pills */
 .pst .pc-sub { gap: 0; margin-top: 2px; }
 .pst .pc-sub i, .pst .pc-sub em { padding: 0; background: none; font-size: 13px; font-weight: 500; color: var(--mid); }
-.pst .pc-sub em::before { content: "·"; margin: 0 6px; }
+.pst .pc-sub em::before { content: "\b7 "; margin: 0 6px; }
 .pst .pz-h > .pc-td { display: inline-flex; align-items: center; gap: 6px; padding: 0; background: none; font-size: 12px; font-weight: 700; color: #1F7A48; }
 .pst .pz-h > .pc-td::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: #2E9E62; box-shadow: 0 0 0 3px #DDF1E5; }
 .pc-sch { display: grid; gap: 3px; padding: 12px 14px; border-radius: 16px; background: #f4f4f2; }
@@ -4085,11 +4086,11 @@ section.st:has(.st-box) { flex: none; border-radius: 0; background: none; }
 .pc-wh .pc-now { align-self: center; padding: 2px 9px; border-radius: 999px; background: var(--ink); color: #fff; font-size: 13px; }
 .pc-gy { display: flex; flex-wrap: wrap; align-items: center; gap: 0 6px; font-size: 13px; font-weight: 600; color: var(--mid); }
 .pc-gy svg { flex: none; width: 13px; height: 13px; stroke: var(--mid); }
-.pc-gy span + span::before { content: "·"; margin-right: 6px; }
+.pc-gy span + span::before { content: "\b7 "; margin-right: 6px; }
 .pst .pc-ft { display: flex; align-items: center; gap: 12px; padding-top: 0; border-top: 0; }
 .pst .pc-wants { display: block; flex: 1; min-width: 0; font-size: 13px; line-height: 1.45; color: var(--ink); }
 .pst .pc-ft .pc-wants i { display: inline; padding: 0; border-radius: 0; background: none; font-size: 13px; font-weight: 600; color: var(--ink); white-space: nowrap; }
-.pst .pc-ft .pc-wants i + i::before { content: "·"; margin: 0 6px; color: var(--mid); }
+.pst .pc-ft .pc-wants i + i::before { content: "\b7 "; margin: 0 6px; color: var(--mid); }
 .pst .pc-ct { height: 36px; padding: 0 18px; }
 
 /* Contact as an iOS action sheet: the sheet itself goes see-through and two frosted blocks float 8px in from the edges,
@@ -4117,15 +4118,15 @@ section.st:has(.st-box) { flex: none; border-radius: 0; background: none; }
 .pp-ct0 { flex: 1; }
 .pp-ct0 b { font-size: 15px; font-weight: 700; }
 .pp-ctl > i { flex: none; display: inline-flex; align-items: center; gap: 2px; font-style: normal; font-size: 14px; font-weight: 700; color: var(--mid); }
-.pp-ctl > i::after { content: "›"; font-size: 18px; line-height: 1; margin-left: 2px; }
+.pp-ctl > i::after { content: "\203a "; font-size: 18px; line-height: 1; margin-left: 2px; }
 
 /* how to reach you, on the profile card under the tags: the apps you gave, or a dashed prompt to add them */
 .ph-ct { display: flex; align-items: center; gap: 6px; margin: 10px 0 0 2px; padding: 0; border: 0; background: none; color: var(--mid); font: inherit; font-size: 13px; font-weight: 600; text-align: left; }
 .ph-ct svg { flex: none; width: 15px; height: 15px; }
 .ph-ct b { font-weight: 700; color: var(--ink); }
 .ph-ct b i { font-style: normal; }
-.ph-ct b i + i::before { content: "·"; margin: 0 5px; font-weight: 500; color: var(--mid); }
-.ph-ct::after { content: "›"; margin-left: 2px; font-size: 16px; line-height: 1; color: var(--mid); }
+.ph-ct b i + i::before { content: "\b7 "; margin: 0 5px; font-weight: 500; color: var(--mid); }
+.ph-ct::after { content: "\203a "; margin-left: 2px; font-size: 16px; line-height: 1; color: var(--mid); }
 .ph-ct0 { display: block; margin-top: 8px; }
 
 /* Profile has one way into the card. While tags or contacts are missing the button says Finish your card, with a dot */
@@ -4261,3 +4262,141 @@ details[open] > :not(summary) { animation: openIn 200ms var(--ease) both; }
 
 /* picking climbs logged by hand: the tick takes the corner, so the result tag under it steps aside */
 .al-hand:has(> .al-ck) .alh-top .alh-pill + .alh-pill { display: none; }
+
+/* the viewfinder corners and the guide line are only drawn on the camera: taps go through them to the buttons
+   underneath (they were swallowing "Choose a photo" when there's no camera) */
+.cam-fr, .cam-guide { pointer-events: none; }
+.cam-err { z-index: 5; }
+
+/* the pretend camera roll behind "Choose a photo" on a computer: Cancel, Recents, then a tight grid of squares like Photos */
+.ph-roll { margin: 0 -16px; }
+.ph-h { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; padding: 2px 16px 12px; }
+.ph-h button { justify-self: start; color: #2c6595; font-size: 15px; font-weight: 600; }
+.ph-h b { font-size: 16px; font-weight: 800; }
+.ph-h span { justify-self: end; font-size: 12px; color: var(--mid, #6b716d); }
+.ph-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; }
+.ph-grid button { position: relative; aspect-ratio: 1; overflow: hidden; background: #ddd; }
+.ph-grid img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.ph-grid button:active { scale: 1; opacity: .7; }
+.ph-files { display: block; margin: 14px auto 4px; color: #2c6595; font-size: 14px; font-weight: 600; }
+
+/* Find beta: where the beta comes from, beside your photo. On the result card, the beta video's wall; on the beta page, your
+   photo (and, for another wall, the wall the beta is on) */
+.scan-near { flex: none; padding: 3px 8px; border-radius: 999px; background: #373c38; color: #d6dbd7; font-size: 11px; font-weight: 800; letter-spacing: .02em; text-transform: uppercase; }
+.scan-src { display: flex; align-items: center; gap: 10px; margin-top: 8px; padding: 6px; border-radius: 14px; background: rgba(255,255,255,.07); }
+.scan-src img { flex: none; width: 34px; height: 60px; border-radius: 8px; object-fit: cover; }
+.scan-src > span { display: grid; gap: 1px; font-size: 13px; color: #d6dbd7; }
+.scan-src b { color: #fff; font-weight: 800; }
+.phone .b-from { display: flex; align-items: center; gap: 12px; margin: 12px 0 0; padding: 8px 12px 8px 8px; border-radius: 18px; background: #fff; animation: bfIn .42s cubic-bezier(.2, .8, .2, 1) both; }
+.phone .b-from.same { background: #F3FFD0; }
+.b-from .bf-ims { flex: none; display: flex; align-items: center; gap: 4px; }
+.b-from .bf-ims img { width: 38px; height: 68px; border-radius: 9px; object-fit: cover; }
+.b-from .bf-ims i { font-style: normal; font-size: 13px; color: #5d6660; }
+.b-from .row-t strong { font-size: 15px; }
+.b-from .row-t span { font-size: 13px; line-height: 1.35; }
+@keyframes bfIn { from { opacity: 0; transform: translateY(-6px); } }
+@media (prefers-reduced-motion: reduce) { .phone .b-from { animation: none; } }
+/* Leo's video, opened straight from Find beta: your photo above it, and why it's your route */
+.wp-from { display: flex; align-items: center; gap: 10px; margin: 0 0 12px; padding: 6px 12px 6px 6px; border-radius: 14px; background: #F3FFD0; }
+.wp-from img { flex: none; width: 30px; height: 54px; border-radius: 7px; object-fit: cover; }
+.wp-from > span { display: grid; gap: 1px; font-size: 13px; color: #5d6660; }
+.wp-from b { color: #111; font-weight: 800; }
+.wp-go { margin-top: 14px; }
+
+/* the beta, video first: the climb at the top (a key move zooms in on its reach and plays at half speed), the few moves worth
+   knowing under it as cards with the frame at that move */
+/* on the page's own 20px edges, like the headings and rows around it */
+.phone .bv { position: relative; margin: 12px 0 0; border-radius: 22px; overflow: hidden; background: #111; aspect-ratio: 1; }
+.bv-in { position: absolute; left: 0; top: 0; transition: scale .55s cubic-bezier(.2, .8, .2, 1); }
+.bv-in.zoom { scale: 1.9; }
+.bv-in video, .bv-in svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.bv-in video { object-fit: cover; }
+.bv-in svg { pointer-events: none; }
+.bv .scan-tag { z-index: 2; }
+.bk-l { display: grid; gap: 8px; margin: 0; }
+.phone .bk-c { display: flex; align-items: center; gap: 12px; width: 100%; padding: 8px 14px 8px 8px; border-radius: 18px; background: #fff; text-align: left; transition: scale .15s, box-shadow .2s; }
+.phone .bk-c:active { scale: .985; }
+.phone .bk-c[aria-pressed="true"] { box-shadow: 0 0 0 2.5px #111 inset; }
+.bk-i { position: relative; flex: none; width: 64px; height: 78px; border-radius: 12px; overflow: hidden; background: #d9dcd9; }
+.bk-i img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.bk-i img:not([src]) { visibility: hidden; }
+.bk-i b { position: absolute; left: 5px; top: 5px; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 999px; background: #C2FF01; color: #111; font-size: 12px; line-height: 20px; text-align: center; }
+.bk-t { display: grid; gap: 2px; min-width: 0; }
+.bk-t em { font-style: normal; font-size: 12px; font-weight: 700; color: #5d6660; }
+.bk-c.you .bk-t em { color: #C0461B; }
+.bk-t strong { font-size: 15px; font-weight: 800; }
+.bk-d { font-size: 13px; line-height: 1.35; color: #3c433e; }
+@media (prefers-reduced-motion: reduce) { .bv-in { transition: none; } }
+/* the 3:4 box is wider than a phone video: the sides are the same wall, blurred, not grey bars */
+.bv-bg { position: absolute; inset: -24px; width: calc(100% + 48px); height: calc(100% + 48px); object-fit: cover; filter: blur(18px) brightness(.55) saturate(.9); }
+/* the video's controls: a slowed-down move shows "0.5× Whole climb" top right; along the bottom, play, the time bar (key moves
+   marked on it, the move playing as a lighter band) and the time */
+.bv-all { position: absolute; z-index: 2; top: 12px; right: 12px; display: none; align-items: center; gap: 6px; height: 32px; padding: 0 12px 0 4px; border-radius: 999px; background: rgba(17,17,17,.78); color: #fff; font-size: 13px; font-weight: 800; -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
+.bv-all b { padding: 3px 8px; border-radius: 999px; background: #C2FF01; color: #111; font-size: 12px; }
+.bv.slow .bv-all { display: flex; }
+.bv-bar { position: absolute; z-index: 2; left: 0; right: 0; bottom: 0; display: flex; align-items: center; gap: 10px; padding: 28px 14px 10px 8px; background: linear-gradient(transparent, rgba(0,0,0,.55)); }
+.bv-pp { flex: none; display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; }
+.bv-pp i { width: 12px; height: 14px; border-left: 4px solid #fff; border-right: 4px solid #fff; }
+.bv.paused .bv-pp i { width: 0; height: 0; border-style: solid; border-width: 8px 0 8px 13px; border-color: transparent transparent transparent #fff; translate: 2px 0; }
+.bv-tl { position: relative; flex: 1; height: 26px; cursor: pointer; touch-action: none; }
+.bv-tl::before, .bv-fill, .bv-seg { content: ""; position: absolute; left: 0; top: 11px; height: 4px; border-radius: 2px; }
+.bv-tl::before { right: 0; background: rgba(255,255,255,.3); }
+.bv-fill { background: #fff; }
+.bv-seg { background: rgba(194,255,1,.45); }
+.bv-knob { position: absolute; top: 6px; width: 14px; height: 14px; margin-left: -7px; border-radius: 50%; background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,.35); transition: scale .15s; }
+.bv.seeking .bv-knob { scale: 1.25; }
+.bv-mk { position: absolute; top: 8px; width: 10px; height: 10px; margin-left: -5px; border-radius: 50%; background: #C2FF01; box-shadow: 0 0 0 2px #111; z-index: 1; }
+.bv-mk::after { content: ""; position: absolute; inset: -9px; }
+.bv-time { flex: none; min-width: 34px; color: #fff; font-size: 12px; font-weight: 700; text-align: right; }
+
+/* Scan a QR code: a viewfinder that opens on any device. The wall behind, darkened (or the camera, on a phone), four
+   corners to aim with and a line sweeping down; when a code is found the corners turn lime and say so */
+#ask .iscan { position: relative; aspect-ratio: 1; margin: 16px 0 0; border-radius: 22px; overflow: hidden; background: #111; }
+.iscan > img, .iscan > video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.iscan > img { filter: blur(3px) brightness(.5); transform: scale(1.06); }
+.iscan > video { opacity: 0; }
+.iscan.live > video { opacity: 1; }
+.iscan-f { position: absolute; inset: 22%; --c: rgba(255, 255, 255, .92); transition: inset .35s var(--ease), --c .2s;
+  background: linear-gradient(var(--c) 0 0) 0 0 / 28px 4px, linear-gradient(var(--c) 0 0) 0 0 / 4px 28px,
+    linear-gradient(var(--c) 0 0) 100% 0 / 28px 4px, linear-gradient(var(--c) 0 0) 100% 0 / 4px 28px,
+    linear-gradient(var(--c) 0 0) 0 100% / 28px 4px, linear-gradient(var(--c) 0 0) 0 100% / 4px 28px,
+    linear-gradient(var(--c) 0 0) 100% 100% / 28px 4px, linear-gradient(var(--c) 0 0) 100% 100% / 4px 28px;
+  background-repeat: no-repeat; border-radius: 6px; }
+.iscan-l { position: absolute; left: 24%; right: 24%; top: 24%; height: 2px; border-radius: 2px; background: #C2FF01; box-shadow: 0 0 12px 2px rgba(194, 255, 1, .55); animation: iscan 1.8s ease-in-out infinite alternate; }
+@keyframes iscan { to { top: 76%; } }
+.iscan-ok { position: absolute; left: 50%; bottom: 18px; translate: -50% 8px; padding: 7px 14px; border-radius: 999px; background: #C2FF01; color: #111; font-size: 14px; font-weight: 700; white-space: nowrap; opacity: 0; transition: opacity .2s, translate .3s var(--ease); }
+.iscan.found .iscan-f { inset: 26%; --c: #C2FF01; }
+.iscan.found .iscan-l { display: none; }
+.iscan.found .iscan-ok { opacity: 1; translate: -50% 0; }
+@media (prefers-reduced-motion: reduce) { .iscan-l { animation: none; top: 50%; } }
+
+/* Your style: the coaching video is a small link under the tip, not a black button in every row, and the moves past the
+   first two are named in a line */
+.sty .lm-v.sty-lk { margin-top: 2px; padding: 0; background: none; color: var(--ink); font-size: 13px; text-decoration: underline; text-underline-offset: 3px; justify-self: start; }
+.sty .lm-v.sty-lk span { display: none; }
+.sty-more { margin-top: 10px; align-items: center; }
+.sty-more em { font-style: normal; font-size: 13px; font-weight: 600; color: var(--mid); margin-right: 2px; }
+
+/* Your style, on its own page: what stands out under the title, then the rest */
+.sty-lead { margin: 6px 0 0; font-size: 15px; color: var(--mid); }
+
+/* a page that failed to draw: what went wrong, so it can be fixed */
+.pg-err { margin: 16px 0 0; padding: 16px; border-radius: 20px; background: #fff; }
+.pg-err b { font-size: 17px; font-weight: 800; }
+.pg-err p { margin: 6px 0 0; font-size: 14px; }
+.pg-err code { display: block; margin-top: 8px; font-size: 11px; color: var(--mid); word-break: break-all; }
+
+/* Your routes cards: the photo fills the card's top edge to edge, rounded only by the card itself (its own 18px corners
+   showed the card through at the bottom), and is drawn a little larger toward its left so a black band some phone photos
+   carry along their right edge (Orange 5.9's) stays outside the card */
+.vc .vc-i.rc img { border-radius: 0; scale: 1.12; transform-origin: 20% 50%; }
+
+/* the back button stays on screen: as you scroll it floats over the page, a white circle with a soft shadow, and nothing
+   else does. (A solid band of the page's colour behind it was a heavy empty block with a hard edge across the content.)
+   The bar's title fades out while it floats, so words never sit on top of words; its other buttons float like the back one.
+   Not on the dark, full-bleed pages (videos, a climber's hero), which draw their own top */
+.phone:not(.dark, .onvid) .screen:not(.tok-on, .snap, :has(#vshero)) > .m > .bar:first-child { position: sticky; top: 0; z-index: 3; pointer-events: none; }
+.phone:not(.dark, .onvid) .screen:not(.tok-on, .snap, :has(#vshero)) > .m > .bar:first-child > :is(button, a) { pointer-events: auto; transition: background-color .2s, box-shadow .2s; }
+.phone:not(.dark, .onvid) .screen:not(.tok-on, .snap, :has(#vshero)) > .m > .bar:first-child > span { transition: opacity .15s; }
+.phone.scrolled:not(.dark, .onvid) .screen:not(.tok-on, .snap, :has(#vshero)) > .m > .bar:first-child > :is(button, a) { background: rgba(255, 255, 255, .92); box-shadow: 0 2px 10px rgba(17, 17, 17, .12); }
+.phone.scrolled:not(.dark, .onvid) .screen:not(.tok-on, .snap, :has(#vshero)) > .m > .bar:first-child > span { opacity: 0; }

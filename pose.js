@@ -822,7 +822,9 @@
   // where the video is on screen: window.poseView = { z, ax, ay } is the zoom and the shift (fractions of the box) the page
   // gives it. Returns pixels on screen per video pixel, and sets the canvas to draw in video pixels
   function toScreen(ctx, T) {
-    const cv = ctx.canvas, bw = cv.clientWidth || T.W, bh = cv.clientHeight || T.H, dpr = Math.min(3, window.devicePixelRatio || 1);
+    // the phone is drawn bigger than its 402 points when the page zooms it to fill the window (the recording page, ?rec): the
+    // canvas has to have that many more pixels too, or the lines are drawn small and stretched, soft next to the sharp page
+    const cv = ctx.canvas, bw = cv.clientWidth || T.W, bh = cv.clientHeight || T.H, dpr = Math.min(4, (window.devicePixelRatio || 1) * (cv.currentCSSZoom || 1));
     if (cv.width !== Math.round(bw * dpr) || cv.height !== Math.round(bh * dpr)) { cv.width = Math.round(bw * dpr); cv.height = Math.round(bh * dpr); }
     ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, cv.width, cv.height);
     const V = window.poseView || { z: 1, ax: 0, ay: 0 }, z = V.z;

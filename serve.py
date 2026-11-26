@@ -47,6 +47,26 @@ class RangeHandler(SimpleHTTPRequestHandler):
         except (ConnectionResetError, ConnectionAbortedError, BrokenPipeError):
             pass  # the browser dropped a video request mid-way; normal when it seeks
 
+    # text files say they're UTF-8: without it a browser can read the stylesheet in its own default encoding, and every
+    # character past plain English in it (the ✦ by each tab's title, the · between words) comes out as âœ¦ and Â·
+    def guess_type(self, path):
+        t = super().guess_type(path)
+        return t + '; charset=utf-8' if t.startswith('text/') or t in ('application/javascript', 'application/json') else t
+
+    # where a phone on the same Wi-Fi opens the app: the invite QR code reads it when the page is open as localhost
+    # (which, on a phone, is the phone). The Wi-Fi server is the one on SPOTTER_LAN_PORT (8080 by default)
+    def do_GET(self):
+        if self.path.split('?')[0] == '/lan.json':
+            import json, socket
+            try:
+                s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM); s.connect(('10.255.255.255', 1)); ip = s.getsockname()[0]; s.close()
+            except OSError:
+                ip = ''
+            body = json.dumps({'url': f"http://{ip}:{os.environ.get('SPOTTER_LAN_PORT', '8080')}/" if ip and not ip.startswith('127.') else ''}).encode()
+            self.send_response(200); self.send_header('Content-Type', 'application/json'); self.send_header('Content-Length', str(len(body))); self.end_headers()
+            self.wfile.write(body); return
+        return super().do_GET()
+
     def end_headers(self):
         if not self.headers.get('Range'):
             self.send_header('Accept-Ranges', 'bytes')
