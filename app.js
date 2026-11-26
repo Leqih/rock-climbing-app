@@ -4,11 +4,35 @@
 // You are one of them; five others with full scans are the community. Their names, likes and comments are sample data.
 // Every number about a climb is measured from its video (video/<vid>.track.json, or a live scan in the browser).
 // Routes: #/videos (tab) · #/shelf/all|gym (a binder) · #/clip/<id> · #/vs/<id>-<v> · #/route/<i> · #/walls (Gyms tab) · #/gyms (map) · #/gym/<i> · #/friends (tab: who climbed today and the week's race) · #/friends/partners (posts: someone at the gym to film you, belay you or climb with) · #/friends/all (the full-screen player a video opens in)
-// · #/scan (photo a route, its beta drawn on) · #/person/<name> · #/profile (tab) · #/session (log by hand, the session clock) · #/summary · #/watch · #/cam · #/setup
+// · #/scan (photo a route, its beta drawn on) · #/person/<name> · #/moves/<v> (the moves found in someone else's video) · #/profile (tab) · #/session (log by hand, the session clock) · #/summary · #/watch · #/cam · #/setup
 // Back from v8 (2026-11-12): other gyms and the map, logging by hand, the session clock, the watch, the highlight reel, the share poster,
 // CSV export, friends and partner posts, and portraits for the sample people
 
 const params = new URLSearchParams(location.search);
+// the "Record at phone size" mode (?rec=): the bare app at 402 × 874, with no drawn 9:41 bar or camera cut-out on top.
+// It sticks for this tab (sessionStorage), so a reload or the browser pane reopening at the plain address keeps it;
+// ?rec=0 turns it off again
+try {
+  if (params.get('rec') === '0') { sessionStorage.removeItem('spotter-rec'); params.delete('rec'); }
+  else if (params.has('rec')) sessionStorage.setItem('spotter-rec', '1');
+  else if (sessionStorage.getItem('spotter-rec')) params.set('rec', '1');
+} catch {}
+if (params.has('rec')) document.documentElement.classList.add('rec');
+if (params.has('cap')) document.documentElement.classList.add('cap');
+// ?mock: the white iPhone 16 mockup frame instead of the drawn one (the HD recorder always uses it)
+if (params.has('mock') || params.has('cap')) document.documentElement.classList.add('mock');
+// ?bg=ffffff paints the page behind the phone in a slide's colour, so a recording drops onto that slide seamlessly;
+// ?bg=none leaves it transparent. Hides the page's own buttons. Remembered for the tab; ?bg=0 goes back
+try {
+  if (params.get('bg') === '0') sessionStorage.removeItem('spotter-bg');
+  else if (params.has('bg')) sessionStorage.setItem('spotter-bg', params.get('bg'));
+  const bg = sessionStorage.getItem('spotter-bg');
+  if (bg) {
+    const de = document.documentElement;
+    de.style.setProperty('--stage', /^(none|transparent)$/i.test(bg) ? 'transparent' : /^[0-9a-f]{3,8}$/i.test(bg) ? '#' + bg : bg);
+    de.classList.add('bgset');
+  }
+} catch {}
 // "regular" = you've already filmed three tries here. "new" = first open: your three videos are still in your camera roll
 const user = params.get('view') === 'regular' ? 'regular' : 'new';
 let page = 'videos', arg = '';
@@ -107,7 +131,7 @@ function feelBlock(i, topped) {
 }
 // what the climbers who topped a route say its grade is, once 3 have voted: on the gym's Beta list
 const saidOf = ri => { const q = votesOf(ri), g = ROUTES[ri].grade; return q.n < 3 ? '' : q.h ? `Climbers say ${shiftG(g, q.h)}` : 'Climbers say the grade is right'; };
-const sw = r => `<span class="sw" style="background:${r.hex}"></span>`;
+const sw = r => `<span class="sw" style="background:${r?.hex || '#bbb'}"></span>`;
 const rpic = r => String(r.img).startsWith('mine-') && !MINE[r.img] ? pic(gyms[gyOf(r)]?.img || 'gym-arc-1') : pic(r.img);
 const dateOf = ago => { const d = new Date(); d.setHours(12, 0, 0, 0); d.setDate(d.getDate() - ago); return d; };
 const mday = ago => dateOf(ago).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
@@ -147,6 +171,8 @@ fetch('data/wx/samples.json').then(x => x.ok ? x.json() : []).then(L => L.forEac
 // one clip = one try of yours. v = its video in V; ri = its route (you can change it); hidden = only you see it
 const clips = [];
 let cid = 0, newPublic = false;
+// the moves Spotter finds show on your public videos for others to watch (your tips and scores never do)
+let movesPub = true; try { movesPub = localStorage.getItem('spotter-movespub') !== '0'; } catch (_) {}
 const vidOf = c => V[c.v];
 // a try filmed today is from today, whatever the sample video's own day
 const agoOf = c => c.ago ?? V[c.v].ago;
@@ -247,6 +273,8 @@ function weekHours(g) {
 let homeGy; try { homeGy = JSON.parse(localStorage.getItem('spotter-home') ?? 'null'); } catch (_) { homeGy = null; }
 const obDone = () => { try { return localStorage.getItem('spotter-ob') === '1'; } catch (_) { return false; } };
 const obFinish = () => { try { localStorage.setItem('spotter-ob', '1'); } catch (_) {} };
+// your home gym: picked when joining or on Edit card, else the first gym
+const homeIx = () => homeGy != null && gyms[homeGy] ? homeGy : 0;
 function viewSetup() {
   return { photo: 'wayup-p3-green', html: `
     <div class="bar"><span class="brand">Spotter</span><button class="ob-skip" type="button" data-act="obskip">Look around first</button></div>
@@ -261,26 +289,28 @@ function viewSetup() {
       const n = $('obn'); if (n) n.textContent = `${T.moves.length} hand and foot moves`;
       const all = q => q.p && [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].every(i => q.p[i][2] > .6), up = q => Math.min(q.p[5][1], q.p[6][1]) < q.p[0][1] - .02;
       const s = T.S.find(q => q.t >= 7.5 && all(q) && up(q)) || T.S.find(q => q.p && q.t >= 20);
-      return s && window.poseStill?.('video/wayup-p3-green.mp4', T, s, 'none', 'good'); })
+      return s && window.poseStill?.('video/wayup-p3-green.mp4', T, s, 'wide', 'good'); })
       .then(u => { const im = $('obex'); if (u && im) im.src = u; }).catch(() => {}) };
 }
 // step 1: your gym; step 2: how to film so Spotter sees every move, and a sample to see it work before you film. Skip on a
 // step goes on to the next one; Later, on the last, ends joining
+// where you are in joining: two dots in the bar, the step you're on long
+const obDots = n => `<span class="ob-dots" role="img" aria-label="Step ${n} of 2"><i${n === 1 ? ' class="on"' : ''}></i><i${n === 2 ? ' class="on"' : ''}></i></span>`;
 function viewOb(a) {
   if (a === 'film') return { after: obFinish,
     cta: `<button class="b-ghost" type="button" data-act="obsample">Try a sample video</button><button class="b-lime" type="button" data-act="film">${ic.rec}Film a try</button>`, html: `
-    ${bar('', '<button class="ob-skip" type="button" data-act="obskip">Later</button>')}
+    ${bar(obDots(2), '<button class="ob-skip" type="button" data-act="obskip">Later</button>')}
     <h1 class="hl ob-h">Film your first try</h1>
     <p class="sub-w ob-s">Three things, and Spotter can see every move.</p>
     <div class="ob-eg"><img src="img/wayup-p3-green.jpg" alt="A whole rope wall filmed from the floor, the climber small on it">
-      <span><strong>Like this</strong>The whole wall in the picture, you small on it, is fine. Spotter finds you.</span></div>
+      <span><strong>Like this</strong>The whole wall in frame is fine. Spotter finds you.</span></div>
     <ol class="ob-tips">
-      <li><b>1</b><span><strong>Phone on the floor</strong>A few steps back from the wall, propped on your bag or a shoe.</span></li>
-      <li><b>2</b><span><strong>Upright, all of you in frame</strong>Your whole body and the whole route, from the first hold to the top.</span></li>
-      <li><b>3</b><span><strong>Record, climb, stop</strong>Start before you leave the ground, stop once you’re back down.</span></li></ol>
+      <li><b>1</b><span><strong>Phone on the floor</strong>A few steps back, propped on your bag.</span></li>
+      <li><b>2</b><span><strong>Upright, whole route in frame</strong>From the first hold to the top.</span></li>
+      <li><b>3</b><span><strong>Record, climb, stop</strong>Start before you leave the ground.</span></li></ol>
     <p class="cap">Filmed some already? <button class="ob-imp" type="button" data-act="upload">Import them</button></p>` };
   return { cta: `<button class="b-lime" type="button" data-act="to" data-to="ob/film"${homeGy == null ? ' disabled' : ''}>Continue</button>`, html: `
-    ${bar('', '<button class="ob-skip" type="button" data-act="to" data-to="ob/film">Skip</button>')}
+    ${bar(obDots(1), '<button class="ob-skip" type="button" data-act="to" data-to="ob/film">Skip</button>')}
     <h1 class="hl ob-h">Where do you climb most?</h1>
     <p class="sub-w ob-s">We start you there: its routes, and the climbers on them. You can film at any gym.</p>
     <div class="ob-gyms" role="radiogroup" aria-label="Your gym">${byNear(gyms.map((g, i) => [g, i])).map(([g, i]) => `<button class="ob-g" type="button" role="radio" data-act="obpick" data-i="${i}" aria-checked="${homeGy === i}">
@@ -335,6 +365,8 @@ function fitStylePicker() {
   };
   resize(); stylePickerResize = resize; window.addEventListener('resize', resize);
 }
+// where the shapes came to rest: coming back to Profile shows them there, they only fall the first time (or when your styles change)
+let profRest = null;
 function animateProfileShapes() {
   const box = $('profile-shapes');
   if (!box) return;
@@ -344,11 +376,16 @@ function animateProfileShapes() {
   // Bodies collide as boxes (what you see), labels stay level, and you can pick one up and throw it
   const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const W = box.clientWidth, H = box.clientHeight;
-  const size = Math.round(Math.min(100, Math.max(58, Math.sqrt(W * H * .38 / elements.length))));
+  // never taller than the room above the photo's corner, or a shape resting there is cut off by the top of the card
+  const size = Math.round(Math.min(100, H - 60, Math.max(58, Math.sqrt(W * H * .38 / elements.length))));
   const R = size / 2, AV = { x0: 0, x1: 118, y0: H - 54, y1: H };
   const tilt = [-6, 5, -3, 7, -8, 4, -5, 6, -2, 8, -7, 3];
   const bodies = elements.map((el, i) => ({ el, x: R + 4 + (elements.length > 1 ? (i % 2 ? elements.length - 1 - (i >> 1) : i >> 1) / (elements.length - 1) : .5) * (W - size - 8), y: -R - i * size * .55, vx: 0, vy: 0, a: tilt[i % tilt.length], base: tilt[i % tilt.length] }));
-  elements.forEach(el => { el.style.width = el.style.height = `${size}px`; });
+  elements.forEach(el => { el.style.width = el.style.height = `${size}px`; el.style.setProperty('--s', `${size}px`); });   // --s: the label scales with it
+  const key = `${W}x${H}:${elements.map(el => el.textContent.trim()).join('|')}`;
+  const kept = profRest?.key === key && profRest.pos.every(([x, y]) => y >= R - 1 && y <= H - R + 1 && x >= R - 1 && x <= W - R + 1);
+  if (kept) bodies.forEach((b, i) => { [b.x, b.y, b.a] = profRest.pos[i]; });
+  const keep = () => { profRest = { key, pos: bodies.map(b => [b.x, b.y, b.a]) }; };
   let drag = null, raf = 0, still = 0;
   const step = dt => {
     bodies.forEach(b => {
@@ -376,10 +413,13 @@ function animateProfileShapes() {
     step(dt); draw();
     const moving = drag || bodies.some(b => Math.abs(b.vx) > .05 || Math.abs(b.vy) > .05 || b.y < -R + 1);
     still = moving ? 0 : still + 1;
+    // kept only once they've landed: left mid-fall, they'd be shown hanging in the air next time
+    if (still > 20) keep();
     raf = still > 20 ? 0 : requestAnimationFrame(frame);
   };
   const wake = () => { still = 0; if (!raf) { frame.t = 0; raf = requestAnimationFrame(frame); } };
   if (reduced) { for (let t = 0; t < 600; t++) step(1); bodies.forEach(b => { b.a = b.base; }); draw(); }
+  else if (kept) draw();
   else { draw(); wake(); }
   const at = e => { const r = box.getBoundingClientRect(), k = r.width / W || 1; return [(e.clientX - r.left) / k, (e.clientY - r.top) / k]; };
   elements.forEach((el, i) => el.addEventListener('pointerdown', e => {
@@ -481,8 +521,9 @@ let alTime = 'all', alGym = null, alRoute = null, alOpen = null;   // alOpen: th
 const alTimeOk = d => alTime === 'all' ? true : alTime === 'week' ? d < 7 : alTime === 'month' ? dateOf(d).getMonth() === dateOf(0).getMonth() && dateOf(d).getFullYear() === dateOf(0).getFullYear() : d === +alTime.slice(2);
 const alTimeName = () => alTime === 'week' ? 'This week' : alTime === 'month' ? 'This month' : alTime.startsWith('d:') ? dayLabel(+alTime.slice(2)) : 'All time';
 const alFiltered = () => albumFilter !== 'all' || alTime !== 'all' || alGym != null;
-const alCta = () => { const k = alSel ? alSel.size : 0, d = k ? '' : ' disabled', tray = alSel && alOpen && (page === 'videos') ? album({ tray: true }) || '' : '';
-  return alSel ? `${tray}<button class="b-ghost" type="button" data-act="alvis" data-v="me"${d}>Only you</button><button class="b-ghost" type="button" data-act="alvis" data-v="pub"${d}>Public</button><button class="b-lime" type="button" data-act="aldel"${d}>Delete${k ? ` ${k}` : ''}</button>` : ''; };
+const alVids = () => alSel ? [...alSel].filter(i => !/^[gl]/.test(i)) : [];
+const alCta = () => { const k = alSel ? alSel.size : 0, d = k ? '' : ' disabled', dv = alVids().length ? '' : ' disabled', tray = alSel && alOpen && (page === 'videos') ? album({ tray: true }) || '' : '';
+  return alSel ? `${tray}<button class="b-ghost" type="button" data-act="alvis" data-v="me"${dv}>Only you</button><button class="b-ghost" type="button" data-act="alvis" data-v="pub"${dv}>Public</button><button class="b-lime" type="button" data-act="aldel"${d}>Delete${k ? ` ${k}` : ''}</button>` : ''; };
 function album(only) {
   const hn = vlogged(), tops = vtops(), newest = newestClips(), nogym = clips.filter(c => c.gy == null).length, here = newest.filter(c => c.gy === 0);
   if (!clips.length && !hn) return '';
@@ -504,20 +545,21 @@ function album(only) {
     return `<svg class="alh-art" viewBox="0 0 100 100" aria-hidden="true"><path d="${d}" fill="var(--hold)"/><circle cx="50" cy="48" r="3.2" fill="#E7E7E5"/></svg>`; };
   const handCard = ({ act, hex, grade, name, where, tries, res, sent, label, seed }) => {
     const k = Math.min(tries, 8), bars = Array.from({ length: k }, (_, b) => `<i${sent && b === k - 1 ? ' class="ok"' : ''}></i>`).join('') + (tries > 8 ? `<small>+${tries - 8}</small>` : '') + `<small>${n(tries, 'try', 'tries')}</small>`;
-    return `<button class="al-t al-hand" type="button" ${act} style="--hold:${hex}" aria-label="${label}">
+    return `<button class="al-t al-hand" type="button" ${act} style="--hold:${hex}" aria-label="${label}">${alSel ? '<span class="al-ck" aria-hidden="true"></span>' : ''}
       <span class="alh-top"><span class="alh-pill">By hand</span><span class="alh-pill${sent ? ' on' : ''}">${res}</span></span>
       <span class="alh-b"><span class="alh-row"><strong class="alh-g">${grade}</strong>${holdArt(seed)}</span><span class="alh-tally" aria-hidden="true">${bars}</span><b>${name}</b><em>${where}</em></span></button>`; };
-  const handTile = (x, i) => handCard({ act: `data-act="glrecord" data-i="${i}"`, seed: `g${i}${x.g}${x.ago}`, hex: HOLD_COLORS[x.color] || '#8A8F98',
+  const pickAt = id => `data-act="alpick" data-i="${id}" aria-pressed="${alSel.has(id)}"`;
+  const handTile = (x, i) => handCard({ act: alSel ? pickAt(`g${i}`) : `data-act="glrecord" data-i="${i}"`, seed: `g${i}${x.g}${x.ago}`, hex: HOLD_COLORS[x.color] || '#8A8F98',
     grade: x.g, name: `${x.color ? x.color + ' · ' : ''}${x.ty}`, where: gyms[x.gy].name, tries: x.attempts || 1, res: KL[x.k], sent: x.k !== 'Project',
     label: `${x.g}, ${x.k}, ${gyms[x.gy].name}, logged by hand` });
   const routeTile = l => { const r = ROUTES[l.ri];
-    return handCard({ act: `data-act="to" data-to="route/${l.ri}"`, seed: `r${l.ri}${l.ago}${l.tries}`, hex: r.hex, grade: r.grade, name: `${r.color} · ${r.wall}`, where: gym.name,
+    return handCard({ act: alSel ? pickAt(`l${logs.indexOf(l)}`) : `data-act="to" data-to="route/${l.ri}"`, seed: `r${l.ri}${l.ago}${l.tries}`, hex: r.hex, grade: r.grade, name: `${r.color} · ${r.wall}`, where: gym.name,
       tries: l.tries || 1, res: l.sent ? (l.style || 'Topped') : 'Not yet', sent: l.sent, label: `${rname(r)}, logged by hand` }); };
   // a day, then the gyms you climbed at that day, then the routes at each: everything on one route sits together, newest try first
   const rawItems = d => {
     const it = [];
-    if (showManual) glogs.forEach((x, i) => { if (x.ago === d) it.push({ gy: x.gy, key: `g:${x.color}|${x.g}`, hex: HOLD_COLORS[x.color] || '#8A8F98', name: `${x.color || ''} ${x.g}`.trim(), sent: x.k !== 'Project', html: handTile(x, i), col: HOLD_COLORS[x.color] || '#8A8F98', g: x.g, seed: `g${i}${x.g}${x.ago}` }); });
-    if (showManual) logs.forEach(l => { if (l.ago === d && (l.tries || l.sent)) it.push({ gy: 0, key: `r:${l.ri}`, ri: l.ri, sent: l.sent, html: routeTile(l), col: ROUTES[l.ri].hex, g: ROUTES[l.ri].grade, seed: `r${l.ri}${l.ago}${l.tries}` }); });
+    if (showManual) glogs.forEach((x, i) => { if (x.ago === d) it.push({ gy: x.gy, key: `g:${x.color}|${x.g}`, hex: HOLD_COLORS[x.color] || '#8A8F98', name: `${x.color || ''} ${x.g}`.trim(), sent: x.k !== 'Project', html: handTile(x, i), col: HOLD_COLORS[x.color] || '#8A8F98', g: x.g, seed: `g${i}${x.g}${x.ago}`, id: `g${i}` }); });
+    if (showManual) logs.forEach(l => { if (l.ago === d && (l.tries || l.sent)) it.push({ gy: 0, key: `r:${l.ri}`, ri: l.ri, sent: l.sent, html: routeTile(l), col: ROUTES[l.ri].hex, g: ROUTES[l.ri].grade, seed: `r${l.ri}${l.ago}${l.tries}`, id: `l${logs.indexOf(l)}` }); });
     if (showVideos) newest.filter(c => agoOf(c) === d).sort((p, q) => tryOf(q) - tryOf(p)).forEach(c => it.push({ gy: c.gy ?? -1, key: c.need ? `n:${c.id}` : `r:${c.ri}`, ri: c.need ? null : c.ri, sent: topOf(c), html: tile(c), img: c.img, id: c.id }));
     return it; };
   const keep = x => only && only.d != null ? true : (alGym == null || x.gy === alGym) && (!alRoute || x.key === alRoute);
@@ -544,20 +586,20 @@ function album(only) {
     const pile = all.slice(0, 3).reverse().map((x, q, a) => `<i class="al-p${a.length - 1 - q}${x.img ? '' : ' al-ph'}"${x.img ? '' : ` style="--hold:${x.col}"`}>${x.img ? `<img src="${pic(x.img)}" alt="" loading="lazy">` : `<span class="alh-pill">By hand</span><strong>${x.g}</strong>${holdArt(x.seed)}`}</i>`).join('');
     const ids = all.filter(x => x.id != null).map(x => String(x.id)), on = alSel ? ids.filter(i => alSel.has(i)).length : 0;
     if (alSel) return `<div class="al-st al-sts${g.gy < 0 ? ' ng' : ''}${ids.length ? '' : ' off'}${on && on < ids.length ? ' part' : ''}"${on && on === ids.length ? ' data-on' : ''}>
-      <button class="al-stp" type="button" data-act="alopen" data-k="${d}_${g.gy}" aria-pressed="${!!ids.length && on === ids.length}" aria-expanded="${alOpen === `${d}_${g.gy}`}"${ids.length ? '' : ' disabled'} aria-label="${gname(g.gy)}: ${n(ids.length, 'video', 'videos')}">
+      <button class="al-stp" type="button" data-act="alstack" data-ids="${ids.join(',')}" aria-pressed="${!!ids.length && on === ids.length}"${ids.length ? '' : ' disabled'} aria-label="${gname(g.gy)}: ${n(ids.length, 'record', 'records')}">
         <span class="al-pile">${pile}<span class="al-ck" aria-hidden="true"></span><b class="al-cnt">${on ? `${on}/${ids.length}` : ids.length}</b></span>
-        <span class="al-sb"><b>${gname(g.gy)}</b><small>${ids.length ? n(ids.length, 'video', 'videos') : 'No videos'}</small></span></button>
+        <span class="al-sb"><b>${gname(g.gy)}</b><small>${n(ids.length, 'record', 'records')}</small></span></button>
 </div>`;
     return `<button class="al-st${g.gy < 0 ? ' ng' : ''}" type="button" data-act="to" data-to="algym/${d}_${g.gy}" aria-label="${gname(g.gy)}, ${n(k, 'record', 'records')}">
       <span class="al-pile">${pile}<b class="al-cnt">${k}</b></span>
       <span class="al-sb"><b>${gname(g.gy)}</b><small>${n(g.routes.length, 'route', 'routes')}${top ? ` · ${top} topped` : ''}</small>
       <span class="al-sw">${g.routes.slice(0, 6).map(r => `<i style="background:${r.ri != null ? ROUTES[r.ri].hex : r.hex || '#d5d5d2'}"></i>`).join('')}</span></span></button>`; };
-  // while selecting: the opened stack's videos in one row under its day, to pick one by one
+  // (a tray that opened a stack to pick inside it; selecting is one tap on the stack now, so it no longer opens)
   const strip = d => { if (!alSel || !alOpen || !alOpen.startsWith(`${d}_`)) return '';
     const g = dayItems(d).find(q => `${d}_${q.gy}` === alOpen); if (!g) return '';
     const vs = g.routes.flatMap(r => r.items).filter(x => x.id != null);
     const on = vs.filter(x => alSel.has(String(x.id))).length;
-    return `<div class="al-tray" role="group" aria-label="${gname(g.gy)}: pick videos"><p><b>${gname(g.gy)}</b><span>${dayLabel(d)} · ${on} of ${vs.length}</span><button type="button" class="al-all" data-act="alstack" data-ids="${vs.map(x => x.id).join(',')}">${on === vs.length ? 'Deselect all' : 'Select all'}</button><button type="button" class="al-tx" data-act="alopen" data-k="${alOpen}" aria-label="Close">×</button></p><div class="al-row">${vs.map(x => x.html).join('')}</div></div>`; };
+    return `<div class="al-tray" role="group" aria-label="${gname(g.gy)}: pick records"><p><b>${gname(g.gy)}</b><span>${dayLabel(d)} · ${on} of ${vs.length}</span><button type="button" class="al-all" data-act="alstack" data-ids="${vs.map(x => x.id).join(',')}">${on === vs.length ? 'Deselect all' : 'Select all'}</button><button type="button" class="al-tx" data-act="alopen" data-k="${alOpen}" aria-label="Close">×</button></p><div class="al-row">${vs.map(x => x.html).join('')}</div></div>`; };
   if (only?.tray) return alOpen ? strip(+alOpen.split('_')[0]) : '';
   const box = alRoute ? `<div class="al${alSel ? ' sel' : ''}">${days.map(d => `<div class="al-d"><h3><button type="button" class="day-open" data-act="to" data-to="day/${d}"><em class="al-dl">${dayLabel(d)}</em> <span>View day →</span></button></h3>
     <div class="al-g">${dayItems(d).flatMap(g => g.routes.flatMap(r => r.items)).map(x => x.html).join('')}</div></div>`).join('')}</div>`
@@ -580,8 +622,8 @@ function album(only) {
         <span class="bnd-s">${[0, 1, 2, 3].map(k => here[k] ? `<img src="${pic(here[k].img)}" alt="">` : '<i></i>').join('')}</span>
         <span class="vc-b"><span class="vc-r">${gym.name}</span><b>${n(here.length, 'video', 'videos')}</b>
         <span class="vc-d">${tops ? `<span class="stg on">${tops} of ${ROUTES.length} routes topped</span>` : `${ROUTES.length} routes`}</span></span></button></div>`;
-  const selB = showVideos && clips.length ? `<button class="al-filter${alSel ? ' active' : ''}" type="button" data-act="alsel">${alSel ? 'Done' : 'Select'}</button>` : '';
-  if (alSel) return `<div class="sec al-h"><h2 id="alcount">${alSel.size ? `${alSel.size} selected` : 'Select videos'}</h2>${selB}</div>${visibleBox}`;
+  const selB = (showVideos && clips.length) || (showManual && hn) ? `<button class="al-filter${alSel ? ' active' : ''}" type="button" data-act="alsel">${alSel ? 'Done' : 'Select'}</button>` : '';
+  if (alSel) return `<div class="sec al-h"><h2 id="alcount">${alSel.size ? `${alSel.size} selected` : 'Select records'}</h2>${selB}</div>${visibleBox}`;
   return `<div class="sec al-h"><h2>${albumFilter === 'videos' ? 'Videos' : albumFilter === 'manual' ? 'By hand' : 'All records'} <span class="num">${filteredCount}</span></h2><span class="al-hb">${selB}<button class="al-filter${alFiltered() ? ' active' : ''}" type="button" data-act="albumfilter" aria-label="Filter records"><svg aria-hidden="true" viewBox="0 0 20 20"><path d="M3 5h14M6 10h8M8 15h4"/></svg>${alFiltered() ? 'Filtered' : 'Filter'}</button></span></div>${chipRow}${visibleBox}${alGym == null ? binder : ''}`;
 }
 function viewVideos() {
@@ -603,9 +645,9 @@ function viewDay(a) {
 // inside a stack in the album: one gym on one day, its routes and every record on each
 function viewAlGym(a) {
   const [d, gy] = String(a).split('_').map(Number), r = album({ d: d || 0, gy: Number.isFinite(gy) ? gy : -1 }) || { name: '', n: 0, html: '' };
-  const vids = (String(r.html).match(/data-to="clip\/|data-act="alpick"/g) || []).length;
+  const vids = r.n;   // anything on this page can be picked, videos and climbs logged by hand
   return { cta: alCta(), html: `${bar()}<div class="alg-page"><p class="alg-d">${dayLabel(d || 0)} · ${n(r.n, 'record', 'records')}</p>
-    <div class="alg-h"><h1 class="hl" ${alSel ? 'id="alcount"' : ''}>${alSel ? (alSel.size ? `${alSel.size} selected` : 'Select videos') : r.name}</h1>${vids ? `<button class="al-filter${alSel ? ' active' : ''}" type="button" data-act="alsel">${alSel ? 'Done' : 'Select'}</button>` : ''}</div>
+    <div class="alg-h"><h1 class="hl" ${alSel ? 'id="alcount"' : ''}>${alSel ? (alSel.size ? `${alSel.size} selected` : 'Select records') : r.name}</h1>${vids ? `<button class="al-filter${alSel ? ' active' : ''}" type="button" data-act="alsel">${alSel ? 'Done' : 'Select'}</button>` : ''}</div>
     ${r.html ? `<div class="al alg${alSel ? ' sel' : ''}">${r.html}</div>` : '<p class="cap">Nothing here any more.</p>'}</div>` };
 }
 // a binder: every try (all) or one gym's, with a tab per route and one for grade days. Newest first; on one day the hand log goes after the videos
@@ -928,11 +970,12 @@ function stMarks(T, c) {
 }
 // one card, read top to bottom: what kind (to work on / went well) and when, what it is, what happened, why it matters, and
 // set apart at the bottom, the one thing to do next time
-const stCard = m => `<div class="st-top"><span class="st-tag">${m.k === 'fix' ? 'To work on' : 'Went well'}</span><span class="st-at num"><i aria-hidden="true"></i>${mmss(m.t)}${m.n > 1 ? ` · ${n(m.n, 'time', 'times')}` : ''}</span></div>
+const stCard = m => `<div class="st-top"><span class="st-tag">${m.k === 'fix' ? 'To work on' : m.k === 'mv' ? 'Move' : 'Went well'}</span><span class="st-at num"><i aria-hidden="true"></i>${mmss(m.t)}${m.n > 1 ? ` · ${n(m.n, 'time', 'times')}` : ''}</span></div>
   <h3 class="st-h">${m.l}</h3>
   ${m.q ? `<p class="st-q">${m.q}</p>` : ''}
   ${m.why ? `<p class="st-w"><em>${m.k === 'fix' ? 'Why it matters' : 'Why it helps'}</em><span>${m.why}</span></p>` : ''}
   ${m.next ? `<p class="st-x"><em>Next time</em><span>${m.next}</span></p>` : ''}
+  ${m.ts?.length > 1 ? `<span class="mvl-ts">${m.ts.map(t => `<button class="num" type="button" data-act="mvat" data-t="${t}" aria-label="Watch ${m.l} at ${mmss(t)}"><svg width="9" height="10" viewBox="0 0 9 10" aria-hidden="true"><path d="M0 0v10l9-5z" fill="currentColor"/></svg>${mmss(t)}</button>`).join('')}</span>` : ''}
   ${m.need || ''}
   ${m.id ? `<button class="sub-lk st-t" type="button" data-act="term" data-term="${m.id}"><span>What is ${m.l}?</span> ›</button>` : ''}`;
 function stepCard(T, c) {
@@ -999,7 +1042,11 @@ function drawFrames(src, D, cvs, alive) {
   const s = document.createElement('video'); s.muted = true; s.playsInline = true; s.preload = 'auto'; s.src = src;
   s.style.cssText = 'position:fixed;left:0;top:0;width:2px;height:2px;opacity:.01;pointer-events:none'; document.body.appendChild(s);
   const N = cvs.length; let i = 0; const next = () => { if (i >= N || !alive.isConnected) { s.remove(); return; } s.currentTime = Math.min(D - .05, (i + .5) / N * D); };
-  s.addEventListener('seeked', () => { const cv = cvs[i], g = cv.getContext('2d'), ar = s.videoWidth / s.videoHeight, w = cv.width, h = cv.height;
+  // each picture gets as many pixels as it covers on screen (a Retina screen draws 2 per point, the recording page zooms the
+  // phone up too): drawn 48 x 64 they were stretched to twice that and more, and looked smudged next to the sharp page
+  const px = c => { const k = Math.min(4, (devicePixelRatio || 1) * (c.currentCSSZoom || 1)), w = Math.round((c.clientWidth || 48) * k), h = Math.round((c.clientHeight || 64) * k);
+    if (c.width !== w || c.height !== h) { c.width = w; c.height = h; } };
+  s.addEventListener('seeked', () => { const cv = cvs[i]; px(cv); const g = cv.getContext('2d'), ar = s.videoWidth / s.videoHeight, w = cv.width, h = cv.height;
     const sw = ar > w / h ? s.videoHeight * w / h : s.videoWidth, sh = ar > w / h ? s.videoHeight : s.videoWidth * h / w;
     g.drawImage(s, (s.videoWidth - sw) / 2, (s.videoHeight - sh) / 2, sw, sh, 0, 0, w, h); i++; next(); });
   openVideo(s, 10000).then(next, () => s.remove());
@@ -1098,11 +1145,16 @@ const sbH = () => parseFloat(getComputedStyle(document.querySelector('.screen'))
 // the phone's own home bar, under the sheet's handle (0 in the drawn phone)
 const homeH = () => { const d = document.createElement('div'); d.style.cssText = 'position:fixed;visibility:hidden;height:env(safe-area-inset-bottom, 0px)'; document.body.appendChild(d); const h = d.offsetHeight; d.remove(); return h; };
 function stickWire(box, full) {
+  // one sheet at a time: a sheet left from an earlier render still listening would pull the page to its own resting place
+  // while this one pulls to ours, and the two take turns every frame (the page shakes)
+  stickWire.off?.();
   const scr = document.querySelector('.screen'), w = box.parentElement, m = w.parentElement, tabs = m.querySelector('.ctabs'), strip = $('lvbar');
   const ar = box.offsetWidth / box.offsetHeight, phone = scr.closest('.phone');
   // sheet down, only its handle shows at the bottom; the video and the strip under it are centred in the rest, on black
   const PEEK = 30 + homeH(), STRIP = strip ? strip.offsetHeight + 8 : 0, room = scr.clientHeight - PEEK, gap = Math.max(0, room - 8 - full - STRIP);
-  // pulled up, the video is a third of its full height: the sheet gets most of the screen. On Summary it folds away into
+  // a short video (wide, or square) is centred in the black, and its time strip goes to the bottom, right on top of the
+  // sheet's handle: the strip and the handle together say the page goes on, without the sheet's content showing
+  // pulled up, the video is a third of its full height: the sheet gets most of the screen. Off Body it folds away into
   // one slim Replay bar instead: you're reading what to change, and the moments you tap still play in it
   const MIN0 = Math.round(Math.max(180, full * .34)), SLIM = 56, v = $('lvv');
   let MIN = MIN0, BAND = MIN0 + STRIP + 8, D = 1, held = false, T0 = null;
@@ -1120,7 +1172,9 @@ function stickWire(box, full) {
   // --sk too: the phone keeps the last page's, and pulled up (1) it moves the stuck band down under the status bar
   const y0 = scr.scrollTop; scr.scrollTop = 0; phone?.style.setProperty('--sk', '0');
   const start = w.offsetTop;
-  const geo = () => { const sum = cTab === 'why'; w.classList.toggle('sum', sum);
+  // only Body needs the video on screen (its moments play in it): Summary, Compare and Info keep the slim Replay bar, so a
+  // tab you open doesn't bring the full analysis back on top of it
+  const geo = () => { const sum = cTab !== 'body'; w.classList.toggle('sum', sum);
     MIN = sum ? 0 : MIN0; BAND = sum ? SLIM : MIN0 + STRIP + 8;
     w.style.height = `${BAND}px`; sp.style.height = `${Math.max(0, room - 8 - BAND)}px`;
     // where the tabs sit in the page, measured once at the top: a stuck tab bar reports where it's stuck instead
@@ -1132,12 +1186,16 @@ function stickWire(box, full) {
     const want = `${Math.max(0, Math.ceil(D - free))}px`;
     if (m.style.paddingBottom !== want) m.style.paddingBottom = want; };
   let last = 0, dir = 0, t = null, anim = null;
+  const off = () => { scr.removeEventListener('scroll', fit); m.removeEventListener('tabchange', onTab); clearTimeout(t); cancelAnimationFrame(anim); anim = null; if (stickWire.off === off) stickWire.off = null; };
   const fit = () => {
-    if (!box.isConnected) { scr.removeEventListener('scroll', fit); m.removeEventListener('tabchange', onTab); return; }
+    if (!box.isConnected) { off(); return; }
     const y = scr.scrollTop, k = Math.min(1, Math.max(0, (y - start) / (D - start))), h = full - (full - MIN) * k;
     const vw = Math.min(w.clientWidth, Math.round(h * ar)), top = Math.round(gap / 2 * (1 - k));
-    box.style.width = `${vw}px`; w.style.paddingTop = `${top}px`;
+    // the space above the video is the video's own margin, not the band's padding: padding made the band taller than its
+    // height, which pushed the sheet below it down, off the bottom of the screen, when a short video left a lot of space
+    box.style.width = `${vw}px`; box.style.marginTop = `${top}px`;
     w.style.setProperty('--bh', `${Math.max(top * 2 + h + STRIP + 8, BAND)}px`);
+    if (strip) strip.style.marginTop = `${top}px`;   // the strip at the bottom of the black, pulled up with the video
     // Summary, pulled up: the Replay bar in place of the video, which waits instead of looping
     w.classList.toggle('fold', MIN === 0 && k > .6);
     if (MIN === 0 && k >= .9 && !v.paused && !segStop) { v.pause(); held = true; }
@@ -1167,20 +1225,21 @@ function stickWire(box, full) {
     clearTimeout(t); if (!anim) t = setTimeout(settle, 120);
   };
   // the page moves itself, so it ends exactly where it was sent (smooth scrolling can stop a pixel short)
-  const go = to => { cancelAnimationFrame(anim); const from = scr.scrollTop, t0 = performance.now(), ms = 260;
+  const go = to => { cancelAnimationFrame(anim); anim = null; const from = scr.scrollTop, t0 = performance.now(), ms = 260;
+    if (Math.abs(to - from) < 2) { scr.scrollTop = to; return; }   // already there, give or take a pixel: no animation to fight over
     const step = now => { const p = Math.min(1, (now - t0) / ms), e = 1 - Math.pow(1 - p, 3);
       scr.scrollTop = from + (to - from) * e; if (p < 1) anim = requestAnimationFrame(step); else anim = null; };
     anim = requestAnimationFrame(step); };
   // let go between the two places: carry on the way you were going once past a fifth, else go back
   const settle = () => { const y = scr.scrollTop;
-    if (y <= 0 || y >= D) return;
+    if (!box.isConnected || y <= 2 || y >= D - 2) return;   // within a pixel or two of a resting place counts as there
     go(dir > 0 ? (y > D * .2 ? D : 0) : (y < D * .8 ? 0 : D)); };
   // a new tab (or a Summary page) starts at its top; it stays pulled up when it was
   const onTab = () => { const was = anSheet?.k >= .99; geo(); pad(); if (was || scr.scrollTop > D) scr.scrollTop = D;
     if (held && MIN) { held = false; v.play().catch(() => {}); } fit(); };
   anSheet = { go, k: 0, top: () => D };
   tabs.addEventListener('click', e => { if (e.target.closest('button')) return; go(scr.scrollTop >= D / 2 ? 0 : D); });
-  scr.addEventListener('scroll', fit, { passive: true }); m.addEventListener('tabchange', onTab); pad(); fit();
+  scr.addEventListener('scroll', fit, { passive: true }); m.addEventListener('tabchange', onTab); stickWire.off = off; pad(); fit();
 }
 // a stretch played in the video at the top: slowed down, stopped at its end, with a label saying which stretch it is
 let segStop = null;
@@ -1851,7 +1910,7 @@ function tagWire(c) {
 }
 function confirmed(c, tags, again) { c.check = false; c.tags = tags; c.auto = tags; c.an = c.track ? 'done' : 'run'; tagS = { id: null, i: 0, pts: {} }; cTab = 'why'; if (again) analyse(c, tags); render(); document.querySelector('.screen').scrollTo(0, 0); }
 // a link to a video that isn't here any more (imports don't survive a reload)
-function lostClip() { page = 'videos'; arg = ''; history.replaceState(null, '', '#/videos'); return viewVideos(); }
+function lostClip() { page = 'videos'; arg = ''; history.replaceState(history.state, '', '#/videos'); return viewVideos(); }
 // the others on this route, for the Compare tab and the route page: what Spotter counted in each video
 const peerLine = x => { const T = TRK[x.vid]; return `${x.top ? 'Topped' : 'Didn’t top'} · ${T ? `${mmss(climbS(T))} climbing · ${n(T.stats.moves, 'move', 'moves')}` : x.len} · ${dayLabel(x.ago)}`; };
 // the loop the app is for: see what to change, then go and try it. Every analysis and route page ends in the next try:
@@ -1890,12 +1949,12 @@ function viewClip(id) {
       <div class="ce-rows"><button class="ce-row" type="button" data-act="trimedit" data-c="${c.id}"><span>Video</span><b>${c.trim ? `${mmss(c.trim[0])}–${mmss(c.trim[1])}` : 'Whole video'}</b><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m6 3.5 4.5 4.5L6 12.5"/></svg></button>${field('gy', 'Gym', pk.gy != null ? gyms[pk.gy]?.name : '')}${field('grade', 'Grade', pk.grade)}${field('color', 'Colour', pk.color, pk.color ? `<i style="--hold:${HOLD_COLORS[pk.color]}"></i>` : '')}
         <div class="ce-row ce-res"><span>How did it go?</span><span class="ce-seg" role="group" aria-label="How did it go?">${['Flash', 'Send', 'Project'].map(k => `<button type="button" data-act="clres" data-c="${c.id}" data-k="${k}" aria-pressed="${c.res === k}">${KL[k]}</button>`).join('')}</span></div>
         ${ready && (c.res === 'Flash' || c.res === 'Send') ? `<div class="ce-row ce-res"><span>Grade felt <i>Optional</i></span><span class="ce-seg" role="group" aria-label="How the grade felt">${FEELS.map(([k, l]) => `<button type="button" data-act="feel" data-ri="${c.ri}" data-k="${k}" aria-pressed="${myFeel[c.ri] === k}">${l}</button>`).join('')}</span></div>` : ''}</div>
-      ${c.hidden ? `<button class="ce-tg" type="button" role="switch" data-act="clpa" data-i="${c.id}" aria-checked="${!!c.postAfter}"><span class="ce-tt"><strong>Also post to Community</strong><span>${pk.gy != null && gyms[pk.gy] ? `Climbers at ${gyms[pk.gy].name} see the video. Your analysis stays private.` : 'Climbers at the gym see the video. Your analysis stays private.'}</span></span><i aria-hidden="true"></i></button>`
-        : '<p class="ce-n ce-in">In Community already. Your analysis stays private.</p>'}
+      ${c.hidden ? `<button class="ce-tg" type="button" role="switch" data-act="clpa" data-i="${c.id}" aria-checked="${!!c.postAfter}"><span class="ce-tt"><strong>Also post to Community</strong><span>${pk.gy != null && gyms[pk.gy] ? `Climbers at ${gyms[pk.gy].name} see the video${movesPub ? ' and the moves found' : ''}. Your tips stay private.` : `Climbers at the gym see the video${movesPub ? ' and the moves found' : ''}. Your tips stay private.`}</span></span><i aria-hidden="true"></i></button>`
+        : `<p class="ce-n ce-in">In Community already${movesPub ? ', with the moves found' : ''}. Your tips stay private.</p>`}
       <div class="ce-act"><button class="b-ghost" type="button" data-act="clsave" data-i="${c.id}"${ready ? '' : ' disabled'}>Save for now</button><button class="b-lime" type="button" data-act="startanalysis" data-i="${c.id}"${ready ? '' : ' disabled'}>Analyse</button></div>
       <p class="ce-n">${ready ? 'Not analysing now? Save it and analyse it any time from its page. To post several videos at once, tap Select on Videos.' : 'Choose the gym, grade and colour first.'}</p></div>`;
   // analysed and not posted yet: post it from here. The analysis stays yours
-  const postCard = c.hidden ? `<div class="ce-post"><span class="row-t"><strong>Only you can see this</strong><span>Post the video to Community. Your analysis stays private.</span></span><button class="b-ghost" type="button" data-act="clpost" data-i="${c.id}">Post</button></div>` : '';
+  const postCard = c.hidden ? `<div class="ce-post"><span class="row-t"><strong>Only you can see this</strong><span>Post the video to Community. Your tips stay private.</span></span><button class="b-ghost" type="button" data-act="clpost" data-i="${c.id}">Post</button></div>` : '';
   // analysed: the video fills the screen, edge to edge, with the top of the analysis sheet showing under it to pull up
   const vh = two ? Math.round(Math.max(280, Math.min(room, (scrEl?.clientWidth || 402) / lv.ar))) : Math.max(280, Math.min(560, room));
   // what the video shows right now, as it plays: in Body, above the timeline
@@ -2158,6 +2217,15 @@ function viewRoute(a) {
       <button class="row" type="button" data-act="rkind" data-r="${i}"><span class="row-t"><strong>${kindOf(i) ? kindName(kindOf(i)) : 'Kind of route'}</strong><span>${kindOf(i) ? RKINDS.find(x => x[0] === kindOf(i))[2] : 'Slab, vertical or overhang: your style is read per kind'}</span></span><span class="sty-ch">${kindOf(i) ? 'Change ›' : 'Choose ›'}</span></button></div>
     ${feelBlock(i, meTop)}` };
 }
+// opened from a photo you took: your photo beside the beta, and how the two are the same route. The same wall: the moves are
+// drawn on your photo, and Leo's video is the source. Another wall: the nearest beta, said plainly, with both walls side by side
+function scanFrom(i, B) {
+  const S = betaScan; if (!S || S.ri !== i || !B) return '';
+  const g = gyms[gyOf(ROUTES[i])].name, F = S.fit, same = F?.same && F.img === B.x.img;
+  return `<div class="b-from${same ? ' same' : ''}"><span class="bf-ims"><img src="${S.url}" alt="Your photo">${same ? '' : `<i aria-hidden="true">→</i><img src="${pic(B.x.img, 0)}" alt="">`}</span>
+    <span class="row-t"><strong>${same ? 'Same wall as your photo' : 'Nearest beta to your photo'}</strong><span>${same ? `${F.n} of ${F.of} holds line up with ${B.x.who}’s video.`
+      : F ? `Your photo looks like another wall: only ${F.n} of ${F.of} holds line up. This route is the same colour, on the ${ROUTES[i].wall.toLowerCase()} at ${g}.` : `Matched by colour to ${B.x.who}’s video at ${g}.`}</span></span></div>`;
+}
 // the beta, on its own page: whose top to read, the climb move by move on the wall, the video, your try against it, then
 // your videos and everyone else's on this route
 function viewBeta(a) {
@@ -2168,11 +2236,11 @@ function viewBeta(a) {
   needTracks(peers);
   const Bk = betaBlock(i), B = betaOf(i, betaV), tv = peers.filter(x => x.top);
   const who = tv.length > 1 ? `<div class="fchips bw" role="group" aria-label="Whose beta">${tv.map(x => `<button type="button" data-act="bwho" data-v="${x.i}" aria-pressed="${!!B && B.x === x}">${x.who}</button>`).join('')}</div>` : '';
-  return { photo: r.img, cta: nextTryCta(i), html: `
+  return { photo: r.img, cta: nextTryCta(i), after: betaAfter, html: `
     ${bar(`Beta · ${rname(r)}`)}
     ${who}
+    ${scanFrom(i, B)}
     ${Bk ? Bk.top : `<div class="rows"><div class="row"><span class="row-t"><strong>No beta here yet</strong><span>When someone films a climb to the top, their moves show here hold by hold</span></span></div></div>`}
-    ${Bk ? `<div class="rows bsx-rows">${Bk.rows}</div>` : ''}
     <div class="sec"><h2>Your tries</h2>${mine.length ? `<span class="stg${mine.some(topOf) ? ' on' : ''}">${mine.some(topOf) ? 'Topped' : 'Not topped yet'}</span>` : ''}</div>
     ${mine.length ? `<div class="rgrid">${mine.slice().reverse().map(vcard).join('')}</div>`
       : '<div class="rows"><button class="row" type="button" data-act="film"><span class="row-t"><strong>Film a try</strong><span>Then watch it next to anyone below</span></span>' + ic.arr('#111111') + '</button></div>'}
@@ -2286,6 +2354,7 @@ const feedAll = () => {
 };
 const liked = new Set(), likeKey = p => `${p.who}/${V[p.v].vid}`;
 const tokIc = {
+  moves: '<svg viewBox="0 0 48 48" fill="none" aria-hidden="true"><path d="M6 22 13 8l15-3 13 9 2 15-8 12-15 2L7 35Z" fill="currentColor"/><g stroke="#555" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="25" cy="14" r="3" fill="#555" stroke="none"/><path d="M24 19v10M24 22l-7-6M24 22l8 3M24 29l-6 7M24 29l7 5"/></g></svg>',
   heart: '<svg viewBox="0 0 48 48" fill="none" aria-hidden="true"><path d="M5 19 15 6 29 5 42 15 43 29 34 41 19 43 6 34 3 26Z" fill="currentColor" stroke="currentColor" stroke-width="4" stroke-linejoin="round"/><path d="m11 21 7-8 11 1 7 7M10 30l8 5 13-2" stroke="#454545" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" opacity=".7"/></svg>',
   talk: '<svg viewBox="0 0 48 48" fill="none" aria-hidden="true"><path d="M4 22C4 11 13 5 25 5s20 7 19 17c0 10-8 16-20 16h-4L9 44l1-10C6 31 4 27 4 22Z" fill="currentColor"/><circle cx="15" cy="22" r="2.7" fill="#666"/><circle cx="24" cy="22" r="2.7" fill="#666"/><circle cx="33" cy="22" r="2.7" fill="#666"/></svg>',
   save: '<svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor"><path d="M6 3.5h12a1 1 0 0 1 1 1v16.2a.5.5 0 0 1-.8.4L12 16.6l-6.2 4.5a.5.5 0 0 1-.8-.4V4.5a1 1 0 0 1 1-1Z"/></svg>',
@@ -2298,7 +2367,7 @@ function feedPost(p, i) {
     <span class="ts-sh"></span>
     <div class="ts-rail"><span class="ts-av"><button class="ts-face" type="button" data-act="to" data-to="${me ? 'profile' : `person/${p.who}`}" aria-label="${me ? 'Your profile' : `${p.who}’s page`}">${avatar(p.who)}</button><span class="ts-author">${esc(p.who)}</span></span>
       <button class="ts-nice" type="button" data-act="flike" data-i="${i}" aria-pressed="${on}" aria-label="Like">${tokIc.heart}<span class="ts-like-label">${on ? 'NICE!' : 'NICE'}</span></button>
-      <button type="button" data-act="fcm" data-i="${i}" aria-label="Comment">${tokIc.talk}<span class="ts-action-label">Chat</span></button><button type="button" data-act="fmore" data-i="${i}" aria-label="Video options"><span class="ts-more-icon" aria-hidden="true">•••</span><span>More</span></button></div>
+      ${me ? '' : `<button type="button" data-act="to" data-to="moves/${x.i}" aria-label="See the moves in this climb">${tokIc.moves}<span class="ts-action-label">Moves</span></button>`}<button type="button" data-act="fcm" data-i="${i}" aria-label="Comment">${tokIc.talk}<span class="ts-action-label">Chat</span></button><button type="button" data-act="fmore" data-i="${i}" aria-label="Video options"><span class="ts-more-icon" aria-hidden="true">•••</span><span>More</span></button></div>
     <div class="ts-c"><div class="ts-info"><span class="ts-gym">${ic.pin.replace(/#2B2D2E|#111111/g, '#FFFFFF')}${esc(p.c ? gymName(p.c) : gym.name)}</span></div>${p.note ? `<p>${esc(p.note)}</p>` : ''}<div class="ts-tools"><span class="ts-route"><i class="ts-route-color" style="background:${r.hex}" aria-hidden="true"></i>${esc(r.color)} · ${esc(r.grade)}</span>${vs}<button type="button" data-act="fbeta" data-r="${p.c ? p.c.ri : x.ri}" data-v="${x.i}" aria-label="See route beta"><span class="ts-action-icon ts-beta-icon" aria-hidden="true">B</span></button></div></div>
     <span class="ts-time"><span class="ts-elapsed">0:00</span> / ${x.len}</span><i class="ts-p"><b></b></i>
   </article>`;
@@ -2375,7 +2444,8 @@ function reportVideo(i) {
 function feedLike(post, on) { const b = post.querySelector('[data-act=flike]'), p = feedAll()[+b.dataset.i], k = likeKey(p); on ? liked.add(k) : liked.delete(k);
   b.setAttribute('aria-pressed', on); b.querySelector('.ts-like-label').textContent = on ? 'NICE!' : 'NICE'; pop(b, on); }
 function pop(b, on) { b.classList.remove('pop'); if (!on) return; void b.offsetWidth; b.classList.add('pop'); }
-let feedAt = 0, tapT = null;
+// feedWho: the player opened from someone's page shows only their videos, newest first, with no tab bar (back goes to their page)
+let feedAt = 0, tapT = null, feedWho = null;
 const TOK_FAR = .16, TOK_FLICK = .35, TOK_EDGE = .3;   // a drag of 16% of the screen, or a flick of .35 px/ms, turns the page; past the first and last post the drag gives 30%
 function feedStop() { document.querySelectorAll('.fv video').forEach(v => v.pause()); }
 function feedWire() {
@@ -2431,22 +2501,23 @@ function viewFriends(a) {
   if (!a || a === 'plan' || a === 'friends') return viewFriendsHome();
   if (a === 'partners') return viewPartners();
   // a video you tapped, in the full-screen player: swipe for the next one, back to where you came from
-  const entries = feedAll().map((post,i) => ({post,i}));
-  const top = `<div class="tok-top"><button class="tok-bk" type="button" data-act="back" aria-label="Back"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5 8 12l7 7"/></svg></button><span class="tok-ttl">Videos</span><button class="av sm" type="button" data-act="to" data-to="profile" aria-label="Your profile">${avatar('You')}</button></div>`;
+  const all = feedAll().map((post,i) => ({post,i})), who = feedWho && PEOPLE.includes(feedWho) ? feedWho : null;
+  const entries = who ? all.filter(e => e.post.who === who && !e.post.c).sort((p, q) => p.post.ago - q.post.ago) : all;
+  const top = `<div class="tok-top"><button class="tok-bk" type="button" data-act="back" aria-label="Back"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5 8 12l7 7"/></svg></button><span class="tok-ttl">${who ? `${who}’s videos` : 'Videos'}</span>${who ? '<span class="av sm" aria-hidden="true"></span>' : `<button class="av sm" type="button" data-act="to" data-to="profile" aria-label="Your profile">${avatar('You')}</button>`}</div>`;
   const empty = `<div class="feed-empty"><strong>No videos yet</strong><p>Videos your friends post show up here.</p><button type="button" data-act="to" data-to="friends">Back to friends</button></div>`;
-  return { dark: true, tok: true, after: entries.length ? feedWire : undefined, html: `${top}${entries.length ? `<div class="tok" id="tok" tabindex="0"><div class="tok-in" id="tokin">${entries.map(({post,i}) => feedPost(post,i)).join('')}</div></div>` : empty}` };
+  return { dark: true, tok: true, bare: !!who, after: entries.length ? feedWire : undefined, html: `${top}${entries.length ? `<div class="tok" id="tok" tabindex="0"><div class="tok-in" id="tokin">${entries.map(({post,i}) => feedPost(post,i)).join('')}</div></div>` : empty}` };
 }
 
 /* ---------- Someone else's page ---------- */
 function viewPerson(who) {
-  if (!PEOPLE.includes(who)) { page = 'friends'; arg = ''; history.replaceState(null, '', '#/friends'); return viewFriends(); }
+  if (!PEOPLE.includes(who)) { page = 'friends'; arg = ''; history.replaceState(history.state, '', '#/friends'); return viewFriends(); }
   const vs = V.filter(x => x.who === who), all = feedAll();
   needTracks(vs);
-  const tile = x => `<button class="vt" type="button" data-act="pvid" data-v="${x.i}" aria-label="Watch ${who} on ${rname(ROUTES[x.ri])}">
-      <img src="${pic(x.img)}" alt=""><span class="shade"></span><span class="vt-t">${sw(ROUTES[x.ri])}${rname(ROUTES[x.ri])}</span><span class="vt-b">${x.top ? 'Topped' : 'Not topped'} · ${dayLabel(x.ago)}</span></button>`;
+  const tile = x => `<button class="vt" type="button" data-act="pvid" data-v="${x.i}" data-w="${who}" aria-label="Watch ${who} on ${rname(ROUTES[x.ri])}">
+      <img src="${pic(x.img)}" alt=""><span class="shade"></span><span class="vt-t">${sw(ROUTES[x.ri])}${rname(ROUTES[x.ri])}</span><span class="vt-b">${x.top ? 'Topped' : 'Not topped'} · ${dayLabel(x.ago)}</span>${(k => k ? `<span class="vt-mv">${n(k, 'move', 'moves')}</span>` : '')(moveCount(x))}</button>`;
   const both = vs.filter(x => lastOn(x.ri)), fr = myFriends.has(who), days = fr ? friendDays([who]) : [];
   // the same page as your Profile, seen from outside: their card (styles falling behind the photo, name, home gym, status,
-  // tags), when they usually climb, then their level and three counts. Instead of Edit card: add them, or contact them
+  // tags), when they usually climb, then their level and three counts (from their videos only, so they say so: their level is what they set). Instead of Edit card: add them, or contact them
   const pt = PTAGS[who] || [], sty = STYLES.filter(s => pt.includes(s[0])), mt = ME_TAGS.filter(m => pt.includes(m[0]));
   const post = POSTS.find(p => p.who === who), hg = gyms[post?.gys[0] ?? 0] || gym, hasCt = ctOf(proOf(who)?.ct).length > 0;
   const tops = vs.filter(x => x.top), hard = [...tops].sort((p, q) => GR.indexOf(ROUTES[q.ri].grade) - GR.indexOf(ROUTES[p.ri].grade))[0];
@@ -2464,22 +2535,114 @@ function viewPerson(who) {
     <section class="pf2-lv" aria-label="${who}’s level"><div class="pf2-lh"><span class="pf2-k">Climbing level</span>
       <span class="pf2-g"><b class="num">${proOf(who) ? VGI(proOf(who).lv) : '—'}</b>${proOf(who)?.rope ? `<em class="num">${proOf(who).rope} on a rope</em>` : ''}</span>
       ${YRS[who] ? `<span class="pf2-w">Climbing for ${YRS[who]}</span>` : ''}</div>
-      <div class="pf2-s"><span><b class="num">${hard ? ROUTES[hard.ri].grade : '—'}</b><i>hardest send</i></span>
+      <div class="pf2-s"><span><b class="num">${hard ? ROUTES[hard.ri].grade : '—'}</b><i>hardest on video</i></span>
         <span><b class="num">${vs.length || '—'}</b><i>on video</i></span>
-        <span><b class="num">${tops.length ? `${new Set(tops.map(x => x.ri)).size}<small> of ${ROUTES.length}</small>` : '—'}</b><i>routes topped</i></span></div></section>`;
+        <span><b class="num">${tops.length ? new Set(tops.map(x => x.ri)).size : '—'}</b><i>topped on video</i></span></div></section>`;
+  // their own videos, right under their card, friend or not: the real climbing behind the level they set and the counts
+  // above, so you can see they're who they say before you contact them. Newest first
+  const vids = vs.length ? `<div class="hl2 dk2"><h2>${who}’s videos</h2><span class="hint2">${n(vs.length, 'video', 'videos')}</span></div>
+    <div class="vg pv-vg">${[...vs].sort((a, b) => a.ago - b.ago).map(tile).join('')}</div>` : `<p class="cap pp-lock">${who} hasn’t posted a video yet.</p>`;
+  // the comparisons, friend or not: your week next to theirs, then the routes you've both filmed, side by side. With none
+  // yet, say how to get one: film a route they're on
+  const same = both.length ? `<div class="hl2 dk2"><h2>Routes you both climbed</h2><span class="hint2">side by side</span></div>
+    <div class="rows">${both.map(x => `<button class="row" type="button" data-act="to" data-to="vs/${lastOn(x.ri).id}-${x.i}"><span class="row-t"><strong>${sw(ROUTES[x.ri])}${rname(ROUTES[x.ri])}</strong><span>Your try ${tryOf(lastOn(x.ri))} and ${who}’s</span></span>${ic.arr('#111111')}</button>`).join('')}</div>`
+    : vs.length ? `<p class="cap pp-lock">Film yourself on ${[...new Set(vs.map(x => rname(ROUTES[x.ri])))].slice(0, 2).join(' or ')} to see your climb next to ${who}’s.</p>` : '';
   return { photo: vs[0]?.img || 'gym-arc-1', after: animateProfileShapes, html: `
     ${bar('')}
     ${head}
-    ${fr ? `<div class="fold"></div>
-    ${days.some(d => d.nw) ? `<div class="hl2 dk2"><h2>New move</h2><span class="hint2">from ${who}’s videos</span></div><div class="mvcs">${days.filter(d => d.nw).map(moveBox).join('')}</div>` : ''}
+    ${vids}
+    <div class="fold"></div>
+    ${fr && days.some(d => d.nw) ? `<div class="hl2 dk2"><h2>New move</h2><span class="hint2">from ${who}’s videos</span></div><div class="mvcs">${days.filter(d => d.nw).map(moveBox).join('')}</div>` : ''}
     ${compareWith(who)}
-    ${days.length ? `<div class="hl2 dk2"><h2>This week</h2></div><div class="fds">${days.map(x => dayCard(x)).join('')}</div>` : `<p class="cap pp-lock">${who} hasn’t climbed this week.</p>`}
-    <button class="pp-rm" type="button" data-act="frx" data-w="${who}">Remove from friends</button>` : `<div class="fold"></div>
-    ${both.length ? `<div class="hl2 dk2"><h2>Routes you both climbed</h2><span class="hint2">side by side</span></div>
-    <div class="rows">${both.map(x => `<button class="row" type="button" data-act="to" data-to="vs/${lastOn(x.ri).id}-${x.i}"><span class="row-t"><strong>${sw(ROUTES[x.ri])}${rname(ROUTES[x.ri])}</strong><span>Your try ${tryOf(lastOn(x.ri))} and ${who}’s</span></span>${ic.arr('#111111')}</button>`).join('')}</div>` : ''}
-    <div class="hl2 dk2"><h2>Videos</h2><span class="hint2">${n(vs.length, 'video', 'videos')}</span></div>
-    <div class="vg">${vs.map(tile).join('')}</div>`}
+    ${same}
+    ${fr ? `${days.length ? `<div class="hl2 dk2"><h2>This week</h2></div>${weekList(days)}` : `<p class="cap pp-lock">${who} hasn’t climbed this week.</p>`}
+    <button class="pp-rm" type="button" data-act="frx" data-w="${who}">Remove from friends</button>` : ''}
     ` };
+}
+
+/* ---------- Moves: what Spotter found in someone else's video ---------- */
+// The public half of an analysis: the body drawn over their climb, and each move it found, a tap from that moment slowed
+// down. The other half (what to change, the scores) stays with the climber: it's their coaching, not a grade for others
+const MV_SHOW = ['drop', 'high', 'cross', 'match', 'lock', 'side', 'rest'];   // not "foot first": that's a habit, read as a score
+const movesOf = T => { const R = styleOf(T).R; return MV_SHOW.map(id => ({ m: STY.find(s => s.id === id), at: [...new Set((R[id].at || []).map(t => Math.round(t * 10) / 10))] })).filter(o => o.at.length); };
+const moveCount = v => { const T = TRK[v.vid]; return T?.S ? movesOf(T).reduce((a, o) => a + o.at.length, 0) : null; };
+// the same page as your own analysis (the video with the body drawn on, its layers and strip, the sheet with tabs), with
+// only the public half: Moves (one card per move found, its moment looping on the video), Compare and Info. No Summary,
+// no "to work on", no scores: those are the climber's own
+let mvFor = null;
+function viewMoves(a) {
+  const x = V[+a];
+  if (!x || x.who === 'You') return lostClip();
+  needTracks([x]);
+  const T = TRK[x.vid], r = ROUTES[x.ri], ok = !!T?.S, loading = x.vid in TRK && T === null;
+  // a new video opens on Summary, as yours do; redrawn, it stays on the tab you're on
+  if (mvFor !== x.i || !['why', 'body', 'cmp', 'info'].includes(cTab)) { mvFor = x.i; cTab = 'why'; }
+  if (!ok) return { photo: x.img, html: `${bar(`${x.who} · ${rname(r)}`)}<p class="cap pp-lock">${loading ? 'Reading the climb…' : `${x.who}’s climb hasn’t been read yet.`}</p>` };
+  const ms = movesOf(T), ar = T.W / T.H, scrEl = document.querySelector('.screen');
+  const vh = Math.round(Math.max(280, Math.min((scrEl?.clientHeight || 874) - 92, (scrEl?.clientWidth || 402) / ar)));
+  // the cards: one per move, at its first moment, every other time a tap away
+  const mk = ms.map(({ m, at }) => ({ k: 'mv', t: at[0], l: m.name, id: m.id, q: m.what, n: at.length, ts: at })).sort((p, q) => p.t - q.t);
+  if (stFor !== `m${x.i}`) { stFor = `m${x.i}`; stI = 0; } stI = Math.max(0, Math.min(stI, mk.length - 1)); window.stMs = mk;
+  const steps = mk.length ? `<section class="st">
+    <div class="st-box"><div class="st-dots">${mk.map((o, i) => `<button class="st-d mv" type="button" data-act="stgo" data-i="${i}" aria-current="${i === stI}" aria-label="${o.l}"></button>`).join('')}<span class="st-n num" id="st-n">${stI + 1} / ${mk.length}</span></div>
+    <div class="st-c mv" id="st-c">${stCard(mk[stI])}</div></div>
+    <div class="st-nav"><button class="b-ghost" type="button" data-act="stgo" data-d="-1"${stI ? '' : ' disabled'}>‹ Previous</button><button class="b-lime" type="button" data-act="stgo" data-d="1"${stI < mk.length - 1 ? '' : ' disabled'}>Next ›</button></div>
+  </section>` : `<p class="cap">Spotter didn’t find any of these moves in ${x.who}’s climb.</p>`;
+  const body = steps;
+  // Compare: you next to them. It's their page, so the one comparison that's yours to make is with your own tries on
+  // this route, each a tap from side by side. None yet: film or import one, and it opens next to theirs
+  const mine = mineOn(x.ri);
+  const cmp = mine.length ? `<div class="hl2 dk2"><h2>You and ${x.who}</h2><span class="hint2">${n(mine.length, 'try', 'tries')}</span></div>
+    <div class="rows">${[...mine].reverse().map(c => `<button class="row fr-p" type="button" data-act="to" data-to="vs/${c.id}-${x.i}"><span class="fr-f">${avatar('You')}</span><span class="row-t"><strong>Your try ${tryOf(c)}</strong><span>${topOf(c) ? 'Topped' : 'Not topped'} · ${dayLabel(agoOf(c))}</span></span>${ic.arr('#111111')}</button>`).join('')}</div>
+    <p class="trs-l">Side by side, both from the first move, with what Spotter counted in each video.</p>`
+    : `<div class="stack"><div class="lt"><span class="lt-h">You and ${x.who}</span><p class="tip-d">You haven’t climbed ${rname(r)} on video yet. Film or import a try, and it opens next to ${x.who}’s, with what Spotter counted in each.</p>
+      <button class="b-lime compare-import" type="button" data-act="upload">Import a video</button></div></div>`;
+  const info = `<div class="hl2 dk2"><h2>Details</h2></div><div class="rows">
+      <button class="row fr-p" type="button" data-act="to" data-to="person/${x.who}"><span class="fr-f">${avatar(x.who)}</span><span class="row-t"><strong>${x.who}</strong><span>See their page</span></span>${ic.arr('#111111')}</button>
+      <div class="row"><span class="row-t"><strong>${sw(r)}${rname(r)}</strong><span>${x.top ? 'Topped' : 'Not topped'}</span></span></div>
+      <div class="row"><span class="row-t"><strong>${gyms[gyOf(r)]?.name || gym.name} · ${dayLabel(x.ago)}</strong><span>${r.wall}</span></span></div></div>
+    <div class="rows tg-r"><div class="row"><span class="row-t"><strong>Video credits</strong><span>${x.credit}</span></span></div></div>`;
+  const tabs = [['why', 'Summary'], ['body', 'Moves'], ['cmp', 'Compare'], ['info', 'Info']], panels = { why: othSum(T, x, mk), body, cmp, info };
+  return { photo: x.img, cta: '', after: () => {
+      const v = $('lvv'), box = v.parentElement;
+      segClose(); anSheet = null; segStop = null; segT = T; v.playbackRate = speed;
+      window.poseGate = quality(T).ok; window.poseTagList = mk.flatMap(o => o.ts.map(t => ({ t, id: o.id }))).sort((p, q) => p.t - q.t);
+      window.posePlay(v, $('lvc'), T); stWire(); laWire(T, v); stripWire(v, T); stickWire(box, vh); followWire(box);
+      (g => g && fixWire(g))(document.querySelector('[data-pn="why"] > .sub[data-sub=""]'));
+      v.addEventListener('play', () => box.classList.add('playing'));
+      ['pause', 'ended'].forEach(e => v.addEventListener(e, () => box.classList.remove('playing')));
+      v.addEventListener('click', () => v.paused ? v.play() : v.pause());
+      if (!seg) { const go = () => v.play().catch(() => {}); if (v.readyState >= 2) go(); else v.addEventListener('canplay', go, { once: true }); }
+      v.addEventListener('ended', () => { if (segStop) return; v.currentTime = 0; v.play().catch(() => {}); });
+    }, html: `
+    ${bar(`${x.who} · ${rname(r)}`)}
+    <div class="lv-w two mvw"><div class="clip vp lv" style="aspect-ratio:${ar.toFixed(4)};width:min(100%, ${Math.round(vh * ar)}px)">
+      <video id="lvv" src="${vsrc(x.vid)}" poster="${pic(x.img, 0)}" muted playsinline preload="auto"></video><canvas id="lvc"></canvas>${lyrOver().replace(/<span class="lvwhy"[^>]*><\/span>/, '')}
+      <button class="play-b" type="button" data-act="lvplay" aria-label="Play the video">${ic.play}</button></div>${lyrStrip(T.D, `min(100%, ${Math.round(vh * ar)}px)`)}${lyrBar(quality(T).ok)}<button class="lv-rp" type="button" data-act="lvreplay"><img src="${pic(x.img, 0)}" alt=""><span><b>Replay the video</b><em>${x.len}</em></span>${ic.play}</button></div>
+    <div class="fold"></div>
+    <div class="fchips ctabs">${tabs.map(([k, l]) => `<button type="button" data-act="ctab" data-v="${k}" aria-pressed="${k === cTab}">${l}</button>`).join('')}</div>
+    ${tabs.map(([k]) => `<div class="pn" data-pn="${k}"${k === cTab ? '' : ' hidden'}>${panels[k]}</div>`).join('')}` };
+}
+
+// Summary of someone else's climb, for you: what they do well, why it matters on the wall, and what to try on your next
+// climb, each with their moment to watch. Then the moves found, and who to put them next to. Their own "to work on"
+// and scores aren't here: those are theirs
+function othSum(T, x, mk) {
+  const s = T.stats, who = x.who, D = T.D, ok = quality(T).ok, hands = T.moves.filter(m => m.k[1] === 'w'), led = feetFirst(T), mv = movingPct(T), on = climbed(T);
+  const ffp = hands.length ? Math.round(hands.filter(led).length / hands.length * 100) : 0, good = [];
+  if (hands.length >= 6 && ffp >= 60) { const h = hands.find(led); good.push({ t: h?.t0, mark: h?.k || 'none', title: 'Feet first', what: `${ffp}% of ${who}’s reaches started with a foot move.`, why: 'Their legs lifted them and their arms only held on, so their arms lasted.', next: 'On your next climb, step a foot up before every reach.', see: 'Watch a foot go first' }); }
+  if (ok.balance !== false && s.hipsOver >= 70) good.push({ t: on.length ? mostBy(on, q => -Math.abs(q.off ?? 9)).t : null, mark: 'hip', see: 'Hips right over the feet', title: 'Hips over the feet', what: `${who}’s hips were over their feet ${s.hipsOver}% of the climb.`, why: 'With the weight on the feet, the hands hold less and the forearms tire slower.', next: 'Before each reach, get your hips over the foot you’ll push from.' });
+  if (s.longest && s.restStraight != null && s.restRead >= 50 && s.restStraight >= 60) good.push({ t: s.longest.t, mark: 'arm', title: 'Rests on straight arms', what: `${who} rested on straight arms ${s.restStraight}% of the time.`, why: 'Hanging on the bones instead of the muscles lets the forearms recover.', next: 'At each rest, let one arm hang straight and shake out the other.', see: 'Watch the longest rest' });
+  if (mv != null && mv >= 80) good.push({ t: (ms => ms[ms.length >> 1]?.t0 ?? null)([...T.moves].sort((p, q) => p.t0 - q.t0)), mark: 'none', see: 'Mid-climb, still moving', title: 'Keeps moving', what: `${who} was moving ${mv}% of the time.`, why: 'Less time hanging between moves leaves more strength for the top.', next: 'Plan the next few moves from the ground, so you stop less on the wall.' });
+  const cards = good.length ? good.map(g => `<div class="stack"><div class="lt nx1"><span class="an-k1">Worth copying</span><span class="lt-h">${g.title}</span><p class="tip-d nx1-why"><span>${g.what}</span> <span>${g.why}</span></p>
+      ${g.t != null ? `<div class="kf-g n1"><button class="kf" type="button" ${clipNear(g.t, D, g.mark)}><span class="kf-i"><img alt="" data-ft="${g.t.toFixed(2)}" data-fm="${g.mark}" data-tone="good"></span><b><span class="num">${mmss(g.t)}</span> <span>${g.see}</span></b><em>Tap to watch it</em></button></div>` : ''}
+      <p class="mv-try"><em>Try it</em><span>${g.next}</span></p></div></div>`).join('')
+    : `<div class="stack"><div class="lt"><p class="tip-d">Nothing in ${who}’s climb stands out as a habit to copy. The moves Spotter found are below.</p></div></div>`;
+  return `<div class="sub" data-sub="">${sumHead('good', `What ${who} does well`, '')}${cards}
+    ${mk.length ? `${sumHead('next', 'Moves in this climb', n(mk.reduce((a, o) => a + o.n, 0), 'move', 'moves'))}<div class="stack"><div class="lt sg"><div class="sg-c">${mk.map((o, i) => `<button class="sg-t" type="button" data-act="mvcard" data-i="${i}"><b>${o.l}</b><em>${n(o.n, 'time', 'times')}</em></button>`).join('')}</div>
+      <p class="an-n">Tap one to watch it in ${who}’s video.</p></div></div>` : ''}
+    <div class="sm-x"><div class="hl2 dk2"><h2>Compare with you</h2></div><div class="rows"><button class="row" type="button" data-act="ctab" data-v="cmp"><span class="row-t"><strong>Watch it next to your climb</strong><span>${(k => k ? `${n(k, 'try of yours', 'tries of yours')} on ${rname(ROUTES[x.ri])}` : `You haven’t filmed ${rname(ROUTES[x.ri])} yet`)(mineOn(x.ri).length)}</span></span>${ic.arr('#111111')}</button></div></div>
+    <p class="trs-l"><span>${x.top ? 'Topped' : 'Didn’t top'}</span> · <span class="num">${mmss(climbS(T))}</span> · <span>${T.stats.hands} hand and ${T.stats.feet} foot moves</span>. <span>${who}’s tips and scores stay private to them.</span></p></div>`;
 }
 
 /* ---------- Profile: how you're getting on, from your own videos ---------- */
@@ -2532,18 +2695,22 @@ const fcard = (id, title, line, body) => `<details class="pf-c" data-pc="${id}"$
 document.addEventListener('toggle', e => { const d = e.target; if (d.classList?.contains('pf-c')) d.open ? pcOpen.add(d.dataset.pc) : pcOpen.delete(d.dataset.pc); }, true);
 // where a value sits among other climbers' climbs, 0 to 1
 const rankIn = (x, l) => l.length ? (l.filter(y => y < x).length + l.filter(y => y === x).length / 2) / l.length : .5;
-function styleCard() {
+// on Profile it's one row (what stands out, in a line) that opens its own page: open in place it was a screen and a half
+// of dots, bars and pictures in the middle of Profile
+function styleCard(onPage) {
   const trk = v => clips.find(c => c.v === v.i && c.track)?.track || TRK[v.vid];
   const mine = V.filter(v => v.who === 'You' && !(v.local && !v.added)), them = V.filter(v => v.who !== 'You' && !v.mine);
   needTracks([...mine, ...them].filter(v => !v.mine));
-  const myAll = mine.map(v => ({ v, T: trk(v) })).filter(o => o.T?.S), thAll = them.map(v => ({ v, T: trk(v) })).filter(o => o.T?.S);
+  // the route each video is on: a sample you brought in has none of its own (its ri is null) until you say which, on its clip
+  const riOf = v => { const c = clips.find(c => c.v === v.i); const ri = c && !c.need ? c.ri : v.ri; return ROUTES[ri] ? ri : null; };
+  const myAll = mine.map(v => ({ v, ri: riOf(v), T: trk(v) })).filter(o => o.T?.S), thAll = them.map(v => ({ v, T: trk(v) })).filter(o => o.T?.S);
   if (!myAll.length && mine.some(v => !v.mine && !TRK[v.vid]?.S)) return '';   // still loading
   if (!myAll.length) return fcard('style', 'Your style', 'Shows once you analyse a climb', `<p class="tip-d">Analyse a climb and your style shows here: how you move, and the moves you use a lot or hardly at all.</p>`);
   if (thAll.length < 4) return '';
   // by kind of route: which kinds your videos are on, and the routes you haven't said yet
-  const rs = [...new Set(myAll.map(o => o.v.ri))], unsorted = rs.filter(ri => !kindOf(ri)), kinds = RKINDS.map(([k]) => [k, myAll.filter(o => kindOf(o.v.ri) === k).length]).filter(([, c]) => c);
+  const rs = [...new Set(myAll.map(o => o.ri))].filter(ri => ri != null), unsorted = rs.filter(ri => !kindOf(ri)), kinds = RKINDS.map(([k]) => [k, myAll.filter(o => o.ri != null && kindOf(o.ri) === k).length]).filter(([, c]) => c);
   if (styK !== 'all' && !kinds.some(([k]) => k === styK)) styK = 'all';
-  const my = styK === 'all' ? myAll : myAll.filter(o => kindOf(o.v.ri) === styK), thK = styK === 'all' ? thAll : thAll.filter(o => kindOf(o.v.ri) === styK);
+  const my = styK === 'all' ? myAll : myAll.filter(o => o.ri != null && kindOf(o.ri) === styK), thK = styK === 'all' ? thAll : thAll.filter(o => kindOf(o.v.ri) === styK);
   const thO = thK.length >= 4 ? thK : thAll, th = thO.map(o => o.T);
   const S = my.map(o => ({ ...o, st: styleOf(o.T) })), O = th.map(styleOf);
   // the other climbers one each (their climbs averaged), so someone with five videos doesn't count five times
@@ -2569,30 +2736,37 @@ function styleCard() {
       <p class="sty-w">${words}</p></div>`; }).join('');
   // each move: more than others, about the same, less, or not at all
   const rows = STY.map(m => { const me = sum(S.map(o => o.st), m.id), ot = sum(O, m.id); if (me.c < 3 || !ot.c) return null;
-    const r = me.e / me.c, b = ot.e / ot.c, lv = !me.e ? 'never' : r >= b * 1.4 && me.e >= 2 ? 'more' : r <= b * .6 ? 'less' : 'same';
+    // "more" or "less" only where it says something: 0% next to others' 1% was listed as a move you hardly use, and so
+    // was 0% next to 0%. A move the others hardly use either is about the same
+    const r = me.e / me.c, b = ot.e / ot.c, lv = r >= b * 1.4 && me.e >= 2 && r >= .05 ? 'more' : b >= .05 && r <= b * .6 ? (me.e ? 'less' : 'never') : 'same';
     const ex = S.map(o => o.st.R[m.id].ex && { ...o.st.R[m.id].ex, v: o.v }).find(Boolean);
     return { m, lv, ex, r, b }; }).filter(Boolean);
   // how often you did a move against how often the others did, out of the moments it could have happened: two bars on one scale
   const meter = x => { const top = Math.max(x.r, x.b) || 1, w = v => (v / top * 100).toFixed(0), pc = v => `${Math.round(v * 100)}%`;
     return `<span class="sty-mt"><span>You</span><i><b class="sy-me" style="width:${w(x.r)}%"></b></i><em class="num">${pc(x.r)}</em><span>Others</span><i><b style="width:${w(x.b)}%"></b></i><em class="num">${pc(x.b)}</em></span>`; };
-  const more = rows.filter(r => r.lv === 'more'), less = rows.filter(r => r.lv === 'less' || r.lv === 'never'), same = rows.filter(r => r.lv === 'same');
+  // the biggest gaps first, and two of each in full: the rest by name. (Four moves with bars, a tip and a button each made
+  // the open card two and a half screens long)
+  const more = rows.filter(r => r.lv === 'more').sort((p, q) => (q.r - q.b) - (p.r - p.b)), less = rows.filter(r => r.lv === 'less' || r.lv === 'never').sort((p, q) => (q.b - q.r) - (p.b - p.r)), same = rows.filter(r => r.lv === 'same');
   const pic = r => r.ex ? `<span class="sty-i"><img alt="" data-ft="${r.ex.t.toFixed(2)}" data-fm="${r.ex.mark}" data-tone="good" data-pv="${r.ex.v.i}"></span>` : '';
-  const vid = q => `<a class="lm-v" href="https://www.youtube.com/results?search_query=${encodeURIComponent(q)}" target="_blank" rel="noopener"><span>▶</span>Find a coaching video on this</a>`;
+  const vid = q => `<a class="lm-v sty-lk" href="https://www.youtube.com/results?search_query=${encodeURIComponent(q)}" target="_blank" rel="noopener"><span>▶</span>Find a coaching video on this</a>`;
   const kn = k => kindName(k).toLowerCase();
   const chips = kinds.length ? `<div class="sty-ks">${[['all', myAll.length], ...kinds].map(([k, c]) => `<button type="button" data-act="stykind" data-k="${k}" aria-pressed="${styK === k}"><span>${k === 'all' ? 'All' : kindName(k)}</span> <span class="num">${c}</span></button>`).join('')}</div>` : '';
   const other = RKINDS.find(([k]) => !kinds.some(x => x[0] === k))?.[0];
   const mix = unsorted.length ? `<p class="tip-d"><b>Your style is read from every route together.</b> <span>A slab and an overhang ask for different moves, so mixed up it can read wrong. Say what kind each route is:</span></p>
-      <div class="rows sty-un">${unsorted.map(ri => `<button class="row" type="button" data-act="rkind" data-r="${ri}"><span class="row-t"><strong>${sw(ROUTES[ri])}${rname(ROUTES[ri])}</strong><span>${n(myAll.filter(o => o.v.ri === ri).length, 'video', 'videos')}</span></span><span class="sty-ch">Choose ›</span></button>`).join('')}</div>`
+      <div class="rows sty-un">${unsorted.map(ri => `<button class="row" type="button" data-act="rkind" data-r="${ri}"><span class="row-t"><strong>${sw(ROUTES[ri])}${rname(ROUTES[ri])}</strong><span>${n(myAll.filter(o => o.ri === ri).length, 'video', 'videos')}</span></span><span class="sty-ch">Choose ›</span></button>`).join('')}</div>`
     : kinds.length === 1 ? `<p class="tip-d"><b>All your videos are on ${kn(kinds[0][0])} routes</b><span>, so this is how you climb on ${kn(kinds[0][0])}.</span>${other ? ` <span>Film a ${kn(other)} route to see the rest.</span>` : ''}</p>`
     : styK === 'all' ? `<p class="tip-d">Mixed from ${kinds.map(([k]) => kn(k)).join(' and ')} routes. Pick one to compare like with like.</p>` : '';
   const vs = styK !== 'all' && thK.length < 4 ? 'Too few other climbs on this kind yet, so next to every climb here.' : styK === 'all' ? `Next to ${n(new Set(them.map(v => v.who)).size, 'other climber', 'other climbers')} on the same routes.` : `Next to ${n(new Set(them.map(v => v.who)).size, 'other climber', 'other climbers')} on ${kn(styK)} routes.`;
   const line = more.length ? `You use ${more[0].m.name} a lot${less.length ? ` · hardly ${less[0].m.name}` : ''}` : less.length ? `You hardly use ${less[0].m.name}` : 'About the same as others';
-  return fcard('style', 'Your style', `${unsorted.length ? 'Sort your routes by kind · ' : ''}${line}`, `<div class="stack sty">${chips}<div class="lt"><span class="lt-h">How you climb</span><p class="tip-d">${vs} <span class="sty-k"><i class="sy-o"></i><span>a climber</span><i class="sy-me"></i><span>you</span></span></p><div class="sty-ax">${ax}</div></div>
-    ${more.length ? `<div class="lt"><span class="lt-h">You use these a lot</span><p class="tip-d">Out of the moments each move could have happened.</p><div class="sty-m">${more.map(r => `<div class="sty-r good">${pic(r)}<span class="sty-t"><b>${r.m.name}</b>${meter(r)}</span></div>`).join('')}</div></div>` : ''}
-    ${less.length ? `<div class="lt"><span class="lt-h">You hardly use these</span><p class="tip-d">A move you rarely use may be one you haven’t learned yet. Try one next session.</p><div class="sty-m">${less.map(r => `<div class="sty-r"><span class="sty-t"><b>${r.m.name}</b>${meter(r)}<span class="sty-d">${r.m.tip}</span>${vid(r.m.q)}</span></div>`).join('')}</div></div>` : ''}
+  // the line under the name says one thing: what stands out. (Sorting your routes is asked inside, where it's done)
+  const rest = l => l.length > 2 ? `<p class="sty-c sty-more"><em>Also</em>${l.slice(2).map(r => `<span>${r.m.name}</span>`).join('')}</p>` : '';
+  const body = `<div class="stack sty">${chips}<div class="lt"><span class="lt-h">How you climb</span><p class="tip-d">${vs} <span class="sty-k"><i class="sy-o"></i><span>a climber</span><i class="sy-me"></i><span>you</span></span></p><div class="sty-ax">${ax}</div></div>
+    ${more.length ? `<div class="lt"><span class="lt-h">You use these a lot</span><p class="tip-d">Out of the moments each move could have happened.</p><div class="sty-m">${more.slice(0, 2).map(r => `<div class="sty-r good">${pic(r)}<span class="sty-t"><b>${r.m.name}</b>${meter(r)}</span></div>`).join('')}</div>${rest(more)}</div>` : ''}
+    ${less.length ? `<div class="lt"><span class="lt-h">You hardly use these</span><p class="tip-d">A move you rarely use may be one you haven’t learned yet. Try one next session.</p><div class="sty-m">${less.slice(0, 2).map(r => `<div class="sty-r"><span class="sty-t"><b>${r.m.name}</b>${meter(r)}<span class="sty-d">${r.m.tip}</span>${vid(r.m.q)}</span></div>`).join('')}</div>${rest(less)}</div>` : ''}
     ${same.length ? `<div class="lt"><span class="lt-h">About the same as others</span><p class="sty-c">${same.map(r => `<span>${r.m.name}</span>`).join('')}</p></div>` : ''}
     ${mix}
-    <p class="an-n">Read from your body in each video. A move the camera can’t see isn’t counted, so more videos make this surer.</p></div>`);
+    <p class="an-n">Read from your body in each video. A move the camera can’t see isn’t counted, so more videos make this surer.</p></div>`;
+  return onPage ? { line, body } : `<button class="row" type="button" data-act="to" data-to="mystyle"><span class="row-t"><strong>Your style</strong><span>${line}</span></span>${ic.arr('#111111')}</button>`;
 }
 // the words on the video and in the analysis, explained: what it is, a picture of you doing it in this video if you did,
 // and a coaching video. Tap a term to open it
@@ -2697,6 +2871,12 @@ function viewReview() {
 function revSet(v) { const L = revList(revId), e = L[revAt]; if (!e) return; rev[e.key] = { v, vid: e.vid, move: revId, t: +e.t.toFixed(2), mark: e.mark }; revSave(); revAt++; render(); }
 addEventListener('keydown', ev => { if (page !== 'review' || ev.target.closest?.('input, textarea')) return; const v = { 1: 'right', 2: 'wrong', 3: 'unsure' }[ev.key]; if (v) revSet(v);
   if (ev.key === 'ArrowLeft' && revAt) { revAt--; render(); } if (ev.key === 'ArrowRight') { revAt++; render(); } });
+// Your style, a page of its own from Profile
+function viewMyStyle() {
+  const o = styleCard(true);
+  return { photo: clips[0]?.img || 'gym-arc-1', after: () => { const st = document.querySelector('.sty'); if (st) fixWire(st); }, html: `${bar()}<h1 class="hl">Your style</h1>
+    ${o?.body ? `<p class="sty-lead">${o.line}</p>${o.body}` : '<p class="tip-d sty-lead">Your style shows once your climbs are analysed.</p>'}` };
+}
 function viewProfile() {
   const done = clips.filter(c => c.an === 'done' && c.track), tops = ROUTES.filter((r, i) => mineOn(i).some(topOf)).length;
   const prog = ROUTES.map((r, i) => [r, i, mineOn(i)]).filter(([, , cs]) => cs.length).map(([r, i, cs]) => `
@@ -2715,28 +2895,35 @@ function viewProfile() {
       return `<section class="ph" aria-label="Your profile">
       <div class="ph-cv ph-shape-container" id="profile-shapes" role="img" aria-label="${picks.size ? `Your climbing styles: ${STYLES.filter(style => picks.has(style[0])).map(style => style[1]).join(', ')}` : 'Choose your climbing style to fill this space'}">${picks.size ? STYLES.filter(style => picks.has(style[0])).map(([k, label, shape]) => `<span class="ph-shape pk-${shape}" aria-hidden="true"><span>${label}</span></span>`).join('') : ''}</div>
       <div class="ph-me"><span class="ph-av">${avatar('You')}</span>
-        <button class="ph-st ph-ed" type="button" data-act="ptpost">${ic.pen}Edit card</button></div>
+        ${(() => {
+          // one way in to everything on the card (name, tags, level, how to reach you). While tags or contacts are missing
+          // it says so and wears a dot, instead of an "add" button per missing thing under the name
+          const todo = !cardTags().length || !ctOf(myPro().ct).length;
+          return `<button class="ph-st ph-ed${todo ? ' todo' : ''}" type="button" data-act="ptpost">${ic.pen}${todo ? 'Finish your card' : 'Edit card'}</button>`; })()}</div>
       <h2 class="ph-n">${myName ? esc(myName) : 'You'}</h2>
-      <div class="ph-g"><button class="ph-hg" type="button" data-act="to" data-to="gym/0">${ic.pin}<span>${gym.name}</span></button>
+      <div class="ph-g"><button class="ph-hg" type="button" data-act="to" data-to="gym/${homeIx()}">${ic.pin}<span>${gyms[homeIx()].name}</span></button>
         <button class="ph-stt${myStatus ? ` is-${myStatus}` : ''}" type="button" data-act="status" aria-label="Your status: ${STATUS.find(s => s[0] === myStatus)[1]}. Change it"><i></i>${myStatus ? STATUS.find(s => s[0] === myStatus)[1] : 'Set a status'}</button></div>
       ${(() => {
         // your card: the tags you picked to say who you are as a climber, your level first. Edit card changes all of it
         const tags = [...(myPartner ? [`<i class="ph-tl num">${lvTag('You')}</i>`] : []), ...cardTags().map(t => `<i>${t}</i>`)];
-        return `<div class="ph-tg">${tags.length ? tags.join('') : '<button class="ph-tg0" type="button" data-act="ptpost">+ Add tags that describe you</button>'}</div>`; })()}
+        return tags.length ? `<div class="ph-tg">${tags.join('')}</div>` : ''; })()}
+      ${(() => {
+        // how to reach you, shown once you've given it (changed through Edit card). Every post and the Contact sheet use these
+        const ct = ctOf(myPro().ct);
+        return ct.length ? `<p class="ph-ct"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12a8 8 0 0 1-11.6 7.1L4 20l.9-4.4A8 8 0 1 1 20 12z"/></svg><span>Reach me on</span><b>${ct.map(([, l]) => `<i>${l}</i>`).join('')}</b></p>` : ''; })()}
       </section>
       ${(() => {
         // the page is about how you're climbing, so that comes first, as one card: your level (from your hardest send, by
-        // climbers' votes and how the gym grades), the grade to try next, and three counts. Friends and settings come after
+        // climbers' votes and how the gym grades: one short line, the route page it opens has the rest), the grade to try next, and three counts. Friends and settings come after
         const g0 = top && (gyms[top.gy ?? 0] || gym), vh = top && votesOf(top.ri).h, said = top && shiftG(ROUTES[top.ri].grade, vh), avg = top && shiftG(ROUTES[top.ri].grade, vh + gymLean(g0)), nx = nextUp();
         return `<section class="pf2-lv" aria-label="Your level">
         ${top ? `<button class="pf2-lh" type="button" data-act="to" data-to="route/${top.ri}"><span class="pf2-k">Your climbing level</span>
           <span class="pf2-g"><b class="num">${avg}</b><em>at the average gym</em>${ic.arr('#111111')}</span>
-          <span class="pf2-w">From your hardest send, ${rname(ROUTES[top.ri])}: a ${said} by climbers’ votes. ${g0.name} grades ${leanWords(gymLean(g0)).toLowerCase().replace('graded ', '')}.</span></button>`
+          <span class="pf2-w">From ${rname(ROUTES[top.ri])}${gymLean(g0) ? ` · ${g0.name} grades ${gymLean(g0) > 0 ? 'hard' : 'soft'}` : said !== ROUTES[top.ri].grade ? ` · climbers rate it ${said}` : ''}</span></button>`
         : `<div class="pf2-lh"><span class="pf2-k">Your climbing level</span><span class="pf2-g"><b class="num pf2-none">—</b></span>
           <span class="pf2-w">Top a route and log it, and Spotter works out your level from it.</span></div>`}
         ${nx.length ? `<div class="pf2-nx">${nx.map(x => { const w = nextWords(x);
-          return `<div class="pf2-ni">${nx.length > 1 ? `<span class="pf2-k">${x.d === 'b' ? 'Boulder' : 'Top rope'}</span>` : ''}<strong>${w.head}</strong><span>${w.sub.slice(0, 2).join(' · ')}</span></div>`; }).join('')}
-          <p class="pf2-cap">A guess from your own log. The more you log, the closer it gets.</p></div>` : ''}
+          return `<div class="pf2-ni">${nx.length > 1 ? `<span class="pf2-k">${x.d === 'b' ? 'Boulder' : 'Top rope'}</span>` : ''}<strong>${w.head}</strong><span>${w.sub[0]}</span></div>`; }).join('')}</div>` : ''}
         <div class="pf2-s">
           <span><b class="num">${top ? ROUTES[top.ri].grade : '—'}</b><i>hardest send</i></span>
           <span><b class="num">${clips.length || '—'}</b><i>on video</i></span>
@@ -2772,6 +2959,8 @@ const MORE = {
       <button class="row" type="button" data-act="to" data-to="watch"><span class="row-t"><strong>Watch</strong><span>${watch ? 'Connected · starts and stops each try' : 'Not connected'}</span></span>${ic.arr('#111111')}</button>
       <div class="row"><span class="row-t"><strong>New videos</strong><span>${newPublic ? 'Public: in Community at ' + gym.name : 'Only you, until you make one public'}</span></span>
         <button class="vis${newPublic ? '' : ' off'}" type="button" data-act="newpub" aria-pressed="${!newPublic}">${newPublic ? `${ic.eye}Public` : `${ic.eyeOff}Hidden`}</button></div>
+      <div class="row"><span class="row-t"><strong>Moves on public videos</strong><span>${movesPub ? 'Others can watch the moves Spotter found. Your tips stay yours' : 'Only you see the moves Spotter found'}</span></span>
+        <button class="vis${movesPub ? '' : ' off'}" type="button" data-act="movespub" aria-pressed="${!movesPub}">${movesPub ? `${ic.eye}Shown` : `${ic.eyeOff}Hidden`}</button></div>
       ${hid ? `<div class="row"><span class="row-t"><strong>${n(hid, 'video', 'videos')} hidden</strong><span>Only you can see ${hid === 1 ? 'it' : 'them'}. Change it on each video</span></span></div>` : ''}
     </div>`; } } };
 function viewMore(k) {
@@ -2974,7 +3163,6 @@ function gtSelect(i, from) {
   setTimeout(() => gtFocus(i), from === 'pin' && gtSnap === 'half' ? 260 : 0);
 }
 function gtWire(list) {
-  if (tmap) { tmap.remove(); tmap = null; }
   gtSet(gtSnap, false);
   // dragging the sheet by its top: follows the finger, then settles on the nearest height (a flick goes one further)
   const sh = $('gtsheet'), hd = $('gtsh');
@@ -3011,7 +3199,28 @@ function gtWire(list) {
   });
   const el = $('gtmap');
   if (!el || !window.L || !list.length) return;
-  tmap = L.map(el, { zoomControl: false, attributionControl: false, scrollWheelZoom: true, zoomSnap: .25 });
+  // one map for the whole visit: building the WebGL map froze the page for half a second on every switch to Explore,
+  // so it's made once, kept off-page while you're on other tabs, and moved back in when you return
+  if (tmap) {
+    el.append(tmapEl); tmap.invalidateSize({ pan: false }); tmapPins.clearLayers();
+  } else gtMapMake(el);
+  // near you: the gyms within 5 mi, or else the three closest, wherever they are
+  const close = list.filter(([g]) => g.mi <= 5), fit = gArea === 'near' ? (close.length ? close : byNear(list).slice(0, 3)) : list;
+  const pts = [...(gArea === 'near' ? [HERE] : []), ...fit.map(([g]) => gymLL(g))];
+  tmap.fitBounds(L.latLngBounds(pts), { paddingTopLeft: [40, 170], paddingBottomRight: [40, $('camx').clientHeight - gtSnaps()[gtSnap] + 30], maxZoom: 14, animate: false });
+  list.forEach(([g, i]) => {
+    const pin = L.marker(gymLL(g), { title: g.name, riseOnHover: true, zIndexOffset: i === 0 ? 500 : 0,
+      icon: L.divIcon({ className: `tp${i === 0 ? ' me' : ''}${gtSel === i ? ' sel' : ''}`, html: `<span class="tp-ph">${g.img ? `<img src="${pic(g.img)}" alt="">` : `<span class="gt-placeholder" aria-hidden="true">${ic.pin}</span>`}</span><b>${g.name}</b>`, iconSize: [0, 0] }) }).addTo(tmapPins);
+    pin.getElement().dataset.i = i;
+    pin.on('click', ev => { L.DomEvent.stopPropagation(ev); gtSelect(i, 'pin'); });
+  });
+  if (gtSel !== null) gtFocus(gtSel, false);
+}
+let tmapEl = null, tmapPins = null;
+function gtMapMake(el) {
+  tmapEl = document.createElement('div'); tmapEl.style.cssText = 'position:absolute;inset:0'; el.append(tmapEl);
+  tmap = L.map(tmapEl, { zoomControl: false, attributionControl: false, scrollWheelZoom: true, zoomSnap: .25 });
+  tmapPins = L.layerGroup().addTo(tmap);
   if (L.maplibreGL && window.maplibregl) {
     L.maplibreGL({ style: 'https://tiles.openfreemap.org/styles/positron',
       attribution: '<a href="https://openfreemap.org/" target="_blank" rel="noopener">OpenFreeMap</a> | <a href="https://openmaptiles.org/" target="_blank" rel="noopener">OpenMapTiles</a> | &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>'
@@ -3030,16 +3239,6 @@ function gtWire(list) {
   };
   creditControl.addTo(tmap);
   L.marker(HERE, { icon: L.divIcon({ className: 'tp-you', html: '<i></i>', iconSize: [16, 16] }), interactive: false, keyboard: false }).addTo(tmap);
-  // near you: the gyms within 5 mi, or else the three closest, wherever they are
-  const close = list.filter(([g]) => g.mi <= 5), fit = gArea === 'near' ? (close.length ? close : byNear(list).slice(0, 3)) : list;
-  const pts = [...(gArea === 'near' ? [HERE] : []), ...fit.map(([g]) => gymLL(g))];
-  tmap.fitBounds(L.latLngBounds(pts), { paddingTopLeft: [40, 170], paddingBottomRight: [40, $('camx').clientHeight - gtSnaps()[gtSnap] + 30], maxZoom: 14 });
-  list.forEach(([g, i]) => {
-    const pin = L.marker(gymLL(g), { title: g.name, riseOnHover: true, zIndexOffset: i === 0 ? 500 : 0,
-      icon: L.divIcon({ className: `tp${i === 0 ? ' me' : ''}${gtSel === i ? ' sel' : ''}`, html: `<span class="tp-ph">${g.img ? `<img src="${pic(g.img)}" alt="">` : `<span class="gt-placeholder" aria-hidden="true">${ic.pin}</span>`}</span><b>${g.name}</b>`, iconSize: [0, 0] }) }).addTo(tmap);
-    pin.getElement().dataset.i = i;
-    pin.on('click', ev => { L.DomEvent.stopPropagation(ev); gtSelect(i, 'pin'); });
-  });
   tmap.on('click', () => {
     gtSel = null;
     document.querySelectorAll('.tp.sel, .gt-r.sel').forEach(x => x.classList.remove('sel'));
@@ -3049,7 +3248,6 @@ function gtWire(list) {
     $('gtsheet').classList.add('cards');
     $('gtlw').scrollTo({ left: 0, top: 0 });
   });
-  if (gtSel !== null) gtFocus(gtSel, false);
 }
 // the map: Leaflet with OpenStreetMap tiles. You are on the UIUC Main Quad; each gym sits at its distance and bearing from there
 let gymR = 10, gymPin = null, gmap = null;
@@ -3202,7 +3400,8 @@ function needHolds(img, color) {
 let betaV = null;
 // Find beta, with the real camera: photograph the wall, tap a hold of your route. Its colour says which route it is, and every
 // hold of that colour lights up on your photo. Then the route's beta, as the climber who topped it climbed it
-let scanStream = null, scanAsk = false, scanErr = '', scanCv = null, scanURL = '', scanPick = null, scanFound = [];
+// betaScan: the photo the beta page was opened from, and how it lined up with the beta's wall
+let betaScan = null, scanStream = null, scanAsk = false, scanErr = '', scanCv = null, scanURL = '', scanPick = null, scanFound = [];
 async function scanStart() {
   if (scanStream || scanAsk) return;
   if (!navigator.mediaDevices?.getUserMedia) { scanErr = 'none'; render(); return; }
@@ -3244,14 +3443,53 @@ function scanTap(e) {
   if (!color) { toast('No coloured hold there. Tap closer to one, or pick a colour below'); return; }
   scanPick = { x, y, color, holds: findHolds(scanCv, HUE[color]), ri: betaRis().find(i => ROUTES[i].color === color) ?? -1 }; render();
 }
+// is your photo of the beta's own wall? The beta's holds of that colour (from its video's first frame) laid over the ones in
+// your photo: the zoom and shift that lines up the most of them, found by letting every pair of holds vote for a shift.
+// Most of them landing on a hold of yours is the same wall, seen from wherever you stood; few is another wall
+function scanFit(mine, theirs) {
+  const of = theirs.length, none = { n: 0, of, same: false };
+  if (mine.length < 3 || of < 3) return none;
+  const R2 = 18 * 18, cell = 10, hit = (s, dx, dy) => theirs.reduce((a, t) => { const x = t.x * s + dx, y = t.y * s + dy; return a + (mine.some(m => (m.x - x) ** 2 + (m.y - y) ** 2 < R2) ? 1 : 0); }, 0);
+  let best = { n: 0 };
+  for (let s = .76; s < 1.32; s += .04) {
+    const vote = new Map();
+    theirs.forEach(t => mine.forEach(m => { const dx = m.x - t.x * s, dy = m.y - t.y * s; if (Math.abs(dx) > 240 || Math.abs(dy) > 320) return;
+      const k = `${Math.round(dx / cell)},${Math.round(dy / cell)}`; vote.set(k, (vote.get(k) || 0) + 1); }));
+    [...vote].sort((a, b) => b[1] - a[1]).slice(0, 5).forEach(([k]) => { const [i, j] = k.split(',').map(Number);
+      for (const ex of [-.5, 0, .5]) for (const ey of [-.5, 0, .5]) { const dx = (i + ex) * cell, dy = (j + ey) * cell, n = hit(s, dx, dy); if (n > best.n) best = { s, dx, dy, n }; } });
+  }
+  const { s, dx, dy } = best;
+  return { ...best, of, same: best.n >= Math.max(6, of * .6), pts: s ? theirs.map(t => [t.x * s + dx, t.y * s + dy]) : [] };
+}
+// your photo against the beta of the route you picked, worked out once that beta's wall photo is in. undefined until then
+const scanFitOf = k => {
+  if (!k || k.ri < 0) return null; if (k.fit !== undefined) return k.fit;
+  const B = betaOf(k.ri); if (!B) return undefined;
+  const th = needHolds(B.x.img, k.color); if (!Array.isArray(HOLDS[`${B.x.img}|${k.color}`])) return undefined;
+  return k.fit = { ...scanFit(k.holds, th), img: B.x.img, who: B.x.who };
+}
 function scanColor(k) { const q = scanFound.find(z => z.k === k); if (!q) return; scanPick = { x: null, y: null, color: k, holds: q.holds, ri: betaRis().find(i => ROUTES[i].color === k) ?? -1 }; render(); }
 function scanFile(f) {
   if (!f) return; if (f.type && !f.type.startsWith('image/')) { toast('That isn’t a photo'); return; }
   toast('Opening your photo…'); const u = URL.createObjectURL(f), im = new Image();
   im.onload = () => { scanTake(im, im.naturalWidth, im.naturalHeight); URL.revokeObjectURL(u); }; im.onerror = () => { URL.revokeObjectURL(u); toast('Couldn’t open that photo. Try a JPEG or take one with the camera'); }; im.src = u;
 }
+// "Choose a photo" on a computer: a pretend camera roll of wall photos, so a demo never opens the computer's file
+// window. The first three are ARC's rope wall, where the betas are, taken from other spots than the betas' videos. On a phone (a touch screen) it's the phone's own photo library, through the file input below
+const ALBUM = ['wayup-p5-green0', 'wayup-p1-orange0', 'wayup-p8-green0', 'wall1', 'px-7591475', 'px-7591477', 'px-7591479', 'px-7591535', 'px-7591538', 'px-6690707', 'px-5382887', 'px-7591545', 'wall2',
+  'px-7591603', 'gym-bridges-1', 'gym-peak-fremont-1', 'gym-mv-sunnyvale-1', 'gym-arc-1', 'gym-fa-westloop-1', 'px-7591808', 'pratteln-2'];
+function scanAlbum() {
+  if (matchMedia('(pointer: coarse)').matches) return scanBrowse();
+  pane(`<div class="ph-roll"><div class="ph-h"><button type="button" data-act="close">Cancel</button><b>Recents</b><span>${ALBUM.length} photos</span></div>
+    <div class="ph-grid">${ALBUM.map(f => `<button type="button" data-act="scanalbum" data-f="${f}" aria-label="Photo of a climbing wall"><img src="${pic(f)}" alt="" loading="lazy"></button>`).join('')}</div>
+    <button class="ph-files" type="button" data-act="scanbrowse">Choose from files…</button></div>`);
+}
+function scanAlbumPick(f) {
+  closeAll(); toast('Opening your photo…'); const im = new Image();
+  im.onload = () => scanTake(im, im.naturalWidth, im.naturalHeight); im.onerror = () => toast('Couldn’t open that photo'); im.src = pic(f);
+}
 let scanInp = null;
-function scanPhotos() {
+function scanBrowse() {
   if (!scanInp) { scanInp = document.createElement('input'); scanInp.type = 'file'; scanInp.accept = 'image/*'; scanInp.hidden = true; document.body.appendChild(scanInp);
     const got = () => { const f = scanInp.files[0]; scanInp.value = ''; if (f) scanFile(f); };
     scanInp.addEventListener('change', got); }
@@ -3273,77 +3511,120 @@ function viewScanCam() {
       ${why ? '' : `<p class="cam-guide">${scanStream ? 'Get your route in the picture, from the start holds to the top' : 'Starting the camera…'}</p>`}
       <div class="cam-bot">${photos}<button class="shut" type="button" data-act="scansnap" aria-label="Take a photo"${scanStream ? '' : ' disabled'}><i></i></button><span></span></div><div class="cam-shutter-label">Photo</div>` };
   }
-  const k = scanPick, r = k && k.ri >= 0 ? ROUTES[k.ri] : null, f = v => v.toFixed(0);
-  const marks = k ? `${k.holds.map(h => `<circle cx="${f(h.x)}" cy="${f(h.y)}" r="${f(Math.max(h.r * .6 + 5, 10))}" fill="none" stroke="#FFFFFF" stroke-width="2.5" stroke-dasharray="5 4"/>`).join('')}
+  const k = scanPick, r = k && k.ri >= 0 ? ROUTES[k.ri] : null, f = v => v.toFixed(0), fit = r ? scanFitOf(k) : null;
+  // the same wall: your holds that the beta's holds land on turn lime, so you see which of yours it is
+  const on = h => fit?.same && fit.pts.some(p => Math.hypot(p[0] - h.x, p[1] - h.y) < 20);
+  const marks = k ? `${k.holds.map(h => on(h) ? `<circle cx="${f(h.x)}" cy="${f(h.y)}" r="${f(Math.max(h.r * .6 + 5, 10))}" fill="none" stroke="#111111" stroke-width="5" opacity=".35"/><circle cx="${f(h.x)}" cy="${f(h.y)}" r="${f(Math.max(h.r * .6 + 5, 10))}" fill="none" stroke="#C2FF01" stroke-width="3"/>`
+      : `<circle cx="${f(h.x)}" cy="${f(h.y)}" r="${f(Math.max(h.r * .6 + 5, 10))}" fill="none" stroke="#FFFFFF" stroke-width="2.5" stroke-dasharray="5 4"/>`).join('')}
       ${k.x == null ? '' : `<circle cx="${k.x}" cy="${k.y}" r="17" fill="none" stroke="#111111" stroke-width="7" opacity=".4"/><circle cx="${k.x}" cy="${k.y}" r="17" fill="none" stroke="#C2FF01" stroke-width="4"/>`}` : '';
   const withBeta = betaRis().map(i => rname(ROUTES[i])).join(' and ');
   const say = !k ? (scanFound.length ? ['Which route is yours?', 'Tap one of its holds on the photo, or its colour below.'] : ['No coloured holds found', 'Get closer, with the holds lit and in focus. White and black holds can’t be told from the wall yet.'])
-    : r ? [`${sw(r)}${rname(r)}`, `${n(k.holds.length, 'hold', 'holds')} found in ${k.color.toLowerCase()}. Wrong one? Tap another colour.`]
+    : r && fit === undefined ? [`${sw(r)}${rname(r)}`, `${n(k.holds.length, 'hold', 'holds')} found in ${k.color.toLowerCase()}. Checking them against the beta’s video…`]
+    : r && fit.same ? [`${sw(r)}${rname(r)}`, `Same wall as the beta: ${fit.n} of its ${fit.of} ${k.color.toLowerCase()} holds land on yours, in lime.`]
+    : r ? [`<span class="scan-near">Nearest beta</span>${sw(r)}${rname(r)}`, `Only ${fit.n} of its ${fit.of} ${k.color.toLowerCase()} holds land on yours, so your photo is likely another wall. This is the closest we have: same colour, at ${gyms[gyOf(r)].name}.`]
     : [`${n(k.holds.length, `${k.color.toLowerCase()} hold`, `${k.color.toLowerCase()} holds`)} found`, `There’s no beta for a ${k.color.toLowerCase()} route yet. A beta comes from someone’s video of the route; so far only ${withBeta} at ARC have one.`];
   const chips = scanFound.length ? `<div class="scan-chips">${scanFound.map(q => `<button type="button" data-act="scancolor" data-k="${q.k}" aria-pressed="${k?.color === q.k}"><i style="background:${HOLD_COLORS[q.k] || '#999'}"></i>${q.k}<small>${q.holds.length}</small></button>`).join('')}</div>` : '';
+  // where the beta comes from, next to your photo: the video's wall, whose and which wall
+  const src = r && fit !== undefined ? `<span class="scan-src"><img src="${pic(fit.img, 0)}" alt=""><span><b>${fit.who}’s video</b><span>${r.wall} · ${gyms[gyOf(r)].name}</span></span></span>` : '';
   return { bare: true, dark: true, html: '', after: scanAfter, overlay: `
     <svg id="scsvg" class="scan-photo" viewBox="0 0 540 960" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Your photo of the wall. Tap a hold"><image href="${scanURL}" width="540" height="960"/>${marks}</svg>
     ${top}
-    <div class="scan-res" role="status"><strong>${say[0]}</strong><span>${say[1]}</span>${chips}
-      <div class="scan-acts"><button class="b-ghost" type="button" data-act="scanretake">Retake</button>${r ? `<button class="b-lime" type="button" data-act="scango">See the beta</button>` : ''}</div></div>` };
+    <div class="scan-res" role="status"><strong>${say[0]}</strong><span>${say[1]}</span>${src}${chips}
+      <div class="scan-acts"><button class="b-ghost" type="button" data-act="scanretake">Retake</button>${r ? `<button class="b-lime" type="button" data-act="scango">${fit ? `Watch ${fit.who}’s beta` : 'See the beta'}</button>` : ''}</div></div>` };
 }
-// the beta at the top of a route's page: the wall photo with the route's holds, and the climb move by move (bstep). Below it,
-// the video it was read from and your own try against it. null while no one has a top on video (or it's still loading)
+// the beta, video first: the climb plays at the top, and under it only the few moves worth knowing, picked from the track:
+// where they stopped longest (the hard part), the longest reach, a hand swap, and where your own try went another way.
+// Tapping one plays just that move on a loop, at half speed, zoomed in, with the hand that moves ringed. (It was a still
+// photo with every hold, foot and move marked, 13 moves one at a time: it needed a legend, and said nothing the video didn't)
+let bkOn = null;   // the move playing on a loop: { a, b, l } (from, to, which hand)
 function betaBlock(ri) {
   const r = ROUTES[ri], B = betaOf(ri, betaV);
   if (!B) return null;
-  const N = B.steps.length - 1, st = B.steps[bstep], prev = B.steps[Math.max(0, bstep - 1)], pt = q => `${q[0].toFixed(0)} ${q[1].toFixed(0)}`;
-  const hn = { lw: 'Left hand', rw: 'Right hand', B: 'Both hands' }, fn = { la: 'left foot', ra: 'right foot' };
-  // the photo zooms to the climb: the box around every hand position, padded, kept at the frame's 9:16. Marks are sized for the
-  // screen (zk), drawn as thin rings so the holds under them stay visible; the line is drawn only as far as the move you are on
-  const hs = needHolds(B.x.img, r.color);
-  const snap = p => { let o = null, bd = 55; hs.forEach(h => { const dd = Math.hypot(h.x - p[0], h.y - (p[1] - 12)); if (dd < bd) { bd = dd; o = h; } }); return o ? [o.x, o.y] : Object.assign([...p], { est: true }); };
-  const P = B.steps.map(q => snap(q.pos)), S0 = B.steps[0].holds.map(snap), at = i => P[i];
-  const ps = [...P.slice(1), ...S0], pad = 70;
-  let x0 = Math.min(...ps.map(q => q[0])) - pad, x1 = Math.max(...ps.map(q => q[0])) + pad, y0 = Math.min(...ps.map(q => q[1])) - pad, y1 = Math.max(...ps.map(q => q[1])) + pad;
-  let vw = x1 - x0, vh = y1 - y0; if (vw / vh < 9 / 16) vw = vh * 9 / 16; else vh = vw * 16 / 9;
-  if (vw > 540) { vw = 540; vh = 960; }
-  const vx = Math.max(0, Math.min(540 - vw, (x0 + x1 - vw) / 2)), vy = Math.max(0, Math.min(960 - vh, (y0 + y1 - vh) / 2)), zk = vw / 540, f = v => v.toFixed(1);
-  const ring = (q, r, c, w, o = 1) => `<circle cx="${f(q[0])}" cy="${f(q[1])}" r="${f(r * zk)}" fill="none" stroke="${c}" stroke-width="${f(w * zk)}" opacity="${o}"${q.est ? ` stroke-dasharray="${f(4 * zk)} ${f(4 * zk)}"` : ''}/>`;
-  const badge = (q, l) => `<circle cx="${f(q[0] + 20 * zk)}" cy="${f(q[1] - 20 * zk)}" r="${f(13 * zk)}" fill="#C2FF01" stroke="#111111" stroke-width="${f(2 * zk)}"/>
-      <text x="${f(q[0] + 20 * zk)}" y="${f(q[1] - 20 * zk + 6 * zk)}" text-anchor="middle" font-size="${f(16 * zk)}" font-weight="800" fill="#111111">${l}</text>`;
-  const svg = `<svg viewBox="${f(vx)} ${f(vy)} ${f(vw)} ${f(vh)}" aria-hidden="true">
-      <image href="${WALL[B.x.img] || `${pic(B.x.img)}`}" x="0" y="0" width="540" height="960" style="filter:brightness(.9)"/>
-      ${hs.map(h => `<circle cx="${f(h.x)}" cy="${f(h.y)}" r="${f(Math.max(h.r * .6 + 4, 9))}" fill="none" stroke="#FFFFFF" stroke-width="${f(1.6 * zk)}" stroke-dasharray="${f(3 * zk)} ${f(2.5 * zk)}" opacity=".85"/>`).join('')}
-      ${bstep ? `<path d="M${P.slice(1, bstep + 1).map(q => `${f(q[0])} ${f(q[1])}`).join(' L')}" fill="none" stroke="#C2FF01" stroke-width="${f(2.5 * zk)}" stroke-dasharray="${f(6 * zk)} ${f(6 * zk)}" opacity=".8"/>` : ''}
-      ${B.steps.map((q, i) => i && i !== bstep ? ring(at(i), 11, i < bstep ? '#C2FF01' : '#FFFFFF', 2, i < bstep ? .7 : .75) : '').join('')}
-      ${st.feet.map(q => `<rect x="${f(q.pos[0] - 8 * zk)}" y="${f(q.pos[1] - 8 * zk)}" width="${f(16 * zk)}" height="${f(16 * zk)}" rx="${f(3 * zk)}" fill="none" stroke="#FFFFFF" stroke-width="${f(2.5 * zk)}"/>`).join('')}
-      ${(bstep ? [[at(bstep), bstep]] : S0.map((h, m) => [h, m ? 'R' : 'L'])).map(([q, l]) => ring(q, 22, '#111111', 6, .35) + ring(q, 22, '#C2FF01', 3.5) + badge(q, l)).join('')}
-    </svg>`;
-  const feet = st.feet.map(q => fn[q.k]).filter((f, i, l) => f !== l[i - 1]), who = B.x.who === 'You' ? 'you' : B.x.who, whose = B.x.who === 'You' ? 'your' : `${B.x.who}’s`;
-  const title = bstep ? moveSay(st) : 'Start: both hands on';
-  // one sentence per span, so each reads as a whole in either language
-  const how = !bstep ? `<span>Left hand on L, right hand on R: the first holds ${who} grabbed.</span> <span>The dashed circles are this route’s holds.</span>`
-    : `<span>${feet.length > 2 ? `Walk your feet up first: ${n(st.feet.length, 'step', 'steps')}, the white squares.` : feet.length ? `${feet.join(', then ').replace(/^./, c => c.toUpperCase())} first (the white ${feet.length > 1 ? 'squares' : 'square'}).` : 'Feet stay where they are.'}</span> <span>${st.match ? 'Then bring this hand onto the hold the other one is on.' : st.size === 'long' ? 'Then reach: one of the longest moves on this climb.' : st.size === 'short' ? 'Then a short move to the next hold.' : 'Then reach for the next hold.'}</span>`;
-  const hands = N, foots = B.feet;
-  // the beta came from somewhere else than the video you opened it from: say why
-  const swap = B.ask && B.ask !== B.x ? `<p class="beta-caveat">${B.ask.who === 'You' ? 'You' : B.ask.who} didn’t top it on that video, so this is ${whose} send.</p>` : '';
-  // your own try on this route, read the same way: how many moves, and the first one that went another way
-  const myT = B.x.who === 'You' ? null : V.filter(q => q.who === 'You' && q.ri === ri).map(q => TRK[q.vid]).filter(Boolean).pop();
-  // matches are compared out: the reaches between holds are what makes a line, so the first reach that differs is where you split
+  bkOn = null;
+  // the box is square and the video fills its width: taller than the box, it follows the climber up the wall (betaAfter).
+  // The library videos are steadied and have black edges right and bottom, so they're cut 5% bigger to keep those out
+  const S = B.steps, Who = B.x.who, ar = B.x.ar || 9 / 16, VH = 1000 / ar, cut = B.x.mine || B.x.local ? 1 : .95;
+  // your own try on this route, read the same way: the first reach that went another way (matches are left out: the reaches
+  // between holds are what makes a line)
+  const myT = Who === 'You' ? null : V.filter(q => q.who === 'You' && q.ri === ri).map(q => TRK[q.vid]).filter(Boolean).pop();
   const mine = myT && stepsOf(myT).steps, reach = s => s.map((q, i) => [q, i]).filter(([q, i]) => i && !q.match);
-  const mR = mine && reach(mine), bR = reach(B.steps), k = mR ? mR.findIndex(([q], j) => bR[j] && (q.hand !== bR[j][0].hand || q.dir !== bR[j][0].dir)) : -1;
+  const mR = mine && reach(mine), bR = reach(S), k = mR ? mR.findIndex(([q], j) => bR[j] && (q.hand !== bR[j][0].hand || q.dir !== bR[j][0].dir)) : -1;
   const diff = k >= 0 && k < bR.length ? bR[k][1] : -1, myDiff = k >= 0 ? mR[k][0] : null;
-  // your try as a row like the others: how many moves against this beta, and a tap goes straight to where you split
-  const vsYou = mine ? `<button class="row" type="button" data-act="bgo" data-s="${diff > 0 ? diff : 0}"><span class="row-t"><strong>Your try: ${n(mine.length - 1, 'move', 'moves')}, ${who === 'you' ? 'this one' : who} ${N}</strong><span>${diff > 0 ? `You split at move ${diff}. Show it` : mine.length - 1 > N ? 'Same line, with extra moves' : 'Same line'}</span></span>${ic.arr('#111111')}</button>` : '';
-  const vsLine = myDiff && diff > 0 ? `<p class="bsx-you"><b>Here you went another way.</b> <span>You</span>: <span>${moveSay(myDiff)}</span>. <span>${B.x.who}</span>: <span>${moveSay(B.steps[diff])}</span>.</p>` : '';
+  const gap = i => S[i].t - S[i - 1].t, far = i => Math.hypot(S[i].pos[0] - S[i].from[0], S[i].pos[1] - S[i].from[1]);
+  const idx = S.map((_, i) => i).slice(1), keys = [], used = new Set(), add = (i, kind) => { if (i > 0 && !used.has(i)) { used.add(i); keys.push({ i, kind }); } };
+  if (diff > 0) add(diff, 'you');
+  const hard = idx.filter(i => !S[i].match && !used.has(i)).sort((p, q) => gap(q) - gap(p))[0]; if (hard && gap(hard) >= 1.5) add(hard, 'hard');
+  const long = idx.filter(i => !S[i].match && !used.has(i)).sort((p, q) => far(q) - far(p))[0]; if (long) add(long, 'reach');
+  // then the next-longest stop; a hand swap only once the climb is under way (matching on the start hold says nothing)
+  if (keys.length < 3) { const h2 = idx.filter(i => !S[i].match && !used.has(i)).sort((p, q) => gap(q) - gap(p))[0]; if (h2 && gap(h2) >= 1.5) add(h2, 'hard'); }
+  if (keys.length < 3) { const m = idx.find(i => i > 2 && S[i].match && !used.has(i)); if (m) add(m, 'match'); }
+  keys.sort((p, q) => p.i - q.i);
+  const me = Who === 'You' ? 'You' : Who;
+  // each one: what it is, then what to do about it (one sentence per span, so each reads whole in either language)
+  const say = ({ i, kind }) => { const q = S[i], f = q.feet.length;
+    if (kind === 'you') return ['Where you went another way', `<span>You: ${moveSay(myDiff)}.</span> <span>Try it ${Who}’s way next time.</span>`];
+    if (kind === 'hard') return ['The hard part', `<span>${me} stopped here for ${gap(i).toFixed(1)} s.</span> <span>${f ? `Set your feet first (${n(f, 'foot move', 'foot moves')}), then reach.` : 'The feet stay put: it’s all in this reach.'}</span>`];
+    if (kind === 'reach') return ['The longest reach', `<span>${f ? 'Walk your feet up first: higher feet, shorter reach.' : 'Stand tall on straight legs to make it.'}</span>`];
+    return ['Swap hands', '<span>Leave room on the hold, then bring the other hand in.</span>']; };
+  const card = key => { const q = S[key.i], [kick, tip] = say(key), a = Math.max(S[key.i - 1].t - .4, q.t - 3.2), b = q.t + .8;
+    // the zoom centres on the reach: halfway from where the hand was to where it went
+    const zx = (q.pos[0] + q.from[0]) / 2 / 540 * 100, zy = (q.pos[1] + q.from[1]) / 2 / 960 * 100;
+    return `<button class="bk-c${key.kind === 'you' ? ' you' : ''}" type="button" data-act="bkey" data-a="${a.toFixed(2)}" data-b="${b.toFixed(2)}" data-l="${q.hand}" data-x="${zx.toFixed(1)}" data-y="${zy.toFixed(1)}" aria-pressed="false">
+      <span class="bk-i"><img alt="" data-bt="${q.t.toFixed(2)}" data-bl="${q.hand}"><b class="num">${key.i}</b></span>
+      <span class="bk-t"><em><span>${kick}</span> · <span>Move ${key.i}</span></em><strong>${moveSay(q)}</strong><span class="bk-d">${tip}</span></span></button>`; };
+  const swap = B.ask && B.ask !== B.x ? `<p class="beta-caveat">${B.ask.who === 'You' ? 'You' : B.ask.who} didn’t top it on that video, so this is ${Who === 'You' ? 'your' : `${Who}’s`} send.</p>` : '';
   return { top: `${swap}
-    <div class="cam sc9">
-      ${svg}
-      <span class="pk-tag scan-tag">${sw(r)}<span>${rname(r)}</span> · <span>${hands} hand, ${foots} foot moves</span></span>
+    <div class="bv" id="bv"><img class="bv-bg" src="${pic(B.x.img)}" alt="">
+      <div class="bv-in" id="bvin" style="width:${(100 / cut).toFixed(2)}%;aspect-ratio:${ar.toFixed(4)}"><video id="bvv" src="${vsrc(B.x.vid)}" poster="${pic(B.x.img)}" autoplay muted playsinline loop preload="auto" aria-label="${me} climbing ${rname(r)}"></video>
+        <svg viewBox="0 0 1000 ${VH.toFixed(0)}" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><circle id="bvr" r="46" fill="none" stroke="#111111" stroke-width="14" opacity="0"/><circle id="bvr2" r="46" fill="none" stroke="#C2FF01" stroke-width="8" opacity="0"/></svg></div>
+      <span class="pk-tag scan-tag">${sw(r)}<span>${rname(r)}</span> · <span>${me}</span> · <span class="num">${mmss(climbS(B.T))}</span></span>
+      <button class="bv-all" type="button" data-act="bkall"><b>0.5×</b><span>Whole climb</span></button>
+      <div class="bv-bar"><button class="bv-pp" type="button" id="bvpp" aria-label="Pause"><i></i></button>
+        <div class="bv-tl" id="bvtl" role="slider" aria-label="Time in the video" tabindex="0"><i class="bv-seg" id="bvseg"></i><i class="bv-fill" id="bvfill"></i>${keys.map(q => `<b class="bv-mk" style="left:${(S[q.i].t / (B.x.D || B.T.D) * 100).toFixed(2)}%" data-i="${q.i}"></b>`).join('')}<i class="bv-knob" id="bvknob"></i></div>
+        <span class="bv-time num" id="bvtime">0:00</span></div>
     </div>
-    <section class="bsx">
-      <div class="bsx-h"><span>${bstep ? `Move ${bstep} <em>/ ${N}</em>` : 'Before you start'}</span>
-        <span class="bsx-ctl"><button type="button" data-act="bstep" data-d="-1" aria-label="Previous move"${bstep ? '' : ' disabled'}>‹</button><button type="button" data-act="bstep" data-d="1" aria-label="Next move"${bstep < N ? '' : ' disabled'}>›</button></span></div>
-      <div class="bsx-prog">${B.steps.map((_, i) => `<button type="button" data-act="bgo" data-s="${i}" aria-label="${i ? `Move ${i}` : 'Start'}"${i === bstep ? ' class="on"' : i < bstep ? ' class="done"' : ''}></button>`).join('')}</div>
-      <p class="bsx-t">${title}</p><p class="bsx-d">${how}</p>${bstep === diff ? vsLine : ''}
-    </section>`,
-    rows: `<button class="row fr-p" type="button" data-act="fwatch" data-v="${B.x.i}"><span class="fr-f">${avatar(B.x.who)}</span><span class="row-t"><strong>${B.x.who === 'You' ? 'This is how you climbed it' : `This is how ${B.x.who} climbed it`}</strong><span>Topped in ${mmss(climbS(B.T))} · read from the video. Watch it</span></span>${ic.arr('#111111')}</button>${vsYou}` };
+    ${keys.length ? `<div class="sec"><h2>Key moves</h2><span class="sec-more">Tap one to watch it slowed down</span></div>
+    <div class="bk-l">${keys.map(card).join('')}</div>` : ''}`, rows: '' };
+}
+// the beta's video, after the page is drawn: tap it to pause, the cards' pictures (the frame at that move, the hand ringed), and
+// while a move is playing, the loop and the ring on the hand that moves
+function betaAfter() {
+  const v = $('bvv'), box = $('bv'), B = v && betaOf(scanRi, betaV); if (!B) return;
+  const S = B.steps, T = B.T, VH = 1000 / (B.x.ar || 9 / 16), rings = [$('bvr'), $('bvr2')], P = { lw: 5, rw: 6 };
+  const pp = $('bvpp'), tl = $('bvtl'), fill = $('bvfill'), knob = $('bvknob'), tm = $('bvtime'), seg = $('bvseg');
+  const toggle = () => v.paused ? v.play().catch(() => {}) : v.pause(), mark = () => { box.classList.toggle('paused', v.paused); pp.setAttribute('aria-label', v.paused ? 'Play' : 'Pause'); };
+  v.onclick = toggle; pp.onclick = toggle; v.addEventListener('play', mark); v.addEventListener('pause', mark);
+  // the time bar: tap or drag anywhere on it. Dragging out of a slowed-down move goes back to the whole climb; a mark is a key move
+  const D = () => v.duration || B.x.D || T.D, at = e => { const r = tl.getBoundingClientRect(); return Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)) * D(); };
+  tl.onpointerdown = e => { const mk = e.target.closest('.bv-mk'); if (mk) { document.querySelectorAll('.bk-c')[[...tl.querySelectorAll('.bv-mk')].indexOf(mk)]?.click(); return; }
+    if (bkOn) actions.bkall(); tl.setPointerCapture(e.pointerId); box.classList.add('seeking'); v.currentTime = at(e);
+    tl.onpointermove = m => { v.currentTime = at(m); }; tl.onpointerup = tl.onpointercancel = () => { tl.onpointermove = null; box.classList.remove('seeking'); }; };
+  tl.onkeydown = e => { const d = { ArrowLeft: -2, ArrowRight: 2 }[e.key]; if (d) { e.preventDefault(); v.currentTime = Math.max(0, Math.min(D(), v.currentTime + d)); } };
+  const bar = () => { const d = D(), f = d ? v.currentTime / d * 100 : 0; fill.style.width = `${f}%`; knob.style.left = `${f}%`; tm.textContent = mmss(v.currentTime);
+    tl.setAttribute('aria-valuenow', v.currentTime.toFixed(0)); seg.style.cssText = bkOn && d ? `left:${bkOn.a / d * 100}%;width:${(bkOn.b - bkOn.a) / d * 100}%` : 'display:none'; };
+  // start where the climbing starts, not with the walk up to the wall
+  v.addEventListener('loadedmetadata', () => { if (!bkOn && v.currentTime < .5) v.currentTime = Math.max(0, S[0].t - 1.5); }, { once: true });
+  // the pose frame nearest the video's time, by its own timestamp (the frames don't start at 0 or keep an even step)
+  const seen = T.S.filter(x => x.p), near = t => { let lo = 0, hi = seen.length - 1; if (hi < 0) return null;
+    while (lo < hi) { const m = (lo + hi) >> 1; if (seen[m].t < t) lo = m + 1; else hi = m; }
+    const q = lo > 0 && Math.abs(seen[lo - 1].t - t) < Math.abs(seen[lo].t - t) ? seen[lo - 1] : seen[lo]; return Math.abs(q.t - t) < .6 ? q : null; };
+  (async () => { for (const im of document.querySelectorAll('img[data-bt]:not([src])')) { const s = near(+im.dataset.bt); if (!s || !window.poseStill) continue;
+    const u = await window.poseStill(vsrc(B.x.vid), T, s, `reach:${im.dataset.bl}`, 'good'); if (u && im.isConnected) im.src = u; } })();
+  // the box follows the climber: it slides so their hips sit in the middle of it (or, on a move, the reach), eased so it
+  // glides instead of jumping with every frame of the track. Never past the video's top or its cut-off bottom
+  const inn = $('bvin'), cut = B.x.mine || B.x.local ? 1 : .95; let y = null;
+  const pan = () => { const bh = box.clientHeight, ih = inn.offsetHeight; if (!bh || !ih) return;
+    if (ih <= bh) { inn.style.translate = `0 ${((bh - ih) / 2).toFixed(1)}px`; return; }
+    const s = near(v.currentTime), hy = bkOn ? bkOn.y : s?.p ? (s.p[7][1] + s.p[8][1]) / 2 : null; if (hy == null) return;
+    const want = Math.max(bh - ih * cut, Math.min(0, bh / 2 - hy * ih));
+    y = y == null || Math.abs(want - y) > bh ? want : y + (want - y) * .08; inn.style.translate = `0 ${y.toFixed(1)}px`; };
+  const tick = () => { if (!v.isConnected) return; requestAnimationFrame(tick); pan(); bar(); const k = bkOn;
+    if (!k) { rings.forEach(c => c.setAttribute('opacity', 0)); return; }
+    if (v.currentTime < k.a - .1 || v.currentTime > k.b) v.currentTime = k.a;
+    const s = near(v.currentTime), p = s?.p?.[P[k.l]];
+    if (!p) { rings.forEach(c => c.setAttribute('opacity', 0)); return; }
+    rings.forEach(c => { c.setAttribute('cx', (p[0] * 1000).toFixed(0)); c.setAttribute('cy', (p[1] * VH).toFixed(0)); c.setAttribute('opacity', c.id === 'bvr' ? .35 : 1); }); };
+  requestAnimationFrame(tick);
 }
 // the scan camera: photograph a wall, tap your route's hold, and its page opens with the beta
 function viewScan() {
@@ -3472,10 +3753,8 @@ function openAdd(ri = null) {
     { act: 'data-act="film"', k: 'k-lime', icon: ic.rec, t: 'Film', d: 'With your phone’s camera', tag: 'Best' },
     { act: 'data-act="upload"', k: 'k-orange', icon: ic.up, t: 'Import', d: 'A video from your camera roll' },
     { act: 'data-act="to" data-to="session"', k: 'k-white', icon: ic.pen, t: 'Log by hand', d: 'No video needed' },
-    { act: 'data-act="scan"', k: 'k-ink', icon: ic.scan, t: 'Scan a wall', d: 'See a route\'s beta', tag: 'New' },
-    // check in at the gym without filming or logging every climb (interview 2): the day still counts for friends and gear
-    session === 'live' ? { act: 'data-act="lgend"', k: 'k-white', icon: SES_IC, t: 'End session', d: `Climbing now · ${clk(sesSecs())}` }
-      : { act: 'data-act="sesgo"', k: 'k-white', icon: SES_IC, t: 'Start a session', d: 'Just the time. Counts for your gear' }];
+    { act: 'data-act="scan"', k: 'k-ink', icon: ic.scan, t: 'Scan a wall', d: 'See a route\'s beta', tag: 'New' }];
+    // (Start a session, a clock for the day, was the last row: taken out of Add, the team didn't want it here)
   // a plain action sheet: title, then one row per way in. The first available one is lime; one that is off stays, greyed.
   const chev = '<svg class="ax-c" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>';
   const first = opts.find(o => !o.off);
@@ -3567,9 +3846,9 @@ function viewSession() {
   const header = `<div class="bar"><button class="bk" type="button" data-act="glback" aria-label="Back">${ic.back}</button><span>Log by hand</span></div>`;
   const wall = `<div class="gl-map"><svg viewBox="0 0 340 460" aria-label="Choose a climbing grade"><defs><pattern id="gldot" width="34" height="34" patternUnits="userSpaceOnUse"><circle cx="17" cy="17" r="1.6" fill="rgba(17,17,17,.12)"/></pattern></defs><rect width="340" height="460" fill="url(#gldot)"/>${PEB.map(([x,y,rx,ry],i) => `<path class="peb" d="${rock(x,y,rx,ry,i*2.1+1)}"/>`).join('')}${grades.slice().reverse().map((g,i) => { const [x,y,rx,ry] = GB[g]; return `<g class="gb${glGrade === g ? ' selected' : ''}" data-g="${g}" role="button" tabindex="0" aria-label="${g}" aria-pressed="${glGrade === g}"><path d="${rock(x,y,rx,ry,i*1.7+.4)}"/><text x="${x}" y="${y+11}">${g}</text></g>`; }).join('')}</svg></div>`;
   const list = glogs.map((x,i) => [x,i]).filter(([x]) => x.ago === 0).reverse().map(([x,i]) => `<div class="log-entry"><div class="log-entry-main"><span class="log-entry-grade">${x.g}</span><span><strong>${x.ty}</strong><small>${gyms[x.gy].name}</small></span><button type="button" data-act="gldel" data-i="${i}" aria-label="Remove ${x.g}">×</button></div><div class="log-entry-results" aria-label="Change result">${['Flash','Send','Project'].map(k => `<button type="button" data-act="glk" data-i="${i}" data-k="${k}" aria-pressed="${x.k === k}">${KL[k]}</button>`).join('')}</div></div>`).join('');
-  const first = `<div class="log-step-title"><h1>Pick your climb<span>✦</span></h1></div><button class="rock-gym" type="button" data-act="glgym">${ic.pin}<span>${G ? G.name + (!glGymChosen && glPosition ? ' · estimated' : '') : glLocation === 'loading' ? 'Finding your gym…' : 'Choose a gym'}</span><b>⌄</b></button><div class="rock-types">${tys.map(r => `<button type="button" data-act="glrope" data-v="${r}" aria-pressed="${glTy === r}">${r}</button>`).join('')}</div><div class="rock-wall">${wall}<p>${glGrade ? `<b>${glGrade}</b> selected` : 'Tap a hold to select your grade'}</p></div>`;
+  const first = `<div class="log-step-title"><h1>Pick your climb<span>✦</span></h1></div><button class="rock-gym" type="button" data-act="glgym">${ic.pin}<span>${G ? G.name + (!glGymChosen && glPosition ? ' · estimated' : '') : glLocation === 'loading' ? 'Finding your gym…' : 'Choose a gym'}</span><i class="chev" aria-hidden="true"></i></button><div class="rock-types">${tys.map(r => `<button type="button" data-act="glrope" data-v="${r}" aria-pressed="${glTy === r}">${r}</button>`).join('')}</div><div class="rock-wall">${wall}<p>${glGrade ? `<b>${glGrade}</b> selected` : 'Tap a hold to select your grade'}</p></div>`;
   const R = glRi != null ? ROUTES[glRi] : null;
-  const second = `<div class="log-step-title"><h1>How did it go?<span>✦</span></h1></div>${R ? `<div class="log-climb-summary"><span class="log-entry-grade">${R.grade}</span><div><strong>${sw(R)}${rname(R)}</strong><small><span>${G?.name || ''}</span> · <span>${R.wall}</span></small></div></div>` : `<div class="log-climb-summary"><span class="log-entry-grade">${glGrade || ''}</span><div><strong>${glTy}</strong><small>${G?.name || ''}</small></div><button type="button" data-act="glback">Edit</button></div><button class="manual-color" type="button" data-act="glcolor"><span>${glColor ? `<i style="--hold:${HOLD_COLORS[glColor]}"></i>${glColor}` : 'Choose hold colour'}</span><b>⌄</b></button>`}<div class="log-outcomes">${[['Flash','Finished on your first try','✦'],['Send','Finished after more than one try','✓'],['Project','Still working on it','↗']].map(([k,desc,icon]) => `<button type="button" data-act="glresult" data-k="${k}" aria-pressed="${glResult === k}"><span class="log-outcome-icon">${icon}</span><span><strong>${KL[k]}</strong><small>${desc}</small></span><i aria-hidden="true">${glResult === k ? '✓' : ''}</i></button>`).join('')}</div><div class="log-attempts"><span><strong>Attempts</strong><small>How many tries for this climb?</small></span><button type="button" data-act="glattempt" data-d="-1" aria-label="Fewer attempts">−</button><b>${glAttempts}</b><button type="button" data-act="glattempt" data-d="1" aria-label="More attempts">＋</button></div>`;
+  const second = `<div class="log-step-title"><h1>How did it go?<span>✦</span></h1></div>${R ? `<div class="log-climb-summary"><span class="log-entry-grade">${R.grade}</span><div><strong>${sw(R)}${rname(R)}</strong><small><span>${G?.name || ''}</span> · <span>${R.wall}</span></small></div></div>` : `<div class="log-climb-summary"><span class="log-entry-grade">${glGrade || ''}</span><div><strong>${glTy}</strong><small>${G?.name || ''}</small></div><button type="button" data-act="glback">Edit</button></div><button class="manual-color" type="button" data-act="glcolor"><span>${glColor ? `<i style="--hold:${HOLD_COLORS[glColor]}"></i>${glColor}` : 'Choose hold colour'}</span><i class="chev" aria-hidden="true"></i></button>`}<div class="log-outcomes">${[['Flash','Finished on your first try','✦'],['Send','Finished after more than one try','✓'],['Project','Still working on it','↗']].map(([k,desc,icon]) => `<button type="button" data-act="glresult" data-k="${k}" aria-pressed="${glResult === k}"><span class="log-outcome-icon">${icon}</span><span><strong>${KL[k]}</strong><small>${desc}</small></span><i aria-hidden="true">${glResult === k ? '✓' : ''}</i></button>`).join('')}</div><div class="log-attempts"><span><strong>Attempts</strong><small>How many tries for this climb?</small></span><button type="button" data-act="glattempt" data-d="-1" aria-label="Fewer attempts">−</button><b>${glAttempts}</b><button type="button" data-act="glattempt" data-d="1" aria-label="More attempts">＋</button></div>`;
   const third = `<div class="log-step-title"><h1>Your session<span>✦</span></h1></div><div class="log-today-head"><h2>Today’s climbs</h2><span>${n(es.length,'climb','climbs')}</span></div>${es.length ? list : '<p class="log-empty">No climbs added yet.</p>'}<button class="log-another" type="button" data-act="glanother"><span>＋</span> Add another climb</button>`;
   const cta = glStep === 0 ? `<button class="b-lime" type="button" data-act="glnext"${glGrade && G ? '' : ' disabled'}>Continue${glGrade ? ` · ${glGrade}` : ''}</button>` : glStep === 1 ? `<button class="b-lime" type="button" data-act="glconfirm"${glResult && glColor ? '' : ' disabled'}>Add climb</button>` : `<button class="b-lime" type="button" data-act="glsave"${es.length ? '' : ' disabled'}>Save session${es.length ? ` · ${n(es.length,'climb','climbs')}` : ''}</button>`;
   return { html: header + `<div class="rock-log log-wizard">${glStep === 0 ? first : glStep === 1 ? second : third}</div>`, cta, after: () => { if (glLocation === 'idle') glLocate(); document.querySelectorAll('.gb').forEach(el => { const select = () => { glGrade = el.dataset.g; render(); }; el.addEventListener('click', select); el.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); select(); } }); }); } };
@@ -3738,8 +4017,11 @@ function viewFriendsHome() {
   const fr = friendList();
   if (!fr.length) return { photo: 'gym-arc-1', html: `
     ${tabHead('Social')}${socSeg('friends')}
-    <div class="fr-first"><strong>A circle of your own</strong><p>Send your invite link to the people you climb with. Once they open it you’re friends, and you see each other’s climbing days.</p>
-      <div class="two"><button class="b-ghost" type="button" data-act="socgo" data-to="friends/partners">Find partners</button><button class="b-lime" type="button" data-act="fadd">Add friends</button></div></div>` };
+    <div class="fr-first">
+      <div class="fr-ring" aria-hidden="true"><span class="fd-a">${avatar('You')}</span><i>+</i><i>+</i></div>
+      <strong>Climb with friends</strong><p>Invite the people you climb with and see each other’s climbing days.</p>
+      <button class="b-lime" type="button" data-act="fadd">Add friends</button>
+      <button class="fr-alt" type="button" data-act="socgo" data-to="friends/partners">No one to invite? Find a partner</button></div>` };
   const rows = ['You', ...fr].map(w => ({ w, ...weekOf(w), mv: w === 'You' ? null : newMove(w) })).sort((a, b) => b.climbs - a.climbs || b.days - a.days || (a.w === 'You') - (b.w === 'You'));
   return { photo: 'gym-arc-1', html: `
     ${tabHead('Social')}${socSeg('friends')}
@@ -3819,6 +4101,21 @@ function dayCard(x) {
 </div>`;
 }
 
+// one friend's week on their own page: one card, a row a day, newest first. No avatar or name (it's their page) and no
+// thumbnails (their videos are just above): the date, where, how long, and the routes by name. Tap a route: its video
+function weekList(days) {
+  const ok = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5 10 17 19 7"/></svg>';
+  return `<div class="wk">${days.map(x => {
+    const g = gyms[x.gy] || gym, d = dateOf(x.ago), yours = x.vids.find(v => v.top && lastOn(v.ri)), mineTop = yours && (mineOn(yours.ri).some(topOf) || glTop(yours.ri));
+    const nums = x.live ? [`${Math.round(x.secs / 60)} min in`, n(x.climbs, 'climb', 'climbs')]
+      : [x.h != null && x.secs ? span2(x.h, x.secs) : x.secs ? clk(x.secs) : '', x.climbs ? n(x.climbs, 'climb', 'climbs') : '', x.top ? `hardest ${x.top}` : ''].filter(Boolean);
+    return `<div class="wk-r${x.live ? ' wk-live' : ''}">
+      <span class="wk-d">${x.live ? '<b>Now</b>' : `<em>${d.toLocaleDateString('en-US', { weekday: 'short' })}</em><b class="num">${d.getDate()}</b>`}</span>
+      <span class="wk-t"><strong>${g.name}</strong>${nums.length ? `<span>${nums.map(t => `<span>${t}</span>`).join(' · ')}</span>` : ''}
+        ${x.vids.length ? `<span class="wk-rts">${x.vids.map(v => `<button class="wk-rt" type="button" data-act="pvid" data-v="${v.i}" data-w="${v.who}" aria-label="${rname(ROUTES[v.ri])}, ${v.top ? 'topped' : 'tried'}">${sw(ROUTES[v.ri])}${rname(ROUTES[v.ri])}${v.top ? ok : ''}</button>`).join('')}</span>` : ''}
+        ${yours ? `<button class="wk-you" type="button" data-act="to" data-to="vs/${lastOn(yours.ri).id}-${yours.i}">${mineTop ? `You topped ${rname(ROUTES[yours.ri])} too: compare` : `You’re on ${rname(ROUTES[yours.ri])}: see how they did it`} ›</button>` : ''}</span></div>`;
+  }).join('')}</div>`;
+}
 // the last 7 days, yours and a friend's: days at the wall, climbs, time. Hardest is said, not raced: grades differ by gym
 function weekOf(w) {
   if (w === 'You') { const s = sesAll().filter(x => { const a = keyAgo(x.d); return a >= 0 && a < 7; }), live = session === 'live' && !s.some(x => keyAgo(x.d) === 0);
@@ -3912,21 +4209,23 @@ const postSave = () => { try { localStorage.setItem('spotter-posts', JSON.string
 const myLive = () => myPosts.map(p => ({ ...p, who: 'You' }));
 const goesToday = p => p.days.includes(new Date().getDay());
 // their days in a word or two: Weekends, Weekdays, Every day, else the days themselves (Tue · Thu)
-const daysText = ds => { const s = new Set(ds);
-  if (s.size === 7) return '<b>Every day</b>';
-  if (s.size === 2 && s.has(0) && s.has(6)) return '<b>Weekends</b>';
-  if (s.size === 5 && [1, 2, 3, 4, 5].every(d => s.has(d))) return '<b>Weekdays</b>';
-  return WEEK.filter(d => s.has(d)).map(d => `<b>${WD[d]}</b>`).join(''); };
+// With today: on a card, the day that is today reads "Today" in a dark pill (in the list where that day was, or ahead of
+// Weekends / Weekdays / Every day), so a card says they climb today without a separate badge
+const dayItems = (ds, today) => { const s = new Set(ds), now = new Date().getDay(), td = today && s.has(now) ? ['<b class="pc-now">Today</b>'] : [];
+  const grp = s.size === 7 ? 'Every day' : s.size === 2 && s.has(0) && s.has(6) ? 'Weekends' : s.size === 5 && [1, 2, 3, 4, 5].every(d => s.has(d)) ? 'Weekdays' : '';
+  if (grp) return [...td, `<b>${grp}</b>`];
+  return WEEK.filter(d => s.has(d)).map(d => td.length && d === now ? td[0] : `<b>${WD[d]}</b>`); };
+const daysText = ds => dayItems(ds).join('');
 const PC_CAL = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><rect x="4" y="5.5" width="16" height="14.5" rx="3"/><path d="M4 10h16M8.5 3.5v4M15.5 3.5v4"/></svg>';
 const PC_CLOCK = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>';
 function postCard(p) {
   const me = p.who === 'You', pro = proOf(p.who);
   return `<div class="pz pst${me ? ' mine' : ''}"><div class="pz-h"><button class="fd-a" type="button" data-act="to" data-to="${me ? 'profile' : `person/${p.who}`}" aria-label="${p.who}">${avatar(p.who)}</button>
       <span class="row-t"><strong>${p.who}${!me && myFriends.has(p.who) ? `<span class="pst-fr">${ic.check}Friends</span>` : ''}</strong><span class="pc-sub"><i class="num">${lvTag(p.who)}</i>${me ? '' : `<em>${p.ago}</em>`}</span></span>
-      ${me ? `<span class="pz-mine"><button class="pz-del" type="button" data-act="pnew">Edit</button><button class="pz-del" type="button" data-act="pdel" data-id="${p.id}">Delete</button></span>` : goesToday(p) ? '<span class="pc-td">Climbs today</span>' : ''}</div>
+      ${me ? `<span class="pz-mine"><button class="pz-del" type="button" data-act="pnew">Edit</button><button class="pz-del" type="button" data-act="pdel" data-id="${p.id}">Delete</button></span>` : ''}</div>
     ${p.note ? `<p class="pc-n"${me ? ' translate="no"' : ''}>${esc(p.note)}</p>` : ''}
-    <p class="pc-meta"><span>${PC_CAL}${daysText(p.days)}</span><span>${PC_CLOCK}${TIMES.filter(([k]) => p.times.includes(k)).map(([, l]) => `<b>${l}</b>`).join('')}</span>
-      <span>${ic.pin}${p.gys.filter(i => gyms[i]).map(i => `<b>${gyms[i].name}</b>`).join('')}</span></p>
+    <div class="pc-sch"><p class="pc-wh">${[...dayItems(p.days, !me), ...TIMES.filter(([k]) => p.times.includes(k)).map(([, l]) => `<em>${l}</em>`)].join('<i aria-hidden="true">·</i>')}</p>
+      <p class="pc-gy">${ic.pin}${p.gys.filter(i => gyms[i]).map(i => `<span>${gyms[i].name}</span>`).join('')}</p></div>
     <div class="pc-ft"><span class="pc-wants">${p.wants.map(k => `<i>${wantName(k)}</i>`).join('')}</span>
       ${!me && ctOf(pro?.ct).length ? `<button class="pc-ct" type="button" data-act="pzct" data-w="${p.who}">Contact</button>` : ''}</div></div>`;
 }
@@ -3941,15 +4240,17 @@ function viewPartners() {
 // after, a line, then contacts. You have one post: posting again updates it. Taps change things in place, so the page
 // never jumps. The button says what's still missing
 let pdr = null;
-const pdNew = () => { const p = myPro(), old = myPosts[0];
-  pdr = old ? { gys: [...old.gys], days: [...old.days], times: [...old.times], wants: [...old.wants], note: old.note || '', ct: { ...p.ct, ...old.ct } }
-    : { gys: [homeGy != null && gyms[homeGy] ? homeGy : 0], days: [], times: [], wants: ['film'], note: '', ct: { ...p.ct } }; };
+// how to reach you isn't asked here: it's set once on your card (Profile › Edit card) and every post, and the Contact
+// sheet, read it from there. The post page shows it and sends you to the card to change it
+const pdNew = () => { const old = myPosts[0];
+  pdr = old ? { gys: [...old.gys], days: [...old.days], times: [...old.times], wants: [...old.wants], note: old.note || '' }
+    : { gys: [homeGy != null && gyms[homeGy] ? homeGy : 0], days: [], times: [], wants: ['film'], note: '' }; };
+const myCt = () => myPro().ct || {};
 function ppOk() {
   const b = $('pp-go'); if (!b) return;
   const miss = !pdr.gys.length ? 'Pick a gym' : !pdr.days.length ? 'Pick the days you go' : !pdr.times.length ? 'Pick a time of day'
-    : !pdr.wants.length ? 'Pick what you’re looking for' : !Object.keys(pdr.ct).length ? 'Add one way to reach you' : '';
+    : !pdr.wants.length ? 'Pick what you’re looking for' : !ctOf(myCt()).length ? 'Add one way to reach you' : '';
   b.disabled = !!miss; b.textContent = miss || (myPosts.length ? 'Update post' : 'Post');
-  $('pp-ctn').textContent = Object.keys(pdr.ct).length ? '' : 'Add at least one';
 }
 function viewPost() {
   if (!pdr) pdNew();
@@ -3966,13 +4267,14 @@ function viewPost() {
     <div class="ec-chips pp-wants">${WANTS.map(([k, l]) => chip('ppw', k, l, pdr.wants.includes(k))).join('')}</div>
     <p class="ec-h"><label for="pp-note">A line about it</label><span id="pp-nn">${pdr.note.length}/120</span></p>
     <textarea id="pp-note" class="pp-note" maxlength="120" rows="2" placeholder="Projecting V4s, happy to film">${esc(pdr.note)}</textarea>
-    <p class="ec-h">How to reach you <span id="pp-ctn"></span></p><p class="ec-d">Everyone who sees the post sees these. Fill in the ones you use.</p>
-    <div class="ec-box pp-ct">${SOCIALS.map(([k, l, ph]) => `<label class="ec-in"><span>${l}</span><input data-ct="${k}" maxlength="40" value="${esc(pdr.ct[k] || '')}" placeholder="${ph}"${k === 'wa' ? ' inputmode="tel"' : ''}></label>`).join('')}</div>
+    <p class="ec-h">How to reach you</p><p class="ec-d">From your card, the same on every post</p>
+    <button class="ec-box pp-ctl" type="button" data-act="ptpost" data-to="card/ct">${ctOf(myCt()).length
+      ? `<span class="pp-cts">${ctOf(myCt()).map(([k, l]) => `<span><em>${l}</em><b translate="no">${esc(myCt()[k])}</b></span>`).join('')}</span><i>Edit</i>`
+      : '<span class="pp-ct0"><b>Add how to reach you</b><em>Instagram, WhatsApp, WeChat…</em></span><i>Add</i>'}</button>
     </div>`,
     cta: '<button class="b-lime" type="button" data-act="ppgo" id="pp-go">Post</button>',
     after: () => {
       $('pp-note').addEventListener('input', e => { pdr.note = e.target.value.trim(); $('pp-nn').textContent = `${e.target.value.length}/120`; });
-      $('main').querySelectorAll('[data-ct]').forEach(x => x.addEventListener('input', e => { const v = e.target.value.trim(); if (v) pdr.ct[x.dataset.ct] = v; else delete pdr.ct[x.dataset.ct]; ppOk(); }));
       ppOk(); } };
 }
 // pick or unpick one in a list, in place
@@ -3987,37 +4289,43 @@ const ptLabel = () => [...STYLES.filter(s => ptd.sty.has(s[0])).map(s => s[1]), 
 const ptCount = () => ptd.sty.size + ptd.tags.size;
 function ptSync() {   // the preview, the count, and which chips can still be picked
   const n = ptCount(), full = n >= CARD_MAX;
-  $('ec-tags').innerHTML = `<i class="ec-lv">${VGI(ptd.lv)}${ptd.rope ? ` · ${ptd.rope}` : ''}</i>${ptLabel().map(t => `<i>${t}</i>`).join('')}`;
+  // the level pill and the gym on the preview take you to where they're changed, further down
+  $('ec-tags').innerHTML = `<button class="ec-lv" type="button" data-act="ptjump" data-to="ec-lvbox">${VGI(ptd.lv)}${ptd.rope ? ` · ${ptd.rope}` : ''}</button>${ptLabel().map(t => `<i>${t}</i>`).join('')}`;
+  $('ec-gyn').textContent = gyms[ptd.home].name;
   $('ec-n').textContent = `${n}/${CARD_MAX}`; $('ec-n').classList.toggle('full', full);
-  $('main').querySelectorAll('.ec-chips button').forEach(b => { const on = b.getAttribute('aria-pressed') === 'true'; b.disabled = full && !on; });
+  $('main').querySelectorAll('.ec-chips:not(.ec-hg) button').forEach(b => { const on = b.getAttribute('aria-pressed') === 'true'; b.disabled = full && !on; });
   $('ec-lvv').textContent = VGI(ptd.lv); $('ec-rpv').textContent = ptd.rope || 'None';
   $('main').querySelector('[data-act="ptlv"][data-d="-1"]').disabled = ptd.lv <= 0; $('main').querySelector('[data-act="ptlv"][data-d="1"]').disabled = ptd.lv >= VG.length - 1;
   const ri = ROPES.indexOf(ptd.rope || '');
   $('main').querySelector('[data-act="ptrp"][data-d="-1"]').disabled = ri <= 0; $('main').querySelector('[data-act="ptrp"][data-d="1"]').disabled = ri >= ROPES.length - 1;
   const k = Object.keys(ptd.ct || {}).length; $('ec-ctn').textContent = k ? `${k} added` : 'None yet';
 }
-const ptNew = () => { const p = myPro(); ptd = { lv: p.lv, rope: p.rope, ct: { ...p.ct }, name: myName, sty: new Set(picks), tags: new Set(meTags) }; };
-function viewCard() {
+const ptNew = () => { const p = myPro(); ptd = { lv: p.lv, rope: p.rope, ct: { ...p.ct }, name: myName, sty: new Set(picks), tags: new Set(meTags), home: homeIx() }; };
+// card/ct: opened from a post's "How to reach you", so the contacts come up open
+function viewCard(a) {
   if (!ptd) ptNew();
   const chip = (act, v, label, on) => `<button type="button" data-act="${act}" data-v="${v}" aria-pressed="${on}">${label}</button>`;
   const step = (act, label, id) => `<div class="ec-st"><span>${label}</span><button type="button" data-act="${act}" data-d="-1" aria-label="Lower">−</button><b id="${id}"></b><button type="button" data-act="${act}" data-d="1" aria-label="Higher">+</button></div>`;
   return { html: `${bar()}<h1 class="hl ec-hl">Edit card</h1><div class="ec">
     <div class="ec-card"><span class="ec-av">${avatar('You')}</span>
       <input id="pt-name" class="ec-name" maxlength="24" value="${esc(ptd.name)}" placeholder="Your name" autocomplete="nickname" aria-label="Your name">
-      <p class="ec-gym">${ic.pin}<span>${gym.name}</span></p>
+      <button class="ec-gym" type="button" data-act="ptjump" data-to="ec-home">${ic.pin}<span id="ec-gyn">${gyms[ptd.home].name}</span></button>
       <div class="ec-tags" id="ec-tags"></div></div>
     <p class="ec-h">Your tags <span id="ec-n"></span></p><p class="ec-d">Pick up to ${CARD_MAX} that say who you are as a climber</p>
     <p class="ec-g">Climbing styles</p><div class="ec-chips">${STYLES.map(s => chip('pts', s[0], s[1], ptd.sty.has(s[0]))).join('')}</div>
     <p class="ec-g">About you</p><div class="ec-chips">${ME_TAGS.map(([k, l]) => chip('ptg', k, l, ptd.tags.has(k))).join('')}</div>
-    <p class="ec-h">Level</p><div class="ec-box">${step('ptlv', 'Bouldering', 'ec-lvv')}${step('ptrp', 'Rope', 'ec-rpv')}</div>
-    <details class="ec-box ec-ct"><summary><span>How to reach you</span><em id="ec-ctn"></em><svg viewBox="0 0 24 24" fill="none" stroke="#111" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></summary>
-      <p class="ec-d">Only shown on your posts, so climbers can message you</p>
+    <p class="ec-h">Level</p><div class="ec-box" id="ec-lvbox">${step('ptlv', 'Bouldering', 'ec-lvv')}${step('ptrp', 'Rope', 'ec-rpv')}</div>
+    <p class="ec-h">Home gym</p><p class="ec-d">Shown on your card</p>
+    <div class="ec-chips ec-hg" id="ec-home">${[...new Set([ptd.home, ...byNear(gyms.map((g, i) => [g, i])).slice(0, 6).map(([, i]) => i)])].map(i => chip('pthg', i, gyms[i].name, ptd.home === i)).join('')}</div>
+    <details class="ec-box ec-ct"${a === 'ct' ? ' open' : ''}><summary><span>How to reach you</span><em id="ec-ctn"></em><svg viewBox="0 0 24 24" fill="none" stroke="#111" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></summary>
+      <p class="ec-d">Used on all your posts, so climbers can message you</p>
       ${SOCIALS.map(([k, l, ph]) => `<label class="ec-in"><span>${l}</span><input data-ct="${k}" maxlength="40" value="${esc(ptd.ct?.[k] || '')}" placeholder="${ph}"${k === 'wa' ? ' inputmode="tel"' : ''}></label>`).join('')}</details>
     </div>`,
     cta: '<button class="b-lime" type="button" data-act="ptsave">Save</button>',
     after: () => {
       $('main').querySelectorAll('[data-ct]').forEach(x => x.addEventListener('input', e => { const v = e.target.value.trim(); ptd.ct = { ...ptd.ct }; if (v) ptd.ct[x.dataset.ct] = v; else delete ptd.ct[x.dataset.ct]; ptSync(); }));
       $('pt-name').addEventListener('input', e => { ptd.name = e.target.value; });
+      if (a === 'ct') requestAnimationFrame(() => document.querySelector('.ec-ct')?.scrollIntoView({ block: 'center' }));
       ptSync(); } };
 }
 
@@ -4086,16 +4394,20 @@ const interviewActions = {
   gearopen: b => openGear(b.dataset.i ? +b.dataset.i : undefined),
   geardel: b => { const i = gear.findIndex(x => x.id === +b.dataset.i); if (i < 0) return; const [x] = gear.splice(i, 1); gearSave(); closeAll(); render(); toast(`${x.name} removed`); },
   // your level and contacts (profile)
-  ptpost: () => { ptNew(); go('card'); },
+  ptpost: b => { ptNew(); go(b?.dataset?.to || 'card'); },
   // everything changes in place: the sheet never redraws while you edit. Tags stop at five; a full card greys the rest
-  ptlv: b => { ptd.lv = Math.max(0, Math.min(VG.length - 1, ptd.lv + +b.dataset.d)); ptSync(); },
-  ptrp: b => { const i = ROPES.indexOf(ptd.rope || '') + +b.dataset.d; ptd.rope = ROPES[Math.max(0, Math.min(ROPES.length - 1, i))]; ptSync(); },
+  // from the card preview to the part of the page that changes it, flashed so you see where you landed
+  ptjump: b => { const t = $(b.dataset.to); if (!t) return; t.scrollIntoView({ block: 'center', behavior: 'smooth' }); t.classList.remove('ec-flash'); void t.offsetWidth; t.classList.add('ec-flash'); },
+  pthg: b => { ptd.home = +b.dataset.v; b.parentElement.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b)); ptSync(); },
+  ptlv: b => { const was = ptd.lv; ptd.lv = Math.max(0, Math.min(VG.length - 1, ptd.lv + +b.dataset.d)); ptSync(); if (ptd.lv !== was) numTick($('ec-lvv'), +b.dataset.d); },
+  ptrp: b => { const was = ptd.rope, i = ROPES.indexOf(ptd.rope || '') + +b.dataset.d; ptd.rope = ROPES[Math.max(0, Math.min(ROPES.length - 1, i))]; ptSync(); if (ptd.rope !== was) numTick($('ec-rpv'), +b.dataset.d); },
   ptg: b => { const k = b.dataset.v; if (ptd.tags.has(k)) ptd.tags.delete(k); else if (ptCount() < CARD_MAX) ptd.tags.add(k); b.setAttribute('aria-pressed', ptd.tags.has(k)); ptSync(); },
   pts: b => { const k = b.dataset.v, s = ptd.sty;   // "All of it" stands alone, as on the style board
     if (k === 'all') { const on = !s.has('all'); s.clear(); if (on) s.add('all'); }
     else if (s.has(k)) s.delete(k); else if (ptCount() - (s.has('all') ? 1 : 0) < CARD_MAX) { s.delete('all'); s.add(k); }
     b.parentNode.querySelectorAll('[data-v]').forEach(x => x.setAttribute('aria-pressed', s.has(x.dataset.v))); ptSync(); },
-  ptsave: () => { const { name, sty, tags, ...pro } = ptd; myPartner = pro; proSave();
+  ptsave: () => { const { name, sty, tags, home, ...pro } = ptd; myPartner = pro; proSave();
+    homeGy = home; try { localStorage.setItem('spotter-home', JSON.stringify(home)); } catch (_) {}
     myName = name.trim().slice(0, 24); meTags.clear(); tags.forEach(k => meTags.add(k)); picks.clear(); sty.forEach(k => picks.add(k));
     try { localStorage.setItem('spotter-name', myName); localStorage.setItem('spotter-me-tags', JSON.stringify([...meTags])); localStorage.setItem('spotter-styles', JSON.stringify([...picks])); } catch {}
     ptd = null; history.length > 1 ? history.back() : go('profile'); toast('Saved'); },
@@ -4106,13 +4418,19 @@ const interviewActions = {
   pph: b => ppTog(b, 'times', b.dataset.v),
   ppw: b => ppTog(b, 'wants', b.dataset.v),
   ppgo: () => { const x = pdr; if (!x) return; const upd = myPosts.length > 0;
-    myPosts = [{ id: myPosts[0]?.id || `m${Date.now()}`, k: 'gym', gys: x.gys, days: x.days, times: x.times, wants: x.wants, note: x.note, ct: x.ct }];
-    postSave(); myPartner = { ...(myPartner || {}), ct: { ...x.ct } }; proSave(); pdr = null;
+    myPosts = [{ id: myPosts[0]?.id || `m${Date.now()}`, k: 'gym', gys: x.gys, days: x.days, times: x.times, wants: x.wants, note: x.note }];
+    postSave(); pdr = null;
     history.length > 1 ? history.back() : go('friends/partners'); toast(upd ? 'Your post is updated' : 'Your post is up'); },
   pdel: b => { myPosts = myPosts.filter(p => p.id !== b.dataset.id); postSave(); render(); toast('Post deleted'); },
   // a post's contacts, one tap away: a sheet with each app and handle, open it or copy it
   pzct: b => { const w = b.dataset.w, ct = proOf(w)?.ct; if (!ct) return;
-    pane(`<h2>Contact ${w}</h2><span class="sub">Say which post you saw and when you can climb.</span>${ctRow(ct)}`); },
+    // an iOS action sheet: a grey title and message, one row per app in the system blue (the app's name and their handle;
+    // apps without a link to someone's page copy the ID), then Cancel on its own
+    pane(`<div class="as"><div class="as-g"><p class="as-h"><b>Contact ${w}</b><span>Say which post you saw and when you can climb.</span></p>
+      ${ctOf(ct).map(([k, l, , url]) => { const h = esc(ct[k]);
+        return url ? `<a class="as-b" href="${esc(url(ct[k]))}" target="_blank" rel="noopener" data-act="close">${l}<span>${h}</span></a>`
+          : `<button class="as-b" type="button" data-act="wxcopy" data-v="${h}" data-l="${l}">Copy ${l} ID<span>${h}</span></button>`; }).join('')}</div>
+      <button class="as-b as-x" type="button" data-act="close">Cancel</button></div>`); },
   fradd: b => { const w = b.dataset.w; myFriends.add(w); frSave(); render(); toast(`${w} added to friends`); },
   frx: b => { const w = b.dataset.w; pane(`<h2>Remove ${w}?</h2><span class="sub">You stop seeing each other’s climbing days. Add each other again any time.</span><div class="two one"><button class="b-ghost" type="button" data-act="frxgo" data-w="${w}">Remove</button></div>`); },
   frxgo: b => { const w = b.dataset.w; myFriends.delete(w); frSave(); closeAll(); render(); toast(`${w} removed from friends`); },
@@ -4130,7 +4448,12 @@ const interviewActions = {
       Object.assign(vv.style, { width: `${W * k}px`, height: `${H * k}px`, left: `${Math.min(0, Math.max(cw - W * k, cw / 2 - cx))}px`, top: `${Math.min(0, Math.max(ch - H * k, ch / 2 - cy))}px` }); };
     vv.addEventListener('loadedmetadata', () => { fit(); vv.currentTime = a; vv.playbackRate = .6; vv.play().catch(() => {}); }, { once: true });
     vv.addEventListener('timeupdate', () => { if (vv.currentTime > z) vv.currentTime = a; }); },
-  wxcopy: b => { navigator.clipboard?.writeText(b.dataset.v).catch(() => {}); toast(`Copied. Add them on ${b.dataset.l}`); },
+  // a move's moment in someone's video: from a second before, slowed down, then it stops
+  mvcard: b => { stI = +b.dataset.i; actions.ctab({ dataset: { v: 'body' } }); },
+  // another time the same move happened: its moment loops on the video, as a card's does
+  mvat: b => { const v = $('lvv'); if (!v) return; const t = +b.dataset.t; stLoop = { a: Math.max(0, t - 1), b: t + 2 }; v.currentTime = stLoop.a; v.play().catch(() => {}); },
+  movespub: () => { movesPub = !movesPub; try { localStorage.setItem('spotter-movespub', movesPub ? '1' : '0'); } catch (_) {} render(); toast(movesPub ? 'Others can see the moves in your public videos' : 'Your moves are only for you now'); },
+  wxcopy: b => { navigator.clipboard?.writeText(b.dataset.v).catch(() => {}); if (b.closest('.as')) closeAll(); toast(`Copied. Add them on ${b.dataset.l}`); },
 };
 let inviteStream = null;
 function stopInviteCamera() {
@@ -4145,18 +4468,30 @@ function openFriendAdd() {
     <p class="hint">Invitations are stored on this device in this prototype.</p>`);
   $('invite-paste').addEventListener('submit', e => { e.preventDefault(); openInviteUrl($('invite-url').value); });
 }
-function inviteUrl() {
+// an id in the shape of a UUID. crypto.randomUUID only exists on https pages, and the Wi-Fi link (http://10.0.0.x) isn't
+// one: "Show my invite" stopped there and the code never appeared
+const newId = () => crypto.randomUUID?.() || ([1e7] + -1e3 + -4e3 + -8e3 + -1e11).replace(/[018]/g, c => (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16));
+// where a phone can open the app: this page's address, unless it's this computer's own name (localhost means the phone
+// itself on the phone). Then the Wi-Fi address the server reports. Only the invite goes in it: the recording page's,
+// demo's and stage's switches (?rec, ?view, ?dot...) were in the code too
+let lanBase = null;
+async function inviteUrl() {
   let id = localStorage.getItem('spotter-invite-id');
-  if (!id) { id = crypto.randomUUID(); localStorage.setItem('spotter-invite-id', id); }
-  const url = new URL(location.href);
+  if (!id) { id = newId(); localStorage.setItem('spotter-invite-id', id); }
+  let base = location.origin + location.pathname;
+  if (/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) {
+    if (lanBase === null) lanBase = await fetch('lan.json', { cache: 'no-store' }).then(r => r.ok ? r.json() : null).then(j => j?.url || '').catch(() => '');
+    base = lanBase || base;
+  }
+  const url = new URL(base);
   url.searchParams.set('invite', id);
   url.searchParams.set('name', 'Climber');
   url.hash = '/friends';
   return url.href;
 }
-function showInvite() {
-  const url = inviteUrl();
-  pane(`<h2>Your invitation</h2><span class="sub">Share this code or link with a friend.</span><div id="invite-qr" aria-label="Your invitation QR code"></div><label for="invite-share-link">Invitation link</label><input id="invite-share-link" readonly value="${esc(url)}"><button class="b-lime invite-copy" type="button" data-act="invitecopy">Copy invite link</button><p class="hint">A localhost link works only on this device. A shared hosted address is needed to invite another device.</p>`);
+async function showInvite() {
+  const url = await inviteUrl(), local = /\/\/(localhost|127\.0\.0\.1|\[::1\])[:/]/.test(url);
+  pane(`<h2>Your invitation</h2><span class="sub">Share this code or link with a friend.</span><div id="invite-qr" aria-label="Your invitation QR code"></div><label for="invite-share-link">Invitation link</label><input id="invite-share-link" readonly value="${esc(url)}"><button class="b-lime invite-copy" type="button" data-act="invitecopy">Copy invite link</button><p class="hint">${local ? 'This link opens only on this computer. Open Spotter at its Wi-Fi address to invite a phone.' : 'Scan it with the phone’s Camera app. On Wi-Fi, the phone has to be on the same network.'}</p>`);
   if (window.QRCode) new QRCode($('invite-qr'), { text: url, width: 180, height: 180, correctLevel: QRCode.CorrectLevel.M });
   else $('invite-qr').textContent = 'QR code unavailable. You can copy the link below.';
 }
@@ -4168,23 +4503,33 @@ function openInviteUrl(value) {
     location.href = url.href;
   } catch (_) { toast('Enter a valid Spotter invitation link'); }
 }
+// Scan a QR code: it opens everywhere. Chrome on Windows can't read QR codes and http pages get no camera, so it only
+// flashed "unavailable" and nothing opened, on the computers the demo is shown on. Now: a phone on https uses its camera
+// (and reads a real code where the browser can); anywhere else a viewfinder. Either way, this being a demo, a friend's
+// code is found after a moment
+let scanDemoT = 0;
 async function scanInvite() {
-  if (!('BarcodeDetector' in window) || !navigator.mediaDevices?.getUserMedia) {
-    toast('QR scanning is unavailable here. Paste the invitation link instead.'); return;
-  }
-  pane(`<h2>Scan a QR code</h2><span class="sub">Point your camera at your friend’s invitation.</span><video id="invite-camera" autoplay playsinline muted></video><button class="b-ghost invite-copy" type="button" data-act="fadd">Back</button>`);
+  clearTimeout(scanDemoT); stopInviteCamera();
+  pane(`<h2>Scan a QR code</h2><span class="sub">Point your camera at your friend’s invitation.</span>
+    <div class="iscan" id="iscan"><img src="${pic('wayup-p3-green')}" alt=""><video id="invite-camera" autoplay playsinline muted></video><i class="iscan-f" aria-hidden="true"></i><i class="iscan-l" aria-hidden="true"></i><span class="iscan-ok">Invitation found</span></div>
+    <button class="b-ghost invite-copy" type="button" data-act="fadd">Back</button>`);
+  const open = () => !!$('iscan') && $('ask').classList.contains('show');
+  scanDemoT = setTimeout(() => { if (!open()) return stopInviteCamera(); $('iscan').classList.add('found');
+    scanDemoT = setTimeout(() => { if (open()) { stopInviteCamera(); addInvited(newId()); } }, 1000); }, 2600);
+  if (!isSecureContext || !navigator.mediaDevices?.getUserMedia || matchMedia('(hover: hover) and (pointer: fine)').matches) return;
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-    if (!$('invite-camera')) { stream.getTracks().forEach(track => track.stop()); return; }
-    inviteStream = stream; const video = $('invite-camera'); video.srcObject = stream;
+    if (!open()) { stream.getTracks().forEach(track => track.stop()); return; }
+    inviteStream = stream; const video = $('invite-camera'); video.srcObject = stream; $('iscan').classList.add('live');
+    if (!('BarcodeDetector' in window)) return;
     const detector = new BarcodeDetector({ formats: ['qr_code'] });
     const scan = async () => {
-      if (!inviteStream || !video.isConnected || !$('ask').classList.contains('show')) { stopInviteCamera(); return; }
-      try { const codes = await detector.detect(video); if (codes.length) { openInviteUrl(codes[0].rawValue); return; } } catch (_) {}
+      if (!inviteStream || !video.isConnected || !open()) { stopInviteCamera(); return; }
+      try { const codes = await detector.detect(video); if (codes.length) { clearTimeout(scanDemoT); openInviteUrl(codes[0].rawValue); return; } } catch (_) {}
       setTimeout(scan, 350);
     };
     video.addEventListener('playing', scan, { once: true });
-  } catch (_) { stopInviteCamera(); openFriendAdd(); toast('Camera unavailable. Paste the invitation link instead.'); }
+  } catch (_) {}   // no camera, or not allowed: the viewfinder stays
 }
 function showIncomingInvite() {
   const id = params.get('invite');
@@ -4193,7 +4538,7 @@ function showIncomingInvite() {
   actions.inviteaccept();
 }
 function clearInviteUrl() {
-  const url = new URL(location.href); url.searchParams.delete('invite'); url.searchParams.delete('name'); history.replaceState(null, '', url.href);
+  const url = new URL(location.href); url.searchParams.delete('invite'); url.searchParams.delete('name'); history.replaceState(history.state, '', url.href);
 }
 const moreActions = {
   gymaps: b => {
@@ -4206,23 +4551,35 @@ const moreActions = {
   // logging and the session
   rtry: b => { const ri = +b.dataset.r; lgClock(); logOf(0, ri).tries++; render(); toast(`${rname(ROUTES[ri])} · attempt ${dayLog(0).find(e => e.ri === ri).tries} today`); },
   rsend: b => openSheet(+b.dataset.r),
-  scan: () => { closeAll(); betaV = null; scanShot = false; bstep = 0; scanURL = ''; scanCv = null; scanPick = null; scanErr = ''; scanRi = ROUTES.findIndex((r, i) => V.some(x => x.who === 'Leo' && x.ri === i) && !mineOn(i).some(topOf)); if (scanRi < 0) scanRi = 0; go('scan'); },
+  scan: () => { closeAll(); betaScan = null; betaV = null; scanShot = false; bstep = 0; scanURL = ''; scanCv = null; scanPick = null; scanErr = ''; scanRi = ROUTES.findIndex((r, i) => V.some(x => x.who === 'Leo' && x.ri === i) && !mineOn(i).some(topOf)); if (scanRi < 0) scanRi = 0; go('scan'); },
   scanri: b => { scanRi = +b.dataset.i; render(); },
   roff: b => { const r = ROUTES[+b.dataset.r]; r.offAt = Date.now(); routeSave(); render(); toast('Moved to Taken down. Its beta stays'); },
   ron: b => { const r = ROUTES[+b.dataset.r]; delete r.offAt; routeSave(); render(); toast('Back on the wall'); },
   // the beta is on the route's page, at the top: open it there at the start
   // the beta has its own page: open it at the start
-  rbeta: b => { betaV = b.dataset.v != null ? +b.dataset.v : null; scanRi = +b.dataset.r; bstep = 0; go(`beta/${scanRi}`); },
+  rbeta: b => { betaScan = null; betaV = b.dataset.v != null ? +b.dataset.v : null; scanRi = +b.dataset.r; bstep = 0; go(`beta/${scanRi}`); },
   bwho: b => { betaV = +b.dataset.v; bstep = 0; const y = document.querySelector('.screen').scrollTop; render(); document.querySelector('.screen').scrollTop = y; },
   rlog: b => openAdd(+b.dataset.r),
-  snap: () => { betaV = null; bstep = 0; scanStop(); go(`beta/${scanRi}`); },
+  snap: () => { betaScan = null; betaV = null; bstep = 0; scanStop(); go(`beta/${scanRi}`); },
   rescan: () => { scanShot = false; render(); },
   scansnap: () => { const v = $('scv'); if (!v || !v.videoWidth) return; scanTake(v, v.videoWidth, v.videoHeight); },
-  scanphotos: () => scanPhotos(),
+  scanphotos: () => scanAlbum(),
+  scanalbum: b => scanAlbumPick(b.dataset.f),
+  scanbrowse: () => { closeAll(); scanBrowse(); },
   scancolor: b => scanColor(b.dataset.k),
   scanretake: () => { scanURL = ''; scanCv = null; scanPick = null; scanFound = []; render(); },
   scantry: () => { scanErr = ''; scanStop(); render(); },
-  scango: () => { if (!scanPick || scanPick.ri < 0) return; scanRi = scanPick.ri; betaV = null; bstep = 0; scanStop(); go(`beta/${scanRi}`); },
+  scango: () => { if (!scanPick || scanPick.ri < 0) return; scanRi = scanPick.ri; betaScan = { ri: scanRi, url: scanURL, holds: scanPick.holds, fit: scanFitOf(scanPick) || null }; betaV = null; bstep = 0; scanStop();
+    go(`beta/${scanRi}`); },   // the beta page opens on the video, playing
+  bkey: b => { const v = $('bvv'); if (!v) return; const was = b.getAttribute('aria-pressed') === 'true';
+    document.querySelectorAll('.bk-c').forEach(c => c.setAttribute('aria-pressed', 'false'));
+    if (was) return actions.bkall();
+    b.setAttribute('aria-pressed', 'true'); bkOn = { a: +b.dataset.a, b: +b.dataset.b, l: b.dataset.l, y: +b.dataset.y / 100 };
+    v.currentTime = bkOn.a; v.playbackRate = .5; v.play().catch(() => {});
+    const inn = $('bvin'); inn.style.transformOrigin = `${b.dataset.x}% ${b.dataset.y}%`; inn.classList.add('zoom'); $('bv').classList.add('slow');
+    $('bv').scrollIntoView({ behavior: 'smooth', block: 'nearest' }); },
+  bkall: () => { bkOn = null; const v = $('bvv'); if (v) { v.playbackRate = 1; v.play().catch(() => {}); }
+    $('bvin')?.classList.remove('zoom'); $('bv')?.classList.remove('slow'); document.querySelectorAll('.bk-c').forEach(c => c.setAttribute('aria-pressed', 'false')); },
   bgo: b => { const y = document.querySelector('.screen').scrollTop; bstep = +b.dataset.s; render(); document.querySelector('.screen').scrollTop = y; },
   bstep: b => { const B = betaOf(scanRi, betaV); if (!B) return; bstep = Math.max(0, Math.min(B.steps.length - 1, bstep + +b.dataset.d)); const y = document.querySelector('.screen').scrollTop; render(); document.querySelector('.screen').scrollTop = y; },
   glopen: () => { glOpen = !glOpen; render(); },
@@ -4269,25 +4626,107 @@ const moreActions = {
   inviteshare: () => showInvite(),
   invitescan: () => scanInvite(),
   invitecopy: async () => { const input = $('invite-share-link'); try { await navigator.clipboard.writeText(input.value); toast('Invite link copied'); } catch (_) { input.focus(); input.select(); toast('Select and copy the link'); } },
-  inviteaccept: () => { const id = params.get('invite'); let name = 'Climber ' + id.slice(0, 4).toUpperCase(); const saved = JSON.parse(localStorage.getItem('spotter-invited-friends') || '[]'); if (!saved.includes(name)) saved.push(name); localStorage.setItem('spotter-invited-friends', JSON.stringify(saved)); if (!PEOPLE.includes(name)) PEOPLE.push(name); myFriends.add(name); frSave(); if (!invitedFriends.includes(name)) invitedFriends.push(name); clearInviteUrl(); closeAll(); go('friends'); toast('Friend added'); },
+  inviteaccept: () => addInvited(params.get('invite')),
   plstart: () => { lgClock(); render(); openAdd(); }
 };
+// a friend from an invitation (a scanned code, or a link opened)
+function addInvited(id) { let name = 'Climber ' + id.slice(0, 4).toUpperCase(); const saved = JSON.parse(localStorage.getItem('spotter-invited-friends') || '[]'); if (!saved.includes(name)) saved.push(name); localStorage.setItem('spotter-invited-friends', JSON.stringify(saved)); if (!PEOPLE.includes(name)) PEOPLE.push(name); myFriends.add(name); frSave(); if (!invitedFriends.includes(name)) invitedFriends.push(name); clearInviteUrl(); closeAll(); go('friends'); toast('Friend added'); }
+
 
 /* ---------- shell: routing, render, sheets ---------- */
-const views = { pick: viewPick, setup: viewSetup, videos: viewVideos, day: viewDay, algym: viewAlGym, ob: viewOb, shelf: viewShelf, clip: viewClip, vs: viewVs, route: viewRoute, wall: viewWall, beta: viewBeta, walls: viewGymsTab, gyms: viewGyms, gym: viewGym, friends: viewFriends, person: viewPerson, profile: viewProfile, card: viewCard, more: viewMore, post: viewPost, cam: viewCam, session: viewSession, logc: viewSession, scan: viewScan, summary: viewSummary, watch: viewWatch, review: viewReview };
-const tabOf = { videos: 'videos', shelf: 'videos', clip: 'videos', vs: 'videos', cam: 'videos', route: 'walls', wall: 'walls', beta: 'walls', walls: 'walls', gyms: 'walls', gym: 'walls', session: 'videos', logc: 'videos', scan: 'walls', summary: 'profile', watch: 'profile', friends: 'friends', person: 'friends', profile: 'profile', card: 'profile', more: 'profile', post: 'friends' };
+const views = { mystyle: viewMyStyle, pick: viewPick, setup: viewSetup, videos: viewVideos, day: viewDay, algym: viewAlGym, ob: viewOb, shelf: viewShelf, clip: viewClip, vs: viewVs, route: viewRoute, wall: viewWall, beta: viewBeta, walls: viewGymsTab, gyms: viewGyms, gym: viewGym, friends: viewFriends, person: viewPerson, profile: viewProfile, card: viewCard, more: viewMore, post: viewPost, cam: viewCam, session: viewSession, logc: viewSession, scan: viewScan, summary: viewSummary, watch: viewWatch, review: viewReview, moves: viewMoves };
+const tabOf = { mystyle: 'profile', videos: 'videos', shelf: 'videos', clip: 'videos', vs: 'videos', cam: 'videos', route: 'walls', wall: 'walls', beta: 'walls', walls: 'walls', gyms: 'walls', gym: 'walls', session: 'videos', logc: 'videos', scan: 'walls', summary: 'profile', watch: 'profile', friends: 'friends', person: 'friends', profile: 'profile', card: 'profile', more: 'profile', post: 'friends' };
 const tabs = ['videos', 'walls', 'friends', 'profile'];
 const dock = document.querySelector('.dock');
 function readHash() { const [p = '', a = ''] = location.hash.replace(/^#\/?/, '').split('/'); page = views[p] ? p : 'videos'; try { arg = decodeURIComponent(a); } catch (_) { arg = a; } }
 function go(p) { if (location.hash === '#/' + p) render(); else location.hash = '#/' + p; }
-let lastMotionPage = null;
+let lastMotionPage = null, navFrom = null;
+const navStack = [];
+// where each page was scrolled to when you left it: going back puts you there again, not at the top
+// Each history entry is numbered (in its state), so going back is told apart from opening a page again, and the same page
+// open at two depths keeps two places
+const scrollAt = {}; let histI = history.state?.hi ?? 0;
+if (typeof history.state?.hi !== 'number') history.replaceState({ ...(history.state || {}), hi: 0 }, '');
+// A pick on the same page (a segmented switch, a tab, a chip) re-renders the whole page, so the pick would just jump.
+// Note how each control looked before, and once the new page is in, carry it over: the switch's pill and the tabs' underline
+// slide to the new pick, chips fade between their colours, and the content the pick changed fades in under it
+const GRP = '[role="group"], [role="tablist"], [role="radiogroup"]', NAVG = '.seg, .vtabs, .fchips';
+const isOn = b => ['aria-pressed', 'aria-selected', 'aria-checked'].some(a => b.getAttribute(a) === 'true') || b.hasAttribute('aria-current');
+function grpEach(f) { const seen = {}; $('main').querySelectorAll(GRP).forEach(g => { const k = `${g.className}|${g.getAttribute('aria-label') || ''}`; f(g, `${k}#${seen[k] = (seen[k] || 0) + 1}`); }); }
+function grpSnap() {
+  const was = {};
+  grpEach((g, key) => { was[key] = [...g.children].map(b => { const c = getComputedStyle(b); return { on: isOn(b), x: b.offsetLeft, w: b.offsetWidth, bg: c.backgroundColor, fg: c.color, sh: c.boxShadow }; }); });
+  return was;
+}
+function grpCarry(was) {
+  const ease = 'cubic-bezier(.32, .72, 0, 1)';
+  let moved = null;
+  grpEach((g, key) => {
+    const old = was[key], kids = [...g.children];
+    if (!old || old.length !== kids.length) return;
+    const from = old.findIndex(o => o.on), to = kids.findIndex(isOn);
+    if (from === to) return;
+    if (!moved && g.matches(NAVG)) moved = g;
+    const slide = from >= 0 && to >= 0 && g.matches('.seg, .vtabs');
+    if (slide && g.matches('.vtabs')) {
+      const o = old[from], b = kids[to];
+      b.animate([{ transform: `translateX(${o.x - b.offsetLeft}px) scaleX(${o.w / b.offsetWidth})` }, { transform: 'none' }], { duration: 300, easing: ease, pseudoElement: '::after' });
+    }
+    if (slide && g.matches('.seg')) {
+      const o = old[from], b = kids[to], c = getComputedStyle(b), gh = document.createElement('i');
+      gh.className = 'seg-gh';
+      Object.assign(gh.style, { top: `${b.offsetTop}px`, height: `${b.offsetHeight}px`, left: `${b.offsetLeft}px`, width: `${b.offsetWidth}px`, background: c.backgroundColor, borderRadius: c.borderRadius, boxShadow: c.boxShadow });
+      g.classList.add('seg-mv'); g.prepend(gh);
+      gh.animate([{ left: `${o.x}px`, width: `${o.w}px` }, { left: `${b.offsetLeft}px`, width: `${b.offsetWidth}px` }], { duration: 300, easing: ease }).finished.then(() => { gh.remove(); g.classList.remove('seg-mv'); }, () => {});
+    }
+    // colours: whatever changed on each button eases from how it was (the pill's own background is the slide above)
+    kids.forEach((b, i) => {
+      const o = old[i], c = getComputedStyle(b), f = {}, t = {};
+      if (!slide && o.bg !== c.backgroundColor) { f.backgroundColor = o.bg; t.backgroundColor = c.backgroundColor; }
+      if (o.fg !== c.color) { f.color = o.fg; t.color = c.color; }
+      if (!slide && o.sh !== c.boxShadow) { f.boxShadow = o.sh; t.boxShadow = c.boxShadow; }
+      if (Object.keys(f).length) b.animate([f, t], { duration: 200, easing: 'ease' });
+    });
+  });
+  // what the pick changed (the list under a switch, tab or filter) fades in, so it reads as the same page with new content
+  if (moved) {
+    let top = moved; while (top.parentElement && top.parentElement !== $('main')) top = top.parentElement;
+    for (let e = top.nextElementSibling; e; e = e.nextElementSibling) e.animate([{ opacity: 0, transform: 'translateY(4px)' }, { opacity: 1, transform: 'none' }], { duration: 220, easing: 'cubic-bezier(.23, 1, .32, 1)' });
+  }
+  return !!moved;
+}
+// Whatever else a same-page re-render brings in (a group you opened, a row just added, a card that appeared once a
+// choice was made) eases in instead of popping; things that only changed their label stay still. Keyed by what the
+// element is and does (its first class and data-*), not its text, so a counter ticking doesn't count as new
+const NEWQ = '[data-act], [data-to], .lt, .row, .stack, details, .kf, .tip, .card';
+const nKey = e => [e.tagName, e.classList[0], e.dataset.act, e.dataset.to, e.dataset.i, e.dataset.v, e.dataset.k, e.dataset.c, e.dataset.ri, e.dataset.id].join('|');
+function newSnap() { const m = new Map(); $('main').querySelectorAll(NEWQ).forEach(e => { const k = nKey(e); m.set(k, (m.get(k) || 0) + 1); }); return m; }
+function newIn(was) {
+  const all = [...$('main').querySelectorAll(NEWQ)], cnt = new Map(), fresh = [];
+  all.forEach(e => { const k = nKey(e), n = (cnt.get(k) || 0) + 1; cnt.set(k, n); if (n > (was.get(k) || 0)) fresh.push(e); });
+  if (!fresh.length) return;
+  // mostly new: a different step of the same page (the camera's next step, say). Cross-fade the page instead of each piece
+  if (fresh.length > all.length * .5) { $('main').animate([{ opacity: 0 }, { opacity: 1 }], { duration: 180, easing: 'ease' }); return; }
+  fresh.filter(e => !fresh.some(o => o !== e && o.contains(e))).slice(0, 40)
+    .forEach(e => e.animate([{ opacity: 0, transform: 'translateY(4px)' }, { opacity: 1, transform: 'none' }], { duration: 220, easing: 'cubic-bezier(.23, 1, .32, 1)' }));
+}
+// a stepper's value rolls the way you stepped it: up for +, down for -, so the change reads as a step and not a swap
+function numTick(el, d) {
+  if (!el || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  el.animate([{ opacity: 0, transform: `translateY(${d > 0 ? 6 : -6}px)` }, { opacity: 1, transform: 'none' }], { duration: 180, easing: 'cubic-bezier(.23, 1, .32, 1)' });
+}
 function render() {
   saveSoon();
   const pageChanged = lastMotionPage !== page;
   lastMotionPage = page;
   if (stylePickerResize) { window.removeEventListener('resize', stylePickerResize); stylePickerResize = null; }
   feedStop();
-  const v = views[page](arg);
+  // a page that fails to draw still opens, saying what went wrong, instead of leaving you on the last page with a tab
+  // that seems dead (Profile, after an Edit card save)
+  let v; try { v = views[page](arg); } catch (e) { console.error(e);
+    v = { html: `${tabOf[page] === page ? tabHead(page[0].toUpperCase() + page.slice(1)) : bar()}<div class="pg-err"><b>This page couldn’t open</b><p>${esc(String(e?.message || e))}</p><code>${esc(String(e?.stack || '').split('\n').slice(1, 3).join(' · '))}</code></div>` }; }
+  const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const was = pageChanged || calm ? null : grpSnap(), wasN = was && newSnap();
   $('main').innerHTML = v.html;
   const bd = document.querySelector('.backdrop'), fold = $('main').querySelector('.fold');
   bd.style.display = fold ? '' : 'none';
@@ -4313,12 +4752,20 @@ function render() {
   $('plus').innerHTML = '<svg viewBox="0 0 32 32" aria-hidden="true"><path fill="currentColor" d="M13.5 5h5v8.5H27v5h-8.5V27h-5v-8.5H5v-5h8.5z"/></svg><span>Add</span>';
   island();
   if (gmap && !v.map) { gmap.remove(); gmap = null; }
-  if (tmap && page !== 'walls') { tmap.remove(); tmap = null; }
+  // the Explore map (tmap) is kept, off-page, for the next visit: see gtWire
   v.after?.();
+  if (was && !grpCarry(was)) newIn(wasN);
   // Keep route changes responsive; videos and maps stay stationary while loading.
-  if (pageChanged && !v.tok && !v.map && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
-    $('main').animate([{ opacity: 0, transform: 'translateY(6px)' }, { opacity: 1, transform: 'translateY(0)' }], { duration: 180, easing: 'cubic-bezier(.2,.7,.2,1)' });
+  // where the new page comes from: one you opened slides in from the right, going back slides in from the left (where it
+  // was), and switching tabs only fades, since tabs sit side by side and none is "deeper". Kept short: you do this all day
+  const h = location.hash, back = navStack.length > 1 && navStack[navStack.length - 2] === h;
+  if (back) navStack.pop(); else if (navStack[navStack.length - 1] !== h) navStack.push(h);
+  if (navStack.length > 40) navStack.splice(0, navStack.length - 40);
+  if (pageChanged && !v.tok && !v.map && !calm) {
+    const tab = tabs.includes(page) && tabs.includes(navFrom), dx = tab ? 0 : back ? -14 : 14;
+    $('main').animate([{ opacity: 0, transform: `translateX(${dx}px)` }, { opacity: 1, transform: 'translateX(0)' }], { duration: tab ? 160 : 240, easing: 'cubic-bezier(.23, 1, .32, 1)' });
   }
+  if (pageChanged) navFrom = page;
   // every video is analysed as soon as it's here, whichever page you're on
   // Analysis begins only when the climber requests it.
 }
@@ -4330,11 +4777,14 @@ function closeAll() { stopInviteCamera(); if (cmRecognition) { cmRecognition.sto
 // no × on a sheet: tapping outside it or pressing Escape closes it, and the × stuck out past the sheet's corner
 function pane(html) { ask.innerHTML = '<div class="grab"></div>' + html; sheet.classList.remove('show'); ask.classList.add('show'); scrim.classList.add('show'); }
 // someone else's video on its own, from the route page
-function watchPane(x) {
-  const r = ROUTES[x.ri];
-  pane(`<h2>${x.who} ${x.top ? 'topped' : 'climbed'} ${rname(r)}</h2><span class="sub">${gym.name} · ${dayLabel(x.ago)} · ${x.len}</span>
+// Opened from Find beta (fromScan): the beta is this video, so it plays straight away, under the photo you took and what
+// ties the two together; closing it leaves you on the beta page to go through it move by move
+function watchPane(x, fromScan) {
+  const r = ROUTES[x.ri], F = fromScan && betaScan?.fit, same = F?.same && F.img === x.img;
+  const from = fromScan && betaScan ? `<div class="wp-from"><img src="${betaScan.url}" alt="Your photo"><span><b>${same ? 'Same wall as your photo' : 'Nearest beta to your photo'}</b><span>${same ? `${F.n} of ${F.of} ${r.color.toLowerCase()} holds line up` : `Same colour, ${r.wall.toLowerCase()} at ${gyms[gyOf(r)].name}`}</span></span></div>` : '';
+  pane(`${from}<h2>${fromScan ? `${x.who}’s beta: ${rname(r)}` : `${x.who} ${x.top ? 'topped' : 'climbed'} ${rname(r)}`}</h2><span class="sub">${gyms[gyOf(r)].name} · ${dayLabel(x.ago)} · ${x.len}</span>
     <div class="fr-v"><video src="${vsrc(x.vid)}" poster="${pic(x.img)}" autoplay muted playsinline controls loop></video></div>
-    <p class="hint">${x.credit}</p>`);
+    <p class="hint">${x.credit}</p>${fromScan ? `<button class="btn-l wp-go" type="button" data-act="close">Go through it move by move</button>` : ''}`);
 }
 
 const actions = {
@@ -4353,7 +4803,7 @@ const actions = {
     pane(`<h2>What kind of route is it?</h2><p class="sub">${rname(ROUTES[ri])} · for every video on it</p><div class="rows">${RKINDS.map(([k, l, d]) => `<button class="row" type="button" data-act="rkset" data-r="${ri}" data-k="${k}"><span class="row-t"><strong>${l}</strong><span>${d}</span></span>${kindOf(ri) === k ? ic.check : ''}</button>`).join('')}</div>`); },
   rkset: b => { rkind[b.dataset.r] = b.dataset.k; try { localStorage.setItem('spotter-rkind', JSON.stringify(rkind)); } catch (_) {} closeAll(); render(); },
   stykind: b => { styK = b.dataset.k; render(); },
-  socgo: b => { history.replaceState(null, '', `#/${b.dataset.to}`); page = 'friends'; arg = b.dataset.to.split('/')[1] || ''; render(); document.querySelector('.screen')?.scrollTo(0, 0); },
+  socgo: b => { history.replaceState(history.state, '', `#/${b.dataset.to}`); page = 'friends'; arg = b.dataset.to.split('/')[1] || ''; render(); document.querySelector('.screen')?.scrollTo(0, 0); },
   stgo: b => stShow(b.dataset.d != null ? stI + +b.dataset.d : +b.dataset.i),
   lvseek: b => { const v = $('lvv'); if (!v) return; stLoop = null; v.currentTime = +b.dataset.t; v.play().catch(() => {});
     document.querySelectorAll('.mvq-m.on').forEach(x => x.classList.remove('on')); b.classList.add('on'); },
@@ -4382,12 +4832,12 @@ const actions = {
   vtab: b => { vTab = b.dataset.t; render(); },
   back: () => history.length > 1 ? history.back() : go('videos'),
   close: () => closeAll(),
-  feedmode: b => { feedAt = 0; go(b.dataset.to); },
+  feedmode: b => { feedAt = 0; feedWho = null; go(b.dataset.to); },
   // add
   // from a route's sheet: the camera starts with its gym, colour and grade set, so the video lands on that route
   film: b => { const r = b?.dataset?.ri != null ? ROUTES[+b.dataset.ri] : null; addRi = r ? +b.dataset.ri : null;
     closeAll(); filming = false; camStep = 'frame'; camRoute = null; camGym = r ? gyOf(r) : b?.dataset?.g != null ? +b.dataset.g : todayGym(); camColor = r ? r.color : ''; camGrade = r ? r.grade : ''; camRes = null; camFeel = null; go('cam'); },
-  upload: b => { addRi = b?.dataset?.ri != null ? +b.dataset.ri : page === 'cam' ? addRi : null; if (page === 'setup') { history.replaceState(null, '', '#/videos'); readHash(); render(); } openUpload(); },
+  upload: b => { addRi = b?.dataset?.ri != null ? +b.dataset.ri : page === 'cam' ? addRi : null; if (page === 'setup') { history.replaceState(history.state, '', '#/videos'); readHash(); render(); } openUpload(); },
   upick: b => { const i = +b.dataset.i; upSel.has(i) ? upSel.delete(i) : upSel.add(i); drawRoll(); },
   upnext: () => { const s = [...upSel]; if (s.length) importPicks(s); },
   campicker: b => openCameraPicker(b.dataset.kind),
@@ -4432,7 +4882,7 @@ const actions = {
   clpick: b => { const c = byId(b.dataset.c), k = b.dataset.k; if (!c) return; if (k === 'gy') openGymPick(`clip:${c.id}`); else if (k === 'color') openHoldColors(`clip:${c.id}`); else openClipGrade(c); },
   clpgrade: b => { const c = byId(b.dataset.c); if (c) setPick(c, 'grade', b.dataset.grade); },
   // posting shares the video in Community; the analysis stays yours
-  clpost: b => { const c = byId(b.dataset.i); if (!c) return; if (!c.hidden) { feedAt = Math.max(0, feedAll().findIndex(p => p.c === c)); go('friends/all'); return; }
+  clpost: b => { const c = byId(b.dataset.i); if (!c) return; if (!c.hidden) { feedWho = null; feedAt = Math.max(0, feedAll().findIndex(p => p.c === c)); go('friends/all'); return; }
     if (!pickDone(c)) { toast('Choose the gym, grade and colour first'); return; }
     c.hidden = false; saveSoon(); render(); toast('Posted to Community'); },
   clres: b => { const c = byId(b.dataset.c); if (!c) return; c.res = c.res === b.dataset.k ? undefined : b.dataset.k; if (!c.res) delete c.res; saveSoon(); render(); },
@@ -4495,7 +4945,7 @@ const actions = {
   cgset: b => { const c = byId(b.dataset.c); c.gy = +b.dataset.i; closeAll(); render(); toast(`At ${gyms[c.gy].name}`); },
   cset: b => { const c = byId(b.dataset.c); c.ri = +b.dataset.i; closeAll(); render(); toast(`Moved to ${rname(ROUTES[c.ri])} · try ${tryOf(c)}`); },
   vhide: b => { const c = byId(b.dataset.i); c.hidden = !c.hidden; render(); toast(c.hidden ? 'Hidden · only you can see it' : 'Public · in Community'); },
-  seepost: b => { const c = byId(b.dataset.i); feedAt = Math.max(0, feedAll().findIndex(p => p.c === c)); go('friends/all'); },
+  seepost: b => { const c = byId(b.dataset.i); feedWho = null; feedAt = Math.max(0, feedAll().findIndex(p => p.c === c)); go('friends/all'); },
   vdel: b => { const c = byId(b.dataset.i);
     pane(`<h2>Delete this video?</h2><span class="sub">${rname(ROUTES[c.ri])} · try ${tryOf(c)}. Its analysis and comments go too. The video stays in your camera roll.</span>
       <div class="two"><button class="b-ghost" type="button" data-act="close">Keep</button><button class="b-lime" type="button" data-act="vdelyes" data-i="${c.id}">Delete</button></div>`); },
@@ -4516,14 +4966,18 @@ const actions = {
   alopen: b => { alOpen = alOpen === b.dataset.k ? null : b.dataset.k; render(); },
   alstack: b => { const ids = b.dataset.ids.split(',').filter(Boolean), all = ids.every(i => alSel.has(i)); ids.forEach(i => all ? alSel.delete(i) : alSel.add(i)); render(); },
   alpick: b => { const id = b.dataset.i; alSel.has(id) ? alSel.delete(id) : alSel.add(id); b.setAttribute('aria-pressed', alSel.has(id));
-    $('cta').innerHTML = alCta(); const h = $('alcount'); if (h) h.textContent = alSel.size ? `${alSel.size} selected` : 'Select videos';
+    $('cta').innerHTML = alCta(); const h = $('alcount'); if (h) h.textContent = alSel.size ? `${alSel.size} selected` : 'Select records';
     if (b.closest('.al-tray')) { const x = $('cta').querySelector('.al-row')?.scrollLeft || 0; render(); const r = $('cta').querySelector('.al-row'); if (r) r.scrollLeft = x; } },
-  alvis: b => { const me = b.dataset.v === 'me', k = alSel.size; alSel.forEach(id => { const c = byId(id); if (c) c.hidden = me; }); alSel = null; alOpen = null; render();
+  alvis: b => { const me = b.dataset.v === 'me', k = alVids().length; alSel.forEach(id => { const c = byId(id); if (c) c.hidden = me; }); alSel = null; alOpen = null; render();
     toast(`${n(k, 'video', 'videos')} · ${me ? 'only you' : 'public'}`); },
-  aldel: () => { const k = alSel.size; if (!k) return;
-    pane(`<h2>Delete ${n(k, 'video', 'videos')}?</h2><span class="sub">Their analysis and comments go too. The videos stay in your camera roll.</span>
+  aldel: () => { const k = alSel.size, v = alVids().length; if (!k) return;
+    pane(`<h2>Delete ${v === k ? n(k, 'video', 'videos') : n(k, 'record', 'records')}?</h2><span class="sub">${v ? 'Videos lose their analysis and comments too, but stay in your camera roll. ' : ''}${v < k ? 'Climbs you logged by hand come off your log and your level.' : ''}</span>
       <div class="two"><button class="b-ghost" type="button" data-act="close">Keep</button><button class="b-lime" type="button" data-act="aldelyes">Delete ${k}</button></div>`); },
-  aldelyes: () => { const k = alSel.size; alSel.forEach(id => { const c = byId(id); if (!c) return; clips.splice(clips.indexOf(c), 1); V[c.v].added = false; }); alSel = null; alOpen = null; closeAll(); render(); toast(`${n(k, 'video', 'videos')} deleted`); },
+  aldelyes: () => { const k = alSel.size, v = alVids().length, at = c => [...alSel].filter(i => i[0] === c).map(i => +i.slice(1)).sort((p, q) => q - p);
+    alVids().forEach(id => { const c = byId(id); if (!c) return; clips.splice(clips.indexOf(c), 1); V[c.v].added = false; });
+    const g = at('g'); g.forEach(i => glogs.splice(i, 1)); if (g.length) saveGradeLogs();   // from the back, so the indices stay right
+    at('l').forEach(i => logs.splice(i, 1));
+    alSel = null; alOpen = null; closeAll(); render(); toast(`${v === k ? n(k, 'video', 'videos') : n(k, 'record', 'records')} deleted`); },
   // side by side
   pvplay: () => pvPlay(),
   // one tap moves to the next value and wraps round; speed goes slower first, since slow motion is what you compare in
@@ -4581,7 +5035,10 @@ const actions = {
   cmat: b => { cmAt = !cmAt; feedComments(+b.dataset.i, ask.querySelector('[data-cm]').value); },
   // a time in a comment: close the comments and play the video from there
   cmt: b => { const v = document.querySelector(`.ts[data-i="${b.dataset.i}"] video`); closeAll(); if (!v) return; v.currentTime = (+v.dataset.a || 0) + +b.dataset.t; delete v.dataset.stop; v.play().catch(() => {}); },
-  pvid: b => { const k = +b.dataset.v; feedAt = Math.max(0, feedAll().findIndex(p => p.v === k && !p.c)); go('friends/all'); },
+  // from someone's page: their videos only, starting at the one tapped. From anywhere else: the whole feed
+  pvid: b => { const k = +b.dataset.v, w = b.dataset.w || null; feedWho = w;
+    const list = w ? feedAll().filter(p => p.who === w && !p.c).sort((p, q) => p.ago - q.ago) : feedAll();
+    feedAt = Math.max(0, list.findIndex(p => p.v === k && !p.c)); go('friends/all'); },
   // profile
   newpub: () => { newPublic = !newPublic; render(); toast(newPublic ? 'New videos will be public' : 'New videos will be only for you'); }
 };
@@ -4606,6 +5063,13 @@ ask.addEventListener('input', e => {
   const none = $('cityempty'); if (none) none.hidden = [...ask.querySelectorAll('[data-act=gaset]')].some(r => !r.hidden && r.dataset.a !== 'near');
 });
 ask.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.dataset.cm) ask.querySelector(`[data-act="cm"][data-i="${e.target.dataset.cm}"]`)?.click(); });
+// on a test address (this computer, or its Wi-Fi address for a phone) a page error says itself, so "Save does nothing" on
+// a phone shows what stopped it. Never on the hosted site
+if (/^(localhost|127\.0\.0\.1|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(location.hostname)) {
+  const say = m => { try { toast(`Error: ${String(m).slice(0, 140)}`); } catch {} };
+  addEventListener('error', e => { if (e.message) say(`${e.message} (line ${e.lineno})`); });
+  addEventListener('unhandledrejection', e => say(e.reason?.message || e.reason));
+}
 dock.addEventListener('click', e => {
   const b = e.target.closest('[data-dock]'); if (!b) return;
   if (b.dataset.dock === 'plus') { openAdd(); return; }
@@ -4628,17 +5092,85 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape' && scrim.clas
     const eat = x => { x.stopPropagation(); x.preventDefault(); }; el.addEventListener('click', eat, true); setTimeout(() => el.removeEventListener('click', eat, true), 60); };
   el.addEventListener('pointerup', end); el.addEventListener('pointercancel', end);
 });
-window.addEventListener('hashchange', () => { readHash(); if (page !== 'cam') { camDrop(); camStop(); camStep = 'frame'; } if (page !== 'scan') scanStop(); if (page !== 'videos' && page !== 'algym') alSel = null; closeAll(); render(); document.querySelector('.screen').scrollTop = 0; });
+window.addEventListener('hashchange', () => { readHash(); if (page !== 'cam') { camDrop(); camStop(); camStep = 'frame'; } if (page !== 'scan') scanStop(); if (page !== 'videos' && page !== 'algym') alSel = null; closeAll(); const scr = document.querySelector('.screen'); scrollAt[histI] = scr.scrollTop; const hs = history.state, known = typeof hs?.hi === 'number', wentBack = known && hs.hi < histI; if (known) histI = hs.hi; else history.replaceState({ ...(hs || {}), hi: ++histI }, ''); render(); const y = wentBack ? scrollAt[histI] || 0 : 0; scr.scrollTop = y; if (y) requestAnimationFrame(() => { scr.scrollTop = y; }); });
 // frost the status bar once content scrolls under it
 const scr = document.querySelector('.screen');
 scr.addEventListener('scroll', () => document.querySelector('.phone').classList.toggle('scrolled', scr.scrollTop > 8), { passive: true });
 // first open: a new climber starts on the intro; ?view=regular opens Videos
-if (!location.hash) history.replaceState(null, '', '#/' + (user === 'regular' || obDone() ? 'videos' : 'setup'));
+if (!location.hash) history.replaceState(history.state, '', '#/' + (user === 'regular' || obDone() ? 'videos' : 'setup'));
 readHash();
 // your imported videos first, so a reload on one of them opens it again
 restoreMine().catch(() => {}).finally(() => { readHash(); render(); });
 if (params.has('invite')) showIncomingInvite();
 // iPhone 16 Pro frame (894 px with its border): on a short window scale the whole phone down to fit, never squash it
-const fitPhone = () => document.querySelector('.device').style.setProperty('--fit', Math.min(1, (innerHeight - 96) / 894).toFixed(3));
+const fitPhone = () => {
+  const d = document.querySelector('.device');
+  // ?cap: the window is exactly the framed phone (the HD recorder), so it fills it edge to edge
+  d.style.setProperty('--fit', (params.has('cap') ? Math.min(1, innerWidth / 436, innerHeight / 902) : Math.min(1, (innerHeight - 96) / 902)).toFixed(3));
+  // the recording window: the whole 402 × 874 screen scaled to fit, so it keeps the 16 Pro's shape at any window size.
+  // Bigger too, not only smaller: capped at 1, a big (or full-screen) window still drew the phone 402 points wide, on few
+  // of the screen's pixels, and the recording came out soft. Filling the window, it's drawn on all of them (CSS zoom
+  // lays the page out again at that size, so text and lines are drawn sharp, not stretched)
+  // (set on the page, not the phone: the finger circle, outside the phone, grows with it too)
+  if (params.has('rec')) document.documentElement.style.setProperty('--rfit', Math.min(innerWidth / 402, innerHeight / 874).toFixed(4));
+};
 addEventListener('resize', fitPhone);
 fitPhone();
+// build the Explore map in the background, off-screen, a moment after the page opens: then even the first tap on
+// Explore only moves it into place. Matters most in a fresh recording window, where every page is visited cold
+setTimeout(() => (window.requestIdleCallback || setTimeout)(() => {
+  if (tmap || !window.L || page === 'walls') return;
+  const hold = document.createElement('div'); hold.setAttribute('aria-hidden', 'true');
+  hold.style.cssText = 'position:fixed;left:-10000px;top:0;width:402px;height:874px;pointer-events:none';
+  document.body.append(hold);
+  try { gtMapMake(hold); tmap.setView(HERE, 12, { animate: false }); } catch { tmap = null; }
+}), 1500);
+// Figma-style touch pointer: with a mouse, the page hides the arrow and shows a round "finger" that follows it
+// ?dot=0 turns it off and keeps the real mouse, for screen recorders that draw their own cursor anyway (Screen Studio,
+// CleanShot and the like ignore a hidden cursor, so there would be two). Remembered for the tab; ?dot=1 brings it back
+const dotOn = (() => { const q = params.get('dot'); try { if (q != null) sessionStorage.setItem('spotter-dot', q === '0' ? '0' : '1'); return sessionStorage.getItem('spotter-dot') !== '0'; } catch { return q !== '0'; } })();
+if (dotOn && matchMedia('(hover: hover) and (pointer: fine)').matches) {
+  document.documentElement.classList.add('touchsim');
+  const dot = document.createElement('i'), phoneEl = document.querySelector('.phone');
+  dot.className = 'touch-dot'; dot.setAttribute('aria-hidden', 'true'); document.body.append(dot);
+  // capture phase: the app's own sliders and sheets stop their pointer events from bubbling, and a missed pointerup
+  // left the circle stuck small and dark
+  // the whole page, not just the phone: the button under the frame is tapped on camera too
+  const at = e => {
+    // the translate property, not transform: transform is applied before scale, so the press-shrink scaled the
+    // position too and threw the circle toward the top-left corner while the button was held
+    dot.style.translate = `${e.clientX}px ${e.clientY}px`;
+    if (!dot.classList.contains('on')) dot.classList.add('on');
+  };
+  const up = () => dot.classList.remove('down');
+  const opt = { capture: true, passive: true };
+  // pointerrawupdate (Chrome, Edge) arrives as soon as the mouse moves instead of once per frame, so the circle trails
+  // the hand by less; plain pointermove elsewhere
+  addEventListener('onpointerrawupdate' in window ? 'pointerrawupdate' : 'pointermove', at, opt);
+  addEventListener('pointerdown', e => { at(e); dot.classList.add('down'); }, opt);
+  addEventListener('pointerup', e => { at(e); up(); }, opt);
+  addEventListener('pointercancel', up, opt);
+  document.documentElement.addEventListener('pointerleave', () => { up(); dot.classList.remove('on'); });
+  addEventListener('blur', () => { up(); dot.classList.remove('on'); });
+  // a finger doesn't drag ghost images or select text: stop both inside the phone
+  phoneEl.addEventListener('dragstart', e => e.preventDefault());
+}
+// "Record at phone size": a desktop browser won't shrink a normal window to 402 px, but it will open a popup that size.
+// Same page and same saved climbs; once it loads, nudge it so the page inside is exactly 402 × 874 (window chrome varies)
+// A fresh ?rec= each time: a second click reuses the open "spotter-rec" window, and the same URL there would only
+// change the hash, keeping whatever older version of the page that window already had
+document.getElementById('recOpen')?.addEventListener('click', () => {
+  const u = new URL(location.href); u.searchParams.set('rec', Date.now().toString(36));
+  const W = 402, H = 874, w = open(u.href, 'spotter-rec', `popup,width=${W},height=${H}`);
+  // blocked (the Claude app's built-in browser never opens pop-ups): say so on the button itself, where the eye already is
+  // no pop-ups (the Claude app's browser pane): switch this page into recording mode instead
+  if (!w) { location.href = u.href; return; }
+  // try for exactly 402 × 874; if the screen is too short for that, Windows caps the height, so narrow the window to the
+  // same 402 : 874 shape and the page scales the phone down to fill it (no grey bars, no squashed screen)
+  const fit = () => { try {
+    let dw = W - w.innerWidth, dh = H - w.innerHeight; if (dw || dh) w.resizeBy(dw, dh);
+    setTimeout(() => { try { const tw = Math.round(Math.min(H, w.innerHeight) * W / H); if (Math.abs(tw - w.innerWidth) > 1) w.resizeBy(tw - w.innerWidth, 0); } catch {} }, 250);
+  } catch {} };
+  w.addEventListener('load', () => { fit(); setTimeout(fit, 400); });
+  w.focus();
+});

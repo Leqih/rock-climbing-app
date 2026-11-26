@@ -1,3 +1,4 @@
+@charset "UTF-8";
 /* Spotter prototype: shared tokens and app-wide pieces (phone frame, dock, sheets, lists, tiles).
    A white app: white screen, white cards with #EDEDED hairlines, ink type, lime #C2FF01 for actions, orange #FF6A1F
    for what speaks to you. Screen styles and the design system that ties them together live in pages.css. */
@@ -129,13 +130,52 @@ h1, h2, p { margin: 0; }
 .btn-l { display: block; width: 100%; margin-top: 24px; background: var(--ink); color: var(--white); font-size: 16px; text-align: center; }
 .toast { position: absolute; z-index: 8; left: 50%; bottom: 112px; transform: translateX(-50%); max-width: calc(100% - 40px); font-size: 13px; padding: 10px 16px; border-radius: var(--r-m); opacity: 0; transition: opacity .2s; pointer-events: none; text-align: center; }
 .toast.show { opacity: 1; }
-@media (max-width: 480px) {
-  body { margin: 0; padding-block: 0; padding-left: 0; padding-right: 0; background: var(--bg); }
-  .credit { display: none; }
+/* "Record at phone size" under the frame: opens the app in its own window exactly 402 × 874, the 16 Pro's screen */
+.rec-open { padding: 8px 14px; border-radius: 999px; background: rgba(255, 255, 255, .55); color: var(--ink); font-size: 13px; font-weight: 700; }
+.rec-open:hover { background: rgba(255, 255, 255, .85); }
+html.rec .rec-open, html.rec .credit { display: none; }
+/* a finger, not a mouse: on a computer the pointer over the phone is a soft grey circle, the way Figma shows taps in a
+   phone prototype, so a screen recording reads as someone using a phone. It shrinks and darkens while pressed */
+.touch-dot { position: fixed; z-index: 2147483647; left: 0; top: 0; width: 40px; height: 40px; margin: -20px 0 0 -20px; border-radius: 50%; background: rgba(17, 17, 17, .22); box-shadow: 0 0 0 1.5px rgba(255, 255, 255, .75); pointer-events: none; opacity: 0; transition: scale .12s var(--ease), background-color .12s; will-change: translate; contain: strict; }
+/* will-change keeps the circle on its own GPU layer: moving it no longer repaints the page under it (the blurred
+   photo and the frosted dock were redrawn on every mouse move, which is what made the recording window stutter) */
+.touch-dot.on { opacity: 1; }
+.touch-dot.down { scale: .82; background: rgba(17, 17, 17, .38); }
+@media (hover: hover) and (pointer: fine) {
+  html.touchsim, html.touchsim * { cursor: none !important; }
+  html.touchsim .phone :not(input, textarea, [contenteditable]) { -webkit-user-select: none; user-select: none; -webkit-user-drag: none; }
+}
+/* phone-wide (every iPhone is 440 pt or narrower): the bare app edge to edge. No bezel, and no stage colour on any side */
+@media (max-width: 440px) {
+  html, body { background: var(--bg); }
+  body { margin: 0; padding-block: 0; padding-left: 0; padding-right: 0; }
+  .credit, .rec-open { display: none; }
   .device { width: 100%; padding: 0; border-radius: 0; background: none; box-shadow: none; zoom: 1; }
   .phone { width: 100%; height: 100vh; height: 100dvh; border-radius: 0; border: 0; }
   .hw { display: none; }
-  /* a real phone has its own status bar and camera: don't draw a second one. Content starts under the phone's own bar */
+}
+/* the recording window (?rec=, set by app.js): no drawn status bar or Dynamic Island, content starts near the top */
+/* always laid out at the 16 Pro's 402 × 874 and scaled as a whole to fit the window (--rfit), never squashed: a screen
+   shorter than 874 + the window's title bar can't open a window that tall, and the page used to fill it at full width */
+html.rec, html.rec body { height: 100%; overflow: hidden; }
+html.rec .stage { height: 100%; justify-content: center; }
+/* centred, with the grey stage around it when the window is bigger (Claude's browser pane): a clean edge to record to */
+html.rec, html.rec body { background: var(--stage); }
+html.rec .device { zoom: var(--rfit, 1); width: auto; }
+/* the finger grows with the phone (it sits outside it, on the page, so the phone's zoom doesn't reach it) */
+html.rec .touch-dot { width: calc(40px * var(--rfit, 1)); height: calc(40px * var(--rfit, 1)); margin: calc(-20px * var(--rfit, 1)) 0 0 calc(-20px * var(--rfit, 1)); }
+/* the drawn 9:41 bar and camera are left out because the recording goes into an iPhone mockup that draws its own. Their
+   54 px stay empty (--sb isn't changed), so the content sits exactly where it would on the phone, under the mockup's bar.
+   A live session's pill stays where the island is, so it reads as the mockup's island opening up */
+/* no bezel at any window width: the rules for phone-wide windows only strip it below 440 px */
+html.rec body { margin: 0; padding: 0; }
+html.rec .device { padding: 0; border-radius: 0; background: none; box-shadow: none; }
+html.rec .hw { display: none; }
+html.rec .phone { width: 402px; height: 874px; border: 0; border-radius: 0; }
+html.rec .status, html.rec .island:not(.live) { display: none; }
+/* on a real phone (touch) only: it has its own status bar and camera, so don't draw a second one. On a computer's
+   phone-wide window (recording a demo) the drawn 9:41 bar, Dynamic Island and home bar stay, so it reads as an iPhone */
+@media (max-width: 440px) and (pointer: coarse) {
   .phone { --sb: max(8px, env(safe-area-inset-top, 0px)); }
   .status, .island:not(.live) { display: none; }
   .island.live { top: calc(var(--sb) + 6px); }
@@ -147,3 +187,29 @@ h1, h2, p { margin: 0; }
 .island.live { width: 150px; margin-left: -75px; display: flex; align-items: center; justify-content: space-between; padding: 0 12px 0 13px; color: var(--white); pointer-events: auto; cursor: pointer; }
 .island.live i { width: 8px; height: 8px; border-radius: 50%; background: var(--lime); animation: pulse 1.6s ease-in-out infinite; }
 .island.live b { font-size: 13px; font-weight: 600; }
+
+/* ?mock (and the HD recorder's ?cap): the frame is Apple's iPhone 16 in white, from the team's Figma mockup, as vectors so it stays sharp at any zoom
+   (img/iphone16-white.svg: buttons, titanium, black screen border). Its screen is 353 x 761 pt; stretched to our
+   402 x 874 that's 1.139 across and 1.148 down, too little apart to see. The app sits on the black border with the
+   screen's rounded corners; the mockup's own status bar and Dynamic Island (img/iphone16-status.svg) replace ours.
+   Volume down still switches language */
+@media (min-width: 441px) {
+  html.mock .device { width: 436px; height: 902px; padding: 0; border-radius: 0; box-shadow: none; background: url(img/iphone16-white.svg) 0 0 / 100% 100% no-repeat; }
+  html.mock .device .phone { position: absolute; left: 17px; top: 14px; width: 402px; height: 874px; border: 0; border-radius: 57px; }
+  html.mock .hw { display: none; }
+  html.mock .hw.vdn { display: block; z-index: 3; left: 0; top: 324px; width: 7px; height: 64px; background: transparent; border-radius: 3px 0 0 3px; }
+  html.mock .hw.vdn:hover, html.mock .hw.vdn:focus-visible { background: rgba(17, 17, 17, .12); }
+  /* status bar group sits at 40, 12 pt on the mockup's screen, 293 x 31 pt */
+  html.mock .status > span:not(.island), html.mock .status > svg, html.mock .island:not(.live) { visibility: hidden; }
+  html.mock .status::after { content: ""; position: absolute; z-index: -1; left: 45.5px; top: 13.8px; width: 333.7px; height: 35.6px; background: url(img/iphone16-status.svg) 0 0 / 100% 100% no-repeat; pointer-events: none; }
+}
+
+/* ?bg=…: the page is just the phone on the slide's colour (or nothing), ready to record or capture */
+html.bgset .rec-open, html.bgset .credit { display: none; }
+html.bgset { scrollbar-width: none; }
+html.bgset::-webkit-scrollbar { display: none; }
+/* ?cap (the HD recorder): nothing but the framed phone, flush with the window */
+html.cap body { margin: 0; padding: 0; }
+html.cap .stage { gap: 0; align-items: flex-start; }
+html.cap .rec-open, html.cap .credit { display: none; }
+html.cap, html.cap body { height: 100%; overflow: hidden; }   /* a scroll moves the app's own content, never the frame */

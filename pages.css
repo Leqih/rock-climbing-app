@@ -1,3 +1,4 @@
+@charset "UTF-8";
 /* Spotter screens in user-flow order, then the design system that gives them one look (it loads last). Tokens are in styles.css. */
 .note { display: block; width: 100%; margin-top: 8px; padding: 10px 12px; border: 0; border-radius: var(--r-m); box-shadow: inset 0 0 0 1px var(--g200); font: inherit; font-size: 15px; resize: none; }
 .note:focus { outline: none; box-shadow: inset 0 0 0 2px var(--ink); }
@@ -1143,10 +1144,10 @@ a.pj { display: inline-flex; align-items: center; text-decoration: none; color: 
 /* tab titles: heavy, upright, a sparkle; the mascot is a sticker */
 .hl.tab { font-style: normal; font-weight: 900; letter-spacing: -.04em; }
 .hl.tab .masc { width: 40px; height: 38px; transform: rotate(-10deg); filter: var(--sticker); }
-.hl.tab::before { content: "✦"; order: 2; font-size: 18px; margin: -18px -6px 0 -8px; color: var(--ink); }
+.hl.tab::before { content: "\2726 "; order: 2; font-size: 18px; margin: -18px -6px 0 -8px; color: var(--ink); }
 .hl.tab { display: flex; }
 /* section titles: a small sparkle after the words */
-.sec h2::after { content: " ✦"; font-size: .7em; vertical-align: .35em; color: var(--orange); }
+.sec h2::after { content: " \2726 "; font-size: .7em; vertical-align: .35em; color: var(--orange); }
 /* pixel-cut tags */
 .vc-t, .vc-gy, .vbox-tag, .stg.on, .oc-vs, .vt-t, .cm-t, .ts-gr, .an-c { border-radius: 0 !important; clip-path: var(--px); }
 .vc-t.g { background: var(--lime); }
@@ -1621,7 +1622,7 @@ textarea.note:focus { outline: 2px solid var(--ink); outline-offset: 0; backgrou
   background: var(--ink); }
 .cid-strap i { position: absolute; left: 0; right: 0; top: -40px; bottom: 0; writing-mode: vertical-rl;
   font-style: normal; font-size: 8px; font-weight: 900; letter-spacing: .18em; color: var(--lime); text-align: center; line-height: 22px; }
-.cid-strap i::before { content: "SPOTTER · SPOTTER · SPOTTER"; }
+.cid-strap i::before { content: "SPOTTER \b7  SPOTTER \b7  SPOTTER"; }
 .cid-clip { position: relative; z-index: 2; width: 34px; height: 22px; margin-top: -4px; border-radius: 5px;
   background: linear-gradient(180deg, #F2F2EE 0%, #C9C9C3 55%, #A8A8A1 100%); box-shadow: 0 2px 4px rgba(17, 17, 17, .25); }
 .cid-clip::after { content: ""; position: absolute; left: 50%; top: 7px; width: 14px; height: 6px; margin-left: -7px; border-radius: 3px; background: rgba(17, 17, 17, .35); }
@@ -2353,7 +2354,7 @@ textarea.note:focus { outline: 2px solid var(--ink); outline-offset: 0; backgrou
 .cam-tags { position: absolute; top: 108px; left: 16px; right: 16px; display: flex; align-items: center; gap: 6px; z-index: 2; }
 .cam-tag { position: relative; min-width: 0; flex: 1; }
 .cam-tag select { width: 100%; min-width: 0; height: 35px; border: 0; border-radius: 999px; padding: 0 22px 0 10px; background: rgba(255,255,255,.94); color: #151a17; font: 800 11px inherit; font-family: inherit; font-size: 11px; font-weight: 800; text-overflow: ellipsis; appearance: none; }
-.cam-tag::after { content: '⌄'; position: absolute; right: 9px; top: 8px; color: #26342c; font-size: 13px; pointer-events: none; }
+.cam-tag::after { content: '\2304 '; position: absolute; right: 9px; top: 8px; color: #26342c; font-size: 13px; pointer-events: none; }
 .cam-tag select:disabled { opacity: .75; }
 .cam-tag .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .camx:not(.mapx) .cam-fr { top: 156px; }
@@ -2479,7 +2480,7 @@ textarea.note:focus { outline: 2px solid var(--ink); outline-offset: 0; backgrou
 
 
 /* the gym reads as the rest of the date line, "Friday · ARC Climbing Wall": no icon, a dot, a lighter grey */
-.al-dg::before { content: "·"; margin-right: 6px; }
+.al-dg::before { content: "\b7 "; margin-right: 6px; }
 
 /* Gyms map: the area picker and the open-now count are one pair of pills: same height, white, shadow */
 .gt-top .gt-n { box-sizing: border-box; height: 34px; padding: 0 12px; background: var(--white); box-shadow: 0 2px 10px rgba(17, 17, 17, .14); font-size: 13px; }
@@ -2517,7 +2518,7 @@ textarea.note:focus { outline: 2px solid var(--ink); outline-offset: 0; backgrou
 .ph-hg { display: inline-flex; align-items: center; gap: 4px; min-height: 28px; font-size: 13px; font-weight: 700; color: var(--ink); }
 .ph-hg svg { width: 14px; height: 14px; }
 .ph-hg em { margin-left: 2px; font-style: normal; font-weight: 500; color: #8a8a87; }
-.ph-hg em::before { content: "·"; margin-right: 6px; }
+.ph-hg em::before { content: "\b7 "; margin-right: 6px; }
 .ph-stt, .stt-o { display: inline-flex; align-items: center; gap: 6px; }
 .ph-stt { height: 28px; padding: 0 11px 0 9px; border-radius: 999px; background: #fff; box-shadow: 0 0 0 1px rgba(17, 17, 17, .08); font-size: 12px; font-weight: 700; color: var(--ink); }
 .ph-stt i, .stt-o i { flex: none; width: 8px; height: 8px; border-radius: 50%; background: #b9b9b6; }
@@ -2761,10 +2762,18 @@ textarea.note:focus { outline: 2px solid var(--ink); outline-offset: 0; backgrou
 .camx.filming .cam-fb { bottom: 152px; }
 
 /* Friends: a new climber's first step */
-.fr-first { display: grid; gap: 6px; margin: 4px 0 18px; padding: 16px; border-radius: 16px; background: #fff; }
-.fr-first strong { font-size: 16px; }
-.fr-first p { margin: 0; font-size: 13px; line-height: 1.4; color: #5c6660; }
-.fr-first .b-lime { justify-self: start; margin-top: 6px; min-height: 40px; padding: 0 16px; border-radius: 999px; font-weight: 800; }
+/* no friends yet: you and two empty places beside you, one line on why, one button. Find partners is the tab right above,
+   so here it's only a quiet line for someone with nobody to invite */
+.fr-first { display: grid; justify-items: center; gap: 6px; margin: 4px 0 18px; padding: 24px 20px 14px; border-radius: 16px; background: #fff; text-align: center; }
+.fr-ring { display: flex; margin-bottom: 8px; }
+.fr-ring > * { width: 52px; height: 52px; border-radius: 50%; box-shadow: 0 0 0 3px #fff; }
+.fr-ring > * + * { margin-left: -10px; }
+.fr-ring .fd-a { width: 52px; height: 52px; z-index: 1; }
+.fr-ring i { display: grid; place-items: center; background: var(--g50); border: 1.5px dashed #b9b9b5; font-style: normal; font-size: 22px; font-weight: 500; color: #8a8a87; }
+.fr-first strong { font-size: 18px; font-weight: 800; letter-spacing: -.01em; }
+.fr-first p { margin: 0 0 10px; max-width: 26ch; font-size: 14px; line-height: 1.4; color: #6f6f6c; text-wrap: balance; }
+.fr-first .b-lime { justify-self: stretch; height: 48px; border-radius: 999px; font-weight: 800; }
+.fr-alt { padding: 10px 4px 2px; font-size: 13px; font-weight: 600; color: #6f6f6c; text-decoration: underline; text-underline-offset: 3px; }
 
 /* the feed rail: a round face, its name under it (the name was a second grid row that stretched the face into an oval) */
 .ts-av { display: block; margin-bottom: 14px; }
@@ -2855,6 +2864,7 @@ textarea.note:focus { outline: 2px solid var(--ink); outline-offset: 0; backgrou
 .screen:has(#vshero) .pv-n { border-top-color: rgba(255,255,255,.14); }
 .screen:has(#vshero) .pv-nr + .pv-nr { border-top-color: rgba(255,255,255,.08); }
 .screen:has(#vshero) .pv-nr span, .screen:has(#vshero) .an-n { color: rgba(255,255,255,.65); }
+.screen:has(#vshero) .pv-nr b { color: #fff; }   /* the numbers and names were ink on the dark page */
 .screen:has(#vshero) .fchips button { background: rgba(255,255,255,.12); color: #fff; }
 .screen:has(#vshero) .fchips button[aria-pressed="true"] { background: #fff; color: #111; }
 
@@ -3115,7 +3125,7 @@ textarea.note:focus { outline: 2px solid var(--ink); outline-offset: 0; backgrou
 .al-all + .al-tx { margin-left: 0; }
 /* on a real phone (and installed to the home screen): the phone draws its own home bar, so we don't; the tab bar, the
    buttons and the sheets keep clear of it */
-@media (max-width: 480px) {
+@media (max-width: 440px) and (pointer: coarse) {
   .home-ind { display: none; }
   .dock, .cta { bottom: max(22px, calc(env(safe-area-inset-bottom, 0px) + 8px)); }
   .toast { bottom: calc(112px + env(safe-area-inset-bottom, 0px)); }
@@ -3933,7 +3943,7 @@ section.st:has(.st-box) { flex: none; border-radius: 0; background: none; }
 .pc-ft { padding-top: 12px; border-top: 1px solid rgba(17, 17, 17, .07); }
 .pc-ft .pz-cms { margin: 0; }
 .pc-ft .pz-cm { height: 32px; background: #f4f4f2; }
-.pc-ft a.pz-cm::after { content: "↗"; margin-left: 5px; font-weight: 700; color: var(--mid); }
+.pc-ft a.pz-cm::after { content: "\2197 "; margin-left: 5px; font-weight: 700; color: var(--mid); }
 
 /* New post, a page of its own (built on the Edit card pieces): a calendar strip of seven days, a three-way part-of-day switch,
    gyms as chips that wrap (none cut off at the edge), the line as a text box with a count, contacts in one white box */
@@ -3969,11 +3979,11 @@ section.st:has(.st-box) { flex: none; border-radius: 0; background: none; }
 .pc-wk i.on.td { box-shadow: inset 0 0 0 1.5px var(--ink), inset 0 0 0 3px #fff; }
 .pc-tm { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; margin: 2px 2px 0 !important; font-size: 14px; }
 .pc-tm b { font-weight: 800; }
-.pc-tm b + b::before { content: "·"; margin-right: 6px; color: var(--mid); font-weight: 400; }
+.pc-tm b + b::before { content: "\b7 "; margin-right: 6px; color: var(--mid); font-weight: 400; }
 .pc-td { margin-left: auto; padding: 2px 8px; border-radius: 999px; background: #DDF1E5; font-size: 12px; font-weight: 800; color: #1F7A48; }
 .pc-gym { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 6px; margin: 0 2px !important; font-size: 14px; font-weight: 600; color: var(--ink); }
 .pc-gym svg { flex: none; width: 14px; height: 14px; stroke: var(--mid); }
-.pc-gym span + span::before { content: "·"; margin-right: 6px; color: var(--mid); }
+.pc-gym span + span::before { content: "\b7 "; margin-right: 6px; color: var(--mid); }
 .pc-plan .pc-wants { margin-top: 2px; }
 .pz-mine { display: flex; gap: 14px; flex: none; }
 
@@ -4023,7 +4033,7 @@ section.st:has(.st-box) { flex: none; border-radius: 0; background: none; }
 .pst .pc-meta > span { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 2px 4px; }
 .pst .pc-meta svg { flex: none; width: 14px; height: 14px; margin-right: 2px; color: var(--mid); stroke: var(--mid); }
 .pst .pc-meta b { font-weight: 700; }
-.pst .pc-meta b + b::before { content: "·"; margin-right: 4px; font-weight: 400; color: var(--mid); }
+.pst .pc-meta b + b::before { content: "\b7 "; margin-right: 4px; font-weight: 400; color: var(--mid); }
 .pst .pc-ft { display: flex; align-items: center; gap: 10px; padding-top: 2px; }
 .pst .pc-ft .pc-wants { flex: 1; min-width: 0; margin: 0; }
 .pst .pc-ft .pc-wants i { background: #EBF7F0; }
@@ -4040,4 +4050,353 @@ section.st:has(.st-box) { flex: none; border-radius: 0; background: none; }
 .ph-rt > span { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 2px 4px; }
 .ph-rt svg { flex: none; width: 14px; height: 14px; margin-right: 2px; color: var(--mid); stroke: var(--mid); }
 .ph-rt b { font-weight: 700; }
-.ph-rt b + b::before { content: "·"; margin-right: 4px; font-weight: 400; color: var(--mid); }
+.ph-rt b + b::before { content: "\b7 "; margin-right: 4px; font-weight: 400; color: var(--mid); }
+
+/* joining, tidier: where you are (two dots in the bar), the three filming tips as one card instead of three, and the
+   page fading out under the bottom button so the gym list doesn't run into it */
+.ob-dots { display: inline-flex; gap: 6px; align-items: center; }
+.ob-dots i { width: 6px; height: 6px; border-radius: 3px; background: #cfcfcc; transition: width .2s ease; }
+.ob-dots i.on { width: 18px; background: var(--ink); }
+.ob-tips { gap: 0; padding: 4px 16px; border-radius: 22px; background: #fff; }
+.ob-tips li { padding: 14px 0; border-radius: 0; background: none; align-items: center; }
+.ob-tips li + li { border-top: 1px solid var(--line); }
+.ob-tips b { width: 28px; height: 28px; font-size: 14px; }
+.ob-tips span { gap: 2px; }
+.ob-tips strong { font-size: 15px; }
+.ob-eg img { width: 64px; }
+:has(.ob-gyms, .ob-tips) > .cta::before { content: ""; position: absolute; z-index: -1; left: -16px; right: -16px; bottom: -22px; height: calc(100% + 64px);
+  background: linear-gradient(rgba(238, 238, 236, 0), #eeeeec 40%); pointer-events: none; }
+.bar:has(> span > .ob-dots) { position: relative; }
+.bar > span:has(> .ob-dots) { position: absolute; left: 50%; transform: translateX(-50%); display: flex; }
+/* the sample is the second choice: white, so Film a try is the one that stands out */
+:has(.ob-tips) > #cta .b-ghost { background: #fff; color: var(--ink); box-shadow: none; }
+
+/* partner card, calmer: the line they wrote leads; when and where sit together in one grey box (days and part of the day on
+   top, the gym under it) instead of three icon-and-word pairs; level and time posted are plain grey text, not a chip;
+   "Climbs today" is a green dot; what they want is a quiet line beside Contact rather than a row of green pills */
+.pst .pc-sub { gap: 0; margin-top: 2px; }
+.pst .pc-sub i, .pst .pc-sub em { padding: 0; background: none; font-size: 13px; font-weight: 500; color: var(--mid); }
+.pst .pc-sub em::before { content: "\b7 "; margin: 0 6px; }
+.pst .pz-h > .pc-td { display: inline-flex; align-items: center; gap: 6px; padding: 0; background: none; font-size: 12px; font-weight: 700; color: #1F7A48; }
+.pst .pz-h > .pc-td::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: #2E9E62; box-shadow: 0 0 0 3px #DDF1E5; }
+.pc-sch { display: grid; gap: 3px; padding: 12px 14px; border-radius: 16px; background: #f4f4f2; }
+.pc-wh { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 6px; font-size: 15px; font-weight: 800; color: var(--ink); }
+.pc-wh > i { font-style: normal; font-weight: 500; color: var(--mid); }
+.pc-wh em { font-style: normal; font-weight: 600; color: var(--mid); }
+.pc-wh .pc-now { align-self: center; padding: 2px 9px; border-radius: 999px; background: var(--ink); color: #fff; font-size: 13px; }
+.pc-gy { display: flex; flex-wrap: wrap; align-items: center; gap: 0 6px; font-size: 13px; font-weight: 600; color: var(--mid); }
+.pc-gy svg { flex: none; width: 13px; height: 13px; stroke: var(--mid); }
+.pc-gy span + span::before { content: "\b7 "; margin-right: 6px; }
+.pst .pc-ft { display: flex; align-items: center; gap: 12px; padding-top: 0; border-top: 0; }
+.pst .pc-wants { display: block; flex: 1; min-width: 0; font-size: 13px; line-height: 1.45; color: var(--ink); }
+.pst .pc-ft .pc-wants i { display: inline; padding: 0; border-radius: 0; background: none; font-size: 13px; font-weight: 600; color: var(--ink); white-space: nowrap; }
+.pst .pc-ft .pc-wants i + i::before { content: "\b7 "; margin: 0 6px; color: var(--mid); }
+.pst .pc-ct { height: 36px; padding: 0 18px; }
+
+/* Contact as an iOS action sheet: the sheet itself goes see-through and two frosted blocks float 8px in from the edges,
+   rows in the system font and the system blue, hairlines between them, Cancel on its own and bold. The scrim stays */
+#ask:has(> .as) { padding: 0 8px 34px; background: none; border-radius: 0; box-shadow: none; overflow: visible; }
+#ask:has(> .as) > .grab { display: none; }
+.as { display: grid; gap: 8px; font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif; }
+.as-g { overflow: hidden; border-radius: 14px; background: rgba(246, 246, 246, .92); -webkit-backdrop-filter: blur(24px) saturate(180%); backdrop-filter: blur(24px) saturate(180%); }
+.as-h { display: grid; gap: 4px; margin: 0; padding: 14px 16px; text-align: center; color: #8a8a8e; font-size: 13px; line-height: 1.35; }
+.as-h b { font-weight: 600; }
+.as-b { display: flex; align-items: baseline; justify-content: center; gap: 8px; width: 100%; min-height: 57px; padding: 16px; border: 0; border-top: .5px solid rgba(60, 60, 67, .29);
+  background: none; color: #007AFF; font: inherit; font-size: 19px; font-weight: 400; letter-spacing: -.01em; text-align: center; text-decoration: none; -webkit-tap-highlight-color: transparent; }
+.as-b span { font-size: 15px; color: #8a8a8e; }
+.as-b:active { background: rgba(0, 0, 0, .06); }
+.as-x { border: 0; border-radius: 14px; background: #fff; font-weight: 600; }
+.as-x:active { background: #ececec; }
+
+/* a post's contacts come from your card: one row you tap to change them there. Each app's name small over its handle */
+.pp-ctl { display: flex; align-items: center; gap: 12px; width: 100%; padding: 14px 16px; border: 0; color: var(--ink); font: inherit; text-align: left; -webkit-tap-highlight-color: transparent; }
+.pp-ctl:active { opacity: .7; }
+.pp-cts { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; gap: 10px 20px; }
+.pp-cts > span, .pp-ct0 { display: grid; gap: 1px; min-width: 0; }
+.pp-cts em, .pp-ct0 em { font-style: normal; font-size: 12px; font-weight: 600; color: var(--mid); }
+.pp-cts b { font-size: 15px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pp-ct0 { flex: 1; }
+.pp-ct0 b { font-size: 15px; font-weight: 700; }
+.pp-ctl > i { flex: none; display: inline-flex; align-items: center; gap: 2px; font-style: normal; font-size: 14px; font-weight: 700; color: var(--mid); }
+.pp-ctl > i::after { content: "\203a "; font-size: 18px; line-height: 1; margin-left: 2px; }
+
+/* how to reach you, on the profile card under the tags: the apps you gave, or a dashed prompt to add them */
+.ph-ct { display: flex; align-items: center; gap: 6px; margin: 10px 0 0 2px; padding: 0; border: 0; background: none; color: var(--mid); font: inherit; font-size: 13px; font-weight: 600; text-align: left; }
+.ph-ct svg { flex: none; width: 15px; height: 15px; }
+.ph-ct b { font-weight: 700; color: var(--ink); }
+.ph-ct b i { font-style: normal; }
+.ph-ct b i + i::before { content: "\b7 "; margin: 0 5px; font-weight: 500; color: var(--mid); }
+.ph-ct::after { content: "\203a "; margin-left: 2px; font-size: 16px; line-height: 1; color: var(--mid); }
+.ph-ct0 { display: block; margin-top: 8px; }
+
+/* Profile has one way into the card. While tags or contacts are missing the button says Finish your card, with a dot */
+.ph-ed.todo::after { content: ""; flex: none; width: 7px; height: 7px; margin-left: 1px; border-radius: 50%; background: #FF6A1F; }
+p.ph-ct { margin-bottom: 0; }
+p.ph-ct::after { content: none; }
+
+/* Edit card: the level pill and the gym on the preview are buttons that scroll to where you change them; the spot flashes */
+.ec-card button.ec-gym { padding: 0; border: 0; background: none; font: inherit; font-size: 12.5px; font-weight: 600; color: var(--g700); text-align: left; text-decoration: underline dotted rgba(17, 17, 17, .3); text-underline-offset: 3px; }
+#ec-tags button.ec-lv { display: inline-flex; align-items: center; height: 28px; padding: 0 11px; border: 0; border-radius: 999px; font-family: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
+.ec-flash { animation: ecFlash 1.1s ease; }
+@keyframes ecFlash { 0%, 40% { box-shadow: 0 0 0 3px #FF6A1F; } 100% { box-shadow: 0 0 0 3px rgba(255, 106, 31, 0); } }
+.ec-hg { margin-top: 10px; border-radius: 16px; }
+/* Friends ✓ beside Contact: the same small pill, not the old full-width .ph-fr button (44px tall, pushed down 10px) */
+.ph-acts .ph-st.ph-fr { display: inline-flex; place-items: initial; align-items: center; gap: 5px; width: auto; height: 32px; margin-top: 0; padding: 0 12px 0 10px; border-radius: 999px; background: #fff; color: var(--ink); font-size: 13px; font-weight: 700; }
+/* a shape's label shrinks with the shape, so a long one (Bouldering) still fits a small shape on a short card */
+#profile-shapes .ph-shape > span { font-size: min(11px, calc(var(--s, 100px) * .13)); }
+
+/* someone's own videos on their page: two big tiles a row, rounded like the cards around them, with a play mark, so
+   they read as real climbing you can watch, not thumbnails */
+.pv-vg { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+.pv-vg .vt { border-radius: 18px; aspect-ratio: 4 / 5; }
+.pv-vg .vt-t { top: 8px; left: 8px; height: 24px; padding: 0 8px; border-radius: 999px; font-size: 12px; }
+.pv-vg .vt-b { left: 12px; right: 12px; bottom: 10px; font-size: 12.5px; }
+.pv-vg .vt::before { content: ""; position: absolute; z-index: 1; top: 50%; left: 50%; width: 40px; height: 40px; margin: -20px 0 0 -20px; border-radius: 50%;
+  background: rgba(17, 17, 17, .45) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M9 7v10l8-5z' fill='white'/%3E%3C/svg%3E") center / 22px no-repeat;
+  -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
+
+/* a friend's week on their page: one card, a row a day */
+.wk { display: grid; padding: 4px 16px; border-radius: var(--r-l); background: #fff; }
+.wk-r { display: grid; grid-template-columns: 40px 1fr; gap: 14px; padding: 14px 0; border-bottom: 1px solid rgba(17, 17, 17, .06); }
+.wk-r:last-child { border-bottom: 0; }
+.wk-d { display: grid; justify-items: center; align-content: start; gap: 1px; padding-top: 1px; }
+.wk-d em { font-style: normal; font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--mid); }
+.wk-d b { font-size: 20px; font-weight: 800; line-height: 1.1; }
+.wk-live .wk-d { padding-top: 2px; }
+.wk-live .wk-d b { padding: 3px 8px; border-radius: 999px; background: var(--ink); color: #fff; font-size: 12px; font-weight: 700; }
+.wk-t { display: grid; gap: 3px; min-width: 0; }
+.wk-t strong { font-size: 15px; font-weight: 700; }
+.wk-t > span:not(.wk-rts) { font-size: 13px; color: var(--mid); }
+.wk-rts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 7px; }
+.wk-rt { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border-radius: 999px; background: var(--bg, #eeeeec); font-size: 13px; font-weight: 600; color: var(--ink); }
+.wk-rt .sw { width: 9px; height: 9px; box-shadow: none; }
+.wk-rt svg { color: var(--mid); }
+.wk-you { justify-self: start; margin-top: 8px; font-size: 13px; font-weight: 700; color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
+
+/* Moves: someone else's video on the analysis page. A move card is neutral, ink not green: it isn't a grade */
+#main[data-tab="body"] .lv-w.two .clip[data-mk="mv"] { box-shadow: 0 0 0 4px var(--ink); }
+.st-d.mv { background: var(--ink); }
+.st-c.mv { border-color: var(--ink); }
+.st-c.mv .st-tag { background: #eeeeec; color: var(--ink); }
+.st-c .mvl-ts { margin-top: 10px; }
+/* on their Moves tab the body stays drawn on (on your own Body tab it hides behind the step cards): it's the point of the page */
+#main[data-tab="body"] .mvw #lvc, #main[data-tab="body"] .mvw .lvtags { display: block !important; }
+#main[data-tab="body"] .lv-w.two.mvw > .lyr { display: flex !important; }
+.mvl-ts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 2px; }
+.mvl-ts button { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 11px; border-radius: 999px; background: #eeeeec; font-size: 13px; font-weight: 700; color: var(--ink); }
+.mvl-ts button:active { background: var(--ink); color: #fff; }
+.vt-mv { position: absolute; top: 10px; right: 10px; padding: 3px 8px; border-radius: 999px; background: rgba(17, 17, 17, .6); color: #fff; font-size: 11px; font-weight: 700; }
+
+/* ---------- Motion pass: every tap answers, and things that change show where they went ----------
+   Built on the shared tokens: --ease (strong ease-out) and --motion-quick (150 ms). Press feedback uses the
+   independent `scale` property, so it never fights a transform an element already uses to sit where it is.
+   Zero specificity (:where), so any element that already has its own transition keeps it. */
+:where(.phone) :where(button, [role="button"], a[href], [data-act]):not(:disabled, [role="slider"], .ts-v) {
+  transition: scale var(--motion-quick) var(--ease), background-color var(--motion-quick) ease, color var(--motion-quick) ease, box-shadow var(--motion-quick) ease, border-color var(--motion-quick) ease;
+  -webkit-tap-highlight-color: transparent;
+}
+/* the press: small things go in a little more than wide ones, so a full-width card doesn't lurch. Skipped where an element
+   already presses in with its own transform (the dock, the feed rail, the main buttons…), so they don't press twice */
+.phone :is(button, [role="button"], a[href], [data-act]):not(:disabled, [role="slider"], .ts-v, .tr-h, .lvstrip, .dk, .ts-rail > button, .ts-tools button, .gt-x button, .gt-m, .b-lime, .b-ghost, .add-r, .pk, .vbox, .pin .vc, .add-big, .add-sm, .gy-go, .al-t, .ax-r, .g3-i, .g3-nav, .cam-res button, .shut, .bar-more, .pv-pp, .al-st, .sm-c, .ec-chips button, .vs-opts .pv-x, .pc-ct, .pc-go, .hero-go):active { scale: .96; }
+.phone :is(.row, .pz, .fd, .kf, .vt, .ec-box, .lv-rp, .mvc, .fr-p, .pp-ctl, .ce-row, .ce-tg, .st-c, .gy, .gb2, .fx-p):not(.pin .vc):active { scale: .985; }
+/* these already had their own transition; give them the press curve too */
+.row, .vc, .gy, .gb2, .pj, .fchips button, .pc-go, .hero-go { transition: scale var(--motion-quick) var(--ease), opacity .1s, background-color .15s; }
+/* an iOS action sheet highlights a row instead of pressing it in, as iOS does */
+.phone .as-b:active { scale: 1; }
+
+/* switching tabs inside a page (Summary / Body / Compare / Info) and opening a Summary tile: the new panel fades up from
+   just below, so the content doesn't teleport */
+@keyframes pnIn { from { opacity: 0; transform: translateY(6px); } }
+.pn:not([hidden]), [data-pn="why"] > .sub:not([hidden]), .gy-pn:not([hidden]), .an-see:not([hidden]) { animation: pnIn 220ms var(--ease) both; }
+
+/* a card you open (Profile sections, the contacts on Edit card): its content fades in under the title; the chevron turns */
+@keyframes openIn { from { opacity: 0; transform: translateY(-4px); } }
+details[open] > :not(summary) { animation: openIn 200ms var(--ease) both; }
+.pc-c { transition: transform 200ms var(--ease); }
+
+/* a selected chip or tab changes colour over a beat instead of snapping */
+.ctabs button, .fchips button, .ec-chips button, .ce-seg button, .vis, .lyr button { transition: scale var(--motion-quick) var(--ease), background-color 180ms ease, color 180ms ease, box-shadow 180ms ease; }
+
+/* reduced motion: no presses or slides; the colour and fade changes that say what happened stay */
+@media (prefers-reduced-motion: reduce) {
+  .phone :is(button, [role="button"], a[href], [data-act]):active { scale: 1; }
+  .pn:not([hidden]), [data-pn="why"] > .sub:not([hidden]), details[open] > :not(summary) { animation: none; }
+}
+
+/* Carry-over: a switch's pill slides to the new pick across a re-render (app.js grpCarry) */
+.seg { position: relative; isolation: isolate; }
+.seg-gh { position: absolute; z-index: -1; pointer-events: none; }
+.seg.seg-mv > button { background-color: transparent !important; transition: none; }
+.vtabs button[aria-selected="true"]::after { transform-origin: left center; }
+
+/* One chevron everywhere (Your routes, the gym rows on Explore, the gym and colour pickers on Log by hand): a drawn
+   stroke with round ends, centred in its box so turning it doesn't wobble. It turns over a calm 260ms, not a flick */
+.chev, .pc-c, .gt-m::after {
+  --chev: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  display: block; flex: none; width: 18px; height: 18px; margin: 0; border: 0; background: currentColor;
+  -webkit-mask: var(--chev) center / contain no-repeat; mask: var(--chev) center / contain no-repeat;
+  transform: none; transform-origin: 50% 50%; transition: transform 260ms var(--ease);
+}
+.phone i.chev { width: 16px; height: 16px; margin-left: 4px; color: #5d6660; background: currentColor; }
+.pc-c { width: 20px; height: 20px; color: var(--ink); }
+.pf-c[open] .pc-c { transform: rotate(180deg); }
+.gt-m::after { content: ""; margin-left: auto; color: #697267; }
+.gt-r.sel .gt-m::after { transform: rotate(180deg); }
+.gt-sheet.cards .gt-m::after, .gt-sheet.cards .gt-r.sel .gt-m::after { transform: rotate(-90deg); }
+.phone .rock-gym i.chev { width: 14px; height: 14px; margin-left: 2px; color: #2B2D2E; }
+
+/* Pressing: the thing you touch dips as one piece, around its own middle */
+.phone .gb { transform-box: fill-box; transform-origin: center; transition: scale 160ms var(--ease); }
+.phone .gb:active { scale: .94; }
+.gt-m, .gt-m:active { transform: none; opacity: 1; }
+.gt-r { transition: scale 160ms var(--ease), background-color var(--motion-quick) ease; }
+.gt-r:has(> .gt-m:active) { scale: .98; }
+.phone .manual-color:active, .phone .pf-c > summary:active { scale: .985; }
+.manual-color, .pf-c > summary { transition: scale 160ms var(--ease); }
+/* Explore's gym cards are narrow: the name gets the whole line and ends in "…", and "Your gym" sits on the photo */
+.gt-sheet.cards .gt-m { position: relative; }
+.gt-sheet.cards .gt-t { flex: 1; }
+.gt-sheet.cards .gt-t strong { display: block; }
+.gt-sheet.cards .gt-t strong em { position: absolute; left: 6px; bottom: 18px; width: 44px; padding: 2px 0; text-align: center; font-size: 9px; box-shadow: 0 1px 4px rgba(17,17,17,.18); }
+.gt-sheet.cards .gt-m::after { width: 14px; height: 14px; margin-left: 0; }
+
+/* picking climbs logged by hand: the tick takes the corner, so the result tag under it steps aside */
+.al-hand:has(> .al-ck) .alh-top .alh-pill + .alh-pill { display: none; }
+
+/* the viewfinder corners and the guide line are only drawn on the camera: taps go through them to the buttons
+   underneath (they were swallowing "Choose a photo" when there's no camera) */
+.cam-fr, .cam-guide { pointer-events: none; }
+.cam-err { z-index: 5; }
+
+/* the pretend camera roll behind "Choose a photo" on a computer: Cancel, Recents, then a tight grid of squares like Photos */
+.ph-roll { margin: 0 -16px; }
+.ph-h { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; padding: 2px 16px 12px; }
+.ph-h button { justify-self: start; color: #2c6595; font-size: 15px; font-weight: 600; }
+.ph-h b { font-size: 16px; font-weight: 800; }
+.ph-h span { justify-self: end; font-size: 12px; color: var(--mid, #6b716d); }
+.ph-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; }
+.ph-grid button { position: relative; aspect-ratio: 1; overflow: hidden; background: #ddd; }
+.ph-grid img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.ph-grid button:active { scale: 1; opacity: .7; }
+.ph-files { display: block; margin: 14px auto 4px; color: #2c6595; font-size: 14px; font-weight: 600; }
+
+/* Find beta: where the beta comes from, beside your photo. On the result card, the beta video's wall; on the beta page, your
+   photo (and, for another wall, the wall the beta is on) */
+.scan-near { flex: none; padding: 3px 8px; border-radius: 999px; background: #373c38; color: #d6dbd7; font-size: 11px; font-weight: 800; letter-spacing: .02em; text-transform: uppercase; }
+.scan-src { display: flex; align-items: center; gap: 10px; margin-top: 8px; padding: 6px; border-radius: 14px; background: rgba(255,255,255,.07); }
+.scan-src img { flex: none; width: 34px; height: 60px; border-radius: 8px; object-fit: cover; }
+.scan-src > span { display: grid; gap: 1px; font-size: 13px; color: #d6dbd7; }
+.scan-src b { color: #fff; font-weight: 800; }
+.phone .b-from { display: flex; align-items: center; gap: 12px; margin: 12px 0 0; padding: 8px 12px 8px 8px; border-radius: 18px; background: #fff; animation: bfIn .42s cubic-bezier(.2, .8, .2, 1) both; }
+.phone .b-from.same { background: #F3FFD0; }
+.b-from .bf-ims { flex: none; display: flex; align-items: center; gap: 4px; }
+.b-from .bf-ims img { width: 38px; height: 68px; border-radius: 9px; object-fit: cover; }
+.b-from .bf-ims i { font-style: normal; font-size: 13px; color: #5d6660; }
+.b-from .row-t strong { font-size: 15px; }
+.b-from .row-t span { font-size: 13px; line-height: 1.35; }
+@keyframes bfIn { from { opacity: 0; transform: translateY(-6px); } }
+@media (prefers-reduced-motion: reduce) { .phone .b-from { animation: none; } }
+/* Leo's video, opened straight from Find beta: your photo above it, and why it's your route */
+.wp-from { display: flex; align-items: center; gap: 10px; margin: 0 0 12px; padding: 6px 12px 6px 6px; border-radius: 14px; background: #F3FFD0; }
+.wp-from img { flex: none; width: 30px; height: 54px; border-radius: 7px; object-fit: cover; }
+.wp-from > span { display: grid; gap: 1px; font-size: 13px; color: #5d6660; }
+.wp-from b { color: #111; font-weight: 800; }
+.wp-go { margin-top: 14px; }
+
+/* the beta, video first: the climb at the top (a key move zooms in on its reach and plays at half speed), the few moves worth
+   knowing under it as cards with the frame at that move */
+/* on the page's own 20px edges, like the headings and rows around it */
+.phone .bv { position: relative; margin: 12px 0 0; border-radius: 22px; overflow: hidden; background: #111; aspect-ratio: 1; }
+.bv-in { position: absolute; left: 0; top: 0; transition: scale .55s cubic-bezier(.2, .8, .2, 1); }
+.bv-in.zoom { scale: 1.9; }
+.bv-in video, .bv-in svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.bv-in video { object-fit: cover; }
+.bv-in svg { pointer-events: none; }
+.bv .scan-tag { z-index: 2; }
+.bk-l { display: grid; gap: 8px; margin: 0; }
+.phone .bk-c { display: flex; align-items: center; gap: 12px; width: 100%; padding: 8px 14px 8px 8px; border-radius: 18px; background: #fff; text-align: left; transition: scale .15s, box-shadow .2s; }
+.phone .bk-c:active { scale: .985; }
+.phone .bk-c[aria-pressed="true"] { box-shadow: 0 0 0 2.5px #111 inset; }
+.bk-i { position: relative; flex: none; width: 64px; height: 78px; border-radius: 12px; overflow: hidden; background: #d9dcd9; }
+.bk-i img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.bk-i img:not([src]) { visibility: hidden; }
+.bk-i b { position: absolute; left: 5px; top: 5px; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 999px; background: #C2FF01; color: #111; font-size: 12px; line-height: 20px; text-align: center; }
+.bk-t { display: grid; gap: 2px; min-width: 0; }
+.bk-t em { font-style: normal; font-size: 12px; font-weight: 700; color: #5d6660; }
+.bk-c.you .bk-t em { color: #C0461B; }
+.bk-t strong { font-size: 15px; font-weight: 800; }
+.bk-d { font-size: 13px; line-height: 1.35; color: #3c433e; }
+@media (prefers-reduced-motion: reduce) { .bv-in { transition: none; } }
+/* the 3:4 box is wider than a phone video: the sides are the same wall, blurred, not grey bars */
+.bv-bg { position: absolute; inset: -24px; width: calc(100% + 48px); height: calc(100% + 48px); object-fit: cover; filter: blur(18px) brightness(.55) saturate(.9); }
+/* the video's controls: a slowed-down move shows "0.5× Whole climb" top right; along the bottom, play, the time bar (key moves
+   marked on it, the move playing as a lighter band) and the time */
+.bv-all { position: absolute; z-index: 2; top: 12px; right: 12px; display: none; align-items: center; gap: 6px; height: 32px; padding: 0 12px 0 4px; border-radius: 999px; background: rgba(17,17,17,.78); color: #fff; font-size: 13px; font-weight: 800; -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
+.bv-all b { padding: 3px 8px; border-radius: 999px; background: #C2FF01; color: #111; font-size: 12px; }
+.bv.slow .bv-all { display: flex; }
+.bv-bar { position: absolute; z-index: 2; left: 0; right: 0; bottom: 0; display: flex; align-items: center; gap: 10px; padding: 28px 14px 10px 8px; background: linear-gradient(transparent, rgba(0,0,0,.55)); }
+.bv-pp { flex: none; display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; }
+.bv-pp i { width: 12px; height: 14px; border-left: 4px solid #fff; border-right: 4px solid #fff; }
+.bv.paused .bv-pp i { width: 0; height: 0; border-style: solid; border-width: 8px 0 8px 13px; border-color: transparent transparent transparent #fff; translate: 2px 0; }
+.bv-tl { position: relative; flex: 1; height: 26px; cursor: pointer; touch-action: none; }
+.bv-tl::before, .bv-fill, .bv-seg { content: ""; position: absolute; left: 0; top: 11px; height: 4px; border-radius: 2px; }
+.bv-tl::before { right: 0; background: rgba(255,255,255,.3); }
+.bv-fill { background: #fff; }
+.bv-seg { background: rgba(194,255,1,.45); }
+.bv-knob { position: absolute; top: 6px; width: 14px; height: 14px; margin-left: -7px; border-radius: 50%; background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,.35); transition: scale .15s; }
+.bv.seeking .bv-knob { scale: 1.25; }
+.bv-mk { position: absolute; top: 8px; width: 10px; height: 10px; margin-left: -5px; border-radius: 50%; background: #C2FF01; box-shadow: 0 0 0 2px #111; z-index: 1; }
+.bv-mk::after { content: ""; position: absolute; inset: -9px; }
+.bv-time { flex: none; min-width: 34px; color: #fff; font-size: 12px; font-weight: 700; text-align: right; }
+
+/* Scan a QR code: a viewfinder that opens on any device. The wall behind, darkened (or the camera, on a phone), four
+   corners to aim with and a line sweeping down; when a code is found the corners turn lime and say so */
+#ask .iscan { position: relative; aspect-ratio: 1; margin: 16px 0 0; border-radius: 22px; overflow: hidden; background: #111; }
+.iscan > img, .iscan > video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.iscan > img { filter: blur(3px) brightness(.5); transform: scale(1.06); }
+.iscan > video { opacity: 0; }
+.iscan.live > video { opacity: 1; }
+.iscan-f { position: absolute; inset: 22%; --c: rgba(255, 255, 255, .92); transition: inset .35s var(--ease), --c .2s;
+  background: linear-gradient(var(--c) 0 0) 0 0 / 28px 4px, linear-gradient(var(--c) 0 0) 0 0 / 4px 28px,
+    linear-gradient(var(--c) 0 0) 100% 0 / 28px 4px, linear-gradient(var(--c) 0 0) 100% 0 / 4px 28px,
+    linear-gradient(var(--c) 0 0) 0 100% / 28px 4px, linear-gradient(var(--c) 0 0) 0 100% / 4px 28px,
+    linear-gradient(var(--c) 0 0) 100% 100% / 28px 4px, linear-gradient(var(--c) 0 0) 100% 100% / 4px 28px;
+  background-repeat: no-repeat; border-radius: 6px; }
+.iscan-l { position: absolute; left: 24%; right: 24%; top: 24%; height: 2px; border-radius: 2px; background: #C2FF01; box-shadow: 0 0 12px 2px rgba(194, 255, 1, .55); animation: iscan 1.8s ease-in-out infinite alternate; }
+@keyframes iscan { to { top: 76%; } }
+.iscan-ok { position: absolute; left: 50%; bottom: 18px; translate: -50% 8px; padding: 7px 14px; border-radius: 999px; background: #C2FF01; color: #111; font-size: 14px; font-weight: 700; white-space: nowrap; opacity: 0; transition: opacity .2s, translate .3s var(--ease); }
+.iscan.found .iscan-f { inset: 26%; --c: #C2FF01; }
+.iscan.found .iscan-l { display: none; }
+.iscan.found .iscan-ok { opacity: 1; translate: -50% 0; }
+@media (prefers-reduced-motion: reduce) { .iscan-l { animation: none; top: 50%; } }
+
+/* Your style: the coaching video is a small link under the tip, not a black button in every row, and the moves past the
+   first two are named in a line */
+.sty .lm-v.sty-lk { margin-top: 2px; padding: 0; background: none; color: var(--ink); font-size: 13px; text-decoration: underline; text-underline-offset: 3px; justify-self: start; }
+.sty .lm-v.sty-lk span { display: none; }
+.sty-more { margin-top: 10px; align-items: center; }
+.sty-more em { font-style: normal; font-size: 13px; font-weight: 600; color: var(--mid); margin-right: 2px; }
+
+/* Your style, on its own page: what stands out under the title, then the rest */
+.sty-lead { margin: 6px 0 0; font-size: 15px; color: var(--mid); }
+
+/* a page that failed to draw: what went wrong, so it can be fixed */
+.pg-err { margin: 16px 0 0; padding: 16px; border-radius: 20px; background: #fff; }
+.pg-err b { font-size: 17px; font-weight: 800; }
+.pg-err p { margin: 6px 0 0; font-size: 14px; }
+.pg-err code { display: block; margin-top: 8px; font-size: 11px; color: var(--mid); word-break: break-all; }
+
+/* Your routes cards: the photo fills the card's top edge to edge, rounded only by the card itself (its own 18px corners
+   showed the card through at the bottom), and is drawn a little larger toward its left so a black band some phone photos
+   carry along their right edge (Orange 5.9's) stays outside the card */
+.vc .vc-i.rc img { border-radius: 0; scale: 1.12; transform-origin: 20% 50%; }
+
+/* the back button stays on screen: as you scroll it floats over the page, a white circle with a soft shadow, and nothing
+   else does. (A solid band of the page's colour behind it was a heavy empty block with a hard edge across the content.)
+   The bar's title fades out while it floats, so words never sit on top of words; its other buttons float like the back one.
+   Not on the dark, full-bleed pages (videos, a climber's hero), which draw their own top */
+.phone:not(.dark, .onvid) .screen:not(.tok-on, .snap, :has(#vshero)) > .m > .bar:first-child { position: sticky; top: 0; z-index: 3; pointer-events: none; }
+.phone:not(.dark, .onvid) .screen:not(.tok-on, .snap, :has(#vshero)) > .m > .bar:first-child > :is(button, a) { pointer-events: auto; transition: background-color .2s, box-shadow .2s; }
+.phone:not(.dark, .onvid) .screen:not(.tok-on, .snap, :has(#vshero)) > .m > .bar:first-child > span { transition: opacity .15s; }
+.phone.scrolled:not(.dark, .onvid) .screen:not(.tok-on, .snap, :has(#vshero)) > .m > .bar:first-child > :is(button, a) { background: rgba(255, 255, 255, .92); box-shadow: 0 2px 10px rgba(17, 17, 17, .12); }
+.phone.scrolled:not(.dark, .onvid) .screen:not(.tok-on, .snap, :has(#vshero)) > .m > .bar:first-child > span { opacity: 0; }

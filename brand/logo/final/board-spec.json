@@ -1,0 +1,35 @@
+{
+  "brand": "Spotter",
+  "tagline": "看清你爬的每一步",
+  "brief": "Spotter 是一个攀岩 app：拍下或导入你的攀爬视频，它读出你身体的每个动作，告诉你哪里要改，并在同一条线路上把你和别人并排对比。用户是 18–35 岁的室内抱石和顶绳岩友。在攀岩里，spotter 就是站在你身后看着你、在你掉下来时护住你的人。",
+  "adjectives": ["专注地看", "在你身后", "精确", "有劲", "友好"],
+  "mockups": ["app-icon", "favicon-tab", "website", "sticker", "tshirt", "social"],
+  "nav": ["分析", "岩馆", "朋友"],
+  "brand_color": "#C2FF01",
+  "tile_color": "#C2FF01",
+  "greyscale": false,
+  "final": true,
+  "round": 2,
+  "designer": "Spotter team",
+  "concepts": [
+    {
+      "name": "螺栓孔岩点",
+      "symbol": "spotter-symbol.svg",
+      "lockup": "spotter-horizontal.svg",
+      "stacked": "spotter-stacked.svg",
+      "symbol_on_tile": "spotter-symbol.svg",
+      "stacked_on_tile": "spotter-stacked.svg",
+      "symbol_on_dark": "export/spotter-symbol-mono-c2ff01.svg",
+      "lockup_on_dark": "spotter-horizontal-on-dark.svg",
+      "stacked_on_dark": "spotter-stacked-on-dark.svg",
+      "idea": "每个岩点上都有一个固定用的螺栓孔；在 Spotter 里，它也是一只看着你爬的眼睛。",
+      "rationale": [
+        "「看着你」就是 spotter 的意思，也是 app 在做的事：读你的每个动作",
+        "来自岩壁本身，却避开了雪山、登山扣、粉笔手印这些攀岩套路",
+        "一个形状、一个孔、一个点：16 px 的标签图标和 app 图标都认得出",
+        "柠檬绿 #C2FF01 和墨黑 #111111 直接取自 app 现在的按钮和文字"
+      ]
+    }
+  ],
+  "recommendation": "这是定稿方向：柠檬绿底的 app 图标最显眼；浅色背景用墨黑，深色背景用柠檬绿岩点配奶白字。"
+}

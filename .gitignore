@@ -6,3 +6,6 @@ tools/out/
 data/
 runs/
 .venv/
+tools/hd-record/node_modules/
+tools/hd-record/profile/
+tools/hd-record/last-take/
